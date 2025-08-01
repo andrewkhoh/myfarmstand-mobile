@@ -1,5 +1,4 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { createContext, useContext, useReducer, useCallback } from 'react';
 import { CartState, CartItem, Product } from '../types';
 
 interface CartContextType extends CartState {
@@ -12,68 +11,89 @@ interface CartContextType extends CartState {
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 type CartAction =
-  | { type: 'SET_CART'; payload: CartItem[] }
   | { type: 'ADD_ITEM'; payload: { product: Product; quantity: number } }
   | { type: 'REMOVE_ITEM'; payload: string }
   | { type: 'UPDATE_QUANTITY'; payload: { productId: string; quantity: number } }
   | { type: 'CLEAR_CART' };
 
+const calculateTotal = (items: CartItem[]): number => {
+  if (!items || items.length === 0) return 0;
+  return items.reduce((total, item) => {
+    const price = item.product?.price || 0;
+    const quantity = item.quantity || 0;
+    return total + (price * quantity);
+  }, 0);
+};
+
 const cartReducer = (state: CartState, action: CartAction): CartState => {
   switch (action.type) {
-    case 'SET_CART':
-      return {
-        items: action.payload,
-        total: calculateTotal(action.payload),
-      };
     case 'ADD_ITEM': {
+      const { product, quantity } = action.payload;
       const existingItemIndex = state.items.findIndex(
-        item => item.product.id === action.payload.product.id
+        item => item.product.id === product.id
       );
       
-      let newItems;
+      let newItems: CartItem[];
       if (existingItemIndex >= 0) {
-        newItems = [...state.items];
-        newItems[existingItemIndex].quantity += action.payload.quantity;
+        // Update existing item
+        newItems = state.items.map((item, index) => 
+          index === existingItemIndex 
+            ? { ...item, quantity: item.quantity + quantity }
+            : item
+        );
       } else {
-        newItems = [...state.items, action.payload];
+        // Add new item
+        newItems = [...state.items, { product, quantity }];
       }
       
+      const newTotal = calculateTotal(newItems);
       return {
         items: newItems,
-        total: calculateTotal(newItems),
+        total: newTotal,
       };
     }
+    
     case 'REMOVE_ITEM': {
       const newItems = state.items.filter(item => item.product.id !== action.payload);
+      const newTotal = calculateTotal(newItems);
       return {
         items: newItems,
-        total: calculateTotal(newItems),
+        total: newTotal,
       };
     }
+    
     case 'UPDATE_QUANTITY': {
-      const newItems = state.items.map(item =>
-        item.product.id === action.payload.productId
-          ? { ...item, quantity: action.payload.quantity }
-          : item
-      ).filter(item => item.quantity > 0);
+      const { productId, quantity } = action.payload;
+      let newItems: CartItem[];
       
+      if (quantity <= 0) {
+        // Remove item if quantity is 0 or negative
+        newItems = state.items.filter(item => item.product.id !== productId);
+      } else {
+        // Update quantity
+        newItems = state.items.map(item =>
+          item.product.id === productId
+            ? { ...item, quantity }
+            : item
+        );
+      }
+      
+      const newTotal = calculateTotal(newItems);
       return {
         items: newItems,
-        total: calculateTotal(newItems),
+        total: newTotal,
       };
     }
+    
     case 'CLEAR_CART':
       return {
         items: [],
         total: 0,
       };
+    
     default:
       return state;
   }
-};
-
-const calculateTotal = (items: CartItem[]): number => {
-  return items.reduce((total, item) => total + (item.product.price * item.quantity), 0);
 };
 
 const initialState: CartState = {
@@ -84,49 +104,21 @@ const initialState: CartState = {
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(cartReducer, initialState);
 
-  useEffect(() => {
-    loadCart();
+  const addItem = useCallback((product: Product, quantity: number = 1) => {
+    dispatch({ type: 'ADD_ITEM', payload: { product, quantity } });
   }, []);
 
-  useEffect(() => {
-    saveCart();
-  }, [state.items]);
-
-  const loadCart = async () => {
-    try {
-      const cartJson = await AsyncStorage.getItem('cart');
-      if (cartJson) {
-        const cartItems = JSON.parse(cartJson);
-        dispatch({ type: 'SET_CART', payload: cartItems });
-      }
-    } catch (error) {
-      console.error('Error loading cart:', error);
-    }
-  };
-
-  const saveCart = async () => {
-    try {
-      await AsyncStorage.setItem('cart', JSON.stringify(state.items));
-    } catch (error) {
-      console.error('Error saving cart:', error);
-    }
-  };
-
-  const addItem = (product: Product, quantity: number = 1) => {
-    dispatch({ type: 'ADD_ITEM', payload: { product, quantity } });
-  };
-
-  const removeItem = (productId: string) => {
+  const removeItem = useCallback((productId: string) => {
     dispatch({ type: 'REMOVE_ITEM', payload: productId });
-  };
+  }, []);
 
-  const updateQuantity = (productId: string, quantity: number) => {
+  const updateQuantity = useCallback((productId: string, quantity: number) => {
     dispatch({ type: 'UPDATE_QUANTITY', payload: { productId, quantity } });
-  };
+  }, []);
 
-  const clearCart = () => {
+  const clearCart = useCallback(() => {
     dispatch({ type: 'CLEAR_CART' });
-  };
+  }, []);
 
   return (
     <CartContext.Provider

@@ -4,9 +4,12 @@ export type RootTabParamList = {
   Cart: undefined;
   Profile: undefined;
   Admin: undefined;
+  TestHub: undefined;
   Test: undefined;
   CatalogTest: undefined;
   DataTest: undefined;
+  EnhancedCatalogTest: undefined;
+  CartFunctionalityTest: undefined;
 };
 
 export type RootStackParamList = {
