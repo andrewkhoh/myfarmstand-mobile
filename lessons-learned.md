@@ -141,10 +141,664 @@ When debugging React state issues:
 - [ ] [Check item 2]
 
 #### Prevention Strategies
-- [Strategy 1]
-- [Strategy 2]
+- Always memoize React context functions with useCallback
+- Use useEffect instead of setTimeout to avoid stale closures
+- Auto-setup test data when cart is empty for self-sufficient tests
+- Follow the Quick Resolution Checklist for similar issues
 
 ---
 
-*Last Updated: 2025-08-01*
-*Increment: 1.5 - Shopping Cart Basic Functionality*
+## Issue 2: Missing Test Screen Integration
+**Date**: 2025-08-02  
+**Increment**: 1.6 - Stock Validation Implementation  
+**Severity**: Medium (Development Workflow)
+
+### Problem Description
+Recurring issue where newly created test screens are not accessible in the app because they're missing from navigation integration. This has happened multiple times across different increments.
+
+### Root Cause Analysis
+Test screen creation involves multiple integration steps that are easy to miss:
+1. Screen file creation ✅ (usually done)
+2. Export in `src/screens/index.ts` ❌ (often missed)
+3. Type definition in `TestStackParamList` ❌ (often missed) 
+4. Navigation integration in `TestStackNavigator.tsx` ❌ (often missed)
+
+**CRITICAL**: Test screens belong in `TestStackNavigator`, NOT `MainTabNavigator`!
+
+### Solution Implemented
+**Complete Test Screen Integration Checklist**:
+1. ✅ Create test screen file (e.g., `StockValidationTestScreen.tsx`)
+2. ✅ Add export to `src/screens/index.ts`
+3. ✅ Add screen type to `TestStackParamList` in `TestStackNavigator.tsx`
+4. ✅ Import screen in `TestStackNavigator.tsx`
+5. ✅ Add `Stack.Screen` component with proper options
+6. ✅ Test navigation via TestHub → Your Test Screen
+7. ✅ Verify screen is accessible through Test tab
+
+### Key Patterns Learned
+
+#### 1. Test Screen Integration Template
+```typescript
+// 1. In src/screens/index.ts
+export { default as NewTestScreen } from './NewTestScreen';
+
+// 2. In src/navigation/TestStackNavigator.tsx
+import { NewTestScreen } from '../screens';
+
+// Add to TestStackParamList:
+export type TestStackParamList = {
+  // ... existing screens
+  NewTest: undefined;
+};
+
+// Add Stack.Screen:
+<Stack.Screen 
+  name="NewTest" 
+  component={NewTestScreen}
+  options={{ title: 'New Test Screen' }}
+/>
+```
+
+#### 2. Verification Steps
+- [ ] Screen file created and exports properly
+- [ ] Export added to index.ts
+- [ ] Type added to TestStackParamList
+- [ ] Screen imported in TestStackNavigator
+- [ ] Stack.Screen component added
+- [ ] Navigation tested via TestHub
+- [ ] Screen accessible through Test tab
+
+#### Prevention Strategies
+- **Integration Checklist**: Always follow the 7-step integration checklist
+- **Immediate Testing**: Test navigation immediately after creating screen
+- **Template Pattern**: Use the integration template for consistency
+- **Documentation**: Document integration steps in each increment summary
+
+#### Quick Resolution Checklist
+1. Check if screen file exists and exports correctly
+2. Verify export in `src/screens/index.ts`
+3. Check type definition in `TestStackParamList`
+4. Verify import in `TestStackNavigator.tsx`
+5. Check `Stack.Screen` component exists
+6. Test navigation via TestHub screen
+7. Verify accessibility through Test tab
+
+---
+
+---
+
+## Issue 3: Async State Management in Testing
+**Date**: 2025-08-02  
+**Increment**: 1.6 - Stock Validation Testing  
+**Severity**: High (Logic Bugs)
+
+### Problem Description
+Stock validation tests revealed critical bugs in cart state management:
+1. Stock validation logic allowing overselling ("Add 2 more apples: UNEXPECTED SUCCESS")
+2. Cart state inconsistency between operations ("Item not found in cart")
+3. Cart totals not updating properly ($0.00 after adding items)
+
+### Root Cause Analysis
+**Primary Issues**:
+1. **State Update Timing**: React state updates are asynchronous, but tests were running synchronously
+2. **Stale State References**: `useCallback` dependencies using stale `state.items` references
+3. **Test Sequence Issues**: Cart state not properly cleared between test scenarios
+4. **Validation Logic Error**: `updateQuantity` was incorrectly calculating quantity differences
+
+### Solution Implemented
+**1. Fixed Update Quantity Logic**:
+```typescript
+// BEFORE (incorrect):
+const validation = validateStock(existingItem.product, quantity - existingItem.quantity, existingItem.quantity);
+
+// AFTER (correct):
+const validation = validateStock(existingItem.product, quantity, 0); // quantity is new total, not additional
+```
+
+**2. Added State Update Delays in Tests**:
+```typescript
+// Clear cart and wait for state update
+clearCart();
+await new Promise(resolve => setTimeout(resolve, 100));
+
+// Add item and wait before next operation
+const result = await addItem(product, 1);
+await new Promise(resolve => setTimeout(resolve, 100));
+```
+
+**3. Enhanced Test Logging**:
+- Added setup step logging for debugging
+- Clear cart state before each test
+- Wait for state updates between operations
+
+### Key Patterns Learned
+
+#### 1. Async State Management Pattern
+```typescript
+// Always allow time for state updates in tests
+const performCartOperation = async () => {
+  clearCart();
+  await new Promise(resolve => setTimeout(resolve, 100)); // State update delay
+  
+  const result = await addItem(product, quantity);
+  await new Promise(resolve => setTimeout(resolve, 100)); // State propagation delay
+  
+  // Now safe to perform next operation
+};
+```
+
+#### 2. Validation Logic Clarity
+```typescript
+// For addItem: validate additional quantity + current quantity
+const validation = validateStock(product, additionalQuantity, currentCartQuantity);
+
+// For updateQuantity: validate new absolute quantity
+const validation = validateStock(product, newTotalQuantity, 0);
+```
+
+#### 3. Test State Management
+- Always clear state before each test
+- Add delays after state-changing operations
+- Log setup steps for debugging
+- Test state consistency explicitly
+
+#### Prevention Strategies
+- **State Update Delays**: Always add delays after React state updates in tests
+- **Explicit State Clearing**: Clear cart state before each test scenario
+- **Validation Logic Testing**: Test edge cases with proper state setup
+- **Async Operation Handling**: Treat all cart operations as async with proper awaiting
+
+#### Quick Resolution Checklist
+1. Check if state updates are properly awaited
+2. Verify cart state is cleared between tests
+3. Validate that quantity calculations are correct (absolute vs relative)
+4. Test with realistic delays for state propagation
+5. Log intermediate states for debugging
+6. Verify useCallback dependencies are current
+7. Test edge cases with proper state setup
+
+### Additional Discovery: Cart State Clearing Bug
+**Problem**: Combined test revealed that `clearCart()` was not working properly in async test sequences. The test showed `"Add regular stock item: FAILED"` when it should have succeeded after clearing the cart.
+
+**Root Cause**: `clearCart()` was synchronous but React state updates are asynchronous. When `clearCart()` was called followed immediately by `addItem()`, the validation still saw the old cart state.
+
+**Solution Applied**:
+```typescript
+// BEFORE (buggy):
+const clearCart = useCallback(() => {
+  dispatch({ type: 'CLEAR_CART' });
+}, []);
+
+// AFTER (fixed):
+const clearCart = useCallback(async (): Promise<void> => {
+  // Immediately update the ref to ensure synchronous clearing
+  stateRef.current = {
+    items: [],
+    total: 0,
+  };
+  
+  // Then dispatch the action for React state
+  dispatch({ type: 'CLEAR_CART' });
+  
+  // Small delay to ensure state propagation
+  await new Promise(resolve => setTimeout(resolve, 50));
+}, []);
+```
+
+**Key Insights**:
+1. **Immediate Ref Update**: Update `stateRef.current` immediately for synchronous clearing
+2. **Async Interface**: Make `clearCart()` async to allow proper awaiting in tests
+3. **State Propagation**: Add small delay to ensure React state catches up
+4. **Test Updates**: All test calls must `await clearCart()` for proper sequencing
+
+**Pattern for State-Clearing Functions**:
+- Update ref immediately for synchronous effect
+- Dispatch action for React state consistency
+- Make function async to allow proper test sequencing
+- Always await state-clearing functions in tests
+
+---
+
+## Increment 1.7: Order Placement - React Query Integration
+
+### Lesson: React Query Integration Patterns
+**Context**: Implementing order submission with React Query mutations and proper error handling.
+
+**Key Patterns Discovered**:
+
+#### 1. Query Client Setup
+```typescript
+// App.tsx - Proper QueryClient configuration
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      retry: 2,
+    },
+    mutations: {
+      retry: 1,
+    },
+  },
+});
+```
+
+#### 2. Mutation with Success/Error Handling
+```typescript
+// Proper mutation pattern with user feedback
+const orderMutation = useMutation({
+  mutationFn: submitOrder,
+  onSuccess: (result) => {
+    if (result.success && result.order) {
+      Alert.alert('Order Submitted!', `Order #${result.order.id} submitted successfully`);
+      clearCart(); // Clear cart on success
+    } else {
+      Alert.alert('Order Failed', result.error || 'Failed to submit order');
+    }
+  },
+  onError: (error) => {
+    Alert.alert('Order Failed', `Error: ${error.message}`);
+  },
+});
+```
+
+#### 3. Loading States and User Feedback
+```typescript
+// Button with loading state
+<TouchableOpacity
+  disabled={orderMutation.isPending}
+  onPress={handleSubmitOrder}
+>
+  {orderMutation.isPending ? (
+    <ActivityIndicator color="#fff" />
+  ) : (
+    <Text>Submit Order</Text>
+  )}
+</TouchableOpacity>
+```
+
+### Lesson: Testing Async State with React Query
+**Problem**: Tests were failing because cart state wasn't properly synchronized before order submission.
+
+**Solution Applied**: Same `useRef` pattern from cart validation tests:
+```typescript
+// Track current state for async operations
+const itemsRef = useRef(items);
+useEffect(() => {
+  itemsRef.current = items;
+}, [items]);
+
+// Use ref in async operations
+const convertCartToOrderItems = (): OrderItem[] => {
+  return itemsRef.current.map(cartItem => ({ /* ... */ }));
+};
+```
+
+**Key Insights**:
+1. **Consistent Patterns**: Same async state management patterns work across different contexts
+2. **Proper Delays**: 200ms delays after cart operations ensure state propagation
+3. **State Validation**: Always validate state before proceeding with async operations
+4. **Debug Logging**: Add cart setup logging to verify state changes
+
+### Lesson: Form Validation Layers
+**Pattern**: Implement both client-side and server-side validation for robust error handling.
+
+**Client-Side Validation**:
+```typescript
+if (!customerInfo.name.trim()) {
+  Alert.alert('Validation Error', 'Please enter your name');
+  return;
+}
+```
+
+**Server-Side Validation**:
+```typescript
+if (!orderRequest.customerInfo.name) {
+  return { success: false, error: 'Missing required customer information' };
+}
+```
+
+**Benefits**:
+- Immediate user feedback (client-side)
+- Data integrity protection (server-side)
+- Graceful error handling at both levels
+
+### Lesson: Mock API Design for Development
+**Pattern**: Create realistic mock APIs that simulate real-world scenarios including failures.
+
+```typescript
+// Simulate occasional failures (5% chance)
+if (Math.random() < 0.05) {
+  return { success: false, error: 'Server error: Unable to process order' };
+}
+```
+
+**Benefits**:
+- Test error handling paths
+- Simulate network delays
+- Validate user experience under various conditions
+- Easy transition to real API later
+
+### Prevention Strategies
+1. **Always use `useRef` for async state operations** in tests and complex flows
+2. **Implement validation at multiple layers** (UI, client, server)
+3. **Add proper loading states** for all async operations
+4. **Test both success and failure scenarios** comprehensively
+5. **Use realistic mock APIs** that simulate real-world conditions
+
+---
+
+*Last Updated: 2025-08-02*
+*Increment: 1.8 - Enhanced Checkout Implementation*
+
+---
+
+## Lesson 8: Enhanced Form Validation Patterns
+
+### Context
+Implementing advanced form validation with real-time feedback, error highlighting, and comprehensive validation messages for the enhanced checkout flow.
+
+### Problem
+Need to provide immediate user feedback for form validation errors while maintaining good UX and preventing submission of invalid data.
+
+### Solution Pattern
+```typescript
+// Multi-layer validation approach
+const [errors, setErrors] = useState<{[key: string]: string}>({});
+const [touched, setTouched] = useState<{[key: string]: boolean}>({});
+
+// Real-time validation with debouncing
+const validateField = useCallback((field: string, value: string) => {
+  const newErrors = { ...errors };
+  
+  switch (field) {
+    case 'email':
+      if (!value.trim()) {
+        newErrors.email = 'Email is required';
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+        newErrors.email = 'Please enter a valid email address';
+      } else {
+        delete newErrors.email;
+      }
+      break;
+    // ... other fields
+  }
+  
+  setErrors(newErrors);
+}, [errors]);
+
+// Input with validation styling
+<TextInput
+  style={[styles.input, errors.email && touched.email && styles.inputError]}
+  onChangeText={(text) => {
+    setCustomerInfo(prev => ({ ...prev, email: text }));
+    if (touched.email) validateField('email', text);
+  }}
+  onBlur={() => {
+    setTouched(prev => ({ ...prev, email: true }));
+    validateField('email', customerInfo.email);
+  }}
+/>
+{errors.email && touched.email && (
+  <Text style={styles.errorText}>{errors.email}</Text>
+)}
+```
+
+### Key Patterns
+1. **Touched State**: Only show errors after user interaction
+2. **Real-time Clearing**: Clear errors as user fixes them
+3. **Visual Feedback**: Error styling on inputs and clear error messages
+4. **Validation Summary**: Show all errors before submission
+5. **Field-specific Validation**: Different rules for different input types
+
+### Prevention Strategies
+- Use consistent validation patterns across all forms
+- Implement debouncing for expensive validations
+- Provide clear, actionable error messages
+- Test validation with edge cases and invalid inputs
+
+---
+
+## Lesson 9: Date/Time Picker Integration
+
+### Context
+Integrating native date/time pickers for pickup order scheduling with proper validation and cross-platform compatibility.
+
+### Problem
+Need to handle date/time selection with validation (no past dates), proper formatting, and platform-specific UI differences.
+
+### Solution Pattern
+```typescript
+import DateTimePicker from '@react-native-community/datetimepicker';
+
+const [showDatePicker, setShowDatePicker] = useState(false);
+const [showTimePicker, setShowTimePicker] = useState(false);
+const [pickupDate, setPickupDate] = useState<Date>(new Date());
+
+// Date validation
+const validatePickupDateTime = (date: Date): string | null => {
+  const now = new Date();
+  const minDate = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour from now
+  
+  if (date < minDate) {
+    return 'Pickup time must be at least 1 hour from now';
+  }
+  return null;
+};
+
+// Date picker handlers
+const onDateChange = (event: any, selectedDate?: Date) => {
+  setShowDatePicker(false);
+  if (selectedDate) {
+    const newDate = new Date(pickupDate);
+    newDate.setFullYear(selectedDate.getFullYear());
+    newDate.setMonth(selectedDate.getMonth());
+    newDate.setDate(selectedDate.getDate());
+    
+    setPickupDate(newDate);
+    const error = validatePickupDateTime(newDate);
+    if (error) {
+      setErrors(prev => ({ ...prev, pickupDateTime: error }));
+    } else {
+      setErrors(prev => ({ ...prev, pickupDateTime: undefined }));
+    }
+  }
+};
+
+// UI Components
+<TouchableOpacity 
+  style={styles.dateTimeButton} 
+  onPress={() => setShowDatePicker(true)}
+>
+  <Text style={styles.dateTimeButtonText}>
+    {pickupDate.toLocaleDateString()}
+  </Text>
+</TouchableOpacity>
+
+{showDatePicker && (
+  <DateTimePicker
+    value={pickupDate}
+    mode="date"
+    display="default"
+    minimumDate={new Date()}
+    onChange={onDateChange}
+  />
+)}
+```
+
+### Key Patterns
+1. **Separate State**: Keep date and time picker states separate
+2. **Validation Integration**: Validate immediately on date/time change
+3. **Minimum Date**: Prevent past date selection
+4. **Format Display**: Show user-friendly date/time formatting
+5. **Platform Handling**: Use native pickers for best UX
+
+### Prevention Strategies
+- Always validate date/time selections
+- Handle timezone considerations for business hours
+- Test on both iOS and Android for UI differences
+- Provide clear visual feedback for selected dates
+
+---
+
+## Lesson 10: Order Confirmation Flow Design
+
+### Context
+Creating a comprehensive order confirmation screen that handles both success and failure states with proper navigation and cart clearing.
+
+### Problem
+Need to provide clear feedback on order status, display order details, handle errors gracefully, and guide users to next actions.
+
+### Solution Pattern
+```typescript
+// Order confirmation screen with route params
+type OrderConfirmationScreenProps = {
+  route: RouteProp<RootStackParamList, 'OrderConfirmation'>;
+  navigation: StackNavigationProp<RootStackParamList, 'OrderConfirmation'>;
+};
+
+const OrderConfirmationScreen: React.FC<OrderConfirmationScreenProps> = ({ route, navigation }) => {
+  const { order, success, error } = route.params;
+  const { clearCart } = useCart();
+  
+  // Clear cart on successful order
+  useEffect(() => {
+    if (success && order) {
+      clearCart();
+    }
+  }, [success, order, clearCart]);
+  
+  const handleContinueShopping = () => {
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'MainTabs' }],
+    });
+  };
+  
+  // Success state
+  if (success && order) {
+    return (
+      <ScrollView style={styles.container}>
+        <View style={styles.successHeader}>
+          <Text style={styles.successIcon}>✅</Text>
+          <Text style={styles.successTitle}>Order Confirmed!</Text>
+          <Text style={styles.orderNumber}>Order #{order.id}</Text>
+        </View>
+        
+        {/* Order details */}
+        <View style={styles.orderDetails}>
+          {/* Customer info, items, totals */}
+        </View>
+        
+        <TouchableOpacity style={styles.continueButton} onPress={handleContinueShopping}>
+          <Text style={styles.continueButtonText}>Continue Shopping</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    );
+  }
+  
+  // Error state
+  return (
+    <View style={styles.errorContainer}>
+      <Text style={styles.errorIcon}>❌</Text>
+      <Text style={styles.errorTitle}>Order Failed</Text>
+      <Text style={styles.errorMessage}>{error}</Text>
+      <TouchableOpacity style={styles.retryButton} onPress={() => navigation.goBack()}>
+        <Text style={styles.retryButtonText}>Try Again</Text>
+      </TouchableOpacity>
+    </View>
+  );
+};
+```
+
+### Key Patterns
+1. **Route Parameters**: Pass order data and status through navigation
+2. **Automatic Cart Clearing**: Clear cart only on successful orders
+3. **Navigation Reset**: Use reset for clean navigation stack
+4. **Dual State Handling**: Separate UI for success and error states
+5. **Clear Actions**: Provide obvious next steps for users
+
+### Prevention Strategies
+- Always handle both success and error states
+- Clear cart only after confirmed successful order
+- Provide retry mechanisms for failed orders
+- Use navigation reset to prevent back button issues
+- Test error scenarios thoroughly
+
+---
+
+## Lesson 11: Comprehensive Testing Patterns for Enhanced Features
+
+### Context
+Creating guided test screens for complex user flows involving multiple form states, validation scenarios, and navigation paths.
+
+### Problem
+Need to test enhanced checkout features systematically including validation, date/time pickers, address input, and order confirmation flows.
+
+### Solution Pattern
+```typescript
+// Guided test screen with scenario-based testing
+const EnhancedCheckoutTestScreen: React.FC = () => {
+  const [testResults, setTestResults] = useState<string[]>([]);
+  const { addItem, clearCart } = useCart();
+  const navigation = useNavigation();
+  
+  // Test scenario setup
+  const testFormValidation = async () => {
+    addTestResult('=== Test 1: Form Validation ===');
+    
+    // Setup test data
+    await clearCart();
+    await addItem(testProduct, 1);
+    
+    addTestResult('📋 Navigate to checkout to test:');
+    addTestResult('  • Empty name validation');
+    addTestResult('  • Invalid email validation');
+    addTestResult('  • Real-time error clearing');
+    
+    // Navigate to actual screen
+    navigation.navigate('Checkout');
+  };
+  
+  // Multiple test scenarios
+  const testScenarios = [
+    { name: 'Form Validation', test: testFormValidation },
+    { name: 'Date/Time Picker', test: testDateTimePicker },
+    { name: 'Delivery Validation', test: testDeliveryValidation },
+    { name: 'Order Confirmation', test: testOrderConfirmation },
+    { name: 'Error Handling', test: testErrorHandling },
+    { name: 'Complete Journey', test: testCompleteJourney },
+  ];
+  
+  return (
+    <ScrollView>
+      {/* Test controls and scenario buttons */}
+      {testScenarios.map((scenario, index) => (
+        <TouchableOpacity key={index} onPress={scenario.test}>
+          <Text>Test {index + 1}: {scenario.name}</Text>
+        </TouchableOpacity>
+      ))}
+      
+      {/* Test instructions and results */}
+      <View style={styles.resultsContainer}>
+        {testResults.map((result, index) => (
+          <Text key={index}>{result}</Text>
+        ))}
+      </View>
+    </ScrollView>
+  );
+};
+```
+
+### Key Patterns
+1. **Scenario-Based Testing**: Organize tests by user scenarios
+2. **Guided Instructions**: Provide step-by-step testing guidance
+3. **Test Data Setup**: Automatically prepare test conditions
+4. **Navigation Integration**: Navigate to actual screens for testing
+5. **Result Tracking**: Log test progress and findings
+
+### Prevention Strategies
+- Create comprehensive test scenarios for all user paths
+- Automate test data setup to ensure consistent conditions
+- Provide clear testing instructions for manual validation
+- Test edge cases and error conditions
+- Document expected vs actual behavior

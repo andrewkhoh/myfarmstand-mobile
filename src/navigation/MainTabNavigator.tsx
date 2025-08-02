@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { View, Text, StyleSheet } from 'react-native';
 import { colors, spacing } from '../utils/theme';
 import { useAuth } from '../contexts/AuthContext';
-import { useCart } from '../contexts/CartContext';
+import { useCart } from '../hooks/useCart';
 import { RootTabParamList } from '../types';
 
 // Import screens
@@ -74,6 +74,7 @@ export const MainTabNavigator: React.FC = () => {
             case 'CartFunctionalityTest':
               iconName = focused ? 'basket' : 'basket-outline';
               break;
+
             default:
               iconName = 'help-outline';
           }
@@ -113,6 +114,7 @@ export const MainTabNavigator: React.FC = () => {
           tabBarBadge: cartItemCount > 0 ? cartItemCount : undefined
         }}
       />
+
       <Tab.Screen 
         name="Profile" 
         component={ProfileScreen}

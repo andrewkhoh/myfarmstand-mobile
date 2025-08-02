@@ -17,6 +17,12 @@ export type RootStackParamList = {
   Login: undefined;
   Register: undefined;
   ProductDetail: { productId: string };
+  Checkout: undefined;
+  OrderConfirmation: {
+    order?: Order;
+    success: boolean;
+    error?: string;
+  };
 };
 
 // User Types
@@ -70,6 +76,10 @@ export interface Product {
   tags?: string[];
   nutritionInfo?: NutritionInfo;
   isActive: boolean;
+  isPreOrder?: boolean; // Pre-order item flag
+  preOrderAvailableDate?: string; // When pre-order item becomes available
+  minPreOrderQuantity?: number; // Minimum quantity for pre-orders
+  maxPreOrderQuantity?: number; // Maximum quantity for pre-orders
   createdAt: string;
   updatedAt: string;
 }
@@ -126,4 +136,58 @@ export interface CartItem {
 export interface CartState {
   items: CartItem[];
   total: number;
+}
+
+// Order Types
+export type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'ready' | 'completed' | 'cancelled';
+export type FulfillmentType = 'pickup' | 'delivery';
+
+export interface CustomerInfo {
+  name: string;
+  email: string;
+  phone: string;
+  address?: string; // Required for delivery orders
+}
+
+export interface OrderItem {
+  productId: string;
+  productName: string;
+  price: number;
+  quantity: number;
+  subtotal: number;
+}
+
+export interface Order {
+  id: string;
+  customerId?: string; // Optional for guest orders
+  customerInfo: CustomerInfo;
+  items: OrderItem[];
+  subtotal: number;
+  tax: number;
+  total: number;
+  fulfillmentType: FulfillmentType;
+  status: OrderStatus;
+  notes?: string;
+  pickupDate?: string; // ISO date string
+  pickupTime?: string; // Time string
+  deliveryAddress?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateOrderRequest {
+  customerInfo: CustomerInfo;
+  items: OrderItem[];
+  fulfillmentType: FulfillmentType;
+  notes?: string;
+  pickupDate?: string;
+  pickupTime?: string;
+  deliveryAddress?: string;
+}
+
+export interface OrderSubmissionResult {
+  success: boolean;
+  order?: Order;
+  message?: string;
+  error?: string;
 }

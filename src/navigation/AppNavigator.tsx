@@ -4,7 +4,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { useAuth } from '../contexts/AuthContext';
 import { Loading } from '../components';
 import { MainTabNavigator } from '../navigation/MainTabNavigator';
-import { LoginScreen, RegisterScreen, ProductDetailScreen } from '../screens';
+import { LoginScreen, RegisterScreen, ProductDetailScreen, CheckoutScreen, OrderConfirmationScreen } from '../screens';
 import { RootStackParamList } from '../types';
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -26,6 +26,16 @@ export const AppNavigator: React.FC = () => {
               name="ProductDetail" 
               component={ProductDetailScreen}
               options={{ headerShown: true, title: 'Product Details' }}
+            />
+            <Stack.Screen 
+              name="Checkout" 
+              component={CheckoutScreen}
+              options={{ headerShown: true, title: 'Checkout' }}
+            />
+            <Stack.Screen 
+              name="OrderConfirmation" 
+              component={OrderConfirmationScreen}
+              options={{ headerShown: true, title: 'Order Confirmation' }}
             />
           </>
         ) : (

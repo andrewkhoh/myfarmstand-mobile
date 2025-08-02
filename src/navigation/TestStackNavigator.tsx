@@ -1,6 +1,17 @@
 import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
-import { TestHubScreen, TestScreen, ProductCatalogTestScreen, DataLayerTestScreen, EnhancedCatalogTestScreen, CartFunctionalityTestScreen } from '../screens';
+import {
+  TestHubScreen,
+  TestScreen,
+  ProductCatalogTestScreen,
+  DataLayerTestScreen,
+  EnhancedCatalogTestScreen,
+  CartFunctionalityTestScreen,
+  StockValidationTestScreen,
+  OrderPlacementTestScreen,
+  EnhancedCheckoutTestScreen,
+  AutomatedTestRunner,
+} from '../screens';
 
 export type TestStackParamList = {
   TestHub: undefined;
@@ -9,6 +20,10 @@ export type TestStackParamList = {
   DataTest: undefined;
   EnhancedCatalogTest: undefined;
   CartFunctionalityTest: undefined;
+  StockValidationTest: undefined;
+  OrderPlacementTest: undefined;
+  EnhancedCheckoutTest: undefined;
+  AutomatedTest: undefined;
 };
 
 const Stack = createStackNavigator<TestStackParamList>();
@@ -55,7 +70,39 @@ export const TestStackNavigator: React.FC = () => {
       <Stack.Screen 
         name="CartFunctionalityTest" 
         component={CartFunctionalityTestScreen}
-        options={{ title: 'Shopping Cart Tests' }}
+        options={{ title: 'Cart Functionality Tests' }}
+      />
+      <Stack.Screen 
+        name="StockValidationTest" 
+        component={StockValidationTestScreen}
+        options={{
+          title: 'Stock Validation Test',
+          headerBackTitle: 'Tests',
+        }}
+      />
+      <Stack.Screen 
+        name="OrderPlacementTest" 
+        component={OrderPlacementTestScreen}
+        options={{
+          title: 'Order Placement Test',
+          headerBackTitle: 'Tests',
+        }}
+      />
+      <Stack.Screen 
+        name="EnhancedCheckoutTest" 
+        component={EnhancedCheckoutTestScreen}
+        options={{
+          title: 'Enhanced Checkout Test',
+          headerBackTitle: 'Tests',
+        }}
+      />
+      <Stack.Screen 
+        name="AutomatedTest" 
+        component={AutomatedTestRunner}
+        options={{
+          title: 'Automated Test Runner',
+          headerBackTitle: 'Tests',
+        }}
       />
     </Stack.Navigator>
   );

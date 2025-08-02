@@ -59,6 +59,38 @@ const testCategories: TestCategory[] = [
     screenName: 'CartFunctionalityTest',
     color: '#F59E0B',
   },
+  {
+    id: 'stock',
+    title: 'Stock Validation',
+    description: 'Stock limits, pre-order validation, and inventory management',
+    icon: 'checkmark-circle-outline',
+    screenName: 'StockValidationTest',
+    color: '#EF4444',
+  },
+  {
+    id: 'order',
+    title: 'Order Placement',
+    description: 'Checkout flow, order submission, and React Query integration',
+    icon: 'receipt-outline',
+    screenName: 'OrderPlacementTest',
+    color: '#8B5CF6',
+  },
+  {
+    id: 'enhanced-checkout',
+    title: 'Enhanced Checkout',
+    description: 'Advanced validation, date/time picker, and order confirmation',
+    icon: 'card-outline',
+    screenName: 'EnhancedCheckoutTest',
+    color: '#F59E0B',
+  },
+  {
+    id: 'automated-tests',
+    title: 'Automated Tests',
+    description: 'In-app automated test runner with pass/fail validation',
+    icon: 'flash-outline',
+    screenName: 'AutomatedTest',
+    color: '#8B5CF6',
+  },
 ];
 
 export const TestHubScreen: React.FC = () => {
@@ -85,10 +117,7 @@ export const TestHubScreen: React.FC = () => {
       >
         <Card 
           variant="elevated" 
-          style={[
-            styles.categoryCard,
-            ...(isSelected ? [styles.selectedCard] : [])
-          ]}
+          style={isSelected ? [styles.categoryCard, styles.selectedCard] : styles.categoryCard}
         >
           <View style={styles.categoryHeader}>
             <View style={[styles.iconContainer, { backgroundColor: category.color + '20' }]}>

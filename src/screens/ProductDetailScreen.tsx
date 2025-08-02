@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, StyleSheet, Image, ScrollView, Alert } from 'react-native';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { Screen, Text, Button, Card } from '../components';
-import { useCart } from '../contexts/CartContext';
+import { useCart } from '../hooks/useCart';
 import { mockProducts } from '../data/mockProducts';
 import { spacing, colors, borderRadius } from '../utils/theme';
 import { Product } from '../types';
@@ -37,9 +37,22 @@ export const ProductDetailScreen: React.FC = () => {
     );
   }
 
-  const handleAddToCart = () => {
-    addItem(product);
-    // You could show a toast here or navigate to cart
+  const handleAddToCart = async () => {
+    const result = await addItem(product);
+    
+    if (!result.success && result.message) {
+      Alert.alert(
+        'Cannot Add to Cart',
+        result.message,
+        [{ text: 'OK', style: 'default' }]
+      );
+    } else if (result.success) {
+      Alert.alert(
+        'Added to Cart',
+        `${product.name} has been added to your cart`,
+        [{ text: 'OK', style: 'default' }]
+      );
+    }
   };
 
   const isOutOfStock = product.stock === 0;

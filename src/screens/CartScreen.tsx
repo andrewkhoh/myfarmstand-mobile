@@ -1,13 +1,18 @@
 import React from 'react';
 import { View, StyleSheet, FlatList, Image, TouchableOpacity, Alert, Text as RNText } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen, Text, Card, Button } from '../components';
-import { useCart } from '../contexts/CartContext';
+import { useCart } from '../hooks/useCart';
 import { spacing, colors, borderRadius } from '../utils/theme';
-import { CartItem } from '../types';
+import { CartItem, RootStackParamList } from '../types';
+
+type CartScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Checkout'>;
 
 export const CartScreen: React.FC = () => {
   const { items, total, updateQuantity, removeItem, clearCart } = useCart();
+  const navigation = useNavigation<CartScreenNavigationProp>();
 
   const handleQuantityChange = (productId: string, newQuantity: number) => {
     if (newQuantity <= 0) {
@@ -178,7 +183,7 @@ export const CartScreen: React.FC = () => {
       
       <Button
         title="Proceed to Checkout"
-        onPress={() => Alert.alert('Checkout', 'Checkout functionality coming in next increment!')}
+        onPress={() => navigation.navigate('Checkout')}
         style={styles.checkoutButton}
         disabled={items.length === 0}
       />

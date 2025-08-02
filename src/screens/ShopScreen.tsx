@@ -1,11 +1,11 @@
-import React, { useState, useMemo } from 'react';
-import { View, StyleSheet, FlatList, TextInput, RefreshControl, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState, useMemo, useCallback } from 'react';
+import { View, StyleSheet, FlatList, TextInput, RefreshControl, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen, Text, Card, Button } from '../components';
 import { ProductCard } from '../components/ProductCard';
-import { useCart } from '../contexts/CartContext';
+import { useCart } from '../hooks/useCart';
 import { mockProducts } from '../data/mockProducts';
 import { spacing, colors, borderRadius } from '../utils/theme';
 import { Product, RootStackParamList } from '../types';
@@ -72,9 +72,16 @@ export const ShopScreen: React.FC = () => {
     navigation.navigate('ProductDetail', { productId: product.id });
   };
 
-  const handleAddToCart = (product: Product) => {
-    addItem(product);
-    // Could show a toast notification here
+  const handleAddToCart = async (product: Product) => {
+    const result = await addItem(product);
+    
+    if (!result.success && result.message) {
+      Alert.alert(
+        'Cannot Add to Cart',
+        result.message,
+        [{ text: 'OK', style: 'default' }]
+      );
+    }
   };
 
   const handleRefresh = async () => {
