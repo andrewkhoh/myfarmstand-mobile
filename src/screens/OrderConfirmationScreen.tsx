@@ -214,11 +214,11 @@ export const OrderConfirmationScreen: React.FC = () => {
             />
           </View>
           
-          <View style={styles.qrDetails}>
+          {/* <View style={styles.qrDetails}>
             <Text style={styles.qrDetailLabel}>Order ID: {order.id}</Text>
             <Text style={styles.qrDetailLabel}>Customer: {order.customerInfo.name}</Text>
             <Text style={styles.qrDetailLabel}>Pickup: {formatDate(order.pickupDate)} at {formatTime(order.pickupTime)}</Text>
-          </View>
+          </View> */}
         </View>
       )}
 

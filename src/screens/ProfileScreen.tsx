@@ -621,6 +621,14 @@ export const ProfileScreen: React.FC = () => {
                     ))}
                   </View>
 
+                  {/* Order Notes Section */}
+                  {selectedOrder.notes && (
+                    <View style={styles.orderDetailSection}>
+                      <Text variant="body" weight="medium" style={styles.modalSectionTitle}>Order Notes</Text>
+                      <Text variant="body" style={styles.notesText}>{selectedOrder.notes}</Text>
+                    </View>
+                  )}
+
                   <View style={styles.orderDetailSection}>
                     <Text variant="body" weight="medium" style={styles.modalSectionTitle}>Order Summary</Text>
                     <View style={styles.summaryRow}>
@@ -879,5 +887,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+  },
+  notesText: {
+    fontStyle: 'italic',
+    color: colors.text.secondary,
+    lineHeight: 20,
   },
 });
