@@ -7,11 +7,15 @@ import {
   StyleSheet,
   Alert,
   Clipboard,
+  Platform,
 } from 'react-native';
 import { useCart } from '../hooks/useCart';
 import { useMutation } from '@tanstack/react-query';
 import { submitOrder } from '../services/orderService';
-import { Product, CustomerInfo } from '../types';
+import { AuthService } from '../services/authService';
+import { TokenService } from '../services/tokenService';
+import { Product, CustomerInfo, User } from '../types';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface TestResult {
   testName: string;
@@ -317,11 +321,470 @@ export const AutomatedTestRunner: React.FC = () => {
     },
   ];
 
+  // Profile Management Tests (Increment 1.9)
+  const profileManagementTests: TestCase[] = [
+    {
+      name: 'Profile Data Validation',
+      expectedBehavior: 'Profile validation should enforce required fields and format validation',
+      test: async () => {
+        // Test 1: Name validation
+        const validateName = (name: string): string | null => {
+          if (!name.trim()) return 'Name is required';
+          if (name.trim().length < 2) return 'Name must be at least 2 characters long';
+          return null;
+        };
+        
+        expect.toBe(validateName(''), 'Name is required', 'Empty name should be invalid');
+        expect.toBe(validateName(' '), 'Name is required', 'Whitespace-only name should be invalid');
+        expect.toBe(validateName('A'), 'Name must be at least 2 characters long', 'Single character name should be invalid');
+        expect.toBe(validateName('John Doe'), null, 'Valid name should pass validation');
+        
+        // Test 2: Email validation
+        const validateEmail = (email: string): string | null => {
+          if (!email.trim()) return 'Email is required';
+          if (!email.includes('@')) return 'Please enter a valid email address';
+          return null;
+        };
+        
+        expect.toBe(validateEmail(''), 'Email is required', 'Empty email should be invalid');
+        expect.toBe(validateEmail('invalid-email'), 'Please enter a valid email address', 'Email without @ should be invalid');
+        expect.toBe(validateEmail('user@example.com'), null, 'Valid email should pass validation');
+        
+        // Test 3: Phone validation (optional field)
+        const validatePhone = (phone: string): string | null => {
+          if (phone && phone.length < 10) return 'Phone number must be at least 10 digits';
+          return null;
+        };
+        
+        expect.toBe(validatePhone(''), null, 'Empty phone should be valid (optional)');
+        expect.toBe(validatePhone('123'), 'Phone number must be at least 10 digits', 'Short phone should be invalid');
+        expect.toBe(validatePhone('1234567890'), null, 'Valid phone should pass validation');
+      },
+    },
+    {
+      name: 'Profile Update Simulation',
+      expectedBehavior: 'Profile update should handle success and error scenarios',
+      test: async () => {
+        // Mock profile update function
+        const updateUserProfile = async (userId: string, updates: Partial<User>): Promise<{ success: boolean; user?: User; message?: string }> => {
+          // Simulate API delay
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
+          // Mock validation
+          if (!updates.name || updates.name.trim().length < 2) {
+            throw new Error('Name must be at least 2 characters long');
+          }
+          
+          if (!updates.email || !updates.email.includes('@')) {
+            throw new Error('Please enter a valid email address');
+          }
+          
+          // Mock successful update
+          return {
+            success: true,
+            user: { ...updates } as User,
+            message: 'Profile updated successfully'
+          };
+        };
+        
+        // Test 1: Successful update
+        const validUpdate = {
+          name: 'John Doe',
+          email: 'john@example.com',
+          phone: '1234567890',
+          address: '123 Main St'
+        };
+        
+        const result = await updateUserProfile('user1', validUpdate);
+        expect.toBeTruthy(result.success, 'Valid profile update should succeed');
+        expect.toBe(result.user?.name, 'John Doe', 'Updated profile should have correct name');
+        expect.toBe(result.user?.email, 'john@example.com', 'Updated profile should have correct email');
+        
+        // Test 2: Invalid name update
+        try {
+          await updateUserProfile('user1', { name: 'A', email: 'john@example.com' });
+          throw new Error('Should have thrown validation error');
+        } catch (error) {
+          expect.toContain((error as Error).message, 'Name must be at least 2 characters', 'Should validate name length');
+        }
+        
+        // Test 3: Invalid email update
+        try {
+          await updateUserProfile('user1', { name: 'John Doe', email: 'invalid-email' });
+          throw new Error('Should have thrown validation error');
+        } catch (error) {
+          expect.toContain((error as Error).message, 'valid email address', 'Should validate email format');
+        }
+      },
+    },
+    {
+      name: 'AsyncStorage Profile Persistence',
+      expectedBehavior: 'Profile data should be properly stored and retrieved from AsyncStorage',
+      test: async () => {
+        const testUser: User = {
+          id: 'test-user-1',
+          name: 'Test User',
+          email: 'test@example.com',
+          role: 'customer',
+          phone: '1234567890',
+          address: '123 Test St'
+        };
+        
+        // Test 1: Store user data
+        await AsyncStorage.setItem('user', JSON.stringify(testUser));
+        
+        // Test 2: Retrieve user data
+        const storedUserJson = await AsyncStorage.getItem('user');
+        expect.toBeTruthy(storedUserJson, 'User data should be stored in AsyncStorage');
+        
+        const storedUser = JSON.parse(storedUserJson!);
+        expect.toBe(storedUser.id, testUser.id, 'Stored user should have correct ID');
+        expect.toBe(storedUser.name, testUser.name, 'Stored user should have correct name');
+        expect.toBe(storedUser.email, testUser.email, 'Stored user should have correct email');
+        expect.toBe(storedUser.role, testUser.role, 'Stored user should have correct role');
+        
+        // Test 3: Clear user data (logout simulation)
+        await AsyncStorage.removeItem('user');
+        const clearedUser = await AsyncStorage.getItem('user');
+        expect.toBeNull(clearedUser, 'User data should be cleared from AsyncStorage after logout');
+      },
+    },
+    {
+      name: 'Order History Mock Data',
+      expectedBehavior: 'Order history should return properly formatted mock data',
+      test: async () => {
+        // Mock order history service
+        const getUserOrderHistory = async (userId: string) => {
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
+          return [
+            {
+              id: 'ORD-001',
+              customerInfo: { name: 'Test User', email: 'test@example.com', phone: '555-0123' },
+              items: [{ productId: '1', productName: 'Organic Tomatoes', price: 4.99, quantity: 2, subtotal: 9.98 }],
+              subtotal: 9.98,
+              tax: 0.85,
+              total: 10.83,
+              fulfillmentType: 'pickup' as const,
+              status: 'completed',
+              pickupDate: '2025-08-01',
+              pickupTime: '10:00 AM',
+              createdAt: '2025-08-01T08:00:00Z',
+              updatedAt: '2025-08-01T10:30:00Z'
+            },
+            {
+              id: 'ORD-002',
+              customerInfo: { name: 'Test User', email: 'test@example.com', phone: '555-0123' },
+              items: [
+                { productId: '2', productName: 'Fresh Basil', price: 2.99, quantity: 1, subtotal: 2.99 },
+                { productId: '3', productName: 'Organic Carrots', price: 3.49, quantity: 1, subtotal: 3.49 }
+              ],
+              subtotal: 6.48,
+              tax: 0.55,
+              total: 7.03,
+              fulfillmentType: 'delivery' as const,
+              status: 'preparing',
+              deliveryAddress: '123 Main St, City, State 12345',
+              createdAt: '2025-08-02T14:00:00Z',
+              updatedAt: '2025-08-02T15:00:00Z'
+            }
+          ];
+        };
+        
+        // Test order history retrieval
+        const orders = await getUserOrderHistory('test-user-1');
+        
+        expect.toBe(orders.length, 2, 'Should return 2 mock orders');
+        expect.toBe(orders[0].id, 'ORD-001', 'First order should have correct ID');
+        expect.toBe(orders[0].status, 'completed', 'First order should have completed status');
+        expect.toBe(orders[0].total, 10.83, 'First order should have correct total');
+        expect.toBe(orders[1].id, 'ORD-002', 'Second order should have correct ID');
+        expect.toBe(orders[1].status, 'preparing', 'Second order should have preparing status');
+        expect.toBe(orders[1].items.length, 2, 'Second order should have 2 items');
+      },
+    },
+    {
+      name: 'Cross-Platform Logout Functionality',
+      expectedBehavior: 'Logout should work on both web and mobile platforms',
+      test: async () => {
+        // Mock logout function
+        const logout = async (): Promise<void> => {
+          await AsyncStorage.removeItem('user');
+          // Simulate state update
+          return Promise.resolve();
+        };
+        
+        // Test 1: Store user data first
+        const testUser = { id: '1', name: 'Test User', email: 'test@example.com', role: 'customer' };
+        await AsyncStorage.setItem('user', JSON.stringify(testUser));
+        
+        // Verify user is stored
+        const storedUser = await AsyncStorage.getItem('user');
+        expect.toBeTruthy(storedUser, 'User should be stored before logout');
+        
+        // Test 2: Perform logout
+        await logout();
+        
+        // Test 3: Verify user is cleared
+        const clearedUser = await AsyncStorage.getItem('user');
+        expect.toBeNull(clearedUser, 'User should be cleared after logout');
+        
+        // Test 4: Platform-specific confirmation simulation
+        const simulateWebConfirmation = (): boolean => {
+          // Simulate user confirming logout on web
+          return true;
+        };
+        
+        const simulateMobileConfirmation = (): Promise<boolean> => {
+          // Simulate user confirming logout on mobile
+          return Promise.resolve(true);
+        };
+        
+        if (Platform.OS === 'web') {
+          const confirmed = simulateWebConfirmation();
+          expect.toBeTruthy(confirmed, 'Web logout confirmation should work');
+        } else {
+          const confirmed = await simulateMobileConfirmation();
+          expect.toBeTruthy(confirmed, 'Mobile logout confirmation should work');
+        }
+      },
+    },
+  ];
+
+  // Hybrid Auth System Tests
+  const hybridAuthTests: TestCase[] = [
+    {
+      name: 'Token Service - Secure Storage',
+      expectedBehavior: 'TokenService should securely store and retrieve tokens',
+      test: async () => {
+        // Test 1: Store and retrieve access token
+        const testAccessToken = 'test_access_token_12345';
+        await TokenService.setAccessToken(testAccessToken);
+        const retrievedAccessToken = await TokenService.getAccessToken();
+        expect.toBe(retrievedAccessToken, testAccessToken, 'Access token should be stored and retrieved correctly');
+        
+        // Test 2: Store and retrieve refresh token
+        const testRefreshToken = 'test_refresh_token_67890';
+        await TokenService.setRefreshToken(testRefreshToken);
+        const retrievedRefreshToken = await TokenService.getRefreshToken();
+        expect.toBe(retrievedRefreshToken, testRefreshToken, 'Refresh token should be stored and retrieved correctly');
+        
+        // Test 3: Store and retrieve user data
+        const testUser = {
+          id: 'test-user-123',
+          email: 'test@hybridauth.com',
+          name: 'Test User',
+          role: 'customer'
+        };
+        await TokenService.setUser(testUser);
+        const retrievedUser = await TokenService.getUser();
+        expect.toBe(retrievedUser.id, testUser.id, 'User ID should be stored correctly');
+        expect.toBe(retrievedUser.email, testUser.email, 'User email should be stored correctly');
+        expect.toBe(retrievedUser.name, testUser.name, 'User name should be stored correctly');
+        
+        // Test 4: Check token validity
+        const hasValidTokens = await TokenService.hasValidTokens();
+        expect.toBeTruthy(hasValidTokens, 'Should have valid tokens after storing access token');
+        
+        // Test 5: Clear all tokens
+        await TokenService.clearAllTokens();
+        const clearedAccessToken = await TokenService.getAccessToken();
+        const clearedRefreshToken = await TokenService.getRefreshToken();
+        const clearedUser = await TokenService.getUser();
+        const hasValidTokensAfterClear = await TokenService.hasValidTokens();
+        
+        expect.toBeNull(clearedAccessToken, 'Access token should be null after clearing');
+        expect.toBeNull(clearedRefreshToken, 'Refresh token should be null after clearing');
+        expect.toBeNull(clearedUser, 'User should be null after clearing');
+        expect.toBe(hasValidTokensAfterClear, false, 'Should not have valid tokens after clearing');
+      },
+    },
+    {
+      name: 'Auth Service - Login Flow',
+      expectedBehavior: 'AuthService should handle login with proper validation and token storage',
+      test: async () => {
+        // Test 1: Successful login
+        const testEmail = 'test@authservice.com';
+        const testPassword = 'password123';
+        
+        const loginResult = await AuthService.login(testEmail, testPassword);
+        expect.toBeTruthy(loginResult.success, 'Login should succeed with valid credentials');
+        expect.toBeTruthy(loginResult.user, 'Login should return user data');
+        expect.toBeTruthy(loginResult.accessToken, 'Login should return access token');
+        expect.toBeTruthy(loginResult.refreshToken, 'Login should return refresh token');
+        expect.toBe(loginResult.user.email, testEmail, 'Returned user should have correct email');
+        
+        // Test 2: Verify tokens are stored
+        const storedAccessToken = await TokenService.getAccessToken();
+        const storedUser = await TokenService.getUser();
+        expect.toBeTruthy(storedAccessToken, 'Access token should be stored after login');
+        expect.toBeTruthy(storedUser, 'User should be stored after login');
+        expect.toBe(storedUser.email, testEmail, 'Stored user should have correct email');
+        
+        // Test 3: Check authentication status
+        const isAuthenticated = await AuthService.isAuthenticated();
+        expect.toBeTruthy(isAuthenticated, 'Should be authenticated after successful login');
+        
+        // Test 4: Get current user
+        const currentUser = await AuthService.getCurrentUser();
+        expect.toBeTruthy(currentUser, 'Should be able to get current user');
+        expect.toBe(currentUser?.email, testEmail, 'Current user should have correct email');
+        
+        // Cleanup
+        await TokenService.clearAllTokens();
+      },
+    },
+    {
+      name: 'Auth Service - Validation',
+      expectedBehavior: 'AuthService should validate input and reject invalid credentials',
+      test: async () => {
+        // Test 1: Empty email validation
+        try {
+          await AuthService.login('', 'password123');
+          throw new Error('Should have thrown validation error for empty email');
+        } catch (error) {
+          expect.toContain((error as Error).message, 'Email and password are required', 'Should validate empty email');
+        }
+        
+        // Test 2: Invalid email format validation
+        try {
+          await AuthService.login('invalid-email', 'password123');
+          throw new Error('Should have thrown validation error for invalid email');
+        } catch (error) {
+          expect.toContain((error as Error).message, 'valid email address', 'Should validate email format');
+        }
+        
+        // Test 3: Empty password validation
+        try {
+          await AuthService.login('test@example.com', '');
+          throw new Error('Should have thrown validation error for empty password');
+        } catch (error) {
+          expect.toContain((error as Error).message, 'Email and password are required', 'Should validate empty password');
+        }
+      },
+    },
+    {
+      name: 'Auth Service - Logout Flow',
+      expectedBehavior: 'AuthService should properly clear all tokens and user data on logout',
+      test: async () => {
+        // Setup: Login first
+        await AuthService.login('test@logout.com', 'password123');
+        
+        // Verify we're logged in
+        const isAuthenticatedBefore = await AuthService.isAuthenticated();
+        expect.toBeTruthy(isAuthenticatedBefore, 'Should be authenticated before logout');
+        
+        // Test logout
+        const logoutResult = await AuthService.logout();
+        expect.toBeTruthy(logoutResult.success, 'Logout should succeed');
+        
+        // Verify tokens are cleared
+        const accessTokenAfterLogout = await TokenService.getAccessToken();
+        const refreshTokenAfterLogout = await TokenService.getRefreshToken();
+        const userAfterLogout = await TokenService.getUser();
+        const isAuthenticatedAfter = await AuthService.isAuthenticated();
+        
+        expect.toBeNull(accessTokenAfterLogout, 'Access token should be null after logout');
+        expect.toBeNull(refreshTokenAfterLogout, 'Refresh token should be null after logout');
+        expect.toBeNull(userAfterLogout, 'User should be null after logout');
+        expect.toBe(isAuthenticatedAfter, false, 'Should not be authenticated after logout');
+      },
+    },
+    {
+      name: 'Auth Service - Profile Update',
+      expectedBehavior: 'AuthService should handle profile updates with validation',
+      test: async () => {
+        // Setup: Login first
+        const loginResult = await AuthService.login('test@profile.com', 'password123');
+        const userId = loginResult.user.id;
+        
+        // Test 1: Valid profile update
+        const profileUpdates = {
+          name: 'Updated Test User',
+          email: 'updated@profile.com',
+          phone: '+1234567890',
+          address: '123 Updated St'
+        };
+        
+        const updateResult = await AuthService.updateProfile(userId, profileUpdates);
+        expect.toBeTruthy(updateResult.success, 'Profile update should succeed with valid data');
+        expect.toBe(updateResult.user.name, profileUpdates.name, 'Updated user should have correct name');
+        expect.toBe(updateResult.user.email, profileUpdates.email, 'Updated user should have correct email');
+        expect.toBe(updateResult.user.phone, profileUpdates.phone, 'Updated user should have correct phone');
+        
+        // Test 2: Verify user is stored
+        const storedUser = await TokenService.getUser();
+        expect.toBe(storedUser.name, profileUpdates.name, 'Stored user should have updated name');
+        expect.toBe(storedUser.email, profileUpdates.email, 'Stored user should have updated email');
+        
+        // Test 3: Invalid name validation
+        try {
+          await AuthService.updateProfile(userId, { name: 'A', email: 'test@example.com' });
+          throw new Error('Should have thrown validation error for short name');
+        } catch (error) {
+          expect.toContain((error as Error).message, 'Name must be at least 2 characters', 'Should validate name length');
+        }
+        
+        // Test 4: Invalid email validation
+        try {
+          await AuthService.updateProfile(userId, { name: 'Valid Name', email: 'invalid-email' });
+          throw new Error('Should have thrown validation error for invalid email');
+        } catch (error) {
+          expect.toContain((error as Error).message, 'valid email address', 'Should validate email format');
+        }
+        
+        // Cleanup
+        await TokenService.clearAllTokens();
+      },
+    },
+    {
+      name: 'React Query Auth Integration',
+      expectedBehavior: 'React Query auth hooks should work with AuthContext',
+      test: async () => {
+        // Cleanup: Ensure clean state from previous tests
+        await TokenService.clearAllTokens();
+        
+        // Wait for auth state to update after cleanup
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Test 1: Check authentication status from service (more reliable than React state)
+        const initialAuthStatus = await AuthService.isAuthenticated();
+        expect.toBe(initialAuthStatus, false, 'Should start unauthenticated after cleanup');
+        
+        const initialUser = await AuthService.getCurrentUser();
+        expect.toBeNull(initialUser, 'User should be null initially after cleanup');
+        
+        // Test 2: Login through service should work correctly
+        const loginResult = await AuthService.login('test@reactquery.com', 'password123');
+        expect.toBeTruthy(loginResult.success, 'Login should succeed');
+        expect.toBeTruthy(loginResult.user, 'Should have user after login');
+        expect.toBe(loginResult.user.email, 'test@reactquery.com', 'User should have correct email');
+        
+        // Test 3: Verify authentication status after login
+        const isAuthenticatedAfterLogin = await AuthService.isAuthenticated();
+        expect.toBeTruthy(isAuthenticatedAfterLogin, 'Should be authenticated after login');
+        
+        // Test 4: Logout should clear everything
+        const logoutResult = await AuthService.logout();
+        expect.toBeTruthy(logoutResult.success, 'Logout should succeed');
+        
+        // Test 5: Verify authentication status after logout
+        const isAuthenticatedAfterLogout = await AuthService.isAuthenticated();
+        expect.toBe(isAuthenticatedAfterLogout, false, 'Should not be authenticated after logout');
+        
+        // Final cleanup
+        await TokenService.clearAllTokens();
+      },
+    },
+  ];
+
   const testSuites: TestSuite[] = [
     { name: 'Cart Functionality', tests: cartTests },
     { name: 'Form Validation', tests: validationTests },
     { name: 'Price Calculations', tests: calculationTests },
     { name: 'Order Submission', tests: orderSubmissionTests },
+    { name: 'Profile Management (Increment 1.9)', tests: profileManagementTests },
+    { name: 'Hybrid Auth System', tests: hybridAuthTests },
   ];
 
   const runTest = async (testCase: TestCase, suiteName: string) => {

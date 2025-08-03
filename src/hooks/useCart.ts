@@ -133,8 +133,13 @@ export const useCart = () => {
     }
   };
 
-  const removeItem = (productId: string): Promise<CartState> => {
-    return removeItemMutation.mutateAsync(productId);
+  const removeItem = async (productId: string): Promise<{ success: boolean; data?: CartState; message?: string }> => {
+    try {
+      const result = await removeItemMutation.mutateAsync(productId);
+      return { success: true, data: result };
+    } catch (error) {
+      return { success: false, message: 'Failed to remove item from cart' };
+    }
   };
 
   const updateQuantity = async (productId: string, quantity: number): Promise<{ success: boolean; message?: string }> => {
@@ -146,8 +151,13 @@ export const useCart = () => {
     }
   };
 
-  const clearCart = (): Promise<CartState> => {
-    return clearCartMutation.mutateAsync();
+  const clearCart = async (): Promise<{ success: boolean; data?: CartState; message?: string }> => {
+    try {
+      const result = await clearCartMutation.mutateAsync();
+      return { success: true, data: result };
+    } catch (error) {
+      return { success: false, message: 'Failed to clear cart' };
+    }
   };
 
   return {

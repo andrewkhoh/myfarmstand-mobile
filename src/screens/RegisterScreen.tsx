@@ -8,10 +8,14 @@ import { spacing } from '../utils/theme';
 export const RegisterScreen: React.FC = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [address, setAddress] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [nameError, setNameError] = useState('');
   const [emailError, setEmailError] = useState('');
+  const [phoneError, setPhoneError] = useState('');
+  const [addressError, setAddressError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [confirmPasswordError, setConfirmPasswordError] = useState('');
   const { register, isLoading } = useAuth();
@@ -22,6 +26,8 @@ export const RegisterScreen: React.FC = () => {
     
     setNameError('');
     setEmailError('');
+    setPhoneError('');
+    setAddressError('');
     setPasswordError('');
     setConfirmPasswordError('');
 
@@ -35,6 +41,19 @@ export const RegisterScreen: React.FC = () => {
       isValid = false;
     } else if (!/\S+@\S+\.\S+/.test(email)) {
       setEmailError('Please enter a valid email');
+      isValid = false;
+    }
+
+    if (!phone.trim()) {
+      setPhoneError('Phone number is required');
+      isValid = false;
+    } else if (phone.length < 10) {
+      setPhoneError('Phone number must be at least 10 digits');
+      isValid = false;
+    }
+    
+    if (!address.trim()) {
+      setAddressError('Address is required');
       isValid = false;
     }
 
@@ -61,7 +80,7 @@ export const RegisterScreen: React.FC = () => {
     if (!validateForm()) return;
 
     try {
-      await register(email, password, name);
+      await register(email, password, name, phone, address);
     } catch (error) {
       Alert.alert('Registration Failed', 'Please try again');
     }
@@ -100,6 +119,25 @@ export const RegisterScreen: React.FC = () => {
             keyboardType="email-address"
             autoCapitalize="none"
             placeholder="Enter your email"
+          />
+
+          <Input
+            label="Phone"
+            value={phone}
+            onChangeText={setPhone}
+            error={phoneError}
+            keyboardType="phone-pad"
+            placeholder="Enter your phone number"
+          />
+
+          <Input
+            label="Address"
+            value={address}
+            onChangeText={setAddress}
+            error={addressError}
+            placeholder="Enter your address"
+            multiline
+            numberOfLines={2}
           />
 
           <Input

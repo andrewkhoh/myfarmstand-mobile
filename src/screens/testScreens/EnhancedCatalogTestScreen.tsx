@@ -4,10 +4,10 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { CompositeNavigationProp } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { Screen, Text, Button, Card } from '../components';
-import { mockProducts } from '../data/mockProducts';
-import { spacing, colors } from '../utils/theme';
-import { RootStackParamList, RootTabParamList } from '../types';
+import { Screen, Text, Button, Card } from '../../components';
+import { mockProducts } from '../../data/mockProducts';
+import { spacing, colors } from '../../utils/theme';
+import { RootStackParamList, RootTabParamList } from '../../types';
 
 type EnhancedCatalogTestNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<RootTabParamList>,

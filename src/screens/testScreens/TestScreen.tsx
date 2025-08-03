@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Alert } from 'react-native';
-import { Screen, Text, Button, Card, Input, Loading, Toast } from '../components';
-import { spacing, colors } from '../utils/theme';
+import { Screen, Text, Button, Card, Input, Loading, Toast } from '../../components';
+import { spacing, colors } from '../../utils/theme';
 
 export const TestScreen: React.FC = () => {
   const [inputValue, setInputValue] = useState('');

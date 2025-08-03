@@ -8,9 +8,9 @@ import {
   Alert,
 } from 'react-native';
 import { useMutation } from '@tanstack/react-query';
-import { useCart } from '../contexts/CartContext';
-import { submitOrder, clearMockOrders } from '../services/orderService';
-import { CreateOrderRequest, CustomerInfo, FulfillmentType, OrderItem } from '../types';
+import { useCart } from '../../contexts/CartContext';
+import { submitOrder, clearMockOrders } from '../../services/orderService';
+import { CreateOrderRequest, CustomerInfo, FulfillmentType, OrderItem } from '../../types';
 
 export const OrderPlacementTestScreen: React.FC = () => {
   const { items, addItem, clearCart } = useCart();

@@ -212,6 +212,19 @@ This document breaks down the Farm Stand React Native app development into incre
 - Add in-app notification display
 - **Test**: Users receive relevant push notifications
 
+#### Increment 2.9: Native QR Code Scanner Enhancement
+**Deliverable**: Production-ready native QR code scanning for staff pickup verification
+- Replace mock QR scanner with native camera-based scanning
+- Implement expo-barcode-scanner with proper native module configuration
+- Add camera permission handling and error recovery
+- Create fallback mechanisms for devices without camera access
+- Enhance QR code validation and security features
+- Add support for multiple QR code formats and error correction
+- Implement offline QR code validation capabilities
+- Create QR code generation improvements (better error correction, custom styling)
+- Add staff training mode for QR scanner usage
+- **Test**: Native QR scanning works reliably across all supported devices
+
 ---
 
 ### Phase 3: Advanced Features (6-8 increments)

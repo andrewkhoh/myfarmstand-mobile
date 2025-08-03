@@ -8,7 +8,7 @@ import { useCart } from '../hooks/useCart';
 import { RootTabParamList } from '../types';
 
 // Import screens
-import { ShopScreen, CartScreen, ProfileScreen, AdminScreen } from '../screens';
+import { ShopScreen, CartScreen, ProfileScreen, AdminScreen, StaffQRScannerScreen } from '../screens';
 import { TestStackNavigator } from './TestStackNavigator';
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
@@ -29,6 +29,7 @@ export const MainTabNavigator: React.FC = () => {
   const { user } = useAuth();
   const { items } = useCart();
   const isAdmin = user?.role === 'admin' || user?.role === 'manager' || user?.role === 'staff';
+  const isStaff = user?.role === 'admin' || user?.role === 'manager' || user?.role === 'staff';
   const cartItemCount = items.reduce((total, item) => total + item.quantity, 0);
 
   return (
@@ -55,6 +56,9 @@ export const MainTabNavigator: React.FC = () => {
               break;
             case 'Admin':
               iconName = focused ? 'settings' : 'settings-outline';
+              break;
+            case 'StaffQRScanner':
+              iconName = focused ? 'qr-code' : 'qr-code-outline';
               break;
             case 'TestHub':
               iconName = focused ? 'flask' : 'flask-outline';
@@ -125,6 +129,13 @@ export const MainTabNavigator: React.FC = () => {
           name="Admin" 
           component={AdminScreen}
           options={{ title: 'Admin' }}
+        />
+      )}
+      {isStaff && (
+        <Tab.Screen 
+          name="StaffQRScanner" 
+          component={StaffQRScannerScreen}
+          options={{ title: 'QR Scanner' }}
         />
       )}
       <Tab.Screen 

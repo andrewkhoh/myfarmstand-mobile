@@ -106,6 +106,41 @@ export const getCustomerOrders = async (customerEmail: string): Promise<Order[]>
   return mockOrders.filter(order => order.customerInfo.email === customerEmail);
 };
 
+// Update order status (for staff QR scanner)
+export const updateOrderStatus = async (orderId: string, newStatus: string): Promise<{ success: boolean; message?: string; order?: Order }> => {
+  // Simulate API delay
+  await new Promise(resolve => setTimeout(resolve, 800));
+  
+  try {
+    const orderIndex = mockOrders.findIndex(order => order.id === orderId);
+    
+    if (orderIndex === -1) {
+      return {
+        success: false,
+        message: 'Order not found'
+      };
+    }
+    
+    // Update the order status
+    mockOrders[orderIndex] = {
+      ...mockOrders[orderIndex],
+      status: newStatus as any,
+      updatedAt: new Date().toISOString()
+    };
+    
+    return {
+      success: true,
+      message: `Order ${orderId} status updated to ${newStatus}`,
+      order: mockOrders[orderIndex]
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: 'Failed to update order status'
+    };
+  }
+};
+
 // Clear mock orders (for testing)
 export const clearMockOrders = (): void => {
   mockOrders = [];

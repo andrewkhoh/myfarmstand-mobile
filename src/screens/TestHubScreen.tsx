@@ -91,6 +91,30 @@ const testCategories: TestCategory[] = [
     screenName: 'AutomatedTest',
     color: '#8B5CF6',
   },
+  {
+    id: 'profile-management',
+    title: 'Profile Management',
+    description: 'User profile editing, validation, and order history',
+    icon: 'person-outline',
+    screenName: 'ProfileManagementTest',
+    color: '#EC4899',
+  },
+  {
+    id: 'staff-qr-scanner',
+    title: 'Staff QR Scanner',
+    description: 'QR code scanning, order verification, and pickup completion',
+    icon: 'qr-code-outline',
+    screenName: 'StaffQRScannerTest',
+    color: '#10B981',
+  },
+  {
+    id: 'hybrid-auth',
+    title: 'Hybrid Auth System',
+    description: 'React Query + AuthContext hybrid authentication testing',
+    icon: 'shield-checkmark-outline',
+    screenName: 'HybridAuthTest',
+    color: '#DC2626',
+  },
 ];
 
 export const TestHubScreen: React.FC = () => {
@@ -117,7 +141,7 @@ export const TestHubScreen: React.FC = () => {
       >
         <Card 
           variant="elevated" 
-          style={isSelected ? [styles.categoryCard, styles.selectedCard] : styles.categoryCard}
+          style={isSelected ? {...styles.categoryCard, ...styles.selectedCard} : styles.categoryCard}
         >
           <View style={styles.categoryHeader}>
             <View style={[styles.iconContainer, { backgroundColor: category.color + '20' }]}>
@@ -224,7 +248,6 @@ const styles = StyleSheet.create({
   },
   selectedCard: {
     backgroundColor: '#F3F4F6',
-    transform: [{ scale: 0.98 }],
   },
   categoryHeader: {
     flexDirection: 'row',

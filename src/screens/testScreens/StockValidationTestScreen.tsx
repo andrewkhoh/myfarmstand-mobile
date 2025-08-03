@@ -9,8 +9,8 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useCart } from '../contexts/CartContext';
-import { Product } from '../types';
+import { useCart } from '../../contexts/CartContext';
+import { Product } from '../../types';
 
 export const StockValidationTestScreen: React.FC = () => {
   const { addItem, updateQuantity, clearCart, items, total } = useCart();

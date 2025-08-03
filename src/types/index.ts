@@ -4,12 +4,16 @@ export type RootTabParamList = {
   Cart: undefined;
   Profile: undefined;
   Admin: undefined;
+  StaffQRScanner: undefined;
   TestHub: undefined;
   Test: undefined;
   CatalogTest: undefined;
   DataTest: undefined;
   EnhancedCatalogTest: undefined;
   CartFunctionalityTest: undefined;
+  ProfileManagementTest: undefined;
+  StaffQRScannerTest: undefined;
+  HybridAuthTest: undefined;
 };
 
 export type RootStackParamList = {

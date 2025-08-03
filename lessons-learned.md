@@ -113,38 +113,68 @@ When debugging React state issues:
 
 ---
 
-## Future Increment Template
+## Increment 1.9: Pickup Date/Time UI Enhancement
 
-### Issue: [Brief Description]
+### Issue: DateTimePicker Modal Overlay & User Experience Problems
 
 #### Problem Summary
-- [What was observed]
-- [Impact on functionality]
+- Native `@react-native-community/datetimepicker` not providing true modal overlay behavior
+- Text visibility issues in picker modals (transparent/invisible text)
+- Complex unified datetime picker causing user confusion
+- Persistent inline error messages cluttering UI
 
 #### Root Causes Identified
-1. **[Cause 1]**
-   - **Cause**: [Technical reason]
-   - **Effect**: [What happened]
-   - **Solution**: [How it was fixed]
 
-#### Quick Resolution Patterns
-```tsx
-// ❌ Wrong
-// [Bad pattern]
+1. **Wrong DateTimePicker Library Choice**
+   - **Cause**: `@react-native-community/datetimepicker` renders inline by default, not as true modal
+   - **Effect**: Pickers appeared within ScrollView instead of hovering over content
+   - **Solution**: Switch to `react-native-modal-datetime-picker` for true modal behavior
 
-// ✅ Correct  
-// [Good pattern]
-```
+2. **Picker Text Visibility Issues**
+   - **Cause**: Default styling in modal picker had transparent or poorly contrasted text
+   - **Effect**: Users couldn't see picker options clearly
+   - **Solution**: Explicit styling with `textColor`, `isDarkModeEnabled={false}`, and background colors
 
-#### Time-Saving Checklist
-- [ ] [Check item 1]
-- [ ] [Check item 2]
+3. **Over-Engineered Unified Picker**
+   - **Cause**: Attempted to combine date and time into single picker with complex state management
+   - **Effect**: Confusing user flow with mode switching and sequential picker behavior
+   - **Solution**: Separate date and time pickers with independent, predictable controls
 
 #### Prevention Strategies
 - Always memoize React context functions with useCallback
 - Use useEffect instead of setTimeout to avoid stale closures
 - Auto-setup test data when cart is empty for self-sufficient tests
 - Follow the Quick Resolution Checklist for similar issues
+
+---
+
+## React Query Migration: Consistent Error Handling Patterns
+
+### Issue: Inconsistent Error Handling in Hook Methods
+**Problem**: Within the same hook (e.g., `useCart`), different methods had inconsistent error handling patterns. Some used try/catch blocks to return standardized `{ success, message }` objects, while others directly returned React Query promises, leading to different error handling experiences for components.
+
+**Root Cause**: During React Query migration, different patterns were applied to different methods without establishing a consistent error handling strategy across all hook methods.
+
+**Solution**: Standardized all hook methods to use the same error handling pattern:
+```typescript
+// Consistent pattern for all methods
+const methodName = async (...params): Promise<{ success: boolean; data?: T; message?: string }> => {
+  try {
+    const result = await mutation.mutateAsync(params);
+    return { success: true, data: result };
+  } catch (error) {
+    return { success: false, message: 'Descriptive error message' };
+  }
+};
+```
+
+**Prevention**: When migrating to React Query or any state management library, establish consistent error handling patterns upfront. Document the standard return types and error handling approach, then apply it uniformly across all methods in the same hook.
+
+**Benefits**: 
+- Predictable API for components consuming the hooks
+- Consistent error handling throughout the application
+- Better type safety and developer experience
+- Easier testing and debugging
 
 ---
 
@@ -802,3 +832,188 @@ const EnhancedCheckoutTestScreen: React.FC = () => {
 - Provide clear testing instructions for manual validation
 - Test edge cases and error conditions
 - Document expected vs actual behavior
+
+---
+
+## Hybrid Authentication System Implementation
+**Date**: 2025-08-03  
+**Increment**: Signout Fix & Hybrid Auth  
+**Severity**: High (Critical Feature)
+
+### Issue: Broken Signout & Authentication Architecture
+
+#### Problem Summary
+- Signout causing "maximum update depth exceeded" infinite render loop on physical devices
+- Need for hybrid authentication combining React Query with AuthContext
+- Missing comprehensive auth testing in automated test runner
+
+#### Root Causes & Solutions
+
+1. **Infinite Render Loop in ProfileScreen**
+   - **Cause**: Unstable `useEffect` dependencies on entire user object
+   - **Effect**: Every user state change triggered re-render → infinite loop
+   - **Solution**: Make dependencies more specific (user?.id, user?.email) instead of entire user object
+
+2. **Non-Memoized AuthContext Functions**
+   - **Cause**: `logout`, `updateUser` functions recreated on every render
+   - **Effect**: Components using these functions re-rendered infinitely
+   - **Solution**: Wrap all AuthContext functions in `useCallback` with proper dependencies
+
+3. **Missing Null Safety Checks**
+   - **Cause**: ProfileScreen didn't handle null user state during logout transition
+   - **Effect**: Attempts to access properties on null user during signout
+   - **Solution**: Add early return `if (!user) return null;` in ProfileScreen
+
+#### Hybrid Auth Architecture Patterns
+
+**Secure Token Storage Service:**
+```typescript
+// Cross-platform secure storage
+class TokenService {
+  // Native: expo-secure-store, Web: AsyncStorage fallback
+  static async setAccessToken(token: string) {
+    if (Platform.OS === 'web') {
+      return AsyncStorage.setItem('accessToken', token);
+    }
+    return SecureStore.setItemAsync('accessToken', token);
+  }
+}
+```
+
+**React Query + AuthContext Integration:**
+```typescript
+// AuthContext provides global state
+const { user, setUser } = useAuth();
+
+// React Query handles operations with optimistic updates
+const { mutateAsync: login } = useLoginMutation({
+  onSuccess: (data) => {
+    setUser(data.user); // Update global state
+  }
+});
+```
+
+**Memoized AuthContext Functions:**
+```typescript
+const logout = useCallback(async () => {
+  try {
+    await TokenService.clearAllTokens();
+    dispatch({ type: 'LOGOUT' });
+  } catch (error) {
+    console.error('Error logging out:', error);
+    throw error;
+  }
+}, []); // Empty dependency array - function never changes
+```
+
+#### Testing Integration Patterns
+
+**Comprehensive Auth Test Suite:**
+- TokenService secure storage tests
+- AuthService login/logout/validation tests
+- React Query integration tests
+- Error handling and edge case tests
+
+**Test Categories Added to AutomatedTestRunner:**
+1. Token Service - Secure Storage
+2. Auth Service - Login Flow
+3. Auth Service - Validation
+4. Auth Service - Logout Flow
+5. Auth Service - Profile Update
+6. React Query Auth Integration
+
+#### Quick Resolution Checklist
+
+**For Infinite Render Loops:**
+1. Check useEffect dependencies - avoid entire objects
+2. Memoize all context functions with useCallback
+3. Add null safety checks in components
+4. **NEVER use React hooks inside test functions** - use service layer only
+5. Use React DevTools Profiler to identify re-render causes
+
+**For Auth System Architecture:**
+1. Separate concerns: React Query for operations, Context for state
+2. Use secure storage (expo-secure-store) for tokens
+3. Implement optimistic updates for better UX
+4. Add comprehensive error handling and validation
+
+**For Test Integration:**
+1. Test the service layer independently first
+2. Add tests to AutomatedTestRunner for continuous validation
+3. Create manual test screens for complex user flows
+4. Include both happy path and error scenarios
+
+#### Prevention Strategies
+
+1. **Always memoize context functions** - prevents 90% of infinite render issues
+2. **Use specific useEffect dependencies** - avoid watching entire objects
+3. **Add null checks early** - handle loading/transition states gracefully
+4. **Test auth flows on physical devices** - web behavior differs from native
+5. **Implement comprehensive test coverage** - both automated and manual testing
+6. **Keep test functions hook-free** - use service layer for testing, never React hooks
+
+#### Critical Test Environment Pattern
+
+**❌ NEVER DO THIS in Test Functions:**
+```typescript
+// This causes infinite render loops!
+export const AutomatedTestRunner: React.FC = () => {
+  const { user, isAuthenticated } = useAuth(); // ❌ Hook in component
+  const authOps = useAuthOperations(); // ❌ Hook in component
+  
+  const tests = [
+    {
+      test: async () => {
+        // ❌ Accessing hook values in test function
+        expect.toBe(isAuthenticated, false);
+        await authOps.login({ email: 'test@example.com' });
+      }
+    }
+  ];
+};
+```
+
+**✅ ALWAYS DO THIS in Test Functions:**
+```typescript
+// This is stable and reliable!
+export const AutomatedTestRunner: React.FC = () => {
+  // Only use hooks that don't change during tests
+  const [testResults, setTestResults] = useState<TestResult[]>([]);
+  
+  const tests = [
+    {
+      test: async () => {
+        // ✅ Use service layer directly
+        const initialAuth = await AuthService.isAuthenticated();
+        expect.toBe(initialAuth, false);
+        
+        const loginResult = await AuthService.login('test@example.com', 'password');
+        expect.toBeTruthy(loginResult.success);
+      }
+    }
+  ];
+};
+```
+
+**Why This Happens:**
+- React hooks create dependencies that trigger re-renders
+- Test functions access hook values during execution
+- Hook value changes trigger component re-render
+- Re-render causes test functions to be recreated
+- New test functions access hook values again → infinite loop
+
+**The Fix:**
+- Use service layer (`AuthService`, `TokenService`) in tests
+- Service layer is stable and doesn't trigger React re-renders
+- Tests become more reliable and isolated
+- No dependency on React component lifecycle
+
+#### Benefits Achieved
+
+- **Security**: Secure token storage with device keychain
+- **Performance**: Optimistic updates for immediate UI feedback
+- **Reliability**: Automatic rollback on errors, proper cache invalidation
+- **Developer Experience**: Comprehensive testing tools and error handling
+- **Backward Compatibility**: Existing screens continue working
+
+This hybrid approach provides the best of both worlds: React Query's powerful data management with React Context's global state accessibility.

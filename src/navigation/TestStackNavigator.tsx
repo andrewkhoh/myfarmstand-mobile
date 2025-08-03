@@ -10,6 +10,9 @@ import {
   StockValidationTestScreen,
   OrderPlacementTestScreen,
   EnhancedCheckoutTestScreen,
+  ProfileManagementTestScreen,
+  StaffQRScannerTestScreen,
+  HybridAuthTestScreen,
   AutomatedTestRunner,
 } from '../screens';
 
@@ -23,6 +26,9 @@ export type TestStackParamList = {
   StockValidationTest: undefined;
   OrderPlacementTest: undefined;
   EnhancedCheckoutTest: undefined;
+  ProfileManagementTest: undefined;
+  StaffQRScannerTest: undefined;
+  HybridAuthTest: undefined;
   AutomatedTest: undefined;
 };
 
@@ -93,6 +99,30 @@ export const TestStackNavigator: React.FC = () => {
         component={EnhancedCheckoutTestScreen}
         options={{
           title: 'Enhanced Checkout Test',
+          headerBackTitle: 'Tests',
+        }}
+      />
+      <Stack.Screen 
+        name="ProfileManagementTest" 
+        component={ProfileManagementTestScreen}
+        options={{
+          title: 'Profile Management Test',
+          headerBackTitle: 'Tests',
+        }}
+      />
+      <Stack.Screen 
+        name="StaffQRScannerTest" 
+        component={StaffQRScannerTestScreen}
+        options={{
+          title: 'Staff QR Scanner Test',
+          headerBackTitle: 'Tests',
+        }}
+      />
+      <Stack.Screen 
+        name="HybridAuthTest" 
+        component={HybridAuthTestScreen}
+        options={{
+          title: 'Hybrid Auth Test',
           headerBackTitle: 'Tests',
         }}
       />

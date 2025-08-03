@@ -1,23 +1,33 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Alert } from 'react-native';
-import { Screen, Text, Button, Card, Loading } from '../components';
-import { useProducts, useCategories, useProduct, useProductSearch } from '../hooks/useProducts';
-import { ProductService } from '../services/productService';
-import { spacing, colors } from '../utils/theme';
+import { Screen, Text, Button, Card, Loading } from '../../components';
+import { useProducts, useCategories, useProduct, useProductSearch } from '../../hooks/useProducts';
+import { ProductService } from '../../services/productService';
+import { spacing, colors } from '../../utils/theme';
 
 export const DataLayerTestScreen: React.FC = () => {
   const [testResults, setTestResults] = useState<string[]>([]);
   const [isRunningTests, setIsRunningTests] = useState(false);
 
-  // Test hooks
-  const { products, loading: productsLoading, error: productsError, refetch: refetchProducts } = useProducts();
-  const { categories, loading: categoriesLoading, error: categoriesError, refetch: refetchCategories } = useCategories();
-  const { product: singleProduct, loading: productLoading, refetch: refetchProduct } = useProduct('1');
-  const { searchResults, loading: searchLoading, searchProducts, clearSearch } = useProductSearch();
+  // Test hooks - using React Query API
+  const { data: products, isLoading: productsLoading, error: productsError, refetch: refetchProducts } = useProducts();
+  const { data: categories, isLoading: categoriesLoading, error: categoriesError, refetch: refetchCategories } = useCategories();
+  const { data: singleProduct, isLoading: productLoading, refetch: refetchProduct } = useProduct('1');
+  const [searchQuery, setSearchQuery] = useState('');
+  const { data: searchResults, isLoading: searchLoading } = useProductSearch(searchQuery);
 
   const addTestResult = (result: string, success: boolean = true) => {
     const icon = success ? '✅' : '❌';
     setTestResults(prev => [...prev, `${icon} ${result}`]);
+  };
+
+  // Search functions to match old API
+  const searchProducts = (query: string) => {
+    setSearchQuery(query);
+  };
+
+  const clearSearch = () => {
+    setSearchQuery('');
   };
 
   const testProductService = async () => {
@@ -108,21 +118,25 @@ export const DataLayerTestScreen: React.FC = () => {
     addTestResult('Testing React Hooks...');
     
     // Test useProducts hook
-    if (products.length > 0) {
+    if (products && products.length > 0) {
       addTestResult(`useProducts hook: ${products.length} products loaded`);
     } else if (productsError) {
-      addTestResult(`useProducts hook error: ${productsError}`, false);
+      addTestResult(`useProducts hook error: ${productsError.message}`, false);
+    } else if (productsLoading) {
+      addTestResult('useProducts hook: Loading...');
     } else {
-      addTestResult('useProducts hook: Loading or no data', false);
+      addTestResult('useProducts hook: No data available', false);
     }
 
     // Test useCategories hook
-    if (categories.length > 0) {
+    if (categories && categories.length > 0) {
       addTestResult(`useCategories hook: ${categories.length} categories loaded`);
     } else if (categoriesError) {
-      addTestResult(`useCategories hook error: ${categoriesError}`, false);
+      addTestResult(`useCategories hook error: ${categoriesError.message}`, false);
+    } else if (categoriesLoading) {
+      addTestResult('useCategories hook: Loading...');
     } else {
-      addTestResult('useCategories hook: Loading or no data', false);
+      addTestResult('useCategories hook: No data available', false);
     }
 
     // Test useProduct hook
@@ -163,7 +177,7 @@ export const DataLayerTestScreen: React.FC = () => {
     addTestResult('Testing useProductSearch hook...');
     
     // First test the current state
-    addTestResult(`Current search results: ${searchResults.length}`);
+    addTestResult(`Current search results: ${searchResults ? searchResults.length : 0}`);
     addTestResult(`Search loading: ${searchLoading}`);
     
     try {
@@ -173,21 +187,22 @@ export const DataLayerTestScreen: React.FC = () => {
       
       // Perform search
       addTestResult('Calling searchProducts("apple")...');
-      await searchProducts('apple');
+      searchProducts('apple');
       
-      // Wait for state to update
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Wait a moment for the search to complete
+      setTimeout(() => {
+        addTestResult(`Search results after 'apple': ${searchResults ? searchResults.length : 0}`);
+        if (searchResults && searchResults.length > 0) {
+          addTestResult(`First result: ${searchResults[0].name}`);
+        }
+        
+        // Test clearing search
+        clearSearch();
+        addTestResult('Search cleared');
+      }, 1000);
       
-      addTestResult(`After search - Results: ${searchResults.length}, Loading: ${searchLoading}`);
-      
-      if (searchResults.length > 0) {
-        addTestResult(`useProductSearch hook: ${searchResults.length} results for "apple"`);
-        addTestResult(`Found: ${searchResults.map(p => p.name).join(', ')}`);
-      } else {
-        addTestResult('useProductSearch hook: No search results in state', false);
-      }
     } catch (error) {
-      addTestResult(`useProductSearch hook error: ${error}`, false);
+      addTestResult(`Search hook error: ${error}`, false);
     }
   };
 
@@ -292,12 +307,13 @@ export const DataLayerTestScreen: React.FC = () => {
         {/* Current Data Status */}
         <Card variant="default" style={styles.section}>
           <Text variant="heading3" style={styles.sectionTitle}>Current Data Status</Text>
-          <Text variant="body">Products loaded: {products.length}</Text>
-          <Text variant="body">Categories loaded: {categories.length}</Text>
+          <Text variant="body">Products loaded: {products ? products.length : 0}</Text>
+          <Text variant="body">Categories loaded: {categories ? categories.length : 0}</Text>
           <Text variant="body">Single product: {singleProduct?.name || 'None'}</Text>
-          <Text variant="body">Search results: {searchResults.length}</Text>
+          <Text variant="body">Search results: {searchResults ? searchResults.length : 0}</Text>
           <Text variant="body">Products loading: {productsLoading ? 'Yes' : 'No'}</Text>
           <Text variant="body">Categories loading: {categoriesLoading ? 'Yes' : 'No'}</Text>
+          <Text variant="body">Search loading: {searchLoading ? 'Yes' : 'No'}</Text>
         </Card>
 
         {/* Test Results */}

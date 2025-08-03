@@ -4,11 +4,11 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { CompositeNavigationProp } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { Screen, Text, Button, Card } from '../components';
-import { useCart } from '../contexts/CartContext';
-import { mockProducts } from '../data/mockProducts';
-import { spacing, colors } from '../utils/theme';
-import { RootStackParamList, RootTabParamList, Product } from '../types';
+import { Screen, Text, Button, Card } from '../../components';
+import { useCart } from '../../contexts/CartContext';
+import { mockProducts } from '../../data/mockProducts';
+import { spacing, colors } from '../../utils/theme';
+import { RootStackParamList, RootTabParamList, Product } from '../../types';
 
 type CartFunctionalityTestNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<RootTabParamList>,

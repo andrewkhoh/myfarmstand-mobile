@@ -13,8 +13,9 @@ import {
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCart } from '../hooks/useCart';
+import { useAuth } from '../contexts/AuthContext';
 import { submitOrder } from '../services/orderService';
 import { CreateOrderRequest, CustomerInfo, FulfillmentType, OrderItem, RootStackParamList } from '../types';
 
@@ -22,15 +23,9 @@ type CheckoutScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Ord
 
 export const CheckoutScreen: React.FC = () => {
   const { items, total, clearCart } = useCart();
+  const { user } = useAuth();
   const navigation = useNavigation<CheckoutScreenNavigationProp>();
-  
-  // Form state
-  const [customerInfo, setCustomerInfo] = useState<CustomerInfo>({
-    name: '',
-    email: '',
-    phone: '',
-    address: '',
-  });
+  const queryClient = useQueryClient();
   
   const [fulfillmentType, setFulfillmentType] = useState<FulfillmentType>('pickup');
   const [notes, setNotes] = useState('');
@@ -109,6 +104,9 @@ export const CheckoutScreen: React.FC = () => {
         // Clear cart first
         await clearCart();
         
+        // Invalidate order history cache so new order appears in profile
+        queryClient.invalidateQueries({ queryKey: ['userOrders'] });
+        
         // Navigate to order confirmation screen
         navigation.navigate('OrderConfirmation', {
           order: result.order,
@@ -147,36 +145,14 @@ export const CheckoutScreen: React.FC = () => {
   const tax = Math.round(subtotal * 0.085 * 100) / 100; // 8.5% tax
   const orderTotal = subtotal + tax;
 
-  // Advanced form validation
+  // Form validation (customer info now comes from user profile)
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
     
-    // Name validation
-    if (!customerInfo.name.trim()) {
-      newErrors.name = 'Name is required';
-    } else if (customerInfo.name.trim().length < 2) {
-      newErrors.name = 'Name must be at least 2 characters';
-    }
-    
-    // Email validation
-    if (!customerInfo.email.trim()) {
-      newErrors.email = 'Email is required';
-    } else {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(customerInfo.email)) {
-        newErrors.email = 'Please enter a valid email address';
-      }
-    }
-    
-    // Phone validation
-    if (!customerInfo.phone.trim()) {
-      newErrors.phone = 'Phone number is required';
-    } else {
-      const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
-      const cleanPhone = customerInfo.phone.replace(/[\s\-\(\)]/g, '');
-      if (!phoneRegex.test(cleanPhone) || cleanPhone.length < 10) {
-        newErrors.phone = 'Please enter a valid phone number';
-      }
+    // Check if user profile is complete (should always be true now)
+    if (!user?.name || !user?.email || !user?.phone || !user?.address) {
+      Alert.alert('Profile Incomplete', 'Please complete your profile before placing an order.');
+      return false;
     }
     
     // Delivery address validation
@@ -226,11 +202,13 @@ export const CheckoutScreen: React.FC = () => {
       return;
     }
 
-    // Create order request
+    // Create order request using user profile data
     const orderRequest: CreateOrderRequest = {
       customerInfo: {
-        ...customerInfo,
-        address: fulfillmentType === 'delivery' ? deliveryAddress : customerInfo.address,
+        name: user!.name,
+        email: user!.email,
+        phone: user!.phone,
+        address: fulfillmentType === 'delivery' ? deliveryAddress : (user!.address || ''),
       },
       items: convertCartToOrderItems(),
       fulfillmentType,
@@ -274,7 +252,11 @@ export const CheckoutScreen: React.FC = () => {
 
   return (
     <>
-    <ScrollView style={styles.container}>
+    <ScrollView 
+      style={styles.container}
+      contentContainerStyle={styles.scrollContent}
+      showsVerticalScrollIndicator={true}
+    >
       <Text style={styles.title}>Checkout</Text>
       
       {/* Order Summary */}
@@ -305,46 +287,7 @@ export const CheckoutScreen: React.FC = () => {
         </View>
       </View>
 
-      {/* Customer Information */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Customer Information</Text>
-        
-        <TextInput
-          style={[styles.input, errors.name && styles.inputError]}
-          placeholder="Full Name *"
-          value={customerInfo.name}
-          onChangeText={(text) => {
-            setCustomerInfo(prev => ({ ...prev, name: text }));
-            clearError('name');
-          }}
-        />
-        {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
-        
-        <TextInput
-          style={[styles.input, errors.email && styles.inputError]}
-          placeholder="Email Address *"
-          value={customerInfo.email}
-          onChangeText={(text) => {
-            setCustomerInfo(prev => ({ ...prev, email: text }));
-            clearError('email');
-          }}
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
-        {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
-        
-        <TextInput
-          style={[styles.input, errors.phone && styles.inputError]}
-          placeholder="Phone Number *"
-          value={customerInfo.phone}
-          onChangeText={(text) => {
-            setCustomerInfo(prev => ({ ...prev, phone: text }));
-            clearError('phone');
-          }}
-          keyboardType="phone-pad"
-        />
-        {errors.phone && <Text style={styles.errorText}>{errors.phone}</Text>}
-      </View>
+
 
       {/* Fulfillment Type */}
       <View style={styles.section}>
@@ -568,6 +511,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 20,
   },
   emptyContainer: {
     flex: 1,

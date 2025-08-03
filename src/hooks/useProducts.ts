@@ -1,312 +1,104 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Product, Category, ListDataState, DataState } from '../types';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Product, Category } from '../types';
 import { ProductService } from '../services/productService';
+
+// Query keys for React Query
+export const productQueryKeys = {
+  all: ['products'] as const,
+  lists: () => [...productQueryKeys.all, 'list'] as const,
+  list: (filters: string) => [...productQueryKeys.lists(), { filters }] as const,
+  details: () => [...productQueryKeys.all, 'detail'] as const,
+  detail: (id: string) => [...productQueryKeys.details(), id] as const,
+  categories: ['categories'] as const,
+  search: (query: string) => ['products', 'search', query] as const,
+  byCategory: (categoryId: string | null) => ['products', 'category', categoryId] as const,
+};
 
 // Hook for fetching all products
 export const useProducts = () => {
-  const [state, setState] = useState<ListDataState<Product>>({
-    data: [],
-    loading: false,
-    error: null,
-    lastFetch: undefined,
-  });
-
-  const fetchProducts = useCallback(async () => {
-    setState(prev => ({ ...prev, loading: true, error: null }));
-    
-    try {
+  return useQuery({
+    queryKey: productQueryKeys.lists(),
+    queryFn: async () => {
       const response = await ProductService.getProducts();
-      
-      if (response.success) {
-        setState({
-          data: response.data,
-          loading: false,
-          error: null,
-          lastFetch: new Date(),
-        });
-      } else {
-        setState(prev => ({
-          ...prev,
-          loading: false,
-          error: response.error || 'Failed to fetch products',
-        }));
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to fetch products');
       }
-    } catch (error) {
-      setState(prev => ({
-        ...prev,
-        loading: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
-      }));
-    }
-  }, []);
-
-  const refetch = useCallback(() => {
-    fetchProducts();
-  }, [fetchProducts]);
-
-  useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
-
-  return {
-    products: state.data,
-    loading: state.loading,
-    error: state.error,
-    lastFetch: state.lastFetch,
-    refetch,
-  };
+      return response.data;
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  });
 };
 
-// Hook for fetching a single product
-export const useProduct = (productId: string | null) => {
-  const [state, setState] = useState<DataState<Product>>({
-    data: null,
-    loading: false,
-    error: null,
-    lastFetch: undefined,
-  });
-
-  const fetchProduct = useCallback(async (id: string) => {
-    setState(prev => ({ ...prev, loading: true, error: null }));
-    
-    try {
-      const response = await ProductService.getProductById(id);
-      
-      if (response.success) {
-        setState({
-          data: response.data,
-          loading: false,
-          error: null,
-          lastFetch: new Date(),
-        });
-      } else {
-        setState(prev => ({
-          ...prev,
-          loading: false,
-          error: response.error || 'Failed to fetch product',
-        }));
+// Hook for fetching single product
+export const useProduct = (productId: string) => {
+  return useQuery({
+    queryKey: productQueryKeys.detail(productId),
+    queryFn: async () => {
+      const response = await ProductService.getProductById(productId);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to fetch product');
       }
-    } catch (error) {
-      setState(prev => ({
-        ...prev,
-        loading: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
-      }));
-    }
-  }, []);
-
-  useEffect(() => {
-    if (productId) {
-      fetchProduct(productId);
-    } else {
-      setState({
-        data: null,
-        loading: false,
-        error: null,
-        lastFetch: undefined,
-      });
-    }
-  }, [productId, fetchProduct]);
-
-  const refetch = useCallback(() => {
-    if (productId) {
-      fetchProduct(productId);
-    }
-  }, [productId, fetchProduct]);
-
-  return {
-    product: state.data,
-    loading: state.loading,
-    error: state.error,
-    lastFetch: state.lastFetch,
-    refetch,
-  };
+      return response.data;
+    },
+    enabled: !!productId,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
 };
 
 // Hook for searching products
-export const useProductSearch = () => {
-  const [state, setState] = useState<ListDataState<Product>>({
-    data: [],
-    loading: false,
-    error: null,
-    lastFetch: undefined,
-  });
-
-  const searchProducts = useCallback(async (query: string) => {
-    if (!query.trim()) {
-      setState({
-        data: [],
-        loading: false,
-        error: null,
-        lastFetch: undefined,
-      });
-      return;
-    }
-
-    setState(prev => ({ ...prev, loading: true, error: null }));
-    
-    try {
+export const useProductSearch = (query: string) => {
+  return useQuery({
+    queryKey: productQueryKeys.search(query),
+    queryFn: async () => {
       const response = await ProductService.searchProducts(query);
-      
-      if (response.success) {
-        setState({
-          data: response.data,
-          loading: false,
-          error: null,
-          lastFetch: new Date(),
-        });
-      } else {
-        setState(prev => ({
-          ...prev,
-          loading: false,
-          error: response.error || 'Search failed',
-        }));
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to search products');
       }
-    } catch (error) {
-      setState(prev => ({
-        ...prev,
-        loading: false,
-        error: error instanceof Error ? error.message : 'Search error occurred',
-      }));
-    }
-  }, []);
-
-  const clearSearch = useCallback(() => {
-    setState({
-      data: [],
-      loading: false,
-      error: null,
-      lastFetch: undefined,
-    });
-  }, []);
-
-  return {
-    searchResults: state.data,
-    loading: state.loading,
-    error: state.error,
-    lastFetch: state.lastFetch,
-    searchProducts,
-    clearSearch,
-  };
+      return response.data;
+    },
+    enabled: !!query && query.length > 0,
+    staleTime: 2 * 60 * 1000, // 2 minutes for search results
+    gcTime: 5 * 60 * 1000,
+  });
 };
 
 // Hook for fetching categories
 export const useCategories = () => {
-  const [state, setState] = useState<ListDataState<Category>>({
-    data: [],
-    loading: false,
-    error: null,
-    lastFetch: undefined,
-  });
-
-  const fetchCategories = useCallback(async () => {
-    setState(prev => ({ ...prev, loading: true, error: null }));
-    
-    try {
+  return useQuery({
+    queryKey: productQueryKeys.categories,
+    queryFn: async () => {
       const response = await ProductService.getCategories();
-      
-      if (response.success) {
-        setState({
-          data: response.data,
-          loading: false,
-          error: null,
-          lastFetch: new Date(),
-        });
-      } else {
-        setState(prev => ({
-          ...prev,
-          loading: false,
-          error: response.error || 'Failed to fetch categories',
-        }));
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to fetch categories');
       }
-    } catch (error) {
-      setState(prev => ({
-        ...prev,
-        loading: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
-      }));
-    }
-  }, []);
-
-  const refetch = useCallback(() => {
-    fetchCategories();
-  }, [fetchCategories]);
-
-  useEffect(() => {
-    fetchCategories();
-  }, [fetchCategories]);
-
-  return {
-    categories: state.data,
-    loading: state.loading,
-    error: state.error,
-    lastFetch: state.lastFetch,
-    refetch,
-  };
+      return response.data;
+    },
+    staleTime: 10 * 60 * 1000, // 10 minutes (categories change less frequently)
+    gcTime: 30 * 60 * 1000, // 30 minutes
+  });
 };
 
 // Hook for fetching products by category
 export const useProductsByCategory = (categoryId: string | null) => {
-  const [state, setState] = useState<ListDataState<Product>>({
-    data: [],
-    loading: false,
-    error: null,
-    lastFetch: undefined,
-  });
-
-  const fetchProductsByCategory = useCallback(async (catId: string) => {
-    setState(prev => ({ ...prev, loading: true, error: null }));
-    
-    try {
-      const response = await ProductService.getProductsByCategory(catId);
-      
-      if (response.success) {
-        setState({
-          data: response.data,
-          loading: false,
-          error: null,
-          lastFetch: new Date(),
-        });
-      } else {
-        setState(prev => ({
-          ...prev,
-          loading: false,
-          error: response.error || 'Failed to fetch products',
-        }));
+  return useQuery({
+    queryKey: productQueryKeys.byCategory(categoryId),
+    queryFn: async () => {
+      if (!categoryId) {
+        throw new Error('Category ID is required');
       }
-    } catch (error) {
-      setState(prev => ({
-        ...prev,
-        loading: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
-      }));
-    }
-  }, []);
-
-  useEffect(() => {
-    if (categoryId) {
-      fetchProductsByCategory(categoryId);
-    } else {
-      setState({
-        data: [],
-        loading: false,
-        error: null,
-        lastFetch: undefined,
-      });
-    }
-  }, [categoryId, fetchProductsByCategory]);
-
-  const refetch = useCallback(() => {
-    if (categoryId) {
-      fetchProductsByCategory(categoryId);
-    }
-  }, [categoryId, fetchProductsByCategory]);
-
-  return {
-    products: state.data,
-    loading: state.loading,
-    error: state.error,
-    lastFetch: state.lastFetch,
-    refetch,
-  };
+      const response = await ProductService.getProductsByCategory(categoryId);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to fetch products by category');
+      }
+      return response.data;
+    },
+    enabled: !!categoryId,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
 };
+
+// Note: Mutation hooks for product management (create/update/delete) can be added
+// when admin features are implemented in the ProductService

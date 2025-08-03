@@ -9,6 +9,7 @@ import {
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
+import QRCode from 'react-native-qrcode-svg';
 import { RootStackParamList, Order } from '../types';
 
 type OrderConfirmationRouteProp = RouteProp<RootStackParamList, 'OrderConfirmation'>;
@@ -33,6 +34,22 @@ export const OrderConfirmationScreen: React.FC = () => {
   const formatTime = (timeString?: string) => {
     if (!timeString) return 'Not specified';
     return timeString;
+  };
+
+  // Generate QR code data for pickup verification
+  const generatePickupQRData = (order: Order): string => {
+    const qrData = {
+      orderId: order.id,
+      customerName: order.customerInfo.name,
+      customerEmail: order.customerInfo.email,
+      customerPhone: order.customerInfo.phone,
+      pickupDate: order.pickupDate,
+      pickupTime: order.pickupTime,
+      total: order.total,
+      status: order.status,
+      timestamp: new Date().toISOString()
+    };
+    return JSON.stringify(qrData);
   };
 
   if (!success && error) {
@@ -84,9 +101,9 @@ export const OrderConfirmationScreen: React.FC = () => {
         </Text>
       </View>
 
-      {/* Order Details */}
+      {/* Order Summary */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Order Details</Text>
+        <Text style={styles.sectionTitle}>Order Summary</Text>
         
         <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>Order ID:</Text>
@@ -98,8 +115,21 @@ export const OrderConfirmationScreen: React.FC = () => {
           <Text style={[styles.detailValue, styles.statusText]}>{order.status.toUpperCase()}</Text>
         </View>
         
-        <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>Total:</Text>
+        {/* Order Items */}
+        <View style={styles.itemsContainer}>
+          <Text style={styles.itemsSubtitle}>Items Ordered:</Text>
+          {order.items.map((item, index) => (
+            <View key={index} style={styles.orderItem}>
+              <Text style={styles.itemName}>{item.productName}</Text>
+              <Text style={styles.itemDetails}>
+                {item.quantity} × ${item.price.toFixed(2)} = ${item.subtotal.toFixed(2)}
+              </Text>
+            </View>
+          ))}
+        </View>
+        
+        <View style={styles.totalRow}>
+          <Text style={styles.totalLabel}>Order Total:</Text>
           <Text style={[styles.detailValue, styles.totalText]}>${order.total.toFixed(2)}</Text>
         </View>
       </View>
@@ -164,34 +194,35 @@ export const OrderConfirmationScreen: React.FC = () => {
         )}
       </View>
 
-      {/* Order Items */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Order Items</Text>
-        
-        {order.items.map((item, index) => (
-          <View key={index} style={styles.orderItem}>
-            <Text style={styles.itemName}>{item.productName}</Text>
-            <Text style={styles.itemDetails}>
-              {item.quantity} × ${item.price.toFixed(2)} = ${item.subtotal.toFixed(2)}
-            </Text>
+      {/* QR Code for Pickup */}
+      {order.fulfillmentType === 'pickup' && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Pickup QR Code</Text>
+          <Text style={styles.qrInstructions}>
+            Show this QR code at pickup for quick verification
+          </Text>
+          
+          <View style={styles.qrContainer}>
+            <QRCode
+              value={generatePickupQRData(order)}
+              size={200}
+              color="#000000"
+              backgroundColor="#ffffff"
+              logo={require('../../assets/icon.png')}
+              logoSize={30}
+              logoBackgroundColor="transparent"
+            />
           </View>
-        ))}
-        
-        <View style={styles.totalsContainer}>
-          <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Subtotal:</Text>
-            <Text style={styles.totalValue}>${order.subtotal.toFixed(2)}</Text>
-          </View>
-          <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Tax:</Text>
-            <Text style={styles.totalValue}>${order.tax.toFixed(2)}</Text>
-          </View>
-          <View style={[styles.totalRow, styles.finalTotal]}>
-            <Text style={styles.finalTotalLabel}>Total:</Text>
-            <Text style={styles.finalTotalValue}>${order.total.toFixed(2)}</Text>
+          
+          <View style={styles.qrDetails}>
+            <Text style={styles.qrDetailLabel}>Order ID: {order.id}</Text>
+            <Text style={styles.qrDetailLabel}>Customer: {order.customerInfo.name}</Text>
+            <Text style={styles.qrDetailLabel}>Pickup: {formatDate(order.pickupDate)} at {formatTime(order.pickupTime)}</Text>
           </View>
         </View>
-      </View>
+      )}
+
+
 
       {/* Action Buttons */}
       <View style={styles.actionContainer}>
@@ -304,6 +335,30 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
   },
+  itemsContainer: {
+    marginTop: 16,
+    marginBottom: 16,
+  },
+  itemsSubtitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 12,
+  },
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderTopWidth: 2,
+    borderTopColor: '#2e7d32',
+    paddingTop: 12,
+    marginTop: 12,
+  },
+  totalLabel: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
   orderItem: {
     paddingVertical: 8,
     borderBottomWidth: 1,
@@ -353,6 +408,39 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: '#2e7d32',
+  },
+  qrInstructions: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 20,
+    fontStyle: 'italic',
+  },
+  qrContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#ffffff',
+    padding: 20,
+    borderRadius: 12,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  qrDetails: {
+    backgroundColor: '#f8f9fa',
+    padding: 15,
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#2e7d32',
+  },
+  qrDetailLabel: {
+    fontSize: 14,
+    color: '#333',
+    marginBottom: 4,
+    fontWeight: '500',
   },
   actionContainer: {
     padding: 20,

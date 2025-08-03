@@ -1,12 +1,14 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import { AuthState, User } from '../types';
+import { TokenService } from '../services/tokenService';
 
 interface AuthContextType extends AuthState {
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string) => Promise<void>;
+  register: (email: string, password: string, name: string, phone: string, address: string) => Promise<void>;
   logout: () => Promise<void>;
   clearUserData: () => Promise<void>;
+  updateUser: (user: User) => void;
+  setUser: (user: User | null) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -53,9 +55,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const checkAuthState = async () => {
     try {
-      const userJson = await AsyncStorage.getItem('user');
-      if (userJson) {
-        const user = JSON.parse(userJson);
+      const user = await TokenService.getUser();
+      if (user) {
         // For development/testing, always use the latest role setting
         const updatedUser = {
           ...user,
@@ -72,14 +73,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Function to clear stored user data for testing
-  const clearUserData = async () => {
+  const clearUserData = useCallback(async () => {
     try {
-      await AsyncStorage.removeItem('user');
+      await TokenService.clearAllTokens();
       dispatch({ type: 'LOGOUT' });
     } catch (error) {
       console.error('Error clearing user data:', error);
     }
-  };
+  }, []);
 
   const login = async (email: string, password: string) => {
     dispatch({ type: 'SET_LOADING', payload: true });
@@ -97,7 +98,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // role: 'customer',
       };
       
-      await AsyncStorage.setItem('user', JSON.stringify(mockUser));
+      // Store user in secure storage
+      await TokenService.setUser(mockUser);
       dispatch({ type: 'SET_USER', payload: mockUser });
     } catch (error) {
       dispatch({ type: 'SET_LOADING', payload: false });
@@ -105,7 +107,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const register = async (email: string, password: string, name: string) => {
+  const register = async (email: string, password: string, name: string, phone: string, address: string) => {
     dispatch({ type: 'SET_LOADING', payload: true });
     
     // Mock registration - replace with actual API call
@@ -116,10 +118,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         id: Date.now().toString(),
         email,
         name,
+        phone,
+        address,
         role: 'customer',
       };
       
-      await AsyncStorage.setItem('user', JSON.stringify(mockUser));
+      await TokenService.setUser(mockUser);
       dispatch({ type: 'SET_USER', payload: mockUser });
     } catch (error) {
       dispatch({ type: 'SET_LOADING', payload: false });
@@ -127,14 +131,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
-      await AsyncStorage.removeItem('user');
+      await TokenService.clearAllTokens();
       dispatch({ type: 'LOGOUT' });
     } catch (error) {
       console.error('Error logging out:', error);
+      throw error; // Re-throw to let the caller handle it
     }
-  };
+  }, []);
+
+  const updateUser = useCallback((user: User) => {
+    dispatch({ type: 'SET_USER', payload: user });
+    // Persist updated user to secure storage
+    TokenService.setUser(user).catch((error: Error) => {
+      console.error('Error saving updated user:', error);
+    });
+  }, []);
+
+  // Simple setter for React Query integration
+  const setUser = useCallback((user: User | null) => {
+    if (user) {
+      dispatch({ type: 'SET_USER', payload: user });
+    } else {
+      dispatch({ type: 'LOGOUT' });
+    }
+  }, []);
 
   return (
     <AuthContext.Provider
@@ -144,6 +166,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         register,
         logout,
         clearUserData,
+        updateUser,
+        setUser,
       }}
     >
       {children}
