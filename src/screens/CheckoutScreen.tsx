@@ -10,7 +10,7 @@ import {
   StyleSheet,
   Platform,
 } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useMutation } from '@tanstack/react-query';
@@ -36,7 +36,7 @@ export const CheckoutScreen: React.FC = () => {
   const [notes, setNotes] = useState('');
   const [deliveryAddress, setDeliveryAddress] = useState('');
   
-  // Date/Time picker state for pickup with smart default (tomorrow 10AM)
+  // Simplified separate date and time state with smart defaults
   const getDefaultPickupDateTime = () => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -58,11 +58,10 @@ export const CheckoutScreen: React.FC = () => {
 
   // Helper functions for pickup date/time
   const setPickupToPreset = (day: 'today' | 'tomorrow', time: string) => {
-    const now = new Date();
     const targetDate = new Date();
     
     if (day === 'tomorrow') {
-      targetDate.setDate(now.getDate() + 1);
+      targetDate.setDate(targetDate.getDate() + 1);
     }
     
     const [hours, minutes] = time.split(':').map(Number);
@@ -99,14 +98,7 @@ export const CheckoutScreen: React.FC = () => {
     
     if (dateStr === todayStr) return 'Today';
     if (dateStr === tomorrowStr) return 'Tomorrow';
-    
-    const diffTime = date.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    if (diffDays === 2) return 'Day after tomorrow';
-    if (diffDays <= 7) return `In ${diffDays} days`;
-    
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return '';
   };
 
   // React Query mutation for order submission
@@ -220,7 +212,17 @@ export const CheckoutScreen: React.FC = () => {
   // Handle order submission
   const handleSubmitOrder = () => {
     if (!validateForm()) {
-      Alert.alert('Validation Error', 'Please fix the errors below and try again.');
+      // Create user-friendly error message
+      const errorMessages = Object.values(errors).filter(msg => msg.length > 0);
+      const errorText = errorMessages.length > 0 
+        ? errorMessages.join('\n• ') 
+        : 'Please check your information and try again.';
+      
+      Alert.alert(
+        'Please Complete Required Fields',
+        `• ${errorText}`,
+        [{ text: 'OK', style: 'default' }]
+      );
       return;
     }
 
@@ -242,29 +244,16 @@ export const CheckoutScreen: React.FC = () => {
     orderMutation.mutate(orderRequest);
   };
   
-  // Date/Time picker handlers with sequential flow for both platforms
-  const handleDateChange = (event: any, selectedDate?: Date) => {
-    // Close date picker
+  // Modal picker handlers
+  const handleDateConfirm = (selectedDate: Date) => {
+    setPickupDate(selectedDate);
+    setErrors(prev => ({ ...prev, pickupDate: '' }));
     setShowDatePicker(false);
-    
-    if (selectedDate) {
-      setPickupDate(selectedDate);
-      setErrors(prev => ({ ...prev, pickupDate: '' }));
-      
-      // Automatically show time picker after date selection (both platforms)
-      setTimeout(() => {
-        setShowTimePicker(true);
-      }, Platform.OS === 'ios' ? 300 : 100);
-    }
   };
   
-  const handleTimeChange = (event: any, selectedTime?: Date) => {
-    // Close time picker
+  const handleTimeConfirm = (selectedTime: Date) => {
+    setPickupTime(selectedTime);
     setShowTimePicker(false);
-    
-    if (selectedTime) {
-      setPickupTime(selectedTime);
-    }
   };
   
   // Clear specific error when user starts typing
@@ -284,6 +273,7 @@ export const CheckoutScreen: React.FC = () => {
   }
 
   return (
+    <>
     <ScrollView style={styles.container}>
       <Text style={styles.title}>Checkout</Text>
       
@@ -421,29 +411,50 @@ export const CheckoutScreen: React.FC = () => {
               </View>
             </View>
             
-            {/* Combined Date/Time Display */}
-            <View style={styles.dateTimeContainer}>
-              <Text style={styles.selectedDateTimeLabel}>Selected Pickup Time:</Text>
+            {/* Pickup Date Selection */}
+            <View style={styles.dateSelectionContainer}>
+              <Text style={styles.dateSelectionLabel}>Pickup Date:</Text>
               <TouchableOpacity
-                style={[styles.combinedDateTimeButton, errors.pickupDate && styles.inputError]}
+                style={[styles.dateButton, errors.pickupDate && styles.inputError]}
                 activeOpacity={0.7}
                 onPress={() => {
-                  console.log('📅 Edit button pressed - opening date picker');
                   setShowDatePicker(true);
                   clearError('pickupDate');
                 }}
               >
-                <View style={styles.dateTimeDisplay}>
-                  <Text style={styles.dateTimeMainText}>
-                    {formatPickupDateTime(pickupDate, pickupTime)}
-                  </Text>
-                  <Text style={styles.dateTimeSubText}>
-                    {getRelativeDateText(pickupDate)}
-                  </Text>
-                </View>
+                <Text style={styles.dateButtonText}>
+                  {pickupDate.toLocaleDateString('en-US', { 
+                    weekday: 'long', 
+                    month: 'short', 
+                    day: 'numeric' 
+                  })}
+                  {getRelativeDateText(pickupDate) && (
+                    <Text style={styles.relativeDateText}> ({getRelativeDateText(pickupDate)})</Text>
+                  )}
+                </Text>
                 <Text style={styles.editIcon}>✏️</Text>
               </TouchableOpacity>
               {errors.pickupDate && <Text style={styles.errorText}>{errors.pickupDate}</Text>}
+            </View>
+            
+            {/* Pickup Time Selection */}
+            <View style={styles.timeSelectionContainer}>
+              <Text style={styles.timeSelectionLabel}>Pickup Time:</Text>
+              <TouchableOpacity
+                style={styles.timeButton}
+                onPress={() => {
+                  setShowTimePicker(true);
+                }}
+              >
+                <Text style={styles.timeButtonText}>
+                  {pickupTime.toLocaleTimeString('en-US', { 
+                    hour: 'numeric', 
+                    minute: '2-digit',
+                    hour12: true 
+                  })}
+                </Text>
+                <Text style={styles.editIcon}>✏️</Text>
+              </TouchableOpacity>
             </View>
             
             {/* Store Hours Info */}
@@ -453,24 +464,6 @@ export const CheckoutScreen: React.FC = () => {
               </Text>
             </View>
             
-            {showDatePicker && (
-              <DateTimePicker
-                value={pickupDate}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'compact' : 'default'}
-                minimumDate={new Date()}
-                onChange={handleDateChange}
-              />
-            )}
-            
-            {showTimePicker && (
-              <DateTimePicker
-                value={pickupTime}
-                mode="time"
-                display={Platform.OS === 'ios' ? 'compact' : 'default'}
-                onChange={handleTimeChange}
-              />
-            )}
           </View>
         )}
         
@@ -510,21 +503,7 @@ export const CheckoutScreen: React.FC = () => {
         />
       </View>
       
-      {/* General Errors */}
-      {(errors.cart || Object.keys(errors).length > 0) && (
-        <View style={styles.section}>
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorTitle}>⚠️ Please fix the following issues:</Text>
-            {errors.cart && <Text style={styles.errorText}>• {errors.cart}</Text>}
-            {Object.entries(errors)
-              .filter(([key]) => key !== 'cart')
-              .map(([key, message]) => (
-                <Text key={key} style={styles.errorText}>• {message}</Text>
-              ))
-            }
-          </View>
-        </View>
-      )}
+
 
       {/* Submit Button */}
       <TouchableOpacity
@@ -543,6 +522,45 @@ export const CheckoutScreen: React.FC = () => {
       
       <View style={styles.bottomSpacing} />
     </ScrollView>
+    
+    {/* Modal Date/Time Pickers */}
+    <DateTimePickerModal
+      isVisible={showDatePicker}
+      mode="date"
+      date={pickupDate}
+      minimumDate={new Date()}
+      onConfirm={handleDateConfirm}
+      onCancel={() => setShowDatePicker(false)}
+      isDarkModeEnabled={false}
+      textColor="#000000"
+      accentColor="#2e7d32"
+      buttonTextColorIOS="#2e7d32"
+      modalPropsIOS={{
+        supportedOrientations: ['portrait'],
+      }}
+      pickerContainerStyleIOS={{
+        backgroundColor: '#ffffff',
+      }}
+    />
+    
+    <DateTimePickerModal
+      isVisible={showTimePicker}
+      mode="time"
+      date={pickupTime}
+      onConfirm={handleTimeConfirm}
+      onCancel={() => setShowTimePicker(false)}
+      isDarkModeEnabled={false}
+      textColor="#000000"
+      accentColor="#2e7d32"
+      buttonTextColorIOS="#2e7d32"
+      modalPropsIOS={{
+        supportedOrientations: ['portrait'],
+      }}
+      pickerContainerStyleIOS={{
+        backgroundColor: '#ffffff',
+      }}
+    />
+  </>
   );
 };
 
@@ -798,6 +816,69 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     paddingHorizontal: 4,
     paddingVertical: 4,
+  },
+  pickerHelperText: {
+    fontSize: 12,
+    color: '#2e7d32',
+    fontStyle: 'italic',
+    marginTop: 8,
+    textAlign: 'center',
+    backgroundColor: '#f0f8f0',
+    padding: 8,
+    borderRadius: 4,
+  },
+  timeSelectionContainer: {
+    marginBottom: 15,
+  },
+  timeSelectionLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 8,
+    fontWeight: '500',
+  },
+  timeButton: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  timeButtonText: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '500',
+  },
+  dateSelectionContainer: {
+    marginBottom: 15,
+  },
+  dateSelectionLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 8,
+    fontWeight: '500',
+  },
+  dateButton: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  dateButtonText: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '500',
+  },
+  relativeDateText: {
+    fontSize: 14,
+    color: '#2e7d32',
+    fontWeight: '500',
   },
   storeHoursInfo: {
     backgroundColor: '#f8f9fa',
