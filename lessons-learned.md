@@ -1017,3 +1017,234 @@ export const AutomatedTestRunner: React.FC = () => {
 - **Backward Compatibility**: Existing screens continue working
 
 This hybrid approach provides the best of both worlds: React Query's powerful data management with React Context's global state accessibility.
+
+---
+
+## Issue 8: AuthContext Infinite Loop & React Query Migration
+**Date**: 2025-08-03  
+**Increment**: Auth System Migration  
+**Severity**: Critical (App Breaking)
+
+### Problem Summary
+App experiencing "Maximum update depth exceeded" infinite render loops in authentication system, making the app unusable. The issue was caused by circular dependencies between React Query hooks and AuthContext.
+
+### Root Cause Analysis
+
+#### Primary Issue: Circular State Dependencies
+```tsx
+// ❌ PROBLEMATIC PATTERN - Circular Dependencies
+// React Query hooks calling AuthContext functions
+export const useLoginMutation = () => {
+  const { setUser } = useAuth(); // AuthContext hook
+  return useMutation({
+    mutationFn: authService.login,
+    onSuccess: (data) => {
+      setUser(data.user); // Triggers AuthContext state change
+      queryClient.setQueryData(['currentUser'], data.user); // Triggers React Query
+    }
+  });
+};
+
+// AuthContext responding to React Query changes
+const AuthProvider = ({ children }) => {
+  const { data: user } = useCurrentUser(); // React Query hook
+  useEffect(() => {
+    if (user) {
+      dispatch({ type: 'SET_USER', payload: user }); // Triggers AuthContext change
+    }
+  }, [user]); // Creates infinite loop!
+};
+```
+
+#### Secondary Issues
+1. **Hybrid State Management**: Two sources of truth (AuthContext + React Query)
+2. **Un-memoized Context Functions**: Functions recreated on every render
+3. **Improper useEffect Dependencies**: Caused re-initialization loops
+
+### Solution: Pure React Query Migration
+
+#### Step 1: Break Circular Dependencies
+```tsx
+// ✅ CORRECT PATTERN - Pure React Query Hooks
+export const useLoginMutation = () => {
+  return useMutation({
+    mutationFn: authService.login,
+    onSuccess: (data) => {
+      // Only update React Query cache - no AuthContext calls
+      queryClient.setQueryData(['currentUser'], data.user);
+      queryClient.invalidateQueries({ queryKey: ['currentUser'] });
+    }
+  });
+};
+
+export const useCurrentUser = () => {
+  return useQuery({
+    queryKey: ['currentUser'],
+    queryFn: authService.getCurrentUser,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+};
+```
+
+#### Step 2: Migrate All Components to React Query
+```tsx
+// Before: AuthContext dependency
+const ProfileScreen = () => {
+  const { user, logout, updateUser } = useAuth(); // AuthContext
+  // ...
+};
+
+// ✅ After: Pure React Query
+const ProfileScreen = () => {
+  const { data: user, isLoading, error } = useCurrentUser();
+  const logoutMutation = useLogoutMutation();
+  const updateProfileMutation = useUpdateProfileMutation();
+  // ...
+};
+```
+
+#### Step 3: Proper Logout Sequence
+```tsx
+export const useLogoutMutation = () => {
+  return useMutation({
+    mutationFn: authService.logout,
+    onSuccess: () => {
+      // Critical: Set user data to null explicitly before invalidating
+      queryClient.setQueryData(['currentUser'], null);
+      queryClient.invalidateQueries({ queryKey: ['currentUser'] });
+      queryClient.clear(); // Clear all cached data
+    }
+  });
+};
+```
+
+### Migration Checklist
+
+#### Phase 1: Preparation
+- [x] Identify all AuthContext dependencies
+- [x] Create pure React Query hooks
+- [x] Test React Query hooks in isolation
+
+#### Phase 2: Component Migration
+- [x] Update AppNavigator to use React Query
+- [x] Update MainTabNavigator for proper role-based navigation
+- [x] Migrate authentication screens (Login, Register, Profile)
+- [x] Migrate feature screens (Admin, Checkout, QR Scanner)
+
+#### Phase 3: Cleanup
+- [x] Remove AuthProvider from App.tsx
+- [x] Delete AuthContext.tsx file completely
+- [x] Fix all test screen imports
+- [x] Update test files to use React Query mocks
+
+### Key Lessons Learned
+
+#### 1. Avoid Hybrid State Management
+```tsx
+// ❌ NEVER: Two sources of truth
+const MyComponent = () => {
+  const { user } = useAuth(); // AuthContext
+  const { data: userData } = useCurrentUser(); // React Query
+  // Which one is correct? Leads to bugs!
+};
+
+// ✅ ALWAYS: Single source of truth
+const MyComponent = () => {
+  const { data: user, isLoading, error } = useCurrentUser(); // React Query only
+};
+```
+
+#### 2. Pure Hook Design
+```tsx
+// ❌ WRONG: Hook calling other state management
+export const useLoginMutation = () => {
+  const { setUser } = useAuth(); // Creates circular dependency
+  return useMutation({
+    onSuccess: (data) => {
+      setUser(data.user); // Triggers other state system
+      queryClient.setQueryData(['currentUser'], data.user);
+    }
+  });
+};
+
+// ✅ CORRECT: Pure hook with single responsibility
+export const useLoginMutation = () => {
+  return useMutation({
+    mutationFn: authService.login,
+    onSuccess: (data) => {
+      queryClient.setQueryData(['currentUser'], data.user);
+      queryClient.invalidateQueries({ queryKey: ['currentUser'] });
+    }
+  });
+};
+```
+
+#### 3. Proper Cache Management
+```tsx
+// ✅ Explicit cache updates for immediate UI feedback
+const mutation = useMutation({
+  onSuccess: (data) => {
+    // 1. Set data explicitly for immediate update
+    queryClient.setQueryData(['currentUser'], data.user);
+    // 2. Invalidate to trigger refetch and sync
+    queryClient.invalidateQueries({ queryKey: ['currentUser'] });
+  }
+});
+```
+
+#### 4. Complete Import Cleanup
+```bash
+# Always check for remaining imports after migration
+grep -r "from.*AuthContext" src/
+# Fix ALL imports, including test files!
+```
+
+### Prevention Strategies
+
+#### 1. Architecture Review
+- Choose ONE state management solution per domain
+- Avoid mixing Context API with React Query for same data
+- Design hooks to be pure and focused
+
+#### 2. Dependency Analysis
+```tsx
+// Before adding any hook dependency, ask:
+// 1. Does this create a circular dependency?
+// 2. Is this hook pure or does it call other state systems?
+// 3. Can this be achieved with a single state management solution?
+```
+
+#### 3. Migration Strategy
+```tsx
+// For large migrations:
+// 1. Create new pure hooks first
+// 2. Test in isolation
+// 3. Migrate components incrementally
+// 4. Remove old system completely (don't leave hybrid)
+// 5. Clean up ALL imports and references
+```
+
+### Results
+- ✅ **Zero infinite loops**: App completely stable
+- ✅ **Single source of truth**: React Query for all auth state
+- ✅ **Clean architecture**: No confusing hybrid patterns
+- ✅ **All functionality preserved**: Login, logout, profile, admin tabs, QR scanner
+- ✅ **Future-proof**: Easy to extend and maintain
+
+### Quick Reference: Infinite Loop Debugging
+
+1. **Check for circular dependencies**: Hook A calls Hook B which calls Hook A
+2. **Verify useEffect dependencies**: Are they causing re-initialization loops?
+3. **Look for un-memoized functions**: Use `useCallback` for context functions
+4. **Single source of truth**: Don't mix state management systems
+5. **Pure hook design**: Hooks should not call other state management systems
+
+### Critical Success Factors
+
+1. **Complete Migration**: Don't leave hybrid systems - migrate fully or not at all
+2. **Import Cleanup**: Fix ALL imports including test files to prevent runtime errors
+3. **Cache Management**: Explicit cache updates for immediate UI feedback
+4. **Testing**: Test each migrated component thoroughly before moving to next
+5. **Documentation**: Document the migration pattern for future reference
+
+This migration eliminated a critical app-breaking issue and established a clean, maintainable authentication architecture.
