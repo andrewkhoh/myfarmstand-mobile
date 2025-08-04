@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, StyleSheet, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Screen, Text, Input, Button, Card } from '../components';
-import { useAuth } from '../contexts/AuthContext';
+import { useLoginMutation } from '../hooks/useAuth';
 import { spacing } from '../utils/theme';
 
 export const LoginScreen: React.FC = () => {
@@ -10,7 +10,7 @@ export const LoginScreen: React.FC = () => {
   const [password, setPassword] = useState('');
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
-  const { login, isLoading } = useAuth();
+  const loginMutation = useLoginMutation();
   const navigation = useNavigation();
 
   const validateForm = () => {
@@ -42,7 +42,7 @@ export const LoginScreen: React.FC = () => {
     if (!validateForm()) return;
 
     try {
-      await login(email, password);
+      await loginMutation.mutateAsync({ email, password });
     } catch (error) {
       Alert.alert('Login Failed', 'Invalid email or password');
     }
@@ -87,7 +87,7 @@ export const LoginScreen: React.FC = () => {
           <Button
             title="Sign In"
             onPress={handleLogin}
-            loading={isLoading}
+            loading={loginMutation.isPending}
             style={styles.loginButton}
           />
 

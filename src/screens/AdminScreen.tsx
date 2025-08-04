@@ -1,11 +1,11 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Screen, Text, Card, Button } from '../components';
-import { useAuth } from '../contexts/AuthContext';
+import { useCurrentUser } from '../hooks/useAuth';
 import { spacing } from '../utils/theme';
 
 export const AdminScreen: React.FC = () => {
-  const { user } = useAuth();
+  const { data: user } = useCurrentUser();
 
   return (
     <Screen scrollable>

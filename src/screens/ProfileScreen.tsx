@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Alert, ScrollView, TouchableOpacity, Platform, Modal } from 'react-native';
 import { Screen, Text, Card, Button, Input, Loading } from '../components';
-import { useAuth } from '../contexts/AuthContext';
-import { updateOrderStatus, getCustomerOrders } from '../services/orderService';
+import { useCurrentUser, useUpdateProfileMutation, useLogoutMutation } from '../hooks/useAuth';
+import { getCustomerOrders } from '../services/orderService';
 import { spacing, colors } from '../utils/theme';
 import { Order, User } from '../types';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -63,7 +63,9 @@ const getUserOrderHistory = async (userEmail: string): Promise<Order[]> => {
 };
 
 export const ProfileScreen: React.FC = () => {
-  const { user, logout, updateUser } = useAuth();
+  const { data: user, isLoading: userLoading, error: userError } = useCurrentUser();
+  const updateProfileMutation = useUpdateProfileMutation();
+  const logoutMutation = useLogoutMutation();
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
@@ -93,7 +95,7 @@ export const ProfileScreen: React.FC = () => {
         address: user.address || ''
       });
     }
-  }, [user?.id, user?.name, user?.email, user?.phone, user?.address]);
+  }, [user?.id]);
 
   // Fetch order history
   const { data: orders, isLoading: ordersLoading, error: ordersError } = useQuery({
@@ -104,23 +106,7 @@ export const ProfileScreen: React.FC = () => {
     gcTime: 10 * 60 * 1000, // 10 minutes
   });
 
-  // Profile update mutation
-  const updateProfileMutation = useMutation({
-    mutationFn: (updates: Partial<User>) => updateUserProfile(user?.id || '', updates),
-    onSuccess: (result) => {
-      if (result.success && result.user) {
-        updateUser(result.user);
-        setIsEditing(false);
-        setErrors({});
-        Alert.alert('Success', result.message || 'Profile updated successfully');
-        // Invalidate user queries if any
-        queryClient.invalidateQueries({ queryKey: ['user'] });
-      }
-    },
-    onError: (error: Error) => {
-      Alert.alert('Error', error.message || 'Failed to update profile');
-    }
-  });
+  // Profile update mutation is already declared above
 
   // Password change mutation
   const changePasswordMutation = useMutation({
@@ -200,14 +186,19 @@ export const ProfileScreen: React.FC = () => {
     
     try {
       await updateProfileMutation.mutateAsync({
-        ...user,
-        name: formData.name.trim(),
-        email: formData.email.trim(),
-        phone: formData.phone.trim() || undefined,
-        address: formData.address.trim() || undefined
+        userId: user?.id || '',
+        updates: {
+          name: formData.name.trim(),
+          email: formData.email.trim(),
+          phone: formData.phone.trim() || undefined,
+          address: formData.address.trim() || undefined
+        }
       });
+      setIsEditing(false);
+      setErrors({});
+      Alert.alert('Success', 'Profile updated successfully');
     } catch (error) {
-      // Error handled in onError callback
+      Alert.alert('Error', 'Failed to update profile');
     }
   };
 
@@ -265,7 +256,7 @@ export const ProfileScreen: React.FC = () => {
 
   const performLogout = async () => {
     try {
-      await logout();
+      await logoutMutation.mutateAsync();
     } catch (error) {
       console.error('Logout error:', error);
       if (Platform.OS === 'web') {

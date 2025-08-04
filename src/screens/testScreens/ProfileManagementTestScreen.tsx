@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Alert, ScrollView } from 'react-native';
 import { Screen, Text, Card, Button } from '../../components';
-import { useAuth } from '../../contexts/AuthContext';
+import { useCurrentUser } from '../../hooks/useAuth';
 import { spacing, colors } from '../../utils/theme';
 
 export const ProfileManagementTestScreen: React.FC = () => {
-  const { user, logout, updateUser } = useAuth();
+  const { data: user } = useCurrentUser();
   const [testResults, setTestResults] = useState<{ [key: string]: boolean | null }>({
     profileDisplay: null,
     profileUpdate: null,

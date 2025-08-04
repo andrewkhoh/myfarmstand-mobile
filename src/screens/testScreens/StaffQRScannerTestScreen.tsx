@@ -9,7 +9,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Screen, Button, Card } from '../../components';
 import { spacing, colors } from '../../utils/theme';
-import { useAuth } from '../../contexts/AuthContext';
+import { useCurrentUser } from '../../hooks/useAuth';
 
 interface TestResult {
   testName: string;
@@ -18,7 +18,7 @@ interface TestResult {
 }
 
 export const StaffQRScannerTestScreen: React.FC = () => {
-  const { user } = useAuth();
+  const { data: user } = useCurrentUser();
   const [testResults, setTestResults] = useState<TestResult[]>([
     { testName: 'Staff Access Control', status: 'pending' },
     { testName: 'Camera Permission Request', status: 'pending' },

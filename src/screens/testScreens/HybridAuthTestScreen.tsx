@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Alert, ScrollView } from 'react-native';
 import { Screen, Text, Card, Button, Input } from '../../components';
-import { useAuth } from '../../contexts/AuthContext';
+import { useCurrentUser } from '../../hooks/useAuth';
 import { useAuthOperations } from '../../hooks/useAuth';
 import { spacing, colors } from '../../utils/theme';
 
 export const HybridAuthTestScreen: React.FC = () => {
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { data: user, isLoading, error } = useCurrentUser();
+  const isAuthenticated = !!user && !error;
   const {
     login,
     logout,

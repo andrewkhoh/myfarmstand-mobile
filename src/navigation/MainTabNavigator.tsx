@@ -3,7 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { View, Text, StyleSheet } from 'react-native';
 import { colors, spacing } from '../utils/theme';
-import { useAuth } from '../contexts/AuthContext';
+import { useCurrentUser } from '../hooks/useAuth';
 import { useCart } from '../hooks/useCart';
 import { RootTabParamList } from '../types';
 
@@ -26,7 +26,7 @@ const CartBadge: React.FC<{ count: number }> = ({ count }) => {
 };
 
 export const MainTabNavigator: React.FC = () => {
-  const { user } = useAuth();
+  const { data: user } = useCurrentUser();
   const { items } = useCart();
   const isAdmin = user?.role === 'admin' || user?.role === 'manager' || user?.role === 'staff';
   const isStaff = user?.role === 'admin' || user?.role === 'manager' || user?.role === 'staff';

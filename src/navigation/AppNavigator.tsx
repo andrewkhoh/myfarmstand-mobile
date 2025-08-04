@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import { useAuth } from '../contexts/AuthContext';
+import { useCurrentUser } from '../hooks/useAuth';
 import { Loading } from '../components';
 import { MainTabNavigator } from '../navigation/MainTabNavigator';
 import { LoginScreen, RegisterScreen, ProductDetailScreen, CheckoutScreen, OrderConfirmationScreen } from '../screens';
@@ -10,7 +10,8 @@ import { RootStackParamList } from '../types';
 const Stack = createStackNavigator<RootStackParamList>();
 
 export const AppNavigator: React.FC = () => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { data: user, isLoading, error } = useCurrentUser();
+  const isAuthenticated = !!user && !error;
 
   if (isLoading) {
     return <Loading message="Loading..." />;

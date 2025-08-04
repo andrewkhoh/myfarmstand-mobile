@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AuthService } from '../services/authService';
 import { User } from '../types';
-import { useAuth as useAuthContext } from '../contexts/AuthContext';
 
 // Query keys for auth-related queries
 export const authKeys = {
@@ -15,17 +14,13 @@ export const authKeys = {
  */
 export const useLoginMutation = () => {
   const queryClient = useQueryClient();
-  const { setUser } = useAuthContext();
 
   return useMutation({
     mutationFn: ({ email, password }: { email: string; password: string }) =>
       AuthService.login(email, password),
     onSuccess: (data) => {
       if (data.success && data.user) {
-        // Update AuthContext state
-        setUser(data.user);
-        
-        // Update React Query cache
+        // Update React Query cache only
         queryClient.setQueryData(authKeys.user(), data.user);
         
         // Invalidate and refetch any auth-related queries
@@ -45,7 +40,6 @@ export const useLoginMutation = () => {
  */
 export const useRegisterMutation = () => {
   const queryClient = useQueryClient();
-  const { setUser } = useAuthContext();
 
   return useMutation({
     mutationFn: ({
@@ -63,10 +57,7 @@ export const useRegisterMutation = () => {
     }) => AuthService.register(email, password, name, phone, address),
     onSuccess: (data) => {
       if (data.success && data.user) {
-        // Update AuthContext state
-        setUser(data.user);
-        
-        // Update React Query cache
+        // Update React Query cache only
         queryClient.setQueryData(authKeys.user(), data.user);
         
         // Invalidate and refetch any auth-related queries
@@ -86,21 +77,22 @@ export const useRegisterMutation = () => {
  */
 export const useLogoutMutation = () => {
   const queryClient = useQueryClient();
-  const { logout: contextLogout } = useAuthContext();
 
   return useMutation({
     mutationFn: () => AuthService.logout(),
     onSuccess: () => {
-      // Update AuthContext state
-      contextLogout();
-      
-      // Clear all React Query cache
+      // First, explicitly set user data to null
+      queryClient.setQueryData(authKeys.user(), null);
+      // Invalidate user queries to trigger re-render
+      queryClient.invalidateQueries({ queryKey: authKeys.user() });
+      // Finally clear all cache
       queryClient.clear();
     },
     onError: (error) => {
       console.error('Logout mutation error:', error);
-      // Even if logout fails, clear local state
-      contextLogout();
+      // Even if logout fails, clear states
+      queryClient.setQueryData(authKeys.user(), null);
+      queryClient.invalidateQueries({ queryKey: authKeys.user() });
       queryClient.clear();
     },
   });
@@ -111,7 +103,6 @@ export const useLogoutMutation = () => {
  */
 export const useUpdateProfileMutation = () => {
   const queryClient = useQueryClient();
-  const { updateUser } = useAuthContext();
 
   return useMutation({
     mutationFn: ({ userId, updates }: { userId: string; updates: Partial<User> }) =>
@@ -127,7 +118,6 @@ export const useUpdateProfileMutation = () => {
       if (previousUser) {
         const optimisticUser = { ...previousUser, ...updates };
         queryClient.setQueryData(authKeys.user(), optimisticUser);
-        updateUser(optimisticUser);
       }
 
       // Return a context object with the snapshotted value
@@ -137,14 +127,10 @@ export const useUpdateProfileMutation = () => {
       // If the mutation fails, use the context returned from onMutate to roll back
       if (context?.previousUser) {
         queryClient.setQueryData(authKeys.user(), context.previousUser);
-        updateUser(context.previousUser);
       }
     },
     onSuccess: (data) => {
       if (data.success && data.user) {
-        // Update AuthContext state with server response
-        updateUser(data.user);
-        
         // Update React Query cache with server response
         queryClient.setQueryData(authKeys.user(), data.user);
       }
@@ -160,17 +146,13 @@ export const useUpdateProfileMutation = () => {
  * Hook for getting current user with React Query
  */
 export const useCurrentUser = () => {
-  const { user, isAuthenticated } = useAuthContext();
-
   return useQuery({
     queryKey: authKeys.user(),
     queryFn: () => AuthService.getCurrentUser(),
-    enabled: isAuthenticated, // Only fetch if user is authenticated
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
     retry: false, // Don't retry auth queries
     refetchOnWindowFocus: true, // Revalidate when app becomes active
-    initialData: user, // Use AuthContext user as initial data
   });
 };
 

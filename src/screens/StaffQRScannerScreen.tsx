@@ -11,7 +11,7 @@ import {
 // import { BarCodeScanner } from 'expo-barcode-scanner';
 // import { Camera } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../contexts/AuthContext';
+import { useCurrentUser } from '../hooks/useAuth';
 import { Screen, Button, Card } from '../components';
 import { spacing, colors } from '../utils/theme';
 import { updateOrderStatus } from '../services/orderService';
@@ -29,7 +29,7 @@ interface ScannedOrderData {
 }
 
 export const StaffQRScannerScreen: React.FC = () => {
-  const { user } = useAuth();
+  const { data: user } = useCurrentUser();
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [scanned, setScanned] = useState(false);
   const [scannedData, setScannedData] = useState<ScannedOrderData | null>(null);

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, StyleSheet, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Screen, Text, Input, Button, Card } from '../components';
-import { useAuth } from '../contexts/AuthContext';
+import { useRegisterMutation } from '../hooks/useAuth';
 import { spacing } from '../utils/theme';
 
 export const RegisterScreen: React.FC = () => {
@@ -18,7 +18,7 @@ export const RegisterScreen: React.FC = () => {
   const [addressError, setAddressError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [confirmPasswordError, setConfirmPasswordError] = useState('');
-  const { register, isLoading } = useAuth();
+  const registerMutation = useRegisterMutation();
   const navigation = useNavigation();
 
   const validateForm = () => {
@@ -80,7 +80,7 @@ export const RegisterScreen: React.FC = () => {
     if (!validateForm()) return;
 
     try {
-      await register(email, password, name, phone, address);
+      await registerMutation.mutateAsync({ email, password, name, phone, address });
     } catch (error) {
       Alert.alert('Registration Failed', 'Please try again');
     }
@@ -161,7 +161,7 @@ export const RegisterScreen: React.FC = () => {
           <Button
             title="Create Account"
             onPress={handleRegister}
-            loading={isLoading}
+            loading={registerMutation.isPending}
             style={styles.registerButton}
           />
 

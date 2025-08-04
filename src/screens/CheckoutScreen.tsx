@@ -16,7 +16,7 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCart } from '../hooks/useCart';
-import { useAuth } from '../contexts/AuthContext';
+import { useCurrentUser } from '../hooks/useAuth';
 import { submitOrder } from '../services/orderService';
 import { CreateOrderRequest, CustomerInfo, FulfillmentType, OrderItem, RootStackParamList } from '../types';
 
@@ -24,7 +24,7 @@ type CheckoutScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Ord
 
 export const CheckoutScreen: React.FC = () => {
   const { items, total, clearCart } = useCart();
-  const { user } = useAuth();
+  const { data: user } = useCurrentUser();
   const navigation = useNavigation<CheckoutScreenNavigationProp>();
   const queryClient = useQueryClient();
   
@@ -207,9 +207,9 @@ export const CheckoutScreen: React.FC = () => {
     const orderRequest: CreateOrderRequest = {
       customerInfo: {
         name: user!.name,
-        email: user!.email,
-        phone: user!.phone,
-        address: fulfillmentType === 'delivery' ? deliveryAddress : (user!.address || ''),
+        email: user?.email || '',
+        phone: user?.phone || '',
+        address: fulfillmentType === 'delivery' ? deliveryAddress : (user?.address || ''),
       },
       items: convertCartToOrderItems(),
       fulfillmentType,
