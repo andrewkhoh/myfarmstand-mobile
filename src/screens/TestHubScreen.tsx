@@ -115,6 +115,14 @@ const testCategories: TestCategory[] = [
     screenName: 'HybridAuthTest',
     color: '#DC2626',
   },
+  {
+    id: 'admin-order',
+    title: 'Admin Order Management',
+    description: 'Order filtering, bulk updates, statistics, and admin operations',
+    icon: 'business-outline',
+    screenName: 'AdminOrderTest',
+    color: '#7C3AED',
+  },
 ];
 
 export const TestHubScreen: React.FC = () => {

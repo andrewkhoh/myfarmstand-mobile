@@ -6,6 +6,6 @@ Document your findings in lessons-learned.md
 Document your deliverables in actual-deliverables.md
 Move any test screens to src/screens/testScreens
 Move any test navigation to src/navigation/TestStackNavigator.tsx
-Use React-Query for all data fetching and mutations
+Use React-Query for all data fetching and mutations and follow the patterns in lessons-learned.md
 Use try/catch block for react-query .mutateAsync operations
-Integrate all automated tests into the test runner
+Create automated tests and integrate all automated tests into the test runner

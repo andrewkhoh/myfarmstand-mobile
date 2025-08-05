@@ -14,6 +14,7 @@ export type RootTabParamList = {
   ProfileManagementTest: undefined;
   StaffQRScannerTest: undefined;
   HybridAuthTest: undefined;
+  AdminOrderTest: undefined;
 };
 
 export type RootStackParamList = {

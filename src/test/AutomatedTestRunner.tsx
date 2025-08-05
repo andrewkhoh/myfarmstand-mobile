@@ -11,10 +11,10 @@ import {
 } from 'react-native';
 import { useCart } from '../hooks/useCart';
 import { useMutation } from '@tanstack/react-query';
-import { submitOrder } from '../services/orderService';
+import { submitOrder, getAllOrders, getOrderStats, bulkUpdateOrderStatus, OrderFilters } from '../services/orderService';
 import { AuthService } from '../services/authService';
 import { TokenService } from '../services/tokenService';
-import { Product, CustomerInfo, User } from '../types';
+import { Product, CustomerInfo, User, Order, OrderStatus } from '../types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface TestResult {
@@ -778,6 +778,209 @@ export const AutomatedTestRunner: React.FC = () => {
     },
   ];
 
+  // Admin Order Management Tests (Increment 1.10)
+  const adminOrderManagementTests: TestCase[] = [
+    {
+      name: 'Order Retrieval and Filtering',
+      expectedBehavior: 'getAllOrders should fetch and filter orders correctly',
+      test: async () => {
+        // Test 1: Get all orders without filters
+        const allOrders = await getAllOrders();
+        expect.toBeTruthy(Array.isArray(allOrders), 'getAllOrders should return an array');
+        expect.toBeTruthy(allOrders.length > 0, 'Should have mock orders available');
+        
+        // Test 2: Filter by status
+        const pendingOrders = await getAllOrders({ status: 'pending' });
+        expect.toBeTruthy(Array.isArray(pendingOrders), 'Filtered orders should be an array');
+        pendingOrders.forEach(order => {
+          expect.toBe(order.status, 'pending', 'All filtered orders should have pending status');
+        });
+        
+        // Test 3: Filter by fulfillment type
+        const pickupOrders = await getAllOrders({ fulfillmentType: 'pickup' });
+        expect.toBeTruthy(Array.isArray(pickupOrders), 'Pickup orders should be an array');
+        pickupOrders.forEach(order => {
+          expect.toBe(order.fulfillmentType, 'pickup', 'All filtered orders should be pickup type');
+        });
+        
+        // Test 4: Search filter
+        const searchResults = await getAllOrders({ search: 'john' });
+        expect.toBeTruthy(Array.isArray(searchResults), 'Search results should be an array');
+        if (searchResults.length > 0) {
+          const hasSearchTerm = searchResults.some(order => 
+            order.customerInfo.name.toLowerCase().includes('john') ||
+            order.customerInfo.email.toLowerCase().includes('john') ||
+            order.id.toLowerCase().includes('john')
+          );
+          expect.toBeTruthy(hasSearchTerm, 'Search results should contain the search term');
+        }
+        
+        // Test 5: Date range filter
+        const today = new Date();
+        const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+        const dateFilteredOrders = await getAllOrders({ 
+          dateFrom: yesterday.toISOString(),
+          dateTo: today.toISOString()
+        });
+        expect.toBeTruthy(Array.isArray(dateFilteredOrders), 'Date filtered orders should be an array');
+      },
+    },
+    {
+      name: 'Order Statistics Calculation',
+      expectedBehavior: 'getOrderStats should calculate correct statistics',
+      test: async () => {
+        // Test 1: Get order statistics
+        const stats = await getOrderStats();
+        expect.toBeTruthy(typeof stats === 'object', 'Stats should be an object');
+        expect.toBeTruthy(typeof stats.totalOrders === 'number', 'totalOrders should be a number');
+        expect.toBeTruthy(typeof stats.pendingOrders === 'number', 'pendingOrders should be a number');
+        expect.toBeTruthy(typeof stats.completedOrders === 'number', 'completedOrders should be a number');
+        expect.toBeTruthy(typeof stats.totalRevenue === 'number', 'totalRevenue should be a number');
+        
+        // Test 2: Verify statistics consistency
+        const allOrders = await getAllOrders();
+        expect.toBe(stats.totalOrders, allOrders.length, 'totalOrders should match actual order count');
+        
+        const pendingCount = allOrders.filter(order => order.status === 'pending').length;
+        expect.toBe(stats.pendingOrders, pendingCount, 'pendingOrders should match filtered count');
+        
+        const completedCount = allOrders.filter(order => order.status === 'completed').length;
+        expect.toBe(stats.completedOrders, completedCount, 'completedOrders should match filtered count');
+        
+        // Test 3: Revenue calculation
+        const expectedRevenue = allOrders.reduce((sum, order) => sum + order.total, 0);
+        expect.toBe(stats.totalRevenue, expectedRevenue, 'totalRevenue should match sum of all order totals');
+        
+        // Test 4: Non-negative values
+        expect.toBeTruthy(stats.totalOrders >= 0, 'totalOrders should be non-negative');
+        expect.toBeTruthy(stats.pendingOrders >= 0, 'pendingOrders should be non-negative');
+        expect.toBeTruthy(stats.completedOrders >= 0, 'completedOrders should be non-negative');
+        expect.toBeTruthy(stats.totalRevenue >= 0, 'totalRevenue should be non-negative');
+      },
+    },
+    {
+      name: 'Bulk Order Status Updates',
+      expectedBehavior: 'bulkUpdateOrderStatus should update multiple orders correctly',
+      test: async () => {
+        // Test 1: Get initial orders
+        const initialOrders = await getAllOrders();
+        expect.toBeTruthy(initialOrders.length > 0, 'Should have orders to test with');
+        
+        // Test 2: Select orders for bulk update (first 2 orders)
+        const orderIds = initialOrders.slice(0, 2).map(order => order.id);
+        const newStatus: OrderStatus = 'preparing';
+        
+        const updateResult = await bulkUpdateOrderStatus(orderIds, newStatus);
+        expect.toBeTruthy(updateResult.success, 'Bulk update should succeed');
+        expect.toBe(updateResult.updatedOrders?.length || 0, orderIds.length, 'Should update correct number of orders');
+        
+        // Test 3: Verify orders were updated
+        const updatedOrders = await getAllOrders();
+        orderIds.forEach(orderId => {
+          const updatedOrder = updatedOrders.find(order => order.id === orderId);
+          expect.toBeTruthy(updatedOrder, `Order ${orderId} should exist after update`);
+          expect.toBe(updatedOrder?.status, newStatus, `Order ${orderId} should have new status`);
+        });
+        
+        // Test 4: Test with empty order list
+        const emptyResult = await bulkUpdateOrderStatus([], 'completed');
+        expect.toBeTruthy(emptyResult.success, 'Empty bulk update should succeed');
+        expect.toBe(emptyResult.updatedOrders?.length || 0, 0, 'Empty update should have 0 updated count');
+        
+        // Test 5: Test with non-existent order IDs
+        const nonExistentIds = ['NON-EXISTENT-1', 'NON-EXISTENT-2'];
+        const nonExistentResult = await bulkUpdateOrderStatus(nonExistentIds, 'cancelled');
+        expect.toBeTruthy(nonExistentResult.success, 'Non-existent ID update should handle gracefully');
+        expect.toBe(nonExistentResult.updatedOrders?.length || 0, 0, 'Non-existent IDs should result in 0 updates');
+      },
+    },
+    {
+      name: 'Order Data Integrity',
+      expectedBehavior: 'Orders should have consistent data structure and valid values',
+      test: async () => {
+        // Test 1: Get all orders and validate structure
+        const orders = await getAllOrders();
+        expect.toBeTruthy(orders.length > 0, 'Should have orders to validate');
+        
+        orders.forEach((order, index) => {
+          // Test 2: Required fields
+          expect.toBeTruthy(order.id, `Order ${index} should have an ID`);
+          expect.toBeTruthy(order.customerInfo, `Order ${index} should have customer info`);
+          expect.toBeTruthy(order.items, `Order ${index} should have items array`);
+          expect.toBeTruthy(order.status, `Order ${index} should have a status`);
+          expect.toBeTruthy(order.fulfillmentType, `Order ${index} should have fulfillment type`);
+          
+          // Test 3: Customer info validation
+          expect.toBeTruthy(order.customerInfo.name, `Order ${index} customer should have name`);
+          expect.toBeTruthy(order.customerInfo.email, `Order ${index} customer should have email`);
+          expect.toBeTruthy(order.customerInfo.email.includes('@'), `Order ${index} customer email should be valid`);
+          
+          // Test 4: Items validation
+          expect.toBeTruthy(Array.isArray(order.items), `Order ${index} items should be an array`);
+          expect.toBeTruthy(order.items.length > 0, `Order ${index} should have at least one item`);
+          
+          order.items.forEach((item, itemIndex) => {
+            expect.toBeTruthy(item.productId, `Order ${index} item ${itemIndex} should have productId`);
+            expect.toBeTruthy(typeof item.quantity === 'number', `Order ${index} item ${itemIndex} quantity should be number`);
+            expect.toBeTruthy(item.quantity > 0, `Order ${index} item ${itemIndex} quantity should be positive`);
+            expect.toBeTruthy(typeof item.price === 'number', `Order ${index} item ${itemIndex} price should be number`);
+            expect.toBeTruthy(item.price > 0, `Order ${index} item ${itemIndex} price should be positive`);
+          });
+          
+          // Test 5: Financial data validation
+          expect.toBeTruthy(typeof order.subtotal === 'number', `Order ${index} subtotal should be number`);
+          expect.toBeTruthy(typeof order.tax === 'number', `Order ${index} tax should be number`);
+          expect.toBeTruthy(typeof order.total === 'number', `Order ${index} total should be number`);
+          expect.toBeTruthy(order.subtotal >= 0, `Order ${index} subtotal should be non-negative`);
+          expect.toBeTruthy(order.tax >= 0, `Order ${index} tax should be non-negative`);
+          expect.toBeTruthy(order.total >= 0, `Order ${index} total should be non-negative`);
+          
+          // Test 6: Date validation
+          expect.toBeTruthy(order.createdAt, `Order ${index} should have createdAt date`);
+          expect.toBeTruthy(!isNaN(new Date(order.createdAt).getTime()), `Order ${index} createdAt should be valid date`);
+          
+          // Test 7: Status validation
+          const validStatuses: OrderStatus[] = ['pending', 'confirmed', 'preparing', 'ready', 'completed', 'cancelled'];
+          expect.toBeTruthy(validStatuses.includes(order.status), `Order ${index} should have valid status`);
+          
+          // Test 8: Fulfillment type validation
+          const validFulfillmentTypes = ['pickup', 'delivery'];
+          expect.toBeTruthy(validFulfillmentTypes.includes(order.fulfillmentType), `Order ${index} should have valid fulfillment type`);
+        });
+      },
+    },
+    {
+      name: 'Admin Operations Performance',
+      expectedBehavior: 'Admin operations should complete within reasonable time limits',
+      test: async () => {
+        // Test 1: Order retrieval performance
+        const startTime1 = Date.now();
+        const orders = await getAllOrders();
+        const retrievalTime = Date.now() - startTime1;
+        expect.toBeTruthy(retrievalTime < 5000, `Order retrieval should complete within 5 seconds (took ${retrievalTime}ms)`);
+        
+        // Test 2: Statistics calculation performance
+        const startTime2 = Date.now();
+        const stats = await getOrderStats();
+        const statsTime = Date.now() - startTime2;
+        expect.toBeTruthy(statsTime < 3000, `Statistics calculation should complete within 3 seconds (took ${statsTime}ms)`);
+        
+        // Test 3: Bulk update performance
+        const orderIds = orders.slice(0, 3).map(order => order.id);
+        const startTime3 = Date.now();
+        await bulkUpdateOrderStatus(orderIds, 'preparing');
+        const bulkUpdateTime = Date.now() - startTime3;
+        expect.toBeTruthy(bulkUpdateTime < 4000, `Bulk update should complete within 4 seconds (took ${bulkUpdateTime}ms)`);
+        
+        // Test 4: Filtered search performance
+        const startTime4 = Date.now();
+        await getAllOrders({ status: 'pending', search: 'test' });
+        const filterTime = Date.now() - startTime4;
+        expect.toBeTruthy(filterTime < 3000, `Filtered search should complete within 3 seconds (took ${filterTime}ms)`);
+      },
+    },
+  ];
+
   const testSuites: TestSuite[] = [
     { name: 'Cart Functionality', tests: cartTests },
     { name: 'Form Validation', tests: validationTests },
@@ -785,6 +988,7 @@ export const AutomatedTestRunner: React.FC = () => {
     { name: 'Order Submission', tests: orderSubmissionTests },
     { name: 'Profile Management (Increment 1.9)', tests: profileManagementTests },
     { name: 'Hybrid Auth System', tests: hybridAuthTests },
+    { name: 'Admin Order Management (Increment 1.10)', tests: adminOrderManagementTests },
   ];
 
   const runTest = async (testCase: TestCase, suiteName: string) => {

@@ -1,7 +1,9 @@
 import React from 'react';
 import { View, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import { Product } from '../types';
-import { Text, Button, Card } from './';
+import { Text } from './Text';
+import { Button } from './Button';
+import { Card } from './Card';
 import { spacing, colors, borderRadius } from '../utils/theme';
 
 interface ProductCardProps {

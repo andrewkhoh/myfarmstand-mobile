@@ -145,6 +145,48 @@ This is a **full-featured e-commerce platform with CRM capabilities**, not a sim
 - **Android**: Native Android app via Expo/React Native
 - **Cross-platform**: Single codebase for both platforms
 
+### 7. Multi-Language Support
+**Internationalization (i18n)**
+- Support for multiple languages (English, Spanish, French as initial set)
+- Dynamic language switching within the app
+- Localized text for all UI elements, messages, and content
+- Date, time, and currency formatting based on locale
+- Right-to-left (RTL) language support preparation
+- Language preference persistence across app sessions
+
+**Content Localization**
+- Product names and descriptions in multiple languages
+- Category names and navigation labels
+- Error messages and validation text
+- Email templates and notifications
+- Help text and user guidance
+- Terms of service and privacy policy translations
+
+### 8. Online Payment Integration
+**Payment Processing**
+- Integration with major payment providers (Stripe, PayPal, Square)
+- Support for credit/debit cards, digital wallets (Apple Pay, Google Pay)
+- Secure payment tokenization and PCI compliance
+- Real-time payment validation and processing
+- Payment failure handling and retry mechanisms
+- Refund and partial refund capabilities
+
+**Payment Security**
+- End-to-end encryption for payment data
+- Secure payment form with card validation
+- 3D Secure authentication support
+- Fraud detection and prevention
+- Payment audit trails and logging
+- Compliance with financial regulations
+
+**Payment Experience**
+- Seamless checkout flow with payment options
+- Saved payment methods for returning customers
+- Payment confirmation and receipt generation
+- Order status updates tied to payment status
+- Support for split payments and tips
+- Multi-currency support for international customers
+
 ### Backend Integration
 - **Database**: Supabase (PostgreSQL)
 - **Authentication**: Custom auth system with localStorage simulation

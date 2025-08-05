@@ -1,11 +1,17 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
 import { Screen, Text, Card, Button } from '../components';
 import { useCurrentUser } from '../hooks/useAuth';
 import { spacing } from '../utils/theme';
+import { AdminStackParamList } from '../navigation/AdminStackNavigator';
+
+type AdminScreenNavigationProp = StackNavigationProp<AdminStackParamList, 'AdminDashboard'>;
 
 export const AdminScreen: React.FC = () => {
   const { data: user } = useCurrentUser();
+  const navigation = useNavigation<AdminScreenNavigationProp>();
 
   return (
     <Screen scrollable>
@@ -32,9 +38,8 @@ export const AdminScreen: React.FC = () => {
           
           <Button
             title="Order Management"
-            variant="outline"
-            onPress={() => {}}
-            disabled
+            variant="primary"
+            onPress={() => navigation.navigate('AdminOrders')}
             style={styles.featureButton}
           />
           
@@ -47,10 +52,9 @@ export const AdminScreen: React.FC = () => {
           />
           
           <Button
-            title="Analytics & Reports"
-            variant="outline"
-            onPress={() => {}}
-            disabled
+            title="Metrics & Analytics"
+            variant="primary"
+            onPress={() => navigation.navigate('MetricsAnalytics')}
             style={styles.featureButton}
           />
           
@@ -66,7 +70,7 @@ export const AdminScreen: React.FC = () => {
         <Card variant="outlined" style={styles.quickStatsCard}>
           <Text variant="heading3">Quick Stats</Text>
           <Text variant="body" color="secondary" style={styles.comingSoon}>
-            Real-time business metrics coming soon...
+            View detailed metrics in the Metrics & Analytics section
           </Text>
         </Card>
       </View>

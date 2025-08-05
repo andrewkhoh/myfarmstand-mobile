@@ -8,8 +8,9 @@ import { useCart } from '../hooks/useCart';
 import { RootTabParamList } from '../types';
 
 // Import screens
-import { ShopScreen, CartScreen, ProfileScreen, AdminScreen, StaffQRScannerScreen } from '../screens';
+import { ShopScreen, CartScreen, ProfileScreen, StaffQRScannerScreen } from '../screens';
 import { TestStackNavigator } from './TestStackNavigator';
+import { AdminStackNavigator } from './AdminStackNavigator';
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
 
@@ -127,8 +128,8 @@ export const MainTabNavigator: React.FC = () => {
       {isAdmin && (
         <Tab.Screen 
           name="Admin" 
-          component={AdminScreen}
-          options={{ title: 'Admin' }}
+          component={AdminStackNavigator}
+          options={{ title: 'Admin', headerShown: false }}
         />
       )}
       {isStaff && (

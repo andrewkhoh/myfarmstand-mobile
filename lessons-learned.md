@@ -2,6 +2,271 @@
 
 This document captures key lessons learned during development to help resolve similar issues faster in future increments.
 
+## React Query Patterns & Best Practices
+**Date**: 2025-08-05  
+**Context**: Comprehensive patterns for React Query implementation  
+**Severity**: Critical (Architecture Foundation)
+
+### Core Understanding
+
+**React Query is NOT a data fetching library** - it's a **server state synchronization and caching library**.
+
+- **Purpose**: Manages when to fetch, how to cache, when to invalidate, how to keep components in sync
+- **You provide**: The fetching logic (fetch, axios, GraphQL, etc.)
+- **React Query provides**: Synchronization, caching, loading states, error handling
+
+### Pattern 1: Query Key Factory Pattern
+
+```typescript
+// ✅ Always create centralized key factories
+const productKeys = {
+  all: ['products'] as const,
+  lists: () => [...productKeys.all, 'list'] as const,
+  list: (filters: ProductFilters) => [...productKeys.lists(), filters] as const,
+  details: () => [...productKeys.all, 'detail'] as const,
+  detail: (id: string) => [...productKeys.details(), id] as const,
+  search: (query: string) => [...productKeys.all, 'search', query] as const,
+};
+
+// Usage ensures consistency
+const useProducts = (filters: ProductFilters) => {
+  return useQuery({
+    queryKey: productKeys.list(filters),
+    queryFn: () => ProductService.getProducts(filters),
+  });
+};
+```
+
+**Benefits**: Consistent keys, hierarchical invalidation, TypeScript safety
+
+### Pattern 2: Service Layer Separation
+
+```typescript
+// ✅ Separate data fetching from React Query hooks
+// services/productService.ts
+export const ProductService = {
+  getProducts: async (filters?: ProductFilters): Promise<Product[]> => {
+    const response = await fetch('/api/products', {
+      method: 'POST',
+      body: JSON.stringify(filters),
+    });
+    return response.json();
+  },
+};
+
+// hooks/useProducts.ts
+export const useProducts = (filters?: ProductFilters) => {
+  return useQuery({
+    queryKey: productKeys.list(filters || {}),
+    queryFn: () => ProductService.getProducts(filters),
+  });
+};
+```
+
+**Benefits**: Testable service layer, reusable fetching logic, clear separation of concerns
+
+### Pattern 3: Optimistic Update Pattern
+
+```typescript
+// ✅ Always follow this exact sequence
+const useUpdateProductMutation = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ProductService.updateProduct,
+    
+    // 1. Optimistic update
+    onMutate: async (newProduct) => {
+      // Cancel outgoing queries to prevent race conditions
+      await queryClient.cancelQueries({ queryKey: productKeys.all });
+      
+      // Snapshot previous value for rollback
+      const previousProducts = queryClient.getQueryData(productKeys.list({}));
+      
+      // Optimistically update cache
+      queryClient.setQueryData(productKeys.list({}), (old: Product[]) =>
+        old?.map(product => 
+          product.id === newProduct.id ? { ...product, ...newProduct } : product
+        )
+      );
+      
+      return { previousProducts };
+    },
+    
+    // 2. Success: invalidate for fresh data
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: productKeys.all });
+    },
+    
+    // 3. Error: rollback optimistic update
+    onError: (err, newProduct, context) => {
+      if (context?.previousProducts) {
+        queryClient.setQueryData(productKeys.list({}), context.previousProducts);
+      }
+    },
+    
+    // 4. Always: cleanup
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: productKeys.all });
+    },
+  });
+};
+```
+
+**Critical**: `cancelQueries` prevents race conditions between optimistic updates and background refetches
+
+### Pattern 4: Error Handling with Try/Catch
+
+```typescript
+// ✅ Always wrap .mutateAsync for consistent error handling
+const useAuthOperations = () => {
+  const loginMutation = useLoginMutation();
+  
+  const login = async (credentials: LoginCredentials) => {
+    try {
+      const result = await loginMutation.mutateAsync(credentials);
+      return { success: true, data: result };
+    } catch (error) {
+      return { 
+        success: false, 
+        message: error instanceof Error ? error.message : 'Login failed' 
+      };
+    }
+  };
+  
+  return { login };
+};
+```
+
+**Benefits**: Consistent error format, no unhandled promise rejections
+
+### Pattern 5: Configuration Consistency
+
+```typescript
+// ✅ Use consistent query configurations
+const defaultQueryConfig = {
+  staleTime: 5 * 60 * 1000,     // 5 minutes
+  gcTime: 10 * 60 * 1000,       // 10 minutes  
+  retry: 1,
+  refetchOnWindowFocus: true,
+};
+
+const useProducts = () => {
+  return useQuery({
+    queryKey: productKeys.all,
+    queryFn: ProductService.getProducts,
+    ...defaultQueryConfig,
+  });
+};
+```
+
+### Pattern 6: Combined Operations Hook
+
+```typescript
+// ✅ Group related operations together
+export const useCartOperations = () => {
+  const addToCartMutation = useAddToCartMutation();
+  const removeFromCartMutation = useRemoveFromCartMutation();
+  
+  const addToCart = async (item: CartItem) => {
+    try {
+      const result = await addToCartMutation.mutateAsync(item);
+      return { success: true, data: result };
+    } catch (error) {
+      return { success: false, message: 'Failed to add item to cart' };
+    }
+  };
+  
+  return {
+    addToCart,
+    removeFromCart: removeFromCartMutation.mutate,
+    isLoading: addToCartMutation.isPending,
+  };
+};
+```
+
+### Pattern 7: Hierarchical Invalidation Strategy
+
+```typescript
+// ✅ Follow hierarchical invalidation
+const useOrderMutation = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: OrderService.createOrder,
+    onSuccess: (newOrder) => {
+      // 1. Invalidate specific related data
+      queryClient.invalidateQueries({ queryKey: cartKeys.all });
+      
+      // 2. Invalidate lists that might include this item
+      queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+      
+      // 3. Invalidate user-specific data
+      queryClient.invalidateQueries({ 
+        queryKey: orderKeys.userOrders(newOrder.userId) 
+      });
+    },
+  });
+};
+```
+
+### Key Concepts
+
+#### Cache as Source of Truth
+- **Ultimate truth**: Server/Database
+- **Application truth**: React Query cache (synchronized with server)
+- **Component state**: Derived from cache
+- All components reading same query key get identical data
+
+#### Automatic Deduplication
+- Same query key + simultaneous requests = single network call
+- Multiple components can use same query without performance penalty
+- Cache-first: if data is fresh, no network request at all
+
+#### Race Condition Prevention
+- `cancelQueries` in `onMutate` prevents background fetches from overwriting optimistic updates
+- Essential for smooth user experience during mutations
+
+#### Reactive Propagation
+- Components automatically subscribe to query keys
+- Cache updates trigger re-renders in ALL subscribed components
+- No manual propagation needed
+
+### Anti-Patterns to Avoid
+
+```typescript
+// ❌ Don't: Inconsistent query keys
+useQuery(['products'], getProducts);
+useQuery(['product-list'], getProducts); // Different key for same data
+
+// ❌ Don't: Mixing fetching logic with React Query
+const useProducts = () => {
+  return useQuery(['products'], async () => {
+    const response = await fetch('/api/products'); // Fetching logic in hook
+    return response.json();
+  });
+};
+
+// ❌ Don't: Forgetting to cancel queries in optimistic updates
+onMutate: async (newData) => {
+  // Missing: await queryClient.cancelQueries(...)
+  queryClient.setQueryData(['data'], newData); // Race condition risk!
+};
+```
+
+### Quick Reference Checklist
+
+- [ ] Use query key factories for consistency
+- [ ] Separate service layer from React Query hooks
+- [ ] Cancel queries in optimistic updates
+- [ ] Wrap .mutateAsync in try/catch
+- [ ] Use consistent query configurations
+- [ ] Group related operations in combined hooks
+- [ ] Follow hierarchical invalidation patterns
+- [ ] Ensure TypeScript safety throughout
+
+---
+
 ## Increment 1.5: Shopping Cart - Basic Functionality
 
 ### Issue: Cart State Management & Testing Problems

@@ -13,6 +13,7 @@ import {
   ProfileManagementTestScreen,
   StaffQRScannerTestScreen,
   HybridAuthTestScreen,
+  AdminOrderTestScreen,
   AutomatedTestRunner,
 } from '../screens';
 
@@ -29,6 +30,7 @@ export type TestStackParamList = {
   ProfileManagementTest: undefined;
   StaffQRScannerTest: undefined;
   HybridAuthTest: undefined;
+  AdminOrderTest: undefined;
   AutomatedTest: undefined;
 };
 
@@ -123,6 +125,14 @@ export const TestStackNavigator: React.FC = () => {
         component={HybridAuthTestScreen}
         options={{
           title: 'Hybrid Auth Test',
+          headerBackTitle: 'Tests',
+        }}
+      />
+      <Stack.Screen 
+        name="AdminOrderTest" 
+        component={AdminOrderTestScreen}
+        options={{
+          title: 'Admin Order Test',
           headerBackTitle: 'Tests',
         }}
       />

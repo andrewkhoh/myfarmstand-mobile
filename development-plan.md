@@ -135,6 +135,40 @@ This document breaks down the Farm Stand React Native app development into incre
 - Add basic order search
 - **Test**: Staff can view and update order statuses
 
+#### Increment 1.11: Backend Integration - Foundation
+**Deliverable**: Replace mock services with real Supabase backend integration
+- Set up Supabase project configuration and environment variables
+- Replace mock authentication service with real Supabase Auth
+- Connect product catalog to real Supabase database
+- Integrate user profile management with backend user data
+- Replace mock data services with real API calls
+- Add proper error handling for network requests and API failures
+- Test core data flows with real backend connectivity
+- **Test**: All existing features work with real backend data
+
+#### Increment 1.12: Backend Integration - Advanced Features
+**Deliverable**: Complete backend integration for cart, orders, and admin features
+- Connect shopping cart persistence to Supabase storage
+- Integrate order submission and management with real database
+- Set up real-time data synchronization for inventory and orders
+- Connect admin order management to backend order system
+- Implement proper data validation and API contract compliance
+- Add offline capability and sync queue for network interruptions
+- Test end-to-end workflows with real data and concurrent users
+- **Test**: Complete app functionality works reliably with backend
+
+#### Increment 1.13: Build & Deployment Preparation
+**Deliverable**: Production-ready build configuration and deployment pipeline
+- Configure production build settings for iOS and Android
+- Set up environment variables and secrets management (API keys, database URLs)
+- Implement app signing and certificate management
+- Create automated build pipeline and testing workflows
+- Configure app store metadata, icons, and splash screens
+- Test production builds on physical devices
+- Set up crash reporting and analytics (Sentry, Firebase Analytics)
+- Prepare app store submission requirements and compliance
+- **Test**: Production builds deploy successfully and meet app store requirements
+
 ---
 
 ### Phase 2: Enhanced Features (6-8 increments)
@@ -224,6 +258,51 @@ This document breaks down the Farm Stand React Native app development into incre
 - Create QR code generation improvements (better error correction, custom styling)
 - Add staff training mode for QR scanner usage
 - **Test**: Native QR scanning works reliably across all supported devices
+
+#### Increment 2.10: Multi-Language Support - Foundation
+**Deliverable**: Internationalization infrastructure and basic language support
+- Set up i18n infrastructure using react-i18next or expo-localization
+- Create translation file structure and management system
+- Implement language detection and switching functionality
+- Add language preference persistence with AsyncStorage
+- Create translation keys for core UI elements
+- Implement basic English, Spanish, and French translations
+- Add language selector in user settings
+- **Test**: Users can switch languages and see translated content
+
+#### Increment 2.11: Multi-Language Support - Content Localization
+**Deliverable**: Complete content localization across the app
+- Translate all product-related content (names, descriptions, categories)
+- Localize error messages, validation text, and notifications
+- Implement date, time, and currency formatting based on locale
+- Add RTL language support preparation
+- Translate email templates and system messages
+- Create admin tools for managing translations
+- Add translation validation and fallback mechanisms
+- **Test**: All app content displays correctly in multiple languages
+
+#### Increment 2.12: Online Payment Integration - Foundation
+**Deliverable**: Basic online payment processing capability
+- Integrate payment provider SDK (Stripe recommended)
+- Set up secure payment form with card validation
+- Implement payment tokenization and PCI compliance measures
+- Create payment processing service layer
+- Add payment method selection in checkout flow
+- Implement basic credit/debit card processing
+- Add payment confirmation and receipt generation
+- **Test**: Users can complete orders using credit/debit cards
+
+#### Increment 2.13: Online Payment Integration - Advanced Features
+**Deliverable**: Comprehensive payment system with digital wallets and security
+- Add Apple Pay and Google Pay integration
+- Implement saved payment methods for returning customers
+- Add 3D Secure authentication support
+- Create refund and partial refund capabilities
+- Implement payment failure handling and retry mechanisms
+- Add fraud detection and prevention measures
+- Create payment audit trails and admin reporting
+- Add support for tips and split payments
+- **Test**: Complete payment ecosystem works securely across all scenarios
 
 ---
 
