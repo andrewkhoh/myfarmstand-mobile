@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, StyleSheet, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Screen, Text, Input, Button, Card } from '../components';
-import { useRegisterMutation } from '../hooks/useAuth';
+import { useRegisterMutation, useCurrentUser } from '../hooks/useAuth';
 import { spacing } from '../utils/theme';
 
 export const RegisterScreen: React.FC = () => {
@@ -80,7 +80,37 @@ export const RegisterScreen: React.FC = () => {
     if (!validateForm()) return;
 
     try {
-      await registerMutation.mutateAsync({ email, password, name, phone, address });
+      const result = await registerMutation.mutateAsync({ email, password, name, phone, address });
+      
+      if (result.success) {
+        if (result.user) {
+          // Email confirmation disabled - user is logged in immediately
+          Alert.alert(
+            'Welcome to Farm Stand!', 
+            'Your account has been created successfully. You are now logged in and ready to start shopping!',
+            [
+              {
+                text: 'Start Shopping',
+                onPress: () => {}
+              }
+            ]
+          );
+        } else {
+          // Email confirmation enabled - user needs to confirm email first
+          Alert.alert(
+            'Registration Successful!', 
+            'Your account has been created successfully. Please check your email to confirm your account, then return to log in.',
+            [
+              {
+                text: 'Go to Login',
+                onPress: () => navigation.navigate('Login' as never)
+              }
+            ]
+          );
+        }
+      } else {
+        Alert.alert('Registration Failed', result.message || 'Please try again');
+      }
     } catch (error) {
       Alert.alert('Registration Failed', 'Please try again');
     }

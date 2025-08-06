@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { Product, Category } from '../types';
 import { ProductService } from '../services/productService';
+import { supabase } from '../config/supabase';
 
 // Query keys for React Query
 export const productQueryKeys = {
@@ -14,9 +16,11 @@ export const productQueryKeys = {
   byCategory: (categoryId: string | null) => ['products', 'category', categoryId] as const,
 };
 
-// Hook for fetching all products
+// Hook for fetching all products with real-time updates
 export const useProducts = () => {
-  return useQuery({
+  const queryClient = useQueryClient();
+  
+  const query = useQuery({
     queryKey: productQueryKeys.lists(),
     queryFn: async () => {
       const response = await ProductService.getProducts();
@@ -28,6 +32,33 @@ export const useProducts = () => {
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
   });
+
+  // Set up real-time subscription for products
+  useEffect(() => {
+    const subscription = supabase
+      .channel('products-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen to all changes (INSERT, UPDATE, DELETE)
+          schema: 'public',
+          table: 'products'
+        },
+        (payload) => {
+          console.log('Products table changed:', payload);
+          // Invalidate and refetch products when data changes
+          queryClient.invalidateQueries({ queryKey: productQueryKeys.lists() });
+          queryClient.invalidateQueries({ queryKey: productQueryKeys.all });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [queryClient]);
+
+  return query;
 };
 
 // Hook for fetching single product
@@ -64,9 +95,28 @@ export const useProductSearch = (query: string) => {
   });
 };
 
-// Hook for fetching categories
-export const useCategories = () => {
+// Hook for fetching a single product by ID
+export const useProductById = (productId: string) => {
   return useQuery({
+    queryKey: productQueryKeys.detail(productId),
+    queryFn: async () => {
+      const response = await ProductService.getProductById(productId);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to fetch product');
+      }
+      return response.data;
+    },
+    enabled: !!productId,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000,
+  });
+};
+
+// Hook for fetching categories with real-time updates
+export const useCategories = () => {
+  const queryClient = useQueryClient();
+  
+  const query = useQuery({
     queryKey: productQueryKeys.categories,
     queryFn: async () => {
       const response = await ProductService.getCategories();
@@ -78,6 +128,32 @@ export const useCategories = () => {
     staleTime: 10 * 60 * 1000, // 10 minutes (categories change less frequently)
     gcTime: 30 * 60 * 1000, // 30 minutes
   });
+
+  // Set up real-time subscription for categories
+  useEffect(() => {
+    const subscription = supabase
+      .channel('categories-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen to all changes (INSERT, UPDATE, DELETE)
+          schema: 'public',
+          table: 'categories'
+        },
+        (payload) => {
+          console.log('Categories table changed:', payload);
+          // Invalidate and refetch categories when data changes
+          queryClient.invalidateQueries({ queryKey: productQueryKeys.categories });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [queryClient]);
+
+  return query;
 };
 
 // Hook for fetching products by category

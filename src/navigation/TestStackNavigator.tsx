@@ -14,8 +14,11 @@ import {
   StaffQRScannerTestScreen,
   HybridAuthTestScreen,
   AdminOrderTestScreen,
+  ProductDebugTestScreen,
   AutomatedTestRunner,
+  RealtimeTestScreen,
 } from '../screens';
+import BackendIntegrationTestScreen from '../screens/testScreens/BackendIntegrationTestScreen';
 
 export type TestStackParamList = {
   TestHub: undefined;
@@ -31,7 +34,10 @@ export type TestStackParamList = {
   StaffQRScannerTest: undefined;
   HybridAuthTest: undefined;
   AdminOrderTest: undefined;
+  ProductDebugTest: undefined;
+  RealtimeTest: undefined;
   AutomatedTest: undefined;
+  BackendIntegrationTest: undefined;
 };
 
 const Stack = createStackNavigator<TestStackParamList>();
@@ -137,10 +143,28 @@ export const TestStackNavigator: React.FC = () => {
         }}
       />
       <Stack.Screen 
+        name="ProductDebugTest" 
+        component={ProductDebugTestScreen}
+        options={{ title: 'Product Debug Test' }}
+      />
+      <Stack.Screen 
+        name="RealtimeTest" 
+        component={RealtimeTestScreen}
+        options={{ title: 'Real-time Integration Test' }}
+      />
+      <Stack.Screen 
         name="AutomatedTest" 
         component={AutomatedTestRunner}
         options={{
           title: 'Automated Test Runner',
+          headerBackTitle: 'Tests',
+        }}
+      />
+      <Stack.Screen 
+        name="BackendIntegrationTest" 
+        component={BackendIntegrationTestScreen}
+        options={{
+          title: 'Backend Integration Test',
           headerBackTitle: 'Tests',
         }}
       />

@@ -11,7 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useOrderStats } from '../hooks/useOrders';
 import { useCurrentUser } from '../hooks/useAuth';
-import { addMockOrdersForTesting } from '../services/orderService';
+import { getOrderStats } from '../services/orderService';
 
 const MetricsAnalyticsScreen: React.FC = () => {
   const { data: user } = useCurrentUser();
@@ -25,18 +25,7 @@ const MetricsAnalyticsScreen: React.FC = () => {
     refetch();
   }, [refetch]);
 
-  const handleAddMockData = async () => {
-    try {
-      await addMockOrdersForTesting();
-      // Small delay to ensure data is processed
-      setTimeout(() => {
-        refetch();
-      }, 500);
-      Alert.alert('Success', 'Mock orders added successfully');
-    } catch (error) {
-      Alert.alert('Error', 'Failed to add mock orders');
-    }
-  };
+  // Mock data functionality removed - now using real Supabase data
 
   // Security barrier - unauthorized access
   if (!hasFinancialAccess) {
@@ -83,10 +72,7 @@ const MetricsAnalyticsScreen: React.FC = () => {
           <Ionicons name="analytics" size={28} color="#10b981" />
           <Text style={styles.headerTitle}>Metrics & Analytics</Text>
         </View>
-        <TouchableOpacity style={styles.addDataButton} onPress={handleAddMockData}>
-          <Ionicons name="add-circle-outline" size={20} color="#6b7280" />
-          <Text style={styles.addDataText}>Add Test Data</Text>
-        </TouchableOpacity>
+        {/* Mock data functionality removed - now using real Supabase data */}
       </View>
 
       {/* Security Notice */}

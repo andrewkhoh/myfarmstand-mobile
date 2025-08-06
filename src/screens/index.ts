@@ -6,6 +6,7 @@ export { CartScreen } from './CartScreen';
 export { ProfileScreen } from './ProfileScreen';
 export { AdminScreen } from './AdminScreen';
 export { default as AdminOrderScreen } from './AdminOrderScreen';
+export { RealtimeTestScreen } from './testScreens/RealtimeTestScreen';
 export { ProductDetailScreen } from './ProductDetailScreen';
 export { CheckoutScreen } from './CheckoutScreen';
 export { OrderConfirmationScreen } from './OrderConfirmationScreen';
@@ -24,6 +25,7 @@ export { HybridAuthTestScreen } from './testScreens/HybridAuthTestScreen';
 export { ProfileManagementTestScreen } from './testScreens/ProfileManagementTestScreen';
 export { StaffQRScannerTestScreen } from './testScreens/StaffQRScannerTestScreen';
 export { default as AdminOrderTestScreen } from './testScreens/AdminOrderTestScreen';
+export { default as ProductDebugTestScreen } from './testScreens/ProductDebugTestScreen';
 export { StaffQRScannerScreen } from './StaffQRScannerScreen';
 
 // Export test utilities

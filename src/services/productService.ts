@@ -1,4 +1,6 @@
 import { Product, Category, ApiResponse, PaginatedResponse } from '../types';
+import { supabase, TABLES } from '../config/supabase';
+import type { Database } from '../config/supabase';
 
 // Mock API delay to simulate network requests
 const API_DELAY = 1000;
@@ -171,17 +173,43 @@ const mockProductsData: Product[] = [
 
 // Product Service Class
 export class ProductService {
-  // Get all categories
+  // Get all categories from Supabase
   static async getCategories(): Promise<ApiResponse<Category[]>> {
-    await mockDelay();
-    
     try {
+      const { data, error } = await supabase
+        .from(TABLES.CATEGORIES)
+        .select('*')
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true });
+
+      if (error) {
+        console.error('Failed to fetch categories:', error);
+        return {
+          data: [],
+          success: false,
+          error: 'Failed to fetch categories',
+        };
+      }
+
+      // Convert database format to app format
+      const categories: Category[] = (data || []).map(cat => ({
+        id: cat.id,
+        name: cat.name,
+        description: cat.description,
+        imageUrl: cat.image_url,
+        sortOrder: cat.sort_order,
+        isActive: cat.is_active,
+        createdAt: cat.created_at,
+        updatedAt: cat.updated_at,
+      }));
+
       return {
-        data: mockCategories.filter(cat => cat.isActive),
+        data: categories,
         success: true,
         message: 'Categories fetched successfully',
       };
     } catch (error) {
+      console.error('Categories fetch error:', error);
       return {
         data: [],
         success: false,
@@ -219,20 +247,43 @@ export class ProductService {
     }
   }
 
-  // Get all products with populated categories
+  // Get all products with populated categories from Supabase
   static async getProducts(): Promise<ApiResponse<Product[]>> {
-    await mockDelay();
-    
     try {
-      const productsWithCategories = mockProductsData
-        .filter(product => product.isActive)
-        .map(product => ({
-          ...product,
-          category: mockCategories.find(cat => cat.id === product.categoryId),
-        }));
+      const { data, error } = await supabase
+        .from(TABLES.PRODUCTS)
+        .select('*')
+        .eq('is_available', true)
+        .order('name', { ascending: true });
+
+      if (error) {
+        console.error('Failed to fetch products:', error);
+        return {
+          data: [],
+          success: false,
+          error: 'Failed to fetch products',
+        };
+      }
+
+      // Convert database format to app format
+      const products: Product[] = (data || []).map(product => ({
+        id: product.id,
+        name: product.name,
+        description: product.description,
+        price: product.price,
+        stock: product.stock_quantity,
+        categoryId: product.category,
+        imageUrl: product.image_url || '',
+        isActive: product.is_available,
+        isPreOrder: product.is_pre_order,
+        preOrderAvailableDate: product.pre_order_available_date,
+        minPreOrderQuantity: product.min_pre_order_quantity,
+        createdAt: product.created_at,
+        updatedAt: product.updated_at,
+      }));
 
       return {
-        data: productsWithCategories,
+        data: products,
         success: true,
         message: 'Products fetched successfully',
       };
@@ -245,44 +296,86 @@ export class ProductService {
     }
   }
 
-  // Get products with pagination
+  // Get products with pagination from Supabase
   static async getProductsPaginated(
     page: number = 1, 
     limit: number = 10
   ): Promise<ApiResponse<PaginatedResponse<Product>>> {
-    await mockDelay();
-    
     try {
-      const activeProducts = mockProductsData.filter(product => product.isActive);
-      const startIndex = (page - 1) * limit;
-      const endIndex = startIndex + limit;
-      const paginatedProducts = activeProducts.slice(startIndex, endIndex);
+      const offset = (page - 1) * limit;
       
-      const productsWithCategories = paginatedProducts.map(product => ({
-        ...product,
-        category: mockCategories.find(cat => cat.id === product.categoryId),
+      // Get total count
+      const { count, error: countError } = await supabase
+        .from(TABLES.PRODUCTS)
+        .select('*', { count: 'exact', head: true })
+        .eq('is_available', true);
+
+      if (countError) {
+        console.error('Failed to get product count:', countError);
+        return {
+          data: { data: [], total: 0, page, limit, totalPages: 0, hasMore: false },
+          success: false,
+          error: 'Failed to get product count',
+        };
+      }
+
+      // Get paginated products
+      const { data, error } = await supabase
+        .from(TABLES.PRODUCTS)
+        .select('*')
+        .eq('is_available', true)
+        .order('name', { ascending: true })
+        .range(offset, offset + limit - 1);
+
+      if (error) {
+        console.error('Failed to fetch paginated products:', error);
+        return {
+          data: { data: [], total: 0, page, limit, totalPages: 0, hasMore: false },
+          success: false,
+          error: 'Failed to fetch products',
+        };
+      }
+
+      // Convert database format to app format
+      const products: Product[] = (data || []).map(product => ({
+        id: product.id,
+        name: product.name,
+        description: product.description,
+        price: product.price,
+        stock: product.stock_quantity,
+        categoryId: product.category,
+        imageUrl: product.image_url || '',
+        isActive: product.is_available,
+        isPreOrder: product.is_pre_order,
+        preOrderAvailableDate: product.pre_order_available_date,
+        minPreOrderQuantity: product.min_pre_order_quantity,
+        unit: product.unit,
+        weight: product.weight,
+        sku: product.sku,
+        tags: product.tags || [],
+        createdAt: product.created_at,
+        updatedAt: product.updated_at,
       }));
+
+      const totalPages = Math.ceil((count || 0) / limit);
+
+      const hasMore = (page * limit) < (count || 0);
 
       return {
         data: {
-          data: productsWithCategories,
-          total: activeProducts.length,
+          data: products,
+          total: count || 0,
           page,
           limit,
-          hasMore: endIndex < activeProducts.length,
+          totalPages,
+          hasMore,
         },
         success: true,
         message: 'Products fetched successfully',
       };
     } catch (error) {
       return {
-        data: {
-          data: [],
-          total: 0,
-          page,
-          limit,
-          hasMore: false,
-        },
+        data: { data: [], total: 0, page, limit, totalPages: 0, hasMore: false },
         success: false,
         error: 'Failed to fetch products',
       };

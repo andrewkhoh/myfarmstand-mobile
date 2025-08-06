@@ -116,12 +116,33 @@ const testCategories: TestCategory[] = [
     color: '#DC2626',
   },
   {
+    id: 'backend-integration',
+    title: 'Backend Integration',
+    description: 'Supabase Auth and Database integration testing',
+    icon: 'cloud-outline',
+    screenName: 'BackendIntegrationTest',
+    color: '#7C3AED',
+    tests: [
+      { name: 'Product Debug Test', screen: 'ProductDebugTest' },
+      { name: 'Real-time Integration Test', screen: 'RealtimeTest' },
+      { name: 'Backend Integration Test', screen: 'BackendIntegrationTest' },
+    ],
+  },
+  {
     id: 'admin-order',
     title: 'Admin Order Management',
     description: 'Order filtering, bulk updates, statistics, and admin operations',
     icon: 'business-outline',
     screenName: 'AdminOrderTest',
     color: '#7C3AED',
+  },
+  {
+    id: 'product-debug',
+    title: 'Product Debug Test',
+    description: 'Debug product loading, Supabase connection, and data fetching issues',
+    icon: 'bug-outline',
+    screenName: 'ProductDebugTest',
+    color: '#F59E0B',
   },
 ];
 

@@ -1100,12 +1100,183 @@ const EnhancedCheckoutTestScreen: React.FC = () => {
 
 ---
 
-## Hybrid Authentication System Implementation
+## Lesson 12: Comprehensive Lessons Learned from Cart Refactoring, ProfileScreen Fix, and Testing Considerations
+
+### Context
+Refactoring the cart system to use React Query, fixing the ProfileScreen's order history, and enhancing testing considerations.
+
+### Problem
+The cart system was inconsistent with the rest of the app, using AsyncStorage and Context instead of React Query and Supabase. The ProfileScreen's order history was empty due to using mock data instead of real Supabase queries. Testing considerations were not comprehensive, leading to potential issues with real-time sync and multi-device scenarios.
+
+### Solution
+1. **Refactored cart system** to use React Query and Supabase
+2. **Fixed ProfileScreen's order history** by using real Supabase queries
+3. **Enhanced testing considerations** to include real-time sync and multi-device scenarios
+
+### Key Benefits Achieved
+- **Consistent architecture** - All data management now uses React Query
+- **Real-time updates** - Cart changes sync immediately
+- **Offline fallback** - AsyncStorage backup when offline
+- **Comprehensive testing** - Test suite now covers real-time sync and multi-device scenarios
+
+### Lesson Learned
+**Always ensure architectural consistency during backend migrations.** When migrating from mock to real data, audit ALL data flows to ensure they follow the same patterns. Cart persistence is as critical as product/order data and should use the same technology stack.
+
+**Always audit critical user-facing data flows during backend migration.** Order history is a core user experience feature. When migrating from mock to real data, systematically verify that ALL user-facing queries are properly connected to the database, not just the obvious ones like product catalog.
+
+**Backend migrations require comprehensive test refactoring.** When changing from mock to real data sources, the test suite needs as much attention as the production code. Test interfaces, mocks, and coverage areas all need systematic review and updates to maintain quality assurance.
+
+---
+
+## Issue 6: Cart System Architecture Inconsistency
+**Date**: 2025-08-05  
+**Context**: Cart system using AsyncStorage + Context while rest of app uses React Query + Supabase  
+**Severity**: High (Architecture Consistency)
+
+### Problem
+The cart system was using a hybrid approach:
+- **CartContext + useReducer** for state management
+- **AsyncStorage only** for persistence
+- **No React Query integration** or server-side sync
+- **No cross-device synchronization**
+
+This created architectural inconsistency since all other data (products, orders, users) used React Query + Supabase.
+
+### Root Cause
+Original cart implementation was built before backend integration, using local-only storage patterns that weren't updated during the migration to Supabase.
+
+### Solution
+1. **Enhanced cartService.ts** with Supabase integration
+   - Added database cart item interface and conversion helpers
+   - Implemented cloud sync with local storage fallback
+   - Added `getCart()`, `getLocalCart()`, and `saveLocalCart()` methods
+
+2. **Leveraged existing React Query cart hooks** (already implemented)
+   - `useCart()` hook with optimistic updates
+   - Mutations for add, remove, update, and clear operations
+   - Proper error handling and cache invalidation
+
+3. **Removed CartContext entirely**
+   - Deleted `CartContext.tsx`
+   - Updated all test screens to use React Query hooks
+   - Removed CartProvider from test utilities
+
+### Key Benefits Achieved
+- **Cross-device synchronization** - Cart syncs across devices when logged in
+- **Server-side persistence** - Cart data stored in Supabase `cart_items` table
+- **Consistent architecture** - All data management now uses React Query
+- **Real-time updates** - Cart changes sync immediately
+- **Offline fallback** - AsyncStorage backup when offline
+
+### Lesson Learned
+**Always ensure architectural consistency during backend migrations.** When migrating from mock to real data, audit ALL data flows to ensure they follow the same patterns. Cart persistence is as critical as product/order data and should use the same technology stack.
+
+---
+
+## Issue 7: ProfileScreen Order History Missing Data
+**Date**: 2025-08-05  
+**Context**: User's order history showing empty despite having completed orders  
+**Severity**: High (User Experience)
+
+### Problem
+ProfileScreen's order history was empty even though orders existed in the database and were marked as 'completed'.
+
+### Root Cause
+The `getCustomerOrders` function was still using **mock data** instead of real Supabase queries:
+
+```typescript
+// ❌ Old implementation
+export const getCustomerOrders = async (customerEmail: string): Promise<Order[]> => {
+  await new Promise(resolve => setTimeout(resolve, API_DELAY / 2));
+  return mockOrders.filter(order => order.customerInfo.email === customerEmail);
+};
+```
+
+Since `mockOrders` was empty or didn't contain the user's real orders, the ProfileScreen couldn't display order history.
+
+### Solution
+Replaced with real Supabase implementation:
+
+```typescript
+// ✅ New implementation
+export const getCustomerOrders = async (customerEmail: string): Promise<Order[]> => {
+  if (!customerEmail) {
+    console.warn('getCustomerOrders: customerEmail is required');
+    return [];
+  }
+
+  try {
+    const { data: ordersData, error } = await supabase
+      .from('orders')
+      .select(`
+        *,
+        order_items (
+          id, product_id, product_name, unit_price, quantity, total_price
+        )
+      `)
+      .eq('customer_email', customerEmail)
+      .order('created_at', { ascending: false });
+
+    // Convert database format to app format...
+    return orders;
+  } catch (error) {
+    console.error('Error in getCustomerOrders:', error);
+    return [];
+  }
+};
+```
+
+### Key Features Added
+- **Real data fetching** from Supabase `orders` table
+- **Proper filtering** by customer email
+- **Order items included** via database join
+- **Error handling** with fallback to empty array
+- **Sorted by date** (newest first)
+- **Type safety** with proper Order interface mapping
+
+### Lesson Learned
+**Always audit critical user-facing data flows during backend migration.** Order history is a core user experience feature. When migrating from mock to real data, systematically verify that ALL user-facing queries are properly connected to the database, not just the obvious ones like product catalog.
+
+---
+
+## Issue 8: Test Interface Inconsistency After Backend Migration
+**Date**: 2025-08-05  
+**Context**: Test mocks and interfaces may be inconsistent after migration from mock to server data  
+**Severity**: Medium (Testing Quality)
+
+### Problem
+After migrating from mock products to server data and refactoring cart system:
+- **Test interfaces** may not match new React Query hook APIs
+- **Mock data structures** may be outdated
+- **Test coverage** may be insufficient for real-time sync and multi-device scenarios
+- **Edge cases** specific to server-backed data flows may not be tested
+
+### Identified Issues
+1. **Cart hook interface changes** - Old CartContext API vs new React Query hooks
+2. **Product data structure mismatches** - Database schema vs mock data format
+3. **Missing real-time sync tests** - No coverage for Supabase subscriptions
+4. **Multi-device scenarios** - No testing for cross-device cart/order sync
+5. **Network failure handling** - Limited testing of offline/online transitions
+
+### Recommended Actions
+1. **Audit and refactor test interfaces** to match new React Query APIs
+2. **Update mock data structures** to match real database schema
+3. **Add real-time sync test scenarios** for Supabase subscriptions
+4. **Create multi-device test protocols** for manual testing
+5. **Enhance network failure test coverage** for offline scenarios
+
+### Lesson Learned
+**Backend migrations require comprehensive test refactoring.** When changing from mock to real data sources, the test suite needs as much attention as the production code. Test interfaces, mocks, and coverage areas all need systematic review and updates to maintain quality assurance.
+
+---
+
+## Issue 9: Hybrid Authentication Architecture Complexitymentation
 **Date**: 2025-08-03  
 **Increment**: Signout Fix & Hybrid Auth  
 **Severity**: High (Critical Feature)
 
 ### Issue: Broken Signout & Authentication Architecture
+{{ ... }}
 
 #### Problem Summary
 - Signout causing "maximum update depth exceeded" infinite render loop on physical devices
@@ -1470,6 +1641,167 @@ grep -r "from.*AuthContext" src/
 - Choose ONE state management solution per domain
 - Avoid mixing Context API with React Query for same data
 - Design hooks to be pure and focused
+
+---
+
+## Backend Integration Patterns (Supabase)
+**Date**: 2025-08-05  
+**Context**: Supabase backend integration for authentication, orders, and products  
+**Severity**: Critical (Production Foundation)
+
+### Key Learnings
+
+#### 1. Environment Variable Configuration
+```bash
+# ✅ Correct naming for Expo/React Native
+EXPO_PUBLIC_SUPABASE_URL=your_project_url
+EXPO_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+
+# ❌ Wrong - .env.local is not read by Expo
+# Use .env instead
+```
+
+**Critical**: Expo requires `EXPO_PUBLIC_` prefix and reads from `.env`, not `.env.local`.
+
+#### 2. Row Level Security (RLS) Policy Patterns
+```sql
+-- ✅ Essential policies for user registration
+CREATE POLICY "Users can insert their own profile" ON users
+  FOR INSERT WITH CHECK (auth.uid() = id);
+
+CREATE POLICY "Users can view their own profile" ON users
+  FOR SELECT USING (auth.uid() = id);
+```
+
+**Issue**: Missing INSERT policy prevents user profile creation during registration.
+**Solution**: Always create INSERT, SELECT, UPDATE policies for user-owned data.
+
+#### 3. Real-time Data Synchronization
+```typescript
+// ✅ React Query + Supabase real-time pattern
+export const useProducts = () => {
+  const queryClient = useQueryClient();
+  
+  const query = useQuery({
+    queryKey: productKeys.lists(),
+    queryFn: () => ProductService.getProducts(),
+  });
+
+  useEffect(() => {
+    const subscription = supabase
+      .channel('products-changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'products'
+      }, (payload) => {
+        // Invalidate cache when data changes
+        queryClient.invalidateQueries({ queryKey: productKeys.all });
+      })
+      .subscribe();
+
+    return () => subscription.unsubscribe();
+  }, [queryClient]);
+
+  return query;
+};
+```
+
+**Benefits**: Automatic UI updates when database changes, multi-user synchronization.
+
+#### 4. Database Schema Design
+```sql
+-- ✅ Flexible category reference
+CREATE TABLE products (
+  category VARCHAR(255) NOT NULL, -- References categories.name
+  -- More flexible than foreign key constraints
+);
+
+-- ✅ Comprehensive indexing for search
+CREATE INDEX idx_products_name ON products USING GIN (to_tsvector('english', name));
+CREATE INDEX idx_products_tags ON products USING GIN (tags);
+```
+
+**Pattern**: Use VARCHAR category names instead of UUIDs for flexibility.
+
+#### 5. Service Layer Error Handling
+```typescript
+// ✅ Consistent error response pattern
+export const ProductService = {
+  async getProducts(): Promise<ApiResponse<Product[]>> {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*');
+      
+      if (error) {
+        console.error('Database error:', error);
+        return {
+          data: [],
+          success: false,
+          error: 'Failed to fetch products'
+        };
+      }
+      
+      return {
+        data: transformData(data),
+        success: true,
+        message: 'Products fetched successfully'
+      };
+    } catch (error) {
+      console.error('Service error:', error);
+      return {
+        data: [],
+        success: false,
+        error: 'Failed to fetch products'
+      };
+    }
+  }
+};
+```
+
+**Pattern**: Always return consistent `ApiResponse<T>` format with success/error states.
+
+#### 6. Authentication Migration Strategy
+```typescript
+// ❌ Problematic: Hybrid Context + React Query
+const useAuth = () => {
+  const { user, setUser } = useContext(AuthContext);
+  const { data } = useQuery(['user'], fetchUser);
+  // Creates circular dependencies and infinite loops
+};
+
+// ✅ Solution: Pure React Query approach
+const useCurrentUser = () => {
+  return useQuery({
+    queryKey: ['auth', 'user'],
+    queryFn: () => authService.getCurrentUser(),
+    staleTime: 5 * 60 * 1000,
+  });
+};
+```
+
+**Critical**: Avoid mixing Context API with React Query for the same data source.
+
+#### 7. Mock Data Migration
+```typescript
+// ✅ Clean migration approach
+// 1. Implement Supabase service alongside mock
+// 2. Switch React Query hooks to use real service
+// 3. Remove mock functions and imports
+// 4. Clean up test data buttons and references
+
+// ❌ Don't leave orphaned mock references
+import { addMockOrdersForTesting } from '../services/orderService'; // Will break
+```
+
+**Process**: Systematic replacement prevents broken imports and runtime errors.
+
+### Production Checklist Integration
+- Email confirmation must be re-enabled before production
+- Environment variables must point to production Supabase project
+- All RLS policies must be verified for security
+- Mock data and test functions must be removed
 
 #### 2. Dependency Analysis
 ```tsx

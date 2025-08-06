@@ -1,7 +1,18 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from '../config/supabase';
 import { CartState, CartItem, Product } from '../types';
 
 const CART_STORAGE_KEY = '@farmstand_cart';
+
+// Database cart item interface
+interface DbCartItem {
+  id: string;
+  user_id: string;
+  product_id: string;
+  quantity: number;
+  created_at: string;
+  updated_at: string;
+}
 
 // Stock validation helper
 const validateStock = (product: Product, requestedQuantity: number, currentCartQuantity: number = 0): { isValid: boolean; message?: string } => {
@@ -45,14 +56,91 @@ const calculateTotal = (items: CartItem[]): number => {
   }, 0);
 };
 
+// Helper to convert database cart items to app format
+const convertDbCartItemsToCartState = async (dbItems: DbCartItem[]): Promise<CartState> => {
+  const cartItems: CartItem[] = [];
+  
+  // Fetch product details for each cart item
+  for (const dbItem of dbItems) {
+    const { data: product } = await supabase
+      .from('products')
+      .select('*')
+      .eq('id', dbItem.product_id)
+      .single();
+    
+    if (product) {
+      cartItems.push({
+        product: {
+          id: product.id,
+          name: product.name,
+          description: product.description,
+          price: product.price,
+          stock: product.stock_quantity,
+          categoryId: product.category, // Note: database uses category name, not ID
+          imageUrl: product.image_url,
+          unit: product.unit,
+          isActive: product.is_available,
+          isPreOrder: product.is_pre_order,
+          minPreOrderQuantity: product.min_pre_order_quantity,
+          maxPreOrderQuantity: product.max_pre_order_quantity,
+          tags: product.tags || [],
+          createdAt: product.created_at || new Date().toISOString(),
+          updatedAt: product.updated_at || new Date().toISOString()
+        },
+        quantity: dbItem.quantity
+      });
+    }
+  }
+  
+  return {
+    items: cartItems,
+    total: calculateTotal(cartItems)
+  };
+};
+
 export const cartService = {
-  // Get cart from storage
+  // Get cart from Supabase (with AsyncStorage fallback)
   getCart: async (): Promise<CartState> => {
+    try {
+      // Try to get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        // User is authenticated - get cart from Supabase
+        const { data: dbCartItems, error } = await supabase
+          .from('cart_items')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: true });
+        
+        if (error) {
+          console.warn('Failed to load cart from Supabase:', error);
+          // Fall back to AsyncStorage
+          return await this.getLocalCart();
+        }
+        
+        if (dbCartItems && dbCartItems.length > 0) {
+          const cartState = await convertDbCartItemsToCartState(dbCartItems);
+          // Sync to local storage for offline access
+          await cartService.saveLocalCart(cartState);
+          return cartState;
+        }
+      }
+      
+      // User not authenticated or no cart items - try local storage
+      return await cartService.getLocalCart();
+    } catch (error) {
+      console.warn('Failed to load cart:', error);
+      return await this.getLocalCart();
+    }
+  },
+
+  // Get cart from local AsyncStorage only
+  getLocalCart: async (): Promise<CartState> => {
     try {
       const cartData = await AsyncStorage.getItem(CART_STORAGE_KEY);
       if (cartData) {
         const parsedCart: CartState = JSON.parse(cartData);
-        // Validate the loaded data structure
         if (parsedCart.items && Array.isArray(parsedCart.items)) {
           return {
             items: parsedCart.items,
@@ -61,14 +149,32 @@ export const cartService = {
         }
       }
     } catch (error) {
-      console.warn('Failed to load cart from storage:', error);
+      console.warn('Failed to load cart from local storage:', error);
     }
     
-    // Return empty cart if loading fails or no data
     return { items: [], total: 0 };
   },
 
-  // Save cart to storage
+  // Save cart to local AsyncStorage only
+  saveLocalCart: async (cart: CartState): Promise<CartState> => {
+    try {
+      if (cart.items.length === 0) {
+        await AsyncStorage.removeItem(CART_STORAGE_KEY);
+      } else {
+        const updatedCart = {
+          items: cart.items,
+          total: calculateTotal(cart.items)
+        };
+        await AsyncStorage.setItem(CART_STORAGE_KEY, JSON.stringify(updatedCart));
+        return updatedCart;
+      }
+    } catch (error) {
+      console.warn('Failed to save cart to local storage:', error);
+    }
+    return cart;
+  },
+
+  // Save cart to Supabase (with local storage sync)
   saveCart: async (cart: CartState): Promise<CartState> => {
     try {
       if (cart.items.length === 0) {

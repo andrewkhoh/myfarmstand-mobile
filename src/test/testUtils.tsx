@@ -2,7 +2,7 @@ import React from 'react';
 import { render, RenderOptions } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { NavigationContainer } from '@react-navigation/native';
-import { CartProvider } from '../contexts/CartContext';
+// CartProvider removed - using React Query cart hooks instead
 import { Product } from '../types';
 
 // Create a test query client
@@ -30,9 +30,7 @@ const TestWrapper: React.FC<TestWrapperProps> = ({
   return (
     <QueryClientProvider client={queryClient}>
       <NavigationContainer>
-        <CartProvider>
-          {children}
-        </CartProvider>
+        {children}
       </NavigationContainer>
     </QueryClientProvider>
   );

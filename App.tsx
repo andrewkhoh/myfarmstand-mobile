@@ -1,9 +1,12 @@
 import React from 'react';
 import 'react-native-gesture-handler';
+// Crypto polyfill for React Native
+import 'react-native-get-random-values';
 import { StatusBar } from 'expo-status-bar';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { CartProvider } from './src/contexts/CartContext';
+// import { CartProvider } from './src/contexts/CartContext';
 import { AppNavigator } from './src/navigation/AppNavigator';
+import { useRealtime } from './src/hooks/useRealtime';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -21,10 +24,10 @@ const queryClient = new QueryClient({
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <CartProvider>
+      {/* <CartProvider> */}
         <AppNavigator />
         <StatusBar style="auto" />
-      </CartProvider>
+      {/* </CartProvider> */}
     </QueryClientProvider>
   );
 }

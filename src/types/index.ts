@@ -15,6 +15,7 @@ export type RootTabParamList = {
   StaffQRScannerTest: undefined;
   HybridAuthTest: undefined;
   AdminOrderTest: undefined;
+  ProductDebugTest: undefined;
 };
 
 export type RootStackParamList = {
@@ -113,6 +114,7 @@ export interface PaginatedResponse<T> {
   page: number;
   limit: number;
   hasMore: boolean;
+  totalPages: number;
 }
 
 // Data Fetching States

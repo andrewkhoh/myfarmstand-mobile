@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Screen, Text, Card, Button } from '../components';
 import { ProductCard } from '../components/ProductCard';
 import { useCart } from '../hooks/useCart';
-import { mockProducts } from '../data/mockProducts';
+import { useProducts, useCategories } from '../hooks/useProducts';
 import { spacing, colors, borderRadius } from '../utils/theme';
 import { Product, RootStackParamList } from '../types';
 
@@ -23,28 +23,36 @@ export const ShopScreen: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
 
+  // Get real data from Supabase
+  const { data: products = [], isLoading: productsLoading, error: productsError, refetch: refetchProducts } = useProducts();
+  const { data: categoriesData = [], isLoading: categoriesLoading } = useCategories();
+
   // Get unique categories
   const categories = useMemo(() => {
-    const uniqueCategories = [...new Set(mockProducts.map(p => p.category))];
-    return ['all', ...uniqueCategories];
-  }, []);
+    const categoryNames = categoriesData.map(cat => cat.name);
+    return ['all', ...categoryNames];
+  }, [categoriesData]);
 
   // Filter and sort products
   const filteredAndSortedProducts = useMemo(() => {
-    let filtered = mockProducts;
+    let filtered = products;
 
     // Apply category filter
     if (selectedCategory !== 'all') {
-      filtered = filtered.filter(product => product.category === selectedCategory);
+      // Filter by category name (database stores category as string name, not ID)
+      filtered = filtered.filter((product: Product) => {
+        // Handle both possible data structures for compatibility
+        const productCategory = (product as any).category || product.categoryId;
+        return productCategory === selectedCategory;
+      });
     }
 
     // Apply search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(product => 
+      filtered = filtered.filter((product: Product) => 
         product.name.toLowerCase().includes(query) ||
         product.description.toLowerCase().includes(query) ||
-        product.category.toLowerCase().includes(query) ||
         (product.tags && product.tags.some((tag: string) => tag.toLowerCase().includes(query)))
       );
     }
@@ -59,14 +67,17 @@ export const ShopScreen: React.FC = () => {
         case 'price-high':
           return b.price - a.price;
         case 'category':
-          return a.category.localeCompare(b.category);
+          // Sort by category name (database stores category as string name)
+          const aCategoryName = (a as any).category || a.categoryId || '';
+          const bCategoryName = (b as any).category || b.categoryId || '';
+          return aCategoryName.localeCompare(bCategoryName);
         default:
           return 0;
       }
     });
 
     return sorted;
-  }, [searchQuery, selectedCategory, sortBy]);
+  }, [searchQuery, selectedCategory, sortBy, products, categoriesData]);
 
   const handleProductPress = (product: Product) => {
     navigation.navigate('ProductDetail', { productId: product.id });
@@ -86,10 +97,13 @@ export const ShopScreen: React.FC = () => {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    // Simulate API call delay
-    setTimeout(() => {
+    try {
+      await refetchProducts();
+    } catch (error) {
+      console.error('Error refreshing products:', error);
+    } finally {
       setRefreshing(false);
-    }, 1000);
+    }
   };
 
   const getSortLabel = (option: SortOption) => {
@@ -256,6 +270,36 @@ export const ShopScreen: React.FC = () => {
     </View>
   );
 
+  // Show loading state
+  if (productsLoading || categoriesLoading) {
+    return (
+      <Screen>
+        <View style={styles.loadingContainer}>
+          <Text variant="heading3" align="center">Loading products...</Text>
+        </View>
+      </Screen>
+    );
+  }
+
+  // Show error state
+  if (productsError) {
+    return (
+      <Screen>
+        <View style={styles.errorContainer}>
+          <Text variant="heading3" align="center" color="error">Error loading products</Text>
+          <Text variant="body" align="center" color="secondary" style={{ marginTop: 8 }}>
+            {productsError.message}
+          </Text>
+          <Button 
+            title="Retry" 
+            onPress={() => refetchProducts()} 
+            style={{ marginTop: 16 }}
+          />
+        </View>
+      </Screen>
+    );
+  }
+
   return (
     <Screen>
       <FlatList
@@ -393,5 +437,18 @@ const styles = StyleSheet.create({
   emptyText: {
     marginTop: spacing.md,
     textAlign: 'center',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: spacing.xl,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: spacing.xl,
+    paddingHorizontal: spacing.lg,
   },
 });

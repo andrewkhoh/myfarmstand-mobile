@@ -8,7 +8,7 @@ import {
   Alert,
 } from 'react-native';
 import { useMutation } from '@tanstack/react-query';
-import { useCart } from '../../contexts/CartContext';
+import { useCart } from '../../hooks/useCart';
 import { submitOrder, clearMockOrders } from '../../services/orderService';
 import { CreateOrderRequest, CustomerInfo, FulfillmentType, OrderItem } from '../../types';
 

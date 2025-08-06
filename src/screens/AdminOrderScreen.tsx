@@ -14,7 +14,6 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Order, OrderStatus, FulfillmentType } from '../types';
 import { useOrders, useOrderOperations } from '../hooks/useOrders';
-import { addMockOrdersForTesting } from '../services/orderService';
 
 interface OrderFilters {
   status?: string;
@@ -33,26 +32,7 @@ const AdminOrderScreen: React.FC = () => {
 
   const { updateOrderStatus, bulkUpdateOrderStatus, isLoading: isUpdating } = useOrderOperations();
 
-  // Add mock data on first load if no orders exist
-  useEffect(() => {
-    if (orders.length === 0 && !isLoading) {
-      handleAddMockData();
-    }
-  }, [orders, isLoading]);
-
-  // Add mock data for testing
-  const handleAddMockData = async () => {
-    try {
-      await addMockOrdersForTesting();
-      // Small delay to ensure data is processed
-      setTimeout(() => {
-        refetch();
-      }, 500);
-      Alert.alert('Success', 'Mock orders added successfully');
-    } catch (error) {
-      Alert.alert('Error', 'Failed to add mock orders');
-    }
-  };
+  // Mock data functionality removed - now using real Supabase data
 
   // Memoized filtered and sorted orders
   const displayOrders = useMemo(() => {

@@ -14,10 +14,10 @@ import {
   calculateExpectedTotals
 } from '../../test/testUtils';
 import { CheckoutScreen } from '../CheckoutScreen';
-import { useCart } from '../../contexts/CartContext';
+import { useCart } from '../../hooks/useCart';
 
 // Mock the cart context
-jest.mock('../../contexts/CartContext');
+jest.mock('../../hooks/useCart');
 const mockUseCart = useCart as jest.MockedFunction<typeof useCart>;
 
 // Mock React Query mutation

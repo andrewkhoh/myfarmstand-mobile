@@ -1,9 +1,11 @@
 import { CreateOrderRequest, Order, OrderSubmissionResult } from '../types';
+import { supabase } from '../config/supabase';
+import { v4 as uuidv4 } from 'uuid';
 
-// Mock API delay to simulate network requests
-const API_DELAY = 1000;
+// Mock API delay to simulate network requests (keeping for consistency)
+const API_DELAY = 500;
 
-// Mock order storage (in real app, this would be a backend API)
+// Mock order storage (keeping for fallback/testing)
 let mockOrders: Order[] = [];
 let orderIdCounter = 1;
 
@@ -12,16 +14,8 @@ const calculateTax = (subtotal: number): number => {
   return Math.round(subtotal * 0.085 * 100) / 100;
 };
 
-// Generate order ID
-const generateOrderId = (): string => {
-  return `ORD-${Date.now()}-${orderIdCounter++}`;
-};
-
-// Mock API function to submit an order
+// Real Supabase function to submit an order
 export const submitOrder = async (orderRequest: CreateOrderRequest): Promise<OrderSubmissionResult> => {
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, API_DELAY));
-  
   try {
     // Validate required fields
     if (!orderRequest.customerInfo.name || !orderRequest.customerInfo.email || !orderRequest.customerInfo.phone) {
@@ -51,34 +45,96 @@ export const submitOrder = async (orderRequest: CreateOrderRequest): Promise<Ord
     const tax = calculateTax(subtotal);
     const total = subtotal + tax;
     
-    // Create order
-    const order: Order = {
-      id: generateOrderId(),
-      customerInfo: orderRequest.customerInfo,
-      items: orderRequest.items,
-      subtotal,
-      tax,
+    // Get current user for order association
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    // Generate order ID and QR code data
+    const orderId = uuidv4();
+    const qrCodeData = JSON.stringify({
+      orderId,
+      customerEmail: orderRequest.customerInfo.email,
       total,
-      fulfillmentType: orderRequest.fulfillmentType,
-      status: 'pending',
-      notes: orderRequest.notes,
-      pickupDate: orderRequest.pickupDate,
-      pickupTime: orderRequest.pickupTime,
-      deliveryAddress: orderRequest.deliveryAddress,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+      timestamp: Date.now()
+    });
     
-    // Store order (in real app, this would be saved to database)
-    mockOrders.push(order);
+    // Create order in database
+    const { data: orderData, error: orderError } = await supabase
+      .from('orders')
+      .insert({
+        id: orderId,
+        user_id: user?.id || null,
+        status: 'pending',
+        total_amount: total,
+        tax_amount: tax,
+        subtotal: subtotal,
+        customer_name: orderRequest.customerInfo.name,
+        customer_email: orderRequest.customerInfo.email,
+        customer_phone: orderRequest.customerInfo.phone,
+        fulfillment_type: orderRequest.fulfillmentType,
+        pickup_date: orderRequest.pickupDate || null,
+        pickup_time: orderRequest.pickupTime || null,
+        delivery_address: orderRequest.deliveryAddress || null,
+        special_instructions: orderRequest.notes || null,
+        qr_code_data: qrCodeData
+      })
+      .select()
+      .single();
     
-    // Simulate occasional failures (5% chance)
-    if (Math.random() < 0.05) {
+    if (orderError) {
+      console.error('Error creating order:', orderError);
       return {
         success: false,
-        error: 'Server error: Unable to process order at this time'
+        error: 'Failed to create order. Please try again.'
       };
     }
+    
+    // Create order items in database
+    const orderItems = orderRequest.items.map(item => ({
+      order_id: orderId,
+      product_id: item.productId,
+      product_name: item.productName,
+      quantity: item.quantity,
+      unit_price: item.price,
+      total_price: item.subtotal
+    }));
+    
+    const { error: itemsError } = await supabase
+      .from('order_items')
+      .insert(orderItems);
+    
+    if (itemsError) {
+      console.error('Error creating order items:', itemsError);
+      // Try to clean up the order if items failed
+      await supabase.from('orders').delete().eq('id', orderId);
+      return {
+        success: false,
+        error: 'Failed to create order items. Please try again.'
+      };
+    }
+    
+    // Convert database order back to app format
+    const order: Order = {
+      id: orderData.id,
+      customerId: orderData.user_id,
+      customerInfo: {
+        name: orderData.customer_name,
+        email: orderData.customer_email,
+        phone: orderData.customer_phone,
+        address: orderRequest.customerInfo.address
+      },
+      items: orderRequest.items,
+      subtotal: orderData.subtotal,
+      tax: orderData.tax_amount,
+      total: orderData.total_amount,
+      fulfillmentType: orderData.fulfillment_type as 'pickup' | 'delivery',
+      status: orderData.status as 'pending' | 'confirmed' | 'ready' | 'completed' | 'cancelled',
+      notes: orderData.special_instructions,
+      pickupDate: orderData.pickup_date,
+      pickupTime: orderData.pickup_time,
+      deliveryAddress: orderData.delivery_address,
+      createdAt: orderData.created_at,
+      updatedAt: orderData.updated_at
+    };
     
     return {
       success: true,
@@ -100,40 +156,145 @@ export const getOrder = async (orderId: string): Promise<Order | null> => {
   return mockOrders.find(order => order.id === orderId) || null;
 };
 
-// Get orders for a customer (for future use)
+// Get orders for a customer - Real Supabase implementation
 export const getCustomerOrders = async (customerEmail: string): Promise<Order[]> => {
-  await new Promise(resolve => setTimeout(resolve, API_DELAY / 2));
-  return mockOrders.filter(order => order.customerInfo.email === customerEmail);
+  if (!customerEmail) {
+    console.warn('getCustomerOrders: customerEmail is required');
+    return [];
+  }
+
+  try {
+    const { data: ordersData, error } = await supabase
+      .from('orders')
+      .select(`
+        *,
+        order_items (
+          id,
+          product_id,
+          product_name,
+          unit_price,
+          quantity,
+          total_price
+        )
+      `)
+      .eq('customer_email', customerEmail)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching customer orders:', error);
+      return [];
+    }
+
+    if (!ordersData || ordersData.length === 0) {
+      return [];
+    }
+
+    // Convert database format to app format
+    const orders: Order[] = ordersData.map((orderData: any) => ({
+      id: orderData.id,
+      customerId: orderData.user_id,
+      customerInfo: {
+        name: orderData.customer_name,
+        email: orderData.customer_email,
+        phone: orderData.customer_phone,
+        address: orderData.delivery_address || undefined
+      },
+      items: orderData.order_items.map((item: any) => ({
+        productId: item.product_id,
+        productName: item.product_name,
+        price: item.unit_price,
+        quantity: item.quantity,
+        subtotal: item.total_price
+      })),
+      subtotal: orderData.subtotal,
+      tax: orderData.tax_amount,
+      total: orderData.total_amount,
+      fulfillmentType: orderData.fulfillment_type as 'pickup' | 'delivery',
+      status: orderData.status as 'pending' | 'confirmed' | 'ready' | 'completed' | 'cancelled',
+      notes: orderData.special_instructions,
+      pickupDate: orderData.pickup_date,
+      pickupTime: orderData.pickup_time,
+      deliveryAddress: orderData.delivery_address,
+      createdAt: orderData.created_at,
+      updatedAt: orderData.updated_at
+    }));
+
+    return orders;
+  } catch (error) {
+    console.error('Error in getCustomerOrders:', error);
+    return [];
+  }
 };
 
-// Update order status (for staff QR scanner)
+// Update order status (for staff QR scanner) - Real Supabase implementation
 export const updateOrderStatus = async (orderId: string, newStatus: string): Promise<{ success: boolean; message?: string; order?: Order }> => {
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 800));
-  
   try {
-    const orderIndex = mockOrders.findIndex(order => order.id === orderId);
+    // Update order status in database
+    const { data: orderData, error } = await supabase
+      .from('orders')
+      .update({ 
+        status: newStatus,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', orderId)
+      .select(`
+        *,
+        order_items (
+          id,
+          product_id,
+          product_name,
+          quantity,
+          unit_price,
+          total_price
+        )
+      `)
+      .single();
     
-    if (orderIndex === -1) {
+    if (error) {
+      console.error('Error updating order status:', error);
       return {
         success: false,
-        message: 'Order not found'
+        message: error.code === 'PGRST116' ? 'Order not found' : 'Failed to update order status'
       };
     }
     
-    // Update the order status
-    mockOrders[orderIndex] = {
-      ...mockOrders[orderIndex],
-      status: newStatus as any,
-      updatedAt: new Date().toISOString()
+    // Convert database format to app format
+    const order: Order = {
+      id: orderData.id,
+      customerId: orderData.user_id,
+      customerInfo: {
+        name: orderData.customer_name,
+        email: orderData.customer_email,
+        phone: orderData.customer_phone,
+        address: orderData.delivery_address || undefined
+      },
+      items: orderData.order_items.map((item: any) => ({
+        productId: item.product_id,
+        productName: item.product_name,
+        price: item.unit_price,
+        quantity: item.quantity,
+        subtotal: item.total_price
+      })),
+      subtotal: orderData.subtotal,
+      tax: orderData.tax_amount,
+      total: orderData.total_amount,
+      fulfillmentType: orderData.fulfillment_type as 'pickup' | 'delivery',
+      status: orderData.status as 'pending' | 'confirmed' | 'ready' | 'completed' | 'cancelled',
+      notes: orderData.special_instructions,
+      pickupDate: orderData.pickup_date,
+      pickupTime: orderData.pickup_time,
+      deliveryAddress: orderData.delivery_address,
+      createdAt: orderData.created_at,
+      updatedAt: orderData.updated_at
     };
     
     return {
       success: true,
       message: `Order ${orderId} status updated to ${newStatus}`,
-      order: mockOrders[orderIndex]
+      order
     };
   } catch (error) {
+    console.error('Error in updateOrderStatus:', error);
     return {
       success: false,
       message: 'Failed to update order status'
@@ -156,51 +317,93 @@ export interface OrderFilters {
   search?: string;
 }
 
-// Get all orders with optional filtering (admin only)
+// Get all orders with optional filtering (admin only) - Real Supabase implementation
 export const getAllOrders = async (filters?: OrderFilters): Promise<Order[]> => {
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, API_DELAY));
-  
-  let filteredOrders = [...mockOrders];
-  
-  if (filters) {
-    if (filters.status) {
-      filteredOrders = filteredOrders.filter(order => order.status === filters.status);
+  try {
+    let query = supabase
+      .from('orders')
+      .select(`
+        *,
+        order_items (
+          id,
+          product_id,
+          product_name,
+          quantity,
+          unit_price,
+          total_price
+        )
+      `);
+    
+    // Apply filters
+    if (filters?.status) {
+      query = query.eq('status', filters.status);
     }
     
-    if (filters.fulfillmentType) {
-      filteredOrders = filteredOrders.filter(order => order.fulfillmentType === filters.fulfillmentType);
+    if (filters?.fulfillmentType) {
+      query = query.eq('fulfillment_type', filters.fulfillmentType);
     }
     
-    if (filters.search) {
-      const searchLower = filters.search.toLowerCase();
-      filteredOrders = filteredOrders.filter(order => 
-        order.id.toLowerCase().includes(searchLower) ||
-        order.customerInfo.name.toLowerCase().includes(searchLower) ||
-        order.customerInfo.email.toLowerCase().includes(searchLower)
-      );
+    if (filters?.search) {
+      const searchTerm = `%${filters.search.toLowerCase()}%`;
+      query = query.or(`customer_name.ilike.${searchTerm},customer_email.ilike.${searchTerm},id.ilike.${searchTerm}`);
     }
     
-    if (filters.dateFrom) {
-      filteredOrders = filteredOrders.filter(order => 
-        new Date(order.createdAt) >= new Date(filters.dateFrom!)
-      );
+    if (filters?.dateFrom) {
+      query = query.gte('created_at', filters.dateFrom);
     }
     
-    if (filters.dateTo) {
-      filteredOrders = filteredOrders.filter(order => 
-        new Date(order.createdAt) <= new Date(filters.dateTo!)
-      );
+    if (filters?.dateTo) {
+      query = query.lte('created_at', filters.dateTo);
     }
+    
+    // Sort by creation date (newest first)
+    query = query.order('created_at', { ascending: false });
+    
+    const { data: ordersData, error } = await query;
+    
+    if (error) {
+      console.error('Error fetching orders:', error);
+      return [];
+    }
+    
+    // Convert database format to app format
+    const orders: Order[] = ordersData.map(orderData => ({
+      id: orderData.id,
+      customerId: orderData.user_id,
+      customerInfo: {
+        name: orderData.customer_name,
+        email: orderData.customer_email,
+        phone: orderData.customer_phone,
+        address: orderData.delivery_address || undefined
+      },
+      items: orderData.order_items.map((item: any) => ({
+        productId: item.product_id,
+        productName: item.product_name,
+        price: item.unit_price,
+        quantity: item.quantity,
+        subtotal: item.total_price
+      })),
+      subtotal: orderData.subtotal,
+      tax: orderData.tax_amount,
+      total: orderData.total_amount,
+      fulfillmentType: orderData.fulfillment_type as 'pickup' | 'delivery',
+      status: orderData.status as 'pending' | 'confirmed' | 'ready' | 'completed' | 'cancelled',
+      notes: orderData.special_instructions,
+      pickupDate: orderData.pickup_date,
+      pickupTime: orderData.pickup_time,
+      deliveryAddress: orderData.delivery_address,
+      createdAt: orderData.created_at,
+      updatedAt: orderData.updated_at
+    }));
+    
+    return orders;
+  } catch (error) {
+    console.error('Error in getAllOrders:', error);
+    return [];
   }
-  
-  // Sort by creation date (newest first)
-  return filteredOrders.sort((a, b) => 
-    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  );
 };
 
-// Get order statistics (admin only) - Clear daily and weekly metrics
+// Get order statistics (admin only) - Real Supabase implementation
 export const getOrderStats = async (): Promise<{
   // Daily Metrics (Today)
   daily: {
@@ -221,73 +424,93 @@ export const getOrderStats = async (): Promise<{
     totalPending: number;      // All orders currently needing attention
   };
 }> => {
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, API_DELAY));
-  
-  // Date calculations
-  const now = new Date();
-  const todayStart = new Date(now);
-  todayStart.setHours(0, 0, 0, 0);
-  
-  const weekStart = new Date(now);
-  weekStart.setDate(now.getDate() - now.getDay()); // Start of this week (Sunday)
-  weekStart.setHours(0, 0, 0, 0);
-  
-  // Filter orders by time periods
-  const todayOrders = mockOrders.filter(order => 
-    new Date(order.createdAt) >= todayStart
-  );
-  
-  const weekOrders = mockOrders.filter(order => 
-    new Date(order.createdAt) >= weekStart
-  );
-  
-  // For completed orders, we care about when they were completed, not when they were placed
-  const completedOrders = mockOrders.filter(order => order.status === 'completed');
-  
-  // Daily completed orders: completed today (regardless of when placed)
-  const dailyCompleted = completedOrders.filter(order => {
-    const completedDate = new Date(order.updatedAt); // updatedAt tracks when status was last changed
-    return completedDate >= todayStart;
-  });
-  
-  // Weekly completed orders: completed this week (regardless of when placed)
-  const weeklyCompleted = completedOrders.filter(order => {
-    const completedDate = new Date(order.updatedAt);
-    return completedDate >= weekStart;
-  });
-  
-  // For pending orders, we care about when they were placed (for workload planning)
-  const dailyPending = todayOrders.filter(order => 
-    ['pending', 'confirmed', 'preparing', 'ready'].includes(order.status)
-  );
-  
-  const weeklyPending = weekOrders.filter(order => 
-    ['pending', 'confirmed', 'preparing', 'ready'].includes(order.status)
-  );
-  
-  // All active orders (regardless of when placed)
-  const allPending = mockOrders.filter(order => 
-    ['pending', 'confirmed', 'preparing', 'ready'].includes(order.status)
-  );
-  
-  return {
-    daily: {
-      ordersPlaced: todayOrders.length,
-      ordersCompleted: dailyCompleted.length,
-      revenue: dailyCompleted.reduce((sum, order) => sum + order.total, 0),
-      pendingFromToday: dailyPending.length,
-    },
-    weekly: {
-      ordersPlaced: weekOrders.length,
-      ordersCompleted: weeklyCompleted.length,
-      revenue: weeklyCompleted.reduce((sum, order) => sum + order.total, 0),
-      pendingFromWeek: weeklyPending.length,
-    },
-    active: {
-      totalPending: allPending.length,
-    },
-  };
+  try {
+    // Date calculations
+    const now = new Date();
+    const todayStart = new Date(now);
+    todayStart.setHours(0, 0, 0, 0);
+    
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - now.getDay()); // Start of this week (Sunday)
+    weekStart.setHours(0, 0, 0, 0);
+    
+    // Get all orders for statistics
+    const { data: allOrders, error } = await supabase
+      .from('orders')
+      .select('id, status, total_amount, created_at, updated_at');
+    
+    if (error) {
+      console.error('Error fetching order stats:', error);
+      return {
+        daily: { ordersPlaced: 0, ordersCompleted: 0, revenue: 0, pendingFromToday: 0 },
+        weekly: { ordersPlaced: 0, ordersCompleted: 0, revenue: 0, pendingFromWeek: 0 },
+        active: { totalPending: 0 }
+      };
+    }
+    
+    // Filter orders by time periods
+    const todayOrders = allOrders.filter(order => 
+      new Date(order.created_at) >= todayStart
+    );
+    
+    const weekOrders = allOrders.filter(order => 
+      new Date(order.created_at) >= weekStart
+    );
+    
+    // For completed orders, we care about when they were completed, not when they were placed
+    const completedOrders = allOrders.filter(order => order.status === 'completed');
+    
+    // Daily completed orders: completed today (regardless of when placed)
+    const dailyCompleted = completedOrders.filter(order => {
+      const completedDate = new Date(order.updated_at); // updated_at tracks when status was last changed
+      return completedDate >= todayStart;
+    });
+    
+    // Weekly completed orders: completed this week (regardless of when placed)
+    const weeklyCompleted = completedOrders.filter(order => {
+      const completedDate = new Date(order.updated_at);
+      return completedDate >= weekStart;
+    });
+    
+    // For pending orders, we care about when they were placed (for workload planning)
+    const dailyPending = todayOrders.filter(order => 
+      order.status === 'pending' || order.status === 'confirmed' || order.status === 'ready'
+    );
+    
+    const weeklyPending = weekOrders.filter(order => 
+      order.status === 'pending' || order.status === 'confirmed' || order.status === 'ready'
+    );
+    
+    // All pending orders (for current workload)
+    const allPending = allOrders.filter(order => 
+      order.status === 'pending' || order.status === 'confirmed' || order.status === 'ready'
+    );
+    
+    return {
+      daily: {
+        ordersPlaced: todayOrders.length,
+        ordersCompleted: dailyCompleted.length,
+        revenue: dailyCompleted.reduce((sum, order) => sum + order.total_amount, 0),
+        pendingFromToday: dailyPending.length
+      },
+      weekly: {
+        ordersPlaced: weekOrders.length,
+        ordersCompleted: weeklyCompleted.length,
+        revenue: weeklyCompleted.reduce((sum, order) => sum + order.total_amount, 0),
+        pendingFromWeek: weeklyPending.length
+      },
+      active: {
+        totalPending: allPending.length
+      }
+    };
+  } catch (error) {
+    console.error('Error in getOrderStats:', error);
+    return {
+      daily: { ordersPlaced: 0, ordersCompleted: 0, revenue: 0, pendingFromToday: 0 },
+      weekly: { ordersPlaced: 0, ordersCompleted: 0, revenue: 0, pendingFromWeek: 0 },
+      active: { totalPending: 0 }
+    };
+  }
 };
 
 // Bulk update order status (admin only)
@@ -326,114 +549,4 @@ export const bulkUpdateOrderStatus = async (
   }
 };
 
-// Add some mock orders for testing (admin functionality)
-export const addMockOrdersForTesting = (): void => {
-  const mockOrdersData: Omit<Order, 'id' | 'createdAt' | 'updatedAt'>[] = [
-    {
-      customerInfo: {
-        name: 'John Doe',
-        email: 'john@example.com',
-        phone: '555-0101',
-        address: '123 Main St, City, State 12345'
-      },
-      items: [
-        {
-          productId: '1',
-          productName: 'Fresh Tomatoes',
-          price: 3.99,
-          quantity: 2,
-          subtotal: 7.98
-        }
-      ],
-      subtotal: 7.98,
-      tax: 0.68,
-      total: 8.66,
-      fulfillmentType: 'pickup',
-      status: 'pending',
-      pickupDate: '2025-08-06',
-      pickupTime: '10:00 AM'
-    },
-    {
-      customerInfo: {
-        name: 'Jane Smith',
-        email: 'jane@example.com',
-        phone: '555-0102',
-        address: '456 Oak Ave, City, State 12345'
-      },
-      items: [
-        {
-          productId: '2',
-          productName: 'Organic Carrots',
-          price: 2.49,
-          quantity: 3,
-          subtotal: 7.47
-        },
-        {
-          productId: '3',
-          productName: 'Fresh Lettuce',
-          price: 1.99,
-          quantity: 1,
-          subtotal: 1.99
-        }
-      ],
-      subtotal: 9.46,
-      tax: 0.80,
-      total: 10.26,
-      fulfillmentType: 'delivery',
-      status: 'confirmed',
-      deliveryAddress: '456 Oak Ave, City, State 12345'
-    },
-    {
-      customerInfo: {
-        name: 'Bob Johnson',
-        email: 'bob@example.com',
-        phone: '555-0103'
-      },
-      items: [
-        {
-          productId: '1',
-          productName: 'Fresh Tomatoes',
-          price: 3.99,
-          quantity: 1,
-          subtotal: 3.99
-        }
-      ],
-      subtotal: 3.99,
-      tax: 0.34,
-      total: 4.33,
-      fulfillmentType: 'pickup',
-      status: 'ready',
-      pickupDate: '2025-08-05',
-      pickupTime: '2:00 PM'
-    }
-  ];
-  
-  // Add mock orders if none exist
-  if (mockOrders.length === 0) {
-    mockOrdersData.forEach((orderData, index) => {
-      let createdAt: string;
-      
-      // Ensure we have orders from different time periods for testing
-      if (index === 0) {
-        // First order: Today (for testing daily statistics)
-        createdAt = new Date().toISOString();
-      } else if (index === 1) {
-        // Second order: Earlier today (for testing daily statistics)
-        const todayEarlier = new Date();
-        todayEarlier.setHours(todayEarlier.getHours() - 2);
-        createdAt = todayEarlier.toISOString();
-      } else {
-        // Other orders: Random date within last week
-        createdAt = new Date(Date.now() - Math.random() * 86400000 * 7).toISOString();
-      }
-      
-      const order: Order = {
-        ...orderData,
-        id: generateOrderId(),
-        createdAt,
-        updatedAt: new Date().toISOString(),
-      };
-      mockOrders.push(order);
-    });
-  }
-};
+

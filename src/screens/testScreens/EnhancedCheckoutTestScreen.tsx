@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { useCart } from '../../contexts/CartContext';
+import { useCart } from '../../hooks/useCart';
 import { RootStackParamList } from '../../types';
 
 type EnhancedCheckoutTestNavigationProp = StackNavigationProp<RootStackParamList, 'Checkout'>;

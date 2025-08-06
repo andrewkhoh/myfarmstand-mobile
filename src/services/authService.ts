@@ -1,5 +1,7 @@
 import { User } from '../types';
 import { TokenService } from './tokenService';
+import { supabase } from '../config/supabase';
+import type { AuthError, Session, AuthResponse } from '@supabase/supabase-js';
 
 // Auth API response types
 export interface LoginResponse {
@@ -38,14 +40,11 @@ export class AuthService {
   private static readonly API_BASE_URL = 'https://api.myfarmstand.com'; // Replace with actual API URL
 
   /**
-   * Login user with email and password
+   * Login user with email and password using Supabase Auth
    */
   static async login(email: string, password: string): Promise<LoginResponse> {
     try {
-      // Mock API call - replace with actual API endpoint
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Mock validation
+      // Input validation
       if (!email || !password) {
         throw new Error('Email and password are required');
       }
@@ -54,33 +53,73 @@ export class AuthService {
         throw new Error('Please enter a valid email address');
       }
 
-      // Mock successful login
-      const mockUser: User = {
-        id: '1',
+      // Authenticate with Supabase
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
-        name: email.split('@')[0],
-        phone: '+1234567890',
-        address: '123 Farm Street, Agriculture City, AC 12345',
-        role: 'admin', // Always use admin for testing
+        password,
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (!data.session || !data.user) {
+        throw new Error('Authentication failed');
+      }
+
+      // Get user profile from database
+      let { data: userProfile, error: profileError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', data.user.id)
+        .single();
+
+      if (profileError) {
+        // If profile doesn't exist, create one
+        const newProfile = {
+          id: data.user.id,
+          email: data.user.email!,
+          name: data.user.user_metadata?.name || email.split('@')[0],
+          phone: data.user.user_metadata?.phone || null,
+          address: data.user.user_metadata?.address || null,
+          role: 'customer' as const, // Default role
+        };
+
+        const { data: createdProfile, error: createError } = await supabase
+          .from('users')
+          .insert(newProfile)
+          .select()
+          .single();
+
+        if (createError) {
+          throw new Error('Failed to create user profile');
+        }
+
+        userProfile = createdProfile;
+      }
+
+      // Convert to app User type
+      const user: User = {
+        id: userProfile.id,
+        email: userProfile.email,
+        name: userProfile.name,
+        phone: userProfile.phone || '',
+        address: userProfile.address || '',
+        role: userProfile.role,
       };
 
-      const mockTokens = {
-        accessToken: `mock_access_token_${Date.now()}`,
-        refreshToken: `mock_refresh_token_${Date.now()}`,
-      };
-
-      // Store tokens securely
+      // Store tokens and user data securely
       await Promise.all([
-        TokenService.setAccessToken(mockTokens.accessToken),
-        TokenService.setRefreshToken(mockTokens.refreshToken),
-        TokenService.setUser(mockUser),
+        TokenService.setAccessToken(data.session.access_token),
+        TokenService.setRefreshToken(data.session.refresh_token),
+        TokenService.setUser(user),
       ]);
 
       return {
         success: true,
-        user: mockUser,
-        accessToken: mockTokens.accessToken,
-        refreshToken: mockTokens.refreshToken,
+        user,
+        accessToken: data.session.access_token,
+        refreshToken: data.session.refresh_token,
         message: 'Login successful',
       };
     } catch (error) {
@@ -90,7 +129,7 @@ export class AuthService {
   }
 
   /**
-   * Register new user
+   * Register new user using Supabase Auth
    */
   static async register(
     email: string,
@@ -100,10 +139,7 @@ export class AuthService {
     address: string
   ): Promise<RegisterResponse> {
     try {
-      // Mock API call - replace with actual API endpoint
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Mock validation
+      // Input validation
       if (!email || !password || !name) {
         throw new Error('Email, password, and name are required');
       }
@@ -116,33 +152,71 @@ export class AuthService {
         throw new Error('Password must be at least 6 characters long');
       }
 
-      // Mock successful registration
-      const mockUser: User = {
-        id: Date.now().toString(),
+      // Register with Supabase Auth
+      const { data, error } = await supabase.auth.signUp({
         email,
+        password,
+        options: {
+          data: {
+            name,
+            phone,
+            address,
+          },
+        },
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (!data.user) {
+        throw new Error('Registration failed');
+      }
+
+      // Create user profile in database
+      const userProfile = {
+        id: data.user.id,
+        email: data.user.email!,
         name,
-        phone: phone || '',
-        address: address || '',
-        role: 'customer',
+        phone: phone || null,
+        address: address || null,
+        role: 'customer' as const,
       };
 
-      const mockTokens = {
-        accessToken: `mock_access_token_${Date.now()}`,
-        refreshToken: `mock_refresh_token_${Date.now()}`,
+      const { error: profileError } = await supabase
+        .from('users')
+        .insert(userProfile);
+
+      if (profileError) {
+        // If user creation fails, we should clean up the auth user
+        // but for now, we'll just log the error
+        console.error('Failed to create user profile:', profileError);
+      }
+
+      // Convert to app User type
+      const user: User = {
+        id: userProfile.id,
+        email: userProfile.email,
+        name: userProfile.name,
+        phone: userProfile.phone || '',
+        address: userProfile.address || '',
+        role: userProfile.role,
       };
 
-      // Store tokens securely
-      await Promise.all([
-        TokenService.setAccessToken(mockTokens.accessToken),
-        TokenService.setRefreshToken(mockTokens.refreshToken),
-        TokenService.setUser(mockUser),
-      ]);
+      // If we have a session (auto-login after registration)
+      if (data.session) {
+        await Promise.all([
+          TokenService.setAccessToken(data.session.access_token),
+          TokenService.setRefreshToken(data.session.refresh_token),
+          TokenService.setUser(user),
+        ]);
+      }
 
       return {
         success: true,
-        user: mockUser,
-        accessToken: mockTokens.accessToken,
-        refreshToken: mockTokens.refreshToken,
+        user,
+        accessToken: data.session?.access_token || '',
+        refreshToken: data.session?.refresh_token || '',
         message: 'Registration successful',
       };
     } catch (error) {
@@ -152,12 +226,17 @@ export class AuthService {
   }
 
   /**
-   * Logout user and clear all tokens
+   * Logout user and clear all tokens using Supabase Auth
    */
   static async logout(): Promise<{ success: boolean; message?: string }> {
     try {
-      // In a real app, you might want to call an API endpoint to invalidate tokens
-      // await fetch(`${this.API_BASE_URL}/auth/logout`, { method: 'POST' });
+      // Sign out from Supabase
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        console.error('Supabase logout error:', error);
+        // Continue with local cleanup even if Supabase logout fails
+      }
 
       // Clear all stored tokens and user data
       await TokenService.clearAllTokens();
@@ -173,11 +252,40 @@ export class AuthService {
   }
 
   /**
-   * Get current user from secure storage
+   * Get current user from Supabase session and database
    */
   static async getCurrentUser(): Promise<User | null> {
     try {
-      return await TokenService.getUser();
+      // Check Supabase session
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.user) {
+        return null;
+      }
+
+      // Get user profile from database
+      const { data: userProfile, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', session.user.id)
+        .single();
+
+      if (error || !userProfile) {
+        console.error('Failed to get user profile:', error);
+        return null;
+      }
+
+      // Convert to app User type
+      const user: User = {
+        id: userProfile.id,
+        email: userProfile.email,
+        name: userProfile.name,
+        phone: userProfile.phone || '',
+        address: userProfile.address || '',
+        role: userProfile.role,
+      };
+
+      return user;
     } catch (error) {
       console.error('Get current user error:', error);
       return null;
@@ -185,35 +293,51 @@ export class AuthService {
   }
 
   /**
-   * Update user profile
+   * Update user profile using Supabase
    */
   static async updateProfile(userId: string, updates: Partial<User>): Promise<UpdateProfileResponse> {
     try {
-      // Mock API call - replace with actual API endpoint
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Mock validation
-      if (!updates.name || updates.name.trim().length < 2) {
+      // Input validation
+      if (updates.name && updates.name.trim().length < 2) {
         throw new Error('Name must be at least 2 characters long');
       }
 
-      if (!updates.email || !updates.email.includes('@')) {
+      if (updates.email && !updates.email.includes('@')) {
         throw new Error('Please enter a valid email address');
       }
 
-      // Get current user and merge updates
-      const currentUser = await TokenService.getUser();
-      if (!currentUser) {
-        throw new Error('User not found');
+      // Update user profile in database
+      const { data: updatedProfile, error } = await supabase
+        .from('users')
+        .update({
+          name: updates.name,
+          phone: updates.phone || null,
+          address: updates.address || null,
+          // Note: email and role updates might need special handling
+        })
+        .eq('id', userId)
+        .select()
+        .single();
+
+      if (error) {
+        throw new Error(error.message);
       }
 
+      if (!updatedProfile) {
+        throw new Error('Failed to update user profile');
+      }
+
+      // Convert to app User type
       const updatedUser: User = {
-        ...currentUser,
-        ...updates,
-        id: currentUser.id, // Ensure ID doesn't change
+        id: updatedProfile.id,
+        email: updatedProfile.email,
+        name: updatedProfile.name,
+        phone: updatedProfile.phone || '',
+        address: updatedProfile.address || '',
+        role: updatedProfile.role,
       };
 
-      // Store updated user
+      // Update local storage
       await TokenService.setUser(updatedUser);
 
       return {
@@ -228,33 +352,32 @@ export class AuthService {
   }
 
   /**
-   * Refresh access token using refresh token
+   * Refresh access token using Supabase Auth
    */
   static async refreshToken(): Promise<RefreshTokenResponse> {
     try {
-      const refreshToken = await TokenService.getRefreshToken();
-      if (!refreshToken) {
-        throw new Error('No refresh token available');
+      // Supabase handles token refresh automatically
+      // This method manually triggers a refresh if needed
+      const { data, error } = await supabase.auth.refreshSession();
+      
+      if (error) {
+        throw new Error(error.message);
       }
 
-      // Mock API call - replace with actual API endpoint
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      const newTokens = {
-        accessToken: `mock_access_token_${Date.now()}`,
-        refreshToken: `mock_refresh_token_${Date.now()}`,
-      };
+      if (!data.session) {
+        throw new Error('Failed to refresh session');
+      }
 
       // Store new tokens
       await Promise.all([
-        TokenService.setAccessToken(newTokens.accessToken),
-        TokenService.setRefreshToken(newTokens.refreshToken),
+        TokenService.setAccessToken(data.session.access_token),
+        TokenService.setRefreshToken(data.session.refresh_token),
       ]);
 
       return {
         success: true,
-        accessToken: newTokens.accessToken,
-        refreshToken: newTokens.refreshToken,
+        accessToken: data.session.access_token,
+        refreshToken: data.session.refresh_token,
       };
     } catch (error) {
       console.error('Refresh token error:', error);
@@ -263,13 +386,13 @@ export class AuthService {
   }
 
   /**
-   * Check if user has valid authentication
+   * Check if user has valid authentication using Supabase
    */
   static async isAuthenticated(): Promise<boolean> {
     try {
-      const hasTokens = await TokenService.hasValidTokens();
-      const user = await TokenService.getUser();
-      return hasTokens && !!user;
+      // Check Supabase session
+      const { data: { session } } = await supabase.auth.getSession();
+      return !!session?.user;
     } catch (error) {
       console.error('Authentication check error:', error);
       return false;

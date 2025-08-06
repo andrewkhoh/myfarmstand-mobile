@@ -8,11 +8,9 @@ import {
   calculateExpectedTotals
 } from '../../test/testUtils';
 import { OrderConfirmationScreen } from '../OrderConfirmationScreen';
-import { useCart } from '../../contexts/CartContext';
-import { Order } from '../../types';
+import { useCart } from '../../hooks/useCart';
 
-// Mock the cart context
-jest.mock('../../contexts/CartContext');
+jest.mock('../../hooks/useCart');
 const mockUseCart = useCart as jest.MockedFunction<typeof useCart>;
 
 // Mock navigation
