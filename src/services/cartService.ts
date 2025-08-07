@@ -1,8 +1,6 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../config/supabase';
 import { CartState, CartItem, Product } from '../types';
-
-const CART_STORAGE_KEY = '@farmstand_cart';
+import { BroadcastHelper } from '../utils/broadcastHelper';
 
 // Database cart item interface
 interface DbCartItem {
@@ -99,100 +97,99 @@ const convertDbCartItemsToCartState = async (dbItems: DbCartItem[]): Promise<Car
 };
 
 export const cartService = {
-  // Get cart from Supabase (with AsyncStorage fallback)
+  // Get cart from Supabase only (React Query handles caching)
   getCart: async (): Promise<CartState> => {
+    console.log('🛒 getCart() called - fetching from Supabase only...');
     try {
-      // Try to get current user
+      // Get current user
       const { data: { user } } = await supabase.auth.getUser();
+      console.log('👤 User auth status:', user ? 'authenticated' : 'not authenticated');
       
-      if (user) {
-        // User is authenticated - get cart from Supabase
-        const { data: dbCartItems, error } = await supabase
-          .from('cart_items')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: true });
-        
-        if (error) {
-          console.warn('Failed to load cart from Supabase:', error);
-          // Fall back to AsyncStorage
-          return await this.getLocalCart();
-        }
-        
-        if (dbCartItems && dbCartItems.length > 0) {
-          const cartState = await convertDbCartItemsToCartState(dbCartItems);
-          // Sync to local storage for offline access
-          await cartService.saveLocalCart(cartState);
-          return cartState;
-        }
+      if (!user) {
+        console.log('🚫 User not authenticated, returning empty cart');
+        return { items: [], total: 0 };
       }
       
-      // User not authenticated or no cart items - try local storage
-      return await cartService.getLocalCart();
+      // User is authenticated - get cart from Supabase
+      console.log('📡 Fetching cart from Supabase for user:', user.id);
+      const { data: dbCartItems, error } = await supabase
+        .from('cart_items')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: true });
+      
+      console.log('📊 Supabase cart query result:', { dbCartItems, error });
+      
+      if (error) {
+        console.warn('Failed to load cart from Supabase:', error);
+        throw error; // Let React Query handle retries and error states
+      }
+      
+      if (dbCartItems && dbCartItems.length > 0) {
+        console.log('📌 Cart has items, converting and returning...');
+        const cartState = await convertDbCartItemsToCartState(dbCartItems);
+        console.log('✅ Returning cart with items:', cartState);
+        return cartState;
+      } else {
+        console.log('✅ No cart items in Supabase, returning empty cart');
+        return { items: [], total: 0 };
+      }
     } catch (error) {
       console.warn('Failed to load cart:', error);
-      return await this.getLocalCart();
+      throw error; // Let React Query handle error states
     }
   },
 
-  // Get cart from local AsyncStorage only
-  getLocalCart: async (): Promise<CartState> => {
-    try {
-      const cartData = await AsyncStorage.getItem(CART_STORAGE_KEY);
-      if (cartData) {
-        const parsedCart: CartState = JSON.parse(cartData);
-        if (parsedCart.items && Array.isArray(parsedCart.items)) {
-          return {
-            items: parsedCart.items,
-            total: calculateTotal(parsedCart.items)
-          };
-        }
-      }
-    } catch (error) {
-      console.warn('Failed to load cart from local storage:', error);
-    }
-    
-    return { items: [], total: 0 };
-  },
-
-  // Save cart to local AsyncStorage only
-  saveLocalCart: async (cart: CartState): Promise<CartState> => {
-    try {
-      if (cart.items.length === 0) {
-        await AsyncStorage.removeItem(CART_STORAGE_KEY);
-      } else {
-        const updatedCart = {
-          items: cart.items,
-          total: calculateTotal(cart.items)
-        };
-        await AsyncStorage.setItem(CART_STORAGE_KEY, JSON.stringify(updatedCart));
-        return updatedCart;
-      }
-    } catch (error) {
-      console.warn('Failed to save cart to local storage:', error);
-    }
-    return cart;
-  },
-
-  // Save cart to Supabase (with local storage sync)
+  // Save cart to Supabase only (React Query handles caching)
   saveCart: async (cart: CartState): Promise<CartState> => {
     try {
-      if (cart.items.length === 0) {
-        // Remove empty cart from storage
-        await AsyncStorage.removeItem(CART_STORAGE_KEY);
-      } else {
-        // Save cart with recalculated total
-        const updatedCart = {
-          items: cart.items,
-          total: calculateTotal(cart.items)
-        };
-        await AsyncStorage.setItem(CART_STORAGE_KEY, JSON.stringify(updatedCart));
-        return updatedCart;
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        console.log('🚫 User not authenticated, cannot save cart to Supabase');
+        throw new Error('User must be authenticated to save cart');
       }
+      
+      // User is authenticated - save cart to Supabase
+      console.log('💾 Saving cart to Supabase for user:', user.id);
+      
+      // First, clear existing cart items for this user
+      await supabase
+        .from('cart_items')
+        .delete()
+        .eq('user_id', user.id);
+      
+      if (cart.items.length > 0) {
+        // Insert new cart items
+        const cartItemsToInsert = cart.items.map(item => ({
+          user_id: user.id,
+          product_id: item.product.id,
+          quantity: item.quantity
+        }));
+        
+        const { error } = await supabase
+          .from('cart_items')
+          .insert(cartItemsToInsert);
+        
+        if (error) {
+          console.warn('Failed to save cart to Supabase:', error);
+          throw error; // Let React Query handle retries
+        }
+      }
+      
+      // Return updated cart with calculated total
+      const updatedCart = {
+        items: cart.items,
+        total: calculateTotal(cart.items)
+      };
+      
+      console.log('✅ Cart saved to Supabase successfully');
+      return updatedCart;
     } catch (error) {
-      console.warn('Failed to save cart to storage:', error);
+      console.warn('Failed to save cart to Supabase:', error);
+      throw error; // Let React Query handle error states and retries
     }
-    return cart;
   },
 
   // Add item to cart
@@ -229,6 +226,19 @@ export const cartService = {
     const newCart = { items: newItems, total: calculateTotal(newItems) };
     const savedCart = await cartService.saveCart(newCart);
     
+    
+    // Broadcast cart update for cross-device sync
+    try {
+      await BroadcastHelper.sendCartUpdate('cart-item-added', {
+        productId: product.id,
+        quantity,
+        cartTotal: savedCart.total,
+        itemCount: savedCart.items.length
+      });
+    } catch (error) {
+      console.warn('Failed to broadcast cart update:', error);
+    }
+
     return {
       success: true,
       cart: savedCart
@@ -236,11 +246,27 @@ export const cartService = {
   },
 
   // Remove item from cart
-  removeItem: async (productId: string): Promise<CartState> => {
+  removeItem: async (productId: string): Promise<{ success: boolean; message?: string; cart: CartState }> => {
     const currentCart = await cartService.getCart();
     const newItems = currentCart.items.filter(item => item.product.id !== productId);
     const newCart = { items: newItems, total: calculateTotal(newItems) };
-    return await cartService.saveCart(newCart);
+    const savedCart = await cartService.saveCart(newCart);
+    
+    // Broadcast cart update for cross-device sync
+    try {
+      await BroadcastHelper.sendCartUpdate('cart-item-removed', {
+        productId,
+        cartTotal: savedCart.total,
+        itemCount: savedCart.items.length
+      });
+    } catch (error) {
+      console.warn('Failed to broadcast cart update:', error);
+    }
+    
+    return {
+      success: true,
+      cart: savedCart
+    };
   },
 
   // Update item quantity
@@ -274,6 +300,19 @@ export const cartService = {
     const newCart = { items: newItems, total: calculateTotal(newItems) };
     const savedCart = await cartService.saveCart(newCart);
     
+    
+    // Broadcast cart update for cross-device sync
+    try {
+      await BroadcastHelper.sendCartUpdate('cart-quantity-updated', {
+        productId,
+        quantity,
+        cartTotal: savedCart.total,
+        itemCount: savedCart.items.length
+      });
+    } catch (error) {
+      console.warn('Failed to broadcast cart update:', error);
+    }
+
     return {
       success: true,
       cart: savedCart
@@ -281,12 +320,23 @@ export const cartService = {
   },
 
   // Clear cart
-  clearCart: async (): Promise<CartState> => {
+  clearCart: async (): Promise<{ success: boolean; message?: string; cart: CartState }> => {
+    const emptyCart = { items: [], total: 0 };
+    const savedCart = await cartService.saveCart(emptyCart);
+    
+    // Broadcast cart update for cross-device sync
     try {
-      await AsyncStorage.removeItem(CART_STORAGE_KEY);
+      await BroadcastHelper.sendCartUpdate('cart-cleared', {
+        cartTotal: savedCart.total,
+        itemCount: savedCart.items.length
+      });
     } catch (error) {
-      console.warn('Failed to clear cart from storage:', error);
+      console.warn('Failed to broadcast cart update:', error);
     }
-    return { items: [], total: 0 };
+    
+    return {
+      success: true,
+      cart: savedCart
+    };
   }
 };

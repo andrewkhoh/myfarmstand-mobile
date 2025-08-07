@@ -17,6 +17,8 @@ import {
   ProductDebugTestScreen,
   AutomatedTestRunner,
   RealtimeTestScreen,
+  BroadcastArchitectureTestScreen,
+  SimpleBroadcastTest,
 } from '../screens';
 import BackendIntegrationTestScreen from '../screens/testScreens/BackendIntegrationTestScreen';
 
@@ -36,6 +38,8 @@ export type TestStackParamList = {
   AdminOrderTest: undefined;
   ProductDebugTest: undefined;
   RealtimeTest: undefined;
+  BroadcastArchitectureTest: undefined;
+  SimpleBroadcastTest: undefined;
   AutomatedTest: undefined;
   BackendIntegrationTest: undefined;
 };
@@ -151,6 +155,16 @@ export const TestStackNavigator: React.FC = () => {
         name="RealtimeTest" 
         component={RealtimeTestScreen}
         options={{ title: 'Real-time Integration Test' }}
+      />
+      <Stack.Screen 
+        name="BroadcastArchitectureTest" 
+        component={BroadcastArchitectureTestScreen}
+        options={{ title: 'Broadcast Architecture Test' }}
+      />
+      <Stack.Screen 
+        name="SimpleBroadcastTest" 
+        component={SimpleBroadcastTest}
+        options={{ title: 'Simple Broadcast Test' }}
       />
       <Stack.Screen 
         name="AutomatedTest" 

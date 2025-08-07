@@ -44,6 +44,8 @@ export class AuthService {
    */
   static async login(email: string, password: string): Promise<LoginResponse> {
     try {
+      console.log('🔐 Starting login process for:', email);
+      
       // Input validation
       if (!email || !password) {
         throw new Error('Email and password are required');
@@ -53,7 +55,25 @@ export class AuthService {
         throw new Error('Please enter a valid email address');
       }
 
+      // Clear any existing session first to prevent conflicts (device-specific)
+      console.log('🧹 Clearing any existing session...');
+      
+      // Check if there's an existing session
+      const { data: existingSession } = await supabase.auth.getSession();
+      if (existingSession.session) {
+        console.log('⚠️ Found existing session, clearing...');
+        await supabase.auth.signOut({ scope: 'local' });
+        // Additional cleanup for devices
+        await supabase.auth.signOut({ scope: 'global' });
+      } else {
+        console.log('✅ No existing session found');
+      }
+      
+      // Longer delay for devices to ensure cleanup
+      await new Promise(resolve => setTimeout(resolve, 200));
+
       // Authenticate with Supabase
+      console.log('🔑 Attempting Supabase authentication...');
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -230,23 +250,56 @@ export class AuthService {
    */
   static async logout(): Promise<{ success: boolean; message?: string }> {
     try {
-      // Sign out from Supabase
-      const { error } = await supabase.auth.signOut();
+      console.log('🚪 Starting logout process...');
       
-      if (error) {
-        console.error('Supabase logout error:', error);
-        // Continue with local cleanup even if Supabase logout fails
+      // Device-specific aggressive session cleanup
+      console.log('📱 Performing device-specific session cleanup...');
+      
+      // First, try global scope signout for devices
+      const { error: globalError } = await supabase.auth.signOut({ scope: 'global' });
+      if (globalError) {
+        console.warn('⚠️ Global signout failed:', globalError.message);
+      } else {
+        console.log('✅ Global Supabase session cleared');
+      }
+      
+      // Then local scope as backup
+      const { error: localError } = await supabase.auth.signOut({ scope: 'local' });
+      if (localError) {
+        console.warn('⚠️ Local signout failed:', localError.message);
+      } else {
+        console.log('✅ Local Supabase session cleared');
       }
 
-      // Clear all stored tokens and user data
+      // Clear all stored tokens and user data with device-specific cleanup
       await TokenService.clearAllTokens();
+      console.log('🧹 Local tokens cleared');
+
+      // Verify session is actually cleared
+      const { data: sessionCheck } = await supabase.auth.getSession();
+      if (sessionCheck.session) {
+        console.warn('⚠️ Session still exists after cleanup, forcing additional cleanup...');
+        // Force additional cleanup
+        await supabase.auth.signOut({ scope: 'others' });
+      } else {
+        console.log('✅ Session verification: no active session');
+      }
+
+      // Longer delay for devices to ensure native cleanup
+      await new Promise(resolve => setTimeout(resolve, 300));
 
       return {
         success: true,
         message: 'Logout successful',
       };
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error('❌ Logout error:', error);
+      // Force cleanup even on error
+      try {
+        await TokenService.clearAllTokens();
+      } catch (cleanupError) {
+        console.error('❌ Token cleanup error:', cleanupError);
+      }
       throw error;
     }
   }

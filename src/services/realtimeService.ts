@@ -1,167 +1,216 @@
 import { supabase } from '../config/supabase';
-import { QueryClient } from '@tanstack/react-query';
+import { queryClient } from '../config/queryClient';
 
-// Import queryClient from the correct location
-let queryClient: QueryClient;
-try {
-  const { queryClient: qc } = require('../config/queryClient');
-  queryClient = qc;
-} catch {
-  // Fallback if import fails
-  queryClient = new QueryClient();
-  console.warn('Using fallback QueryClient for real-time service');
-}
-
+/**
+ * Broadcast-based Real-time Service
+ * Uses Supabase broadcast channels for immediate, reliable real-time updates
+ * No database replication required - works immediately
+ */
 export class RealtimeService {
   private static subscriptions: Map<string, any> = new Map();
+  private static isInitialized = false;
 
   /**
-   * Set up real-time subscription for products
-   * Invalidates React Query cache when products change
+   * Set up broadcast subscription for order updates
+   * Listens for order status changes, new orders, etc.
    */
-  static subscribeToProducts() {
-    const channelName = 'products-changes';
+  static subscribeToOrderUpdates() {
+    const channelName = 'order-updates';
     
     if (this.subscriptions.has(channelName)) {
-      console.log('Products subscription already exists');
+      console.log('Order updates subscription already exists');
       return;
     }
 
+    console.log('🚀 Setting up order updates broadcast subscription...');
+    
     const subscription = supabase
       .channel(channelName)
       .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'products'
-        },
+        'broadcast',
+        { event: 'order-status-changed' },
         (payload) => {
-          console.log('🔄 Products real-time update:', payload);
+          console.log('🔄 Order status changed (broadcast):', payload);
           
-          // Invalidate products queries to trigger refetch
+          // Invalidate ALL order-related queries to trigger refetch
+          queryClient.invalidateQueries({ queryKey: ['orders'] }); // Admin orders
+          queryClient.invalidateQueries({ queryKey: ['userOrders'] }); // ProfileScreen format
+          queryClient.invalidateQueries({ queryKey: ['orders', 'user'] }); // useOrders format
+          
+          this.notifyDataUpdate(`Order ${payload.payload.orderId} status updated to ${payload.payload.newStatus}`);
+        }
+      )
+      .on(
+        'broadcast',
+        { event: 'new-order' },
+        (payload) => {
+          console.log('🔄 New order received (broadcast):', payload);
+          
+          // Invalidate ALL order-related queries to trigger refetch
+          queryClient.invalidateQueries({ queryKey: ['orders'] }); // Admin orders
+          queryClient.invalidateQueries({ queryKey: ['userOrders'] }); // ProfileScreen format
+          queryClient.invalidateQueries({ queryKey: ['orders', 'user'] }); // useOrders format
+          
+          this.notifyDataUpdate('New order received!');
+        }
+      )
+      .subscribe((status) => {
+        console.log(`📡 Order updates subscription status: ${status}`);
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ Order updates broadcast subscription ACTIVE');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('❌ Order updates subscription failed with CHANNEL_ERROR');
+        }
+      });
+
+    this.subscriptions.set(channelName, subscription);
+    console.log('✅ Order updates broadcast subscription ACTIVE');
+  }
+
+  /**
+   * Set up broadcast subscription for product updates
+   * Listens for product changes, stock updates, etc.
+   */
+  static subscribeToProductUpdates() {
+    const channelName = 'product-updates';
+    
+    if (this.subscriptions.has(channelName)) {
+      console.log('Product updates subscription already exists');
+      return;
+    }
+
+    console.log('🚀 Setting up product updates broadcast subscription...');
+    
+    const subscription = supabase
+      .channel(channelName)
+      .on(
+        'broadcast',
+        { event: 'product-updated' },
+        (payload) => {
+          console.log('🔄 Product updated (broadcast):', payload);
+          
+          // Invalidate product queries to trigger refetch
           queryClient.invalidateQueries({ queryKey: ['products'] });
-          queryClient.invalidateQueries({ queryKey: ['product'] });
+          queryClient.invalidateQueries({ queryKey: ['products', 'detail', payload.payload.productId] });
           
-          // Show user feedback for real-time updates
-          this.notifyDataUpdate('Products updated in real-time');
+          this.notifyDataUpdate(`Product ${payload.payload.productName} updated`);
         }
       )
-      .subscribe();
+      .on(
+        'broadcast',
+        { event: 'stock-updated' },
+        (payload) => {
+          console.log('🔄 Stock updated (broadcast):', payload);
+          
+          // Invalidate product queries to trigger refetch
+          queryClient.invalidateQueries({ queryKey: ['products'] });
+          queryClient.invalidateQueries({ queryKey: ['products', 'detail', payload.payload.productId] });
+          
+          this.notifyDataUpdate(`Stock updated for ${payload.payload.productName}`);
+        }
+      )
+      .subscribe((status) => {
+        console.log(`📡 Product updates subscription status: ${status}`);
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ Product updates broadcast subscription ACTIVE');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('❌ Product updates subscription failed with CHANNEL_ERROR');
+        }
+      });
 
     this.subscriptions.set(channelName, subscription);
-    console.log('✅ Products real-time subscription established');
   }
 
   /**
-   * Set up real-time subscription for categories
-   * Invalidates React Query cache when categories change
+   * Set up broadcast subscription for cart updates
+   * Listens for cart changes, item additions/removals, etc.
    */
-  static subscribeToCategories() {
-    const channelName = 'categories-changes';
+  static subscribeToCartUpdates() {
+    const channelName = 'cart-updates';
     
     if (this.subscriptions.has(channelName)) {
-      console.log('Categories subscription already exists');
+      console.log('Cart updates subscription already exists');
       return;
     }
 
-    const subscription = supabase
-      .channel(channelName)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'categories'
-        },
-        (payload) => {
-          console.log('🔄 Categories real-time update:', payload);
-          
-          // Invalidate categories queries to trigger refetch
-          queryClient.invalidateQueries({ queryKey: ['categories'] });
-          
-          this.notifyDataUpdate('Categories updated in real-time');
-        }
-      )
-      .subscribe();
-
-    this.subscriptions.set(channelName, subscription);
-    console.log('✅ Categories real-time subscription established');
-  }
-
-  /**
-   * Set up real-time subscription for orders
-   * Invalidates React Query cache when orders change
-   */
-  static subscribeToOrders() {
-    const channelName = 'orders-changes';
+    console.log('🚀 Setting up cart updates broadcast subscription...');
     
-    if (this.subscriptions.has(channelName)) {
-      console.log('Orders subscription already exists');
-      return;
-    }
-
     const subscription = supabase
       .channel(channelName)
       .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'orders'
-        },
-        (payload) => {
-          console.log('🔄 Orders real-time update:', payload);
+        'broadcast',
+        { event: 'cart-item-added' },
+        (payload: any) => {
+          console.log('🔄 Cart item added (broadcast):', payload);
           
-          // Invalidate orders queries to trigger refetch
-          queryClient.invalidateQueries({ queryKey: ['orders'] });
-          queryClient.invalidateQueries({ queryKey: ['order-stats'] });
-          queryClient.invalidateQueries({ queryKey: ['user-orders'] });
+          // Invalidate cart queries to trigger refetch (standard pattern)
+          queryClient.invalidateQueries({ queryKey: ['cart'] });
           
-          this.notifyDataUpdate('Orders updated in real-time');
+          this.notifyDataUpdate(`Item added to cart from another device`);
         }
       )
-      .subscribe();
-
-    this.subscriptions.set(channelName, subscription);
-    console.log('✅ Orders real-time subscription established');
-  }
-
-  /**
-   * Set up real-time subscription for order items
-   * Invalidates React Query cache when order items change
-   */
-  static subscribeToOrderItems() {
-    const channelName = 'order-items-changes';
-    
-    if (this.subscriptions.has(channelName)) {
-      console.log('Order items subscription already exists');
-      return;
-    }
-
-    const subscription = supabase
-      .channel(channelName)
       .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'order_items'
-        },
-        (payload) => {
-          console.log('🔄 Order items real-time update:', payload);
+        'broadcast',
+        { event: 'cart-item-removed' },
+        (payload: any) => {
+          console.log('🔄 Cart item removed (broadcast):', payload);
           
-          // Invalidate related queries
-          queryClient.invalidateQueries({ queryKey: ['orders'] });
-          queryClient.invalidateQueries({ queryKey: ['order-stats'] });
+          // Invalidate cart queries to trigger refetch (standard pattern)
+          queryClient.invalidateQueries({ queryKey: ['cart'] });
           
-          this.notifyDataUpdate('Order details updated in real-time');
+          this.notifyDataUpdate(`Item removed from cart`);
         }
       )
-      .subscribe();
+      .on(
+        'broadcast',
+        { event: 'cart-quantity-updated' },
+        (payload: any) => {
+          console.log('🔄 Cart quantity updated (broadcast):', payload);
+          
+          // Invalidate cart queries to trigger refetch (standard pattern)
+          queryClient.invalidateQueries({ queryKey: ['cart'] });
+          
+          this.notifyDataUpdate(`Cart quantity updated`);
+        }
+      )
+      .on(
+        'broadcast',
+        { event: 'cart-cleared' },
+        async (payload: any) => {
+          console.log('🔄 Cart cleared (broadcast):', payload);
+          
+          // AGGRESSIVE: Force immediate UI update for cart clearing
+          console.log('🔥 Forcing aggressive cart cache update for cart-cleared...');
+          
+          // 1. Remove existing cache
+          queryClient.removeQueries({ queryKey: ['cart'] });
+          console.log('🗑️ Cache removed');
+          
+          // 2. Invalidate to mark as stale
+          queryClient.invalidateQueries({ queryKey: ['cart'] });
+          console.log('⚠️ Cache invalidated');
+          
+          // 3. Force immediate refetch
+          const refetchResult = await queryClient.refetchQueries({ queryKey: ['cart'] });
+          console.log('🔄 Refetch completed:', refetchResult);
+          
+          // 4. DEBUG: Check what data is actually in cache now
+          const currentCacheData = queryClient.getQueryData(['cart']);
+          console.log('🔍 Current cache data after refetch:', currentCacheData);
+          
+          this.notifyDataUpdate(`Cart cleared`);
+        }
+      )
+      .subscribe((status) => {
+        console.log(`📡 Cart updates subscription status: ${status}`);
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ Cart updates broadcast subscription ACTIVE');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('❌ Cart updates subscription failed with CHANNEL_ERROR');
+        }
+      });
 
     this.subscriptions.set(channelName, subscription);
-    console.log('✅ Order items real-time subscription established');
   }
 
   /**
@@ -169,14 +218,14 @@ export class RealtimeService {
    * Call this when the app starts or user logs in
    */
   static initializeAllSubscriptions() {
-    console.log('🚀 Initializing all real-time subscriptions...');
+    console.log('🚀 Initializing all broadcast subscriptions...');
     
-    this.subscribeToProducts();
-    this.subscribeToCategories();
-    this.subscribeToOrders();
-    this.subscribeToOrderItems();
+    this.subscribeToOrderUpdates();
+    this.subscribeToProductUpdates();
+    this.subscribeToCartUpdates();
     
-    console.log('✅ All real-time subscriptions initialized');
+    this.isInitialized = true;
+    console.log('✅ All broadcast subscriptions initialized');
   }
 
   /**
@@ -225,19 +274,28 @@ export class RealtimeService {
   }
 
   /**
-   * Notify user of real-time data updates
-   * This could be enhanced with toast notifications or other UI feedback
+   * Notify UI components about data updates
+   * @param message - Update message to display
    */
-  private static notifyDataUpdate(message: string) {
-    // For now, just console log
-    // In the future, this could trigger toast notifications or other UI feedback
-    console.log(`📱 ${message}`);
+  static notifyDataUpdate(message: string) {
+    console.log(`🔔 Data update notification: ${message}`);
     
-    // Could dispatch a custom event that UI components can listen to
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('realtimeUpdate', { 
-        detail: { message } 
-      }));
+    // Dispatch custom event for UI components to listen to
+    // Use proper React Native compatible approach
+    if (typeof window !== 'undefined' && window.dispatchEvent) {
+      try {
+        const event = new (window as any).CustomEvent('realtimeUpdate', { 
+          detail: { message } 
+        });
+        window.dispatchEvent(event);
+      } catch (error) {
+        console.warn('Failed to dispatch CustomEvent:', error);
+        // Fallback: just log the message
+        console.log(`📱 UI Update: ${message}`);
+      }
+    } else {
+      // React Native fallback - just log the message
+      console.log(`📱 UI Update: ${message}`);
     }
   }
 
@@ -249,11 +307,10 @@ export class RealtimeService {
     console.log('🔄 Force refreshing all cached data...');
     
     queryClient.invalidateQueries({ queryKey: ['products'] });
-    queryClient.invalidateQueries({ queryKey: ['product'] });
     queryClient.invalidateQueries({ queryKey: ['categories'] });
     queryClient.invalidateQueries({ queryKey: ['orders'] });
-    queryClient.invalidateQueries({ queryKey: ['order-stats'] });
-    queryClient.invalidateQueries({ queryKey: ['user-orders'] });
+    queryClient.invalidateQueries({ queryKey: ['userOrders'] }); // ProfileScreen format
+    queryClient.invalidateQueries({ queryKey: ['cart'] });
     
     console.log('✅ All cached data refreshed');
   }

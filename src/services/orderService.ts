@@ -1,6 +1,7 @@
 import { CreateOrderRequest, Order, OrderSubmissionResult } from '../types';
 import { supabase } from '../config/supabase';
 import { v4 as uuidv4 } from 'uuid';
+import { BroadcastHelper } from '../utils/broadcastHelper';
 
 // Mock API delay to simulate network requests (keeping for consistency)
 const API_DELAY = 500;
@@ -135,6 +136,12 @@ export const submitOrder = async (orderRequest: CreateOrderRequest): Promise<Ord
       createdAt: orderData.created_at,
       updatedAt: orderData.updated_at
     };
+    
+    // Send broadcast event to notify all clients of the new order
+    await BroadcastHelper.sendOrderUpdate('new-order', {
+      orderId: order.id,
+      order: order
+    });
     
     return {
       success: true,
@@ -287,6 +294,13 @@ export const updateOrderStatus = async (orderId: string, newStatus: string): Pro
       createdAt: orderData.created_at,
       updatedAt: orderData.updated_at
     };
+    
+    // Send broadcast event to notify all clients of the status change
+    await BroadcastHelper.sendOrderUpdate('order-status-changed', {
+      orderId: orderId,
+      newStatus: newStatus,
+      order: order
+    });
     
     return {
       success: true,

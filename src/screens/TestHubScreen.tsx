@@ -16,6 +16,10 @@ interface TestCategory {
   icon: keyof typeof Ionicons.glyphMap;
   screenName: keyof TestStackParamList;
   color: string;
+  tests?: Array<{
+    name: string;
+    screen: keyof TestStackParamList;
+  }>;
 }
 
 const testCategories: TestCategory[] = [
@@ -125,6 +129,8 @@ const testCategories: TestCategory[] = [
     tests: [
       { name: 'Product Debug Test', screen: 'ProductDebugTest' },
       { name: 'Real-time Integration Test', screen: 'RealtimeTest' },
+      { name: 'Broadcast Architecture Test', screen: 'BroadcastArchitectureTest' },
+      { name: 'Simple Broadcast Test', screen: 'SimpleBroadcastTest' },
       { name: 'Backend Integration Test', screen: 'BackendIntegrationTest' },
     ],
   },
@@ -149,53 +155,88 @@ const testCategories: TestCategory[] = [
 export const TestHubScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
 
   const handleCategoryPress = (category: TestCategory) => {
-    setSelectedCategory(category.id);
-    // Add a small delay for visual feedback
-    setTimeout(() => {
-      navigation.navigate(category.screenName);
-      setSelectedCategory(null);
-    }, 150);
+    if (category.tests && category.tests.length > 0) {
+      // If category has sub-tests, toggle expansion instead of navigating
+      setExpandedCategory(expandedCategory === category.id ? null : category.id);
+    } else {
+      // Navigate directly for categories without sub-tests
+      setSelectedCategory(category.id);
+      setTimeout(() => {
+        navigation.navigate(category.screenName);
+        setSelectedCategory(null);
+      }, 150);
+    }
+  };
+
+  const handleSubTestPress = (screenName: keyof TestStackParamList) => {
+    navigation.navigate(screenName);
   };
 
   const renderTestCategory = (category: TestCategory) => {
     const isSelected = selectedCategory === category.id;
+    const isExpanded = expandedCategory === category.id;
+    const hasSubTests = category.tests && category.tests.length > 0;
     
     return (
-      <TouchableOpacity
-        key={category.id}
-        onPress={() => handleCategoryPress(category)}
-        activeOpacity={0.7}
-      >
-        <Card 
-          variant="elevated" 
-          style={isSelected ? {...styles.categoryCard, ...styles.selectedCard} : styles.categoryCard}
+      <View key={category.id}>
+        <TouchableOpacity
+          onPress={() => handleCategoryPress(category)}
+          activeOpacity={0.7}
         >
-          <View style={styles.categoryHeader}>
-            <View style={[styles.iconContainer, { backgroundColor: category.color + '20' }]}>
+          <Card 
+            variant="elevated" 
+            style={isSelected ? {...styles.categoryCard, ...styles.selectedCard} : styles.categoryCard}
+          >
+            <View style={styles.categoryHeader}>
+              <View style={[styles.iconContainer, { backgroundColor: category.color + '20' }]}>
+                <Ionicons 
+                  name={category.icon} 
+                  size={24} 
+                  color={category.color} 
+                />
+              </View>
+              <View style={styles.categoryInfo}>
+                <Text variant="heading3" style={styles.categoryTitle}>
+                  {category.title}
+                </Text>
+                <Text variant="body" color="secondary" style={styles.categoryDescription}>
+                  {category.description}
+                </Text>
+              </View>
               <Ionicons 
-                name={category.icon} 
-                size={24} 
-                color={category.color} 
+                name={hasSubTests ? (isExpanded ? "chevron-down" : "chevron-forward") : "chevron-forward"} 
+                size={20} 
+                color="#9CA3AF" 
               />
             </View>
-            <View style={styles.categoryInfo}>
-              <Text variant="heading3" style={styles.categoryTitle}>
-                {category.title}
-              </Text>
-              <Text variant="body" color="secondary" style={styles.categoryDescription}>
-                {category.description}
-              </Text>
-            </View>
-            <Ionicons 
-              name="chevron-forward" 
-              size={20} 
-              color="#9CA3AF" 
-            />
+          </Card>
+        </TouchableOpacity>
+        
+        {/* Render sub-tests if expanded */}
+        {isExpanded && hasSubTests && (
+          <View style={styles.subTestsContainer}>
+            {category.tests!.map((test, index) => (
+              <TouchableOpacity
+                key={index}
+                onPress={() => handleSubTestPress(test.screen)}
+                style={styles.subTestItem}
+                activeOpacity={0.7}
+              >
+                <View style={styles.subTestContent}>
+                  <Ionicons name="play-circle-outline" size={16} color={category.color} />
+                  <Text style={[styles.subTestText, { color: category.color }] as any}>
+                    {test.name}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
+              </TouchableOpacity>
+            ))}
           </View>
-        </Card>
-      </TouchableOpacity>
+        )}
+      </View>
     );
   };
 
@@ -315,5 +356,32 @@ const styles = StyleSheet.create({
   },
   infoText: {
     lineHeight: 20,
+  },
+  subTestsContainer: {
+    marginLeft: spacing.lg,
+    marginTop: spacing.sm,
+    paddingLeft: spacing.md,
+    borderLeftWidth: 2,
+    borderLeftColor: '#E5E7EB',
+  },
+  subTestItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.xs,
+    backgroundColor: '#F9FAFB',
+    borderRadius: borderRadius.md,
+  },
+  subTestContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  subTestText: {
+    marginLeft: spacing.sm,
+    fontSize: 14,
+    fontWeight: '500',
   },
 });

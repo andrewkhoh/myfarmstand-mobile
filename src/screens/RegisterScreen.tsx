@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Alert } from 'react-native';
+import { View, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Screen, Text, Input, Button, Card } from '../components';
 import { useRegisterMutation, useCurrentUser } from '../hooks/useAuth';
@@ -121,18 +121,28 @@ export const RegisterScreen: React.FC = () => {
   };
 
   return (
-    <Screen scrollable padding>
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <Text variant="heading1" align="center">
-            Create Account
-          </Text>
-          <Text variant="body" color="secondary" align="center" style={styles.subtitle}>
-            Join the Farm Stand community
-          </Text>
-        </View>
+    <KeyboardAvoidingView 
+      style={styles.keyboardContainer}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+    >
+      <ScrollView 
+        style={styles.scrollContainer}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.container}>
+          <View style={styles.header}>
+            <Text variant="heading1" align="center">
+              Create Account
+            </Text>
+            <Text variant="body" color="secondary" align="center" style={styles.subtitle}>
+              Join the Farm Stand community
+            </Text>
+          </View>
 
-        <Card variant="elevated" style={styles.form}>
+          <Card variant="elevated" style={styles.form}>
           <Input
             label="Full Name"
             value={name}
@@ -207,16 +217,32 @@ export const RegisterScreen: React.FC = () => {
             />
           </View>
         </Card>
+        
+        {/* Extra space at bottom to ensure last fields are accessible */}
+        <View style={styles.bottomSpacer} />
       </View>
-    </Screen>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
+  keyboardContainer: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  scrollContainer: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: spacing.md,
+  },
   container: {
     flex: 1,
     justifyContent: 'center',
     paddingVertical: spacing.xl,
+    minHeight: 600, // Ensure minimum height for proper scrolling
   },
   header: {
     marginBottom: spacing.xl,
@@ -225,7 +251,11 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   form: {
+    marginTop: spacing.xl,
     marginBottom: spacing.lg,
+  },
+  bottomSpacer: {
+    height: 100, // Extra space at bottom for keyboard clearance
   },
   registerButton: {
     marginTop: spacing.md,

@@ -98,7 +98,7 @@ export const useRealtimeNotifications = () => {
   const [updateCount, setUpdateCount] = useState(0);
 
   useEffect(() => {
-    const handleRealtimeUpdate = (event: CustomEvent) => {
+    const handleRealtimeUpdate = (event: CustomEvent<{ message: string }>) => {
       setLastUpdate(event.detail.message);
       setUpdateCount(prev => prev + 1);
       

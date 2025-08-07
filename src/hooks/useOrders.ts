@@ -28,38 +28,14 @@ const defaultQueryConfig = {
  * Hook for fetching all orders with optional filtering and real-time updates (admin only)
  */
 export const useOrders = (filters: OrderFilters = {}): UseQueryResult<Order[], Error> => {
-  const queryClient = useQueryClient();
-  
   const query = useQuery({
     queryKey: orderKeys.list(filters),
     queryFn: () => OrderService.getAllOrders(filters),
     ...defaultQueryConfig,
   });
 
-  // Set up real-time subscription for orders
-  useEffect(() => {
-    const subscription = supabase
-      .channel('orders-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*', // Listen to all changes (INSERT, UPDATE, DELETE)
-          schema: 'public',
-          table: 'orders'
-        },
-        (payload) => {
-          console.log('Orders table changed:', payload);
-          // Invalidate and refetch orders when data changes
-          queryClient.invalidateQueries({ queryKey: orderKeys.all });
-          queryClient.invalidateQueries({ queryKey: orderKeys.stats() });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [queryClient]);
+  // Real-time updates are handled centrally by RealtimeService
+  // No need for duplicate subscriptions here
 
   return query;
 };

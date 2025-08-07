@@ -68,9 +68,9 @@ export const useCart = () => {
   // Remove item mutation
   const removeItemMutation = useMutation({
     mutationFn: (productId: string) => cartService.removeItem(productId),
-    onSuccess: (newCart) => {
+    onSuccess: (result) => {
       // Immediately update cache
-      queryClient.setQueryData(CART_QUERY_KEY, newCart);
+      queryClient.setQueryData(CART_QUERY_KEY, result.cart);
       // Invalidate to ensure consistency
       queryClient.invalidateQueries({ queryKey: CART_QUERY_KEY });
     },
@@ -97,25 +97,30 @@ export const useCart = () => {
   // Clear cart mutation with optimistic updates
   const clearCartMutation = useMutation({
     mutationFn: cartService.clearCart,
-    onMutate: async () => {
-      // Cancel outgoing refetches to prevent race conditions
-      await queryClient.cancelQueries({ queryKey: CART_QUERY_KEY });
-      
-      // Snapshot previous cart for rollback
-      const previousCart = queryClient.getQueryData(CART_QUERY_KEY);
-      
-      // Optimistically update to empty cart immediately
-      const emptyCart = { items: [], total: 0 };
-      queryClient.setQueryData(CART_QUERY_KEY, emptyCart);
-      
-      return { previousCart };
+    // TEMPORARILY DISABLED: Testing if optimistic update interferes with broadcast sync
+    // onMutate: async () => {
+    //   // Cancel outgoing refetches to prevent race conditions
+    //   await queryClient.cancelQueries({ queryKey: CART_QUERY_KEY });
+    //   
+    //   // Snapshot previous cart for rollback
+    //   const previousCart = queryClient.getQueryData(CART_QUERY_KEY);
+    //   
+    //   // Optimistically update to empty cart immediately
+    //   const emptyCart = { items: [], total: 0 };
+    //   queryClient.setQueryData(CART_QUERY_KEY, emptyCart);
+    //   
+    //   return { previousCart };
+    // },
+    onSuccess: (result) => {
+      // Update cache with actual result
+      queryClient.setQueryData(CART_QUERY_KEY, result.cart);
     },
     onError: (error, variables, context) => {
       console.error('Failed to clear cart:', error);
-      // Rollback to previous state on error
-      if (context?.previousCart) {
-        queryClient.setQueryData(CART_QUERY_KEY, context.previousCart);
-      }
+      // TEMPORARILY DISABLED: No rollback since optimistic update is disabled
+      // if (context?.previousCart) {
+      //   queryClient.setQueryData(CART_QUERY_KEY, context.previousCart);
+      // }
     },
     onSettled: () => {
       // Always refetch to ensure consistency
@@ -136,7 +141,7 @@ export const useCart = () => {
   const removeItem = async (productId: string): Promise<{ success: boolean; data?: CartState; message?: string }> => {
     try {
       const result = await removeItemMutation.mutateAsync(productId);
-      return { success: true, data: result };
+      return { success: true, data: result.cart };
     } catch (error) {
       return { success: false, message: 'Failed to remove item from cart' };
     }
@@ -154,7 +159,7 @@ export const useCart = () => {
   const clearCart = async (): Promise<{ success: boolean; data?: CartState; message?: string }> => {
     try {
       const result = await clearCartMutation.mutateAsync();
-      return { success: true, data: result };
+      return { success: true, data: result.cart };
     } catch (error) {
       return { success: false, message: 'Failed to clear cart' };
     }

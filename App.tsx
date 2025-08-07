@@ -4,30 +4,34 @@ import 'react-native-gesture-handler';
 import 'react-native-get-random-values';
 import { StatusBar } from 'expo-status-bar';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-// import { CartProvider } from './src/contexts/CartContext';
-import { AppNavigator } from './src/navigation/AppNavigator';
+import { queryClient } from './src/config/queryClient';
 import { useRealtime } from './src/hooks/useRealtime';
+import { ChannelManager } from './src/utils/channelManager';
+import { AppNavigator } from './src/navigation/AppNavigator';
 
-// Create a client
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      retry: 2,
-    },
-    mutations: {
-      retry: 1,
-    },
-  },
-});
+// Component to initialize real-time subscriptions
+const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // Initialize shared channels for broadcast events
+  React.useEffect(() => {
+    ChannelManager.initialize();
+    return () => {
+      ChannelManager.cleanup();
+    };
+  }, []);
+  
+  useRealtime(); // Initialize real-time subscriptions
+  return <>{children}</>;
+};
 
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      {/* <CartProvider> */}
-        <AppNavigator />
-        <StatusBar style="auto" />
-      {/* </CartProvider> */}
+      <RealtimeProvider>
+        {/* <CartProvider> */}
+          <AppNavigator />
+          <StatusBar style="auto" />
+        {/* </CartProvider> */}
+      </RealtimeProvider>
     </QueryClientProvider>
   );
 }

@@ -1711,41 +1711,27 @@ export const useProducts = () => {
 
 #### 4. Database Schema Design
 ```sql
--- ✅ Flexible category reference
+-- Flexible category reference
 CREATE TABLE products (
   category VARCHAR(255) NOT NULL, -- References categories.name
   -- More flexible than foreign key constraints
 );
 
--- ✅ Comprehensive indexing for search
-CREATE INDEX idx_products_name ON products USING GIN (to_tsvector('english', name));
-CREATE INDEX idx_products_tags ON products USING GIN (tags);
+CREATE TABLE categories (
+  name VARCHAR(255) PRIMARY KEY,
+  display_name VARCHAR(255) NOT NULL
+);
 ```
 
-**Pattern**: Use VARCHAR category names instead of UUIDs for flexibility.
+**Benefits**:
+- Simpler schema management
+- Better performance (no foreign key constraint overhead)
+- More flexible category management
+- Easier data migration and updates
 
-#### 5. Service Layer Error Handling
-```typescript
-// ✅ Consistent error response pattern
-export const ProductService = {
-  async getProducts(): Promise<ApiResponse<Product[]>> {
-    try {
-      const { data, error } = await supabase
-        .from('products')
-        .select('*');
-      
-      if (error) {
-        console.error('Database error:', error);
-        return {
-          data: [],
-          success: false,
-          error: 'Failed to fetch products'
-        };
-      }
-      
-      return {
-        data: transformData(data),
-        success: true,
+**Trade-offs**:
+- Manual referential integrity enforcement
+- Potential for orphaned references (mitigated by application logic)
         message: 'Products fetched successfully'
       };
     } catch (error) {
@@ -1845,3 +1831,190 @@ import { addMockOrdersForTesting } from '../services/orderService'; // Will brea
 5. **Documentation**: Document the migration pattern for future reference
 
 This migration eliminated a critical app-breaking issue and established a clean, maintainable authentication architecture.
+---
+
+## Issue 8: Cart Synchronization Failure
+**Date**: 2025-08-06  
+**Context**: Cart data not syncing between devices/browsers  
+**Severity**: Critical (Core Feature Broken)
+
+### Problem Description
+Cart items added on one device were not appearing on other devices/browsers, despite having broadcast events and React Query cache invalidation in place.
+
+### Root Cause Analysis
+Two critical architectural flaws were discovered:
+
+#### 1. Database Storage Architecture Mismatch
+```typescript
+// ❌ BROKEN: Mixed storage architecture
+const getCart = async () => {
+  // Reads from Supabase database (shared across devices)
+  const { data } = await supabase.from('cart_items').select('*');
+  return data;
+};
+
+const saveCart = async (cart) => {
+  // Only saves to AsyncStorage (local device storage)
+  await AsyncStorage.setItem('cart', JSON.stringify(cart));
+};
+```
+
+**Result**: No cross-device sync possible - each device had separate local cart data.
+
+#### 2. Aggressive React Query Cache Manipulation
+```typescript
+// ❌ BROKEN: Aggressive cache pattern
+queryClient.invalidateQueries({ queryKey: ['cart'] });
+queryClient.refetchQueries({ queryKey: ['cart'] });     // Forced immediate refetch
+queryClient.removeQueries({ queryKey: ['cart'] });      // Broke optimistic updates
+```
+
+**Result**: Race conditions with optimistic updates, cache conflicts, UI not updating properly.
+
+### Solution Implementation
+
+#### 1. Fixed Database Storage Architecture
+```typescript
+// ✅ FIXED: Consistent shared storage
+const saveCart = async (cart: CartState): Promise<CartState> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (user) {
+    // Clear existing cart items
+    await supabase.from('cart_items').delete().eq('user_id', user.id);
+    
+    // Insert new cart items to Supabase (shared database)
+    if (cart.items.length > 0) {
+      const cartItemsToInsert = cart.items.map(item => ({
+        user_id: user.id,
+        product_id: item.product.id,
+        quantity: item.quantity
+      }));
+      
+      await supabase.from('cart_items').insert(cartItemsToInsert);
+    }
+    
+    // Also save to AsyncStorage for offline access
+    await AsyncStorage.setItem('cart', JSON.stringify(cart));
+  }
+  
+  return cart;
+};
+```
+
+#### 2. Standardized React Query Patterns
+```typescript
+// ✅ FIXED: Standard invalidation pattern
+queryClient.invalidateQueries({ queryKey: ['cart'] });
+// Let React Query handle automatic refetching when components re-render
+```
+
+### Key Insights
+
+#### React Query Partial Invalidation Works Perfectly
+```typescript
+// This pattern is actually GOOD:
+queryClient.invalidateQueries({ queryKey: ['cart'] });
+// Invalidates: ['cart'], ['cart', 'user'], ['cart', 'items'], etc.
+```
+
+**When partial invalidation works:**
+- ✅ Query keys are consistent between hooks and services
+- ✅ Standard patterns are used (`invalidateQueries()` only)
+- ✅ Data is actually shared (Supabase database, not local storage)
+
+#### Simple Patterns > Complex Solutions
+```typescript
+// ✅ RELIABLE: Trust React Query's built-in mechanisms
+const subscription = supabase.channel('cart-updates')
+  .on('broadcast', { event: 'cart-item-added' }, (payload) => {
+    queryClient.invalidateQueries({ queryKey: ['cart'] });
+  })
+  .subscribe();
+
+// ❌ UNRELIABLE: Aggressive cache manipulation
+const subscription = supabase.channel('cart-updates')
+  .on('broadcast', { event: 'cart-item-added' }, (payload) => {
+    queryClient.invalidateQueries({ queryKey: ['cart'] });
+    queryClient.refetchQueries({ queryKey: ['cart'] });     // Race conditions
+    queryClient.removeQueries({ queryKey: ['cart'] });      // Breaks optimistic updates
+  })
+  .subscribe();
+```
+
+### Prevention Strategies
+
+#### 1. Consistent Storage Architecture
+```typescript
+// Ensure read/write operations use same storage mechanism
+const dataService = {
+  read: () => supabase.from('table').select('*'),    // Shared
+  write: (data) => supabase.from('table').insert(data), // Shared
+  // NOT: read from Supabase, write to AsyncStorage
+};
+```
+
+#### 2. Query Key Audit Pattern
+```typescript
+// Regular audit to ensure consistency
+const QUERY_KEYS = {
+  cart: ['cart'] as const,
+  orders: ['orders'] as const,
+  products: ['products'] as const,
+};
+
+// Use everywhere:
+// - useQuery({ queryKey: QUERY_KEYS.cart })
+// - queryClient.invalidateQueries({ queryKey: QUERY_KEYS.cart })
+```
+
+#### 3. Standard React Query Patterns
+```typescript
+// ✅ Standard broadcast subscription pattern
+const handleBroadcastEvent = (payload) => {
+  queryClient.invalidateQueries({ queryKey: ['dataType'] });
+  // Let React Query handle the rest
+};
+
+// ❌ Avoid aggressive patterns
+const handleBroadcastEvent = (payload) => {
+  queryClient.invalidateQueries({ queryKey: ['dataType'] });
+  queryClient.refetchQueries({ queryKey: ['dataType'] });    // Usually unnecessary
+  queryClient.removeQueries({ queryKey: ['dataType'] });     // Often harmful
+};
+```
+
+### Testing Approach
+```typescript
+// Test synchronization with multiple browser tabs/devices
+const testCartSync = async () => {
+  // Device A: Add item to cart
+  await cartService.addItem(product, 1);
+  
+  // Device B: Check cart (should see new item)
+  const cart = await cartService.getCart();
+  expect(cart.items).toContainEqual(expect.objectContaining({
+    product: expect.objectContaining({ id: product.id }),
+    quantity: 1
+  }));
+};
+```
+
+**Lesson**: Always test cross-device scenarios, not just single-device functionality.
+
+### Test Setup Issues Identified
+
+#### 1. Outdated Test Interfaces
+Many test screens still use deprecated APIs and mock data structures that don't match the current React Query + Supabase architecture.
+
+#### 2. Missing Cross-Device Test Infrastructure
+Test screens lack proper multi-device simulation capabilities for validating synchronization features.
+
+#### 3. Inconsistent Test Data
+Test data structures don't match actual database schemas, leading to false test results.
+
+**Recommended Actions**:
+1. Audit and update all test screens to use current APIs
+2. Create comprehensive sync test infrastructure
+3. Standardize test data to match production schemas
+4. Implement automated cross-device synchronization tests

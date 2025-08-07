@@ -16,21 +16,19 @@ export const useLoginMutation = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ email, password }: { email: string; password: string }) =>
-      AuthService.login(email, password),
+    mutationFn: ({ email, password }: { email: string; password: string }) => {
+      console.log('🔐 Login mutation starting for:', email);
+      return AuthService.login(email, password);
+    },
     onSuccess: (data) => {
-      if (data.success && data.user) {
-        // Update React Query cache only
-        queryClient.setQueryData(authKeys.user(), data.user);
-        
-        // Invalidate and refetch any auth-related queries
-        queryClient.invalidateQueries({ queryKey: authKeys.all });
-      }
+      console.log('✅ Login mutation successful:', data.user.email);
+      // Set user data in React Query cache
+      queryClient.setQueryData(authKeys.user(), data.user);
+      // Invalidate and refetch user queries
+      queryClient.invalidateQueries({ queryKey: authKeys.user() });
     },
     onError: (error) => {
-      console.error('Login mutation error:', error);
-      // Clear any stale auth data
-      queryClient.removeQueries({ queryKey: authKeys.all });
+      console.error('❌ Login mutation error:', error);
     },
   });
 };
@@ -79,21 +77,26 @@ export const useLogoutMutation = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: () => AuthService.logout(),
+    mutationFn: () => {
+      console.log('🚪 Logout mutation starting...');
+      return AuthService.logout();
+    },
     onSuccess: () => {
+      console.log('✅ Logout successful, clearing React Query cache...');
       // First, explicitly set user data to null
       queryClient.setQueryData(authKeys.user(), null);
       // Invalidate user queries to trigger re-render
       queryClient.invalidateQueries({ queryKey: authKeys.user() });
-      // Finally clear all cache
-      queryClient.clear();
+      // Clear cache but preserve query client functionality
+      queryClient.removeQueries();
+      console.log('🧹 React Query cache cleared');
     },
     onError: (error) => {
-      console.error('Logout mutation error:', error);
+      console.error('❌ Logout mutation error:', error);
       // Even if logout fails, clear states
       queryClient.setQueryData(authKeys.user(), null);
       queryClient.invalidateQueries({ queryKey: authKeys.user() });
-      queryClient.clear();
+      queryClient.removeQueries();
     },
   });
 };
