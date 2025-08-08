@@ -19,9 +19,13 @@ import {
   RealtimeTestScreen,
   BroadcastArchitectureTestScreen,
   SimpleBroadcastTest,
+  CartMigrationTestScreen,
 } from '../screens';
 import BackendIntegrationTestScreen from '../screens/testScreens/BackendIntegrationTestScreen';
 import CartRPCTest from '../tests/CartRPCTest';
+import AtomicOrderTest from '../tests/AtomicOrderTest';
+import SchemaInspector from '../tests/SchemaInspector';
+import SimpleStockValidationTest from '../tests/SimpleStockValidationTest';
 
 export type TestStackParamList = {
   TestHub: undefined;
@@ -44,6 +48,10 @@ export type TestStackParamList = {
   AutomatedTest: undefined;
   BackendIntegrationTest: undefined;
   CartRPCTest: undefined;
+  AtomicOrderTest: undefined;
+  SchemaInspector: undefined;
+  SimpleStockValidationTest: undefined;
+  CartMigrationTest: undefined;
 };
 
 const Stack = createStackNavigator<TestStackParamList>();
@@ -186,11 +194,28 @@ export const TestStackNavigator: React.FC = () => {
       />
       <Stack.Screen 
         name="CartRPCTest" 
-        component={CartRPCTest}
-        options={{
-          title: 'Cart RPC Function Test',
-          headerBackTitle: 'Tests',
-        }}
+        component={CartRPCTest} 
+        options={{ title: 'Cart RPC Function Test' }} 
+      />
+      <Stack.Screen 
+        name="AtomicOrderTest" 
+        component={AtomicOrderTest} 
+        options={{ title: 'Atomic Order Submission Test' }} 
+      />
+      <Stack.Screen 
+        name="SchemaInspector" 
+        component={SchemaInspector} 
+        options={{ title: 'Database Schema Inspector' }} 
+      />
+      <Stack.Screen 
+        name="SimpleStockValidationTest" 
+        component={SimpleStockValidationTest} 
+        options={{ title: 'Real-Time Stock Validation Test' }} 
+      />
+      <Stack.Screen 
+        name="CartMigrationTest" 
+        component={CartMigrationTestScreen} 
+        options={{ title: 'Cart Migration Test - Phase 1' }} 
       />
     </Stack.Navigator>
   );

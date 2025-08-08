@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { View, StyleSheet, Image, ScrollView, Alert } from 'react-native';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { Screen, Text, Button, Card } from '../components';
-import { useCart } from '../hooks/useCart';
 import { useProductById } from '../hooks/useProducts';
+import { useCart } from '../hooks/useCart';
+import { getStockDisplayInfo } from '../utils/stockDisplay';
 import { spacing, colors, borderRadius } from '../utils/theme';
 import { Product } from '../types';
 
@@ -69,15 +70,14 @@ export const ProductDetailScreen: React.FC = () => {
     );
   }
 
-  // Calculate stock availability considering cart quantity (consistent with ShopScreen's ProductCard)
+  // Use centralized stock display utility for consistency
   const cartQuantity = getCartQuantity(product.id);
-  const availableStock = Math.max(0, product.stock - cartQuantity);
-  const isOutOfStock = availableStock === 0;
-  const isMaxQuantityInCart = cartQuantity >= product.stock && product.stock > 0;
+  const { availableStock, isOutOfStock, lowStockWarning, stockColor, stockMessage, canAddToCart, addToCartButtonText } = 
+    getStockDisplayInfo(product, cartQuantity, 'full');
 
   const handleAddToCart = async () => {
     try {
-      // Use async/await pattern like CartScreen for consistent behavior
+      // Server-side validation will handle stock checking
       await addItem({ product, quantity: 1 });
     } catch (error) {
       console.error('Failed to add item to cart:', error);
@@ -145,14 +145,16 @@ export const ProductDetailScreen: React.FC = () => {
             </View>
             <View style={styles.infoRow}>
               <Text variant="body" weight="medium">Stock:</Text>
-              <Text variant="body" color={isOutOfStock ? "error" : "secondary"}>
-                {availableStock > 0 ? `${availableStock} available` : 'Out of stock'}
-                {Boolean(cartQuantity > 0) && (
-                  <Text variant="body" color="tertiary">
-                    {' '}({cartQuantity} in cart)
+              <View style={styles.stockInfo}>
+                <Text variant="body" color={stockColor}>
+                  {stockMessage}
+                </Text>
+                {Boolean(lowStockWarning) && (
+                  <Text variant="caption" color={stockColor} weight="medium" style={{ marginTop: 2 }}>
+                    {lowStockWarning}
                   </Text>
                 )}
-              </Text>
+              </View>
             </View>
             {Boolean(product.seasonalAvailability) && (
               <View style={styles.infoRow}>
@@ -173,10 +175,10 @@ export const ProductDetailScreen: React.FC = () => {
 
           <View style={styles.actions}>
             <Button
-              title={isOutOfStock ? "Out of Stock" : isMaxQuantityInCart ? "Max Quantity in Cart" : "Add to Cart"}
+              title={addToCartButtonText}
               variant="primary"
               onPress={handleAddToCart}
-              disabled={isOutOfStock || isMaxQuantityInCart}
+              disabled={!canAddToCart}
               style={styles.addToCartButton}
             />
             <Button
@@ -243,6 +245,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: spacing.sm,
+  },
+  stockInfo: {
+    flexDirection: 'column',
   },
   descriptionCard: {
     marginBottom: spacing.lg,

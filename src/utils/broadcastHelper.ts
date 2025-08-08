@@ -27,16 +27,24 @@ export class BroadcastHelper {
 
   /**
    * Send cart update broadcast
+   * FIXED: Send to user-specific channel to prevent cross-user contamination
    */
   static async sendCartUpdate(event: string, payload: any) {
     try {
-      const channel = supabase.channel('cart-updates');
+      // Ensure userId is included in payload
+      if (!payload.userId) {
+        console.error('❌ Cart broadcast missing userId - cannot send to user-specific channel');
+        return;
+      }
+      
+      // Send to user-specific channel to prevent cross-user contamination
+      const channel = supabase.channel(`cart-updates-${payload.userId}`);
       const result = await channel.send({
         type: 'broadcast',
         event,
         payload
       });
-      console.log(`📤 Cart broadcast sent: ${event}`, { result, payload });
+      console.log(`📤 Cart broadcast sent to user-specific channel: ${event}`, { result, payload, userId: payload.userId });
       return result;
     } catch (error) {
       console.error(`❌ Failed to send cart broadcast: ${event}`, error);

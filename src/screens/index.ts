@@ -30,6 +30,7 @@ export { StaffQRScannerTestScreen } from './testScreens/StaffQRScannerTestScreen
 export { SyncDebugTestScreen } from './testScreens/SyncDebugTestScreen';
 export { ComprehensiveSyncTestScreen } from './testScreens/ComprehensiveSyncTestScreen';
 export { CartSyncTestScreen } from './testScreens/CartSyncTestScreen';
+export { CartMigrationTestScreen } from './testScreens/CartMigrationTestScreen';
 export { default as AdminOrderTestScreen } from './testScreens/AdminOrderTestScreen';
 export { default as ProductDebugTestScreen } from './testScreens/ProductDebugTestScreen';
 export { StaffQRScannerScreen } from './StaffQRScannerScreen';

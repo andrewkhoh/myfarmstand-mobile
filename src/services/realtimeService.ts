@@ -1,6 +1,6 @@
 import { supabase } from '../config/supabase';
 import { queryClient } from '../config/queryClient';
-import { CART_QUERY_KEY } from '../hooks/useCart';
+import { cartKeys } from '../utils/queryKeyFactory';
 
 /**
  * Broadcast-based Real-time Service
@@ -125,60 +125,78 @@ export class RealtimeService {
   /**
    * Set up broadcast subscription for cart updates
    * Listens for cart changes, item additions/removals, etc.
+   * FIXED: User-specific channels to prevent cross-user contamination
    */
-  static subscribeToCartUpdates() {
-    const channelName = 'cart-updates';
-    
-    if (this.subscriptions.has(channelName)) {
-      console.log('Cart updates subscription already exists');
+  static async subscribeToCartUpdates() {
+    // Get current user for user-specific channel
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      console.warn('Cannot subscribe to cart updates: No authenticated user');
+      return;
     }
 
-    console.log('🚀 Setting up cart updates broadcast subscription...');
+    const channelName = `cart-updates-${user.id}`; // USER-SPECIFIC CHANNEL
+    
+    if (this.subscriptions.has(channelName)) {
+      console.log('Cart updates subscription already exists for user:', user.id);
+      return;
+    }
+
+    console.log('🚀 Setting up user-specific cart updates broadcast subscription for user:', user.id);
     
     const subscription = supabase
-      .channel(channelName)
+      .channel(channelName) // USER-SPECIFIC CHANNEL
       .on(
         'broadcast',
         { event: 'cart-item-added' },
         (payload: any) => {
-          console.log('🔄 Cart item added (broadcast):', payload);
-          queryClient.invalidateQueries({ queryKey: CART_QUERY_KEY });
-          this.notifyDataUpdate(`Added ${payload.payload?.productName || 'item'} to cart`);
+          // Only process if the event is for the current user
+          if (payload.payload?.userId === user.id) {
+            console.log('🔄 Cart item added (broadcast) for current user:', payload);
+            queryClient.invalidateQueries({ queryKey: cartKeys.all(user.id) }); // USER-SPECIFIC CACHE KEY
+            this.notifyDataUpdate(`Added ${payload.payload?.productName || 'item'} to cart`);
+          }
         }
       )
       .on(
         'broadcast',
         { event: 'cart-item-removed' },
         (payload: any) => {
-          console.log('🔄 Cart item removed (broadcast):', payload);
-          queryClient.invalidateQueries({ queryKey: CART_QUERY_KEY });
-          this.notifyDataUpdate(`Removed ${payload.payload?.productName || 'item'} from cart`);
+          if (payload.payload?.userId === user.id) {
+            console.log('🔄 Cart item removed (broadcast) for current user:', payload);
+            queryClient.invalidateQueries({ queryKey: cartKeys.all(user.id) });
+            this.notifyDataUpdate(`Removed ${payload.payload?.productName || 'item'} from cart`);
+          }
         }
       )
       .on(
         'broadcast',
         { event: 'cart-quantity-updated' },
         (payload: any) => {
-          console.log('🔄 Cart quantity updated (broadcast):', payload);
-          queryClient.invalidateQueries({ queryKey: CART_QUERY_KEY });
-          this.notifyDataUpdate(`Updated ${payload.payload?.productName || 'item'} quantity`);
+          if (payload.payload?.userId === user.id) {
+            console.log('🔄 Cart quantity updated (broadcast) for current user:', payload);
+            queryClient.invalidateQueries({ queryKey: cartKeys.all(user.id) });
+            this.notifyDataUpdate(`Updated ${payload.payload?.productName || 'item'} quantity`);
+          }
         }
       )
       .on(
         'broadcast',
         { event: 'cart-cleared' },
         (payload: any) => {
-          console.log('🔄 Cart cleared (broadcast):', payload);
-          queryClient.invalidateQueries({ queryKey: CART_QUERY_KEY });
-          this.notifyDataUpdate('Cart cleared');
+          if (payload.payload?.userId === user.id) {
+            console.log('🔄 Cart cleared (broadcast) for current user:', payload);
+            queryClient.invalidateQueries({ queryKey: cartKeys.all(user.id) });
+            this.notifyDataUpdate('Cart cleared');
+          }
         }
       )
       .subscribe((status) => {
-        console.log(`📡 Cart updates subscription status: ${status}`);
+        console.log(`📡 Cart updates subscription status for user ${user.id}: ${status}`);
         if (status === 'SUBSCRIBED') {
-          console.log('✅ Cart updates broadcast subscription ACTIVE');
+          console.log('✅ User-specific cart updates broadcast subscription ACTIVE for user:', user.id);
         } else if (status === 'CHANNEL_ERROR') {
-          console.error('❌ Cart updates subscription failed with CHANNEL_ERROR');
+          console.error('❌ Cart updates subscription failed with CHANNEL_ERROR for user:', user.id);
         }
       });
 
@@ -282,7 +300,7 @@ export class RealtimeService {
     queryClient.invalidateQueries({ queryKey: ['categories'] });
     queryClient.invalidateQueries({ queryKey: ['orders'] });
     queryClient.invalidateQueries({ queryKey: ['userOrders'] }); // ProfileScreen format
-    queryClient.invalidateQueries({ queryKey: CART_QUERY_KEY }); 
+    queryClient.invalidateQueries({ queryKey: ['cart'] }); // Legacy global cart key for backward compatibility 
     
     console.log('✅ All cached data refreshed');
   }

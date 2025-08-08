@@ -5,6 +5,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen, Text, Card, Button } from '../components';
 import { useCart } from '../hooks/useCart';
+import { getStockDisplayInfo } from '../utils/stockDisplay';
 import { spacing, colors, borderRadius } from '../utils/theme';
 import { CartItem, Product, RootStackParamList } from '../types';
 
@@ -28,10 +29,10 @@ export const CartScreen: React.FC = () => {
     }
   };
 
-  // New atomic increment handler - uses same approach as ProductDetailScreen/ShopScreen
+  // Atomic increment handler - server-side validation only
   const handleAtomicIncrement = async (product: Product) => {
     try {
-      // Use atomic addItem(product, 1) - same as working screens
+      // Server-side validation will handle stock checking
       await addItem({ product, quantity: 1 });
     } catch (error) {
       console.error('❌ CART SCREEN - handleAtomicIncrement error:', error);
@@ -55,6 +56,7 @@ export const CartScreen: React.FC = () => {
   };
 
   const handleDisabledIncrementTap = (item: CartItem) => {
+    // Static stock calculation for messaging
     const availableStock = Math.max(0, item.product.stock - item.quantity);
     
     if (availableStock === 0 && item.product.stock > 0) {
@@ -71,15 +73,23 @@ export const CartScreen: React.FC = () => {
         `Maximum quantity per item is 999.`,
         [{ text: 'OK' }]
       );
+    } else {
+      // General stock limitation message
+      Alert.alert(
+        'Cannot Add More',
+        `Only ${availableStock} more available for ${item.product.name}.`,
+        [{ text: 'OK' }]
+      );
     }
   };
 
   const renderCartItem = ({ item }: { item: CartItem }) => {
     const itemTotal = item.product.price * item.quantity;
-    const isOutOfStock = item.product.stock === 0;
     
-    // Calculate AVAILABLE stock (total stock - current cart quantity)
-    const availableStock = Math.max(0, item.product.stock - item.quantity);
+    // Use centralized stock display utility for consistency
+    const { availableStock, isOutOfStock, lowStockWarning, stockColor, stockMessage } = 
+      getStockDisplayInfo(item.product, item.quantity, 'full');
+    
     const maxQuantity = Math.min(item.product.stock, 999); // Max possible quantity for this item
     const canIncrease = item.quantity < maxQuantity && availableStock > 0;
 
@@ -113,12 +123,14 @@ export const CartScreen: React.FC = () => {
               </Text>
             )}
             <View style={styles.stockInfo}>
-              <Text variant="caption" color="tertiary">
-                Stock: {Math.max(0, item.product.stock - item.quantity) > 0 
-                  ? `${Math.max(0, item.product.stock - item.quantity)} available` 
-                  : 'Out of stock'
-                } ({item.quantity} in cart)
+              <Text variant="caption" color={stockColor}>
+                {stockMessage}
               </Text>
+              {Boolean(lowStockWarning) && (
+                <Text variant="caption" color={stockColor} weight="medium" style={{ marginTop: 2 }}>
+                  {lowStockWarning}
+                </Text>
+              )}
               {Boolean(item.quantity >= item.product.stock && item.product.stock > 0 ) && (
                 <Text variant="caption" style={styles.stockLimitText}>
                   ⚠️ All available stock in cart

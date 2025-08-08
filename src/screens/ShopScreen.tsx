@@ -5,8 +5,8 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen, Text, Card, Button } from '../components';
 import { ProductCard } from '../components/ProductCard';
-import { useCart } from '../hooks/useCart';
 import { useProducts, useCategories } from '../hooks/useProducts';
+import { useCart } from '../hooks/useCart';
 import { spacing, colors, borderRadius } from '../utils/theme';
 import { Product, RootStackParamList } from '../types';
 
@@ -87,10 +87,15 @@ export const ShopScreen: React.FC = () => {
 
   const handleAddToCart = async (product: Product) => {
     try {
-      // Use async/await pattern like CartScreen for consistent behavior
+      // Server-side validation will handle stock checking
       await addItem({ product, quantity: 1 });
     } catch (error) {
       console.error('Failed to add item to cart:', error);
+      Alert.alert(
+        'Error',
+        'Failed to add item to cart. Please try again.',
+        [{ text: 'OK' }]
+      );
     }
   };
 
@@ -120,7 +125,7 @@ export const ShopScreen: React.FC = () => {
       product={item}
       onPress={() => handleProductPress(item)}
       onAddToCart={() => handleAddToCart(item)}
-      cartQuantity={getCartQuantity(item.id)} // Pass cart quantity for stock calculation
+      cartQuantity={getCartQuantity(item.id)} // Pass cart quantity for display only
     />
   );
 

@@ -1,7 +1,7 @@
-import { CreateOrderRequest, Order, OrderSubmissionResult } from '../types';
+import { CreateOrderRequest, Order, OrderSubmissionResult, FulfillmentType, OrderStatus } from '../types';
 import { supabase } from '../config/supabase';
 import { v4 as uuidv4 } from 'uuid';
-import { BroadcastHelper } from '../utils/broadcastHelper';
+import { sendOrderBroadcast } from '../utils/broadcastFactory';
 
 // Calculate tax (8.5% for example)
 const calculateTax = (subtotal: number): number => {
@@ -82,7 +82,7 @@ const updateProductStock = async (orderItems: CreateOrderRequest['items']): Prom
   }
 };
 
-// Real Supabase function to submit an order
+// Real Supabase function to submit an order - ATOMIC VERSION
 export const submitOrder = async (orderRequest: CreateOrderRequest): Promise<OrderSubmissionResult> => {
   try {
     // Validate required fields
@@ -113,28 +113,6 @@ export const submitOrder = async (orderRequest: CreateOrderRequest): Promise<Ord
       };
     }
     
-    // CRITICAL: Validate inventory availability at checkout time
-    const inventoryValidation = await validateInventoryAvailability(orderRequest.items);
-    
-    if (!inventoryValidation.isValid) {
-      // Format user-friendly error message for stock conflicts
-      const conflictMessages = inventoryValidation.conflicts.map(conflict => {
-        if (conflict.available === 0) {
-          return `• ${conflict.productName} is out of stock`;
-        } else {
-          return `• ${conflict.productName}: only ${conflict.available} available (you requested ${conflict.requested})`;
-        }
-      });
-      
-      const errorMessage = `Some items in your cart are no longer available:\n\n${conflictMessages.join('\n')}\n\nPlease update your cart and try again.`;
-      
-      return {
-        success: false,
-        error: errorMessage,
-        inventoryConflicts: inventoryValidation.conflicts
-      };
-    }
-    
     // Calculate totals
     const subtotal = orderRequest.items.reduce((sum, item) => sum + item.subtotal, 0);
     const tax = calculateTax(subtotal);
@@ -143,67 +121,8 @@ export const submitOrder = async (orderRequest: CreateOrderRequest): Promise<Ord
     // Get current user for order association
     const { data: { user } } = await supabase.auth.getUser();
     
-    // Create order object with explicit field clearing based on fulfillment type
-    const order: Order = {
-      id: uuidv4(),
-      customerId: user?.id || 'anonymous',
-      customerInfo: orderRequest.customerInfo,
-      items: orderRequest.items,
-      subtotal,
-      tax,
-      total,
-      fulfillmentType: orderRequest.fulfillmentType,
-      // For delivery: set delivery fields, explicitly clear pickup fields
-      deliveryAddress: orderRequest.fulfillmentType === 'delivery' ? orderRequest.deliveryAddress : undefined,
-      deliveryDate: orderRequest.fulfillmentType === 'delivery' ? orderRequest.deliveryDate : undefined,
-      deliveryTime: orderRequest.fulfillmentType === 'delivery' ? orderRequest.deliveryTime : undefined,
-      // For pickup: set pickup fields, explicitly clear delivery fields
-      pickupDate: orderRequest.fulfillmentType === 'pickup' ? orderRequest.pickupDate : undefined,
-      pickupTime: orderRequest.fulfillmentType === 'pickup' ? orderRequest.pickupTime : undefined,
-      specialInstructions: orderRequest.specialInstructions,
-      status: 'pending',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-
-    // Insert order into database
-    const { data, error } = await supabase
-      .from('orders')
-      .insert([{
-        id: order.id,
-        user_id: order.customerId,
-        customer_name: order.customerInfo.name,
-        customer_email: order.customerInfo.email,
-        customer_phone: order.customerInfo.phone,
-        delivery_address: order.deliveryAddress,
-        delivery_date: order.deliveryDate,
-        delivery_time: order.deliveryTime,
-        pickup_date: order.pickupDate,
-        pickup_time: order.pickupTime,
-        special_instructions: order.specialInstructions,
-        subtotal: order.subtotal,
-        tax_amount: order.tax,
-        total_amount: order.total,
-        fulfillment_type: order.fulfillmentType,
-        status: order.status,
-        created_at: order.createdAt,
-        updated_at: order.updatedAt
-      }])
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Error inserting order:', error);
-      return {
-        success: false,
-        error: `Failed to create order: ${error.message}`
-      };
-    }
-
-    // Insert order items
-    const orderItemsData = order.items.map(item => ({
-      id: uuidv4(),
-      order_id: order.id,
+    // Prepare order items for RPC function
+    const orderItemsData = orderRequest.items.map(item => ({
       product_id: item.productId,
       product_name: item.productName,
       unit_price: item.price,
@@ -211,52 +130,96 @@ export const submitOrder = async (orderRequest: CreateOrderRequest): Promise<Ord
       total_price: item.subtotal
     }));
 
-    const { error: itemsError } = await supabase
-      .from('order_items')
-      .insert(orderItemsData);
+    // ATOMIC ORDER SUBMISSION: Single RPC call eliminates race conditions
+    const { data: result, error } = await supabase.rpc('submit_order_atomic', {
+      p_order_id: uuidv4(),
+      p_user_id: user?.id || null,
+      p_customer_name: orderRequest.customerInfo.name,
+      p_customer_email: orderRequest.customerInfo.email,
+      p_customer_phone: orderRequest.customerInfo.phone,
+      p_subtotal: subtotal,
+      p_tax_amount: tax,
+      p_total_amount: total,
+      p_fulfillment_type: orderRequest.fulfillmentType,
+      p_order_items: orderItemsData,
+      p_delivery_address: orderRequest.fulfillmentType === 'delivery' ? orderRequest.deliveryAddress : null,
+      p_pickup_date: orderRequest.fulfillmentType === 'delivery' ? orderRequest.deliveryDate : 
+                     orderRequest.fulfillmentType === 'pickup' ? orderRequest.pickupDate : null,
+      p_pickup_time: orderRequest.fulfillmentType === 'delivery' ? orderRequest.deliveryTime :
+                     orderRequest.fulfillmentType === 'pickup' ? orderRequest.pickupTime : null,
+      p_special_instructions: orderRequest.specialInstructions || null,
+      p_status: 'pending'
+    });
 
-    if (itemsError) {
-      console.error('Error inserting order items:', itemsError);
-      // Clean up the order if items failed
-      await supabase.from('orders').delete().eq('id', order.id);
+    if (error) {
+      console.error('Error calling submit_order_atomic RPC:', error);
       return {
         success: false,
-        error: `Failed to create order items: ${itemsError.message}`
+        error: `Failed to submit order: ${error.message}`
       };
     }
 
-    // CRITICAL: Atomically update product stock levels
-    try {
-      await updateProductStock(orderRequest.items);
-    } catch (stockError) {
-      console.error('Error updating product stock:', stockError);
-      // Clean up order and items if stock update fails
-      await supabase.from('order_items').delete().eq('order_id', order.id);
-      await supabase.from('orders').delete().eq('id', order.id);
+    // Handle RPC function response
+    if (!result.success) {
+      // RPC function detected inventory conflicts or other issues
       return {
         success: false,
-        error: `Failed to update inventory: ${stockError instanceof Error ? stockError.message : 'Unknown error'}`
+        error: result.error,
+        inventoryConflicts: result.inventoryConflicts || []
       };
     }
 
-    // Broadcast event with robust error handling
-    try {
-      await BroadcastHelper.sendOrderUpdate('new-order', {
-        orderId: order.id,
-        order: order
-      });
-    } catch (error) {
-      console.warn('Failed to broadcast order update:', error);
-      // Order still succeeds even if broadcast fails
-    }
+    // Success! Order created atomically
+    const createdOrder = result.order;
     
+    // Convert database format to application format
+    const order: Order = {
+      id: createdOrder.id,
+      customerId: createdOrder.user_id,
+      customerInfo: {
+        name: createdOrder.customer_name,
+        email: createdOrder.customer_email,
+        phone: createdOrder.customer_phone
+      },
+      items: orderRequest.items, // Use original items with full product data
+      subtotal: createdOrder.subtotal,
+      tax: createdOrder.tax_amount,
+      total: createdOrder.total_amount,
+      fulfillmentType: createdOrder.fulfillment_type as FulfillmentType,
+      deliveryAddress: createdOrder.delivery_address,
+      deliveryDate: createdOrder.delivery_date,
+      deliveryTime: createdOrder.delivery_time,
+      pickupDate: createdOrder.pickup_date,
+      pickupTime: createdOrder.pickup_time,
+      specialInstructions: createdOrder.special_instructions,
+      status: createdOrder.status as OrderStatus,
+      createdAt: createdOrder.created_at,
+      updatedAt: createdOrder.updated_at
+    };
+
+    // SECURITY-HARDENED: Broadcast order creation for real-time updates
+    try {
+      await sendOrderBroadcast('new-order', {
+        userId: order.customerId, // SECURITY: User-specific routing
+        orderId: order.id,
+        status: order.status,
+        total: order.total,
+        fulfillmentType: order.fulfillmentType,
+        timestamp: new Date().toISOString(),
+        action: 'order_created'
+      });
+    } catch (broadcastError) {
+      console.warn('Failed to broadcast new order:', broadcastError);
+      // Don't fail the order creation if broadcast fails
+    }
+
     return {
       success: true,
-      order,
-      message: 'Order submitted successfully'
+      order
     };
-    
+
   } catch (error) {
+    console.error('Unexpected error in submitOrder:', error);
     return {
       success: false,
       error: `Unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}`
@@ -443,12 +406,14 @@ export const updateOrderStatus = async (orderId: string, newStatus: string): Pro
       };
     }
 
-    // Broadcast event with robust error handling (CartService pattern)
+    // SECURITY-HARDENED: Broadcast event with robust error handling (CartService pattern)
     try {
-      await BroadcastHelper.sendOrderUpdate('order-status-changed', {
+      await sendOrderBroadcast('order-status-updated', {
+        userId: updatedOrder.customerId, // SECURITY: User-specific routing
         orderId: orderId,
-        newStatus: newStatus,
-        order: updatedOrder
+        status: newStatus,
+        timestamp: new Date().toISOString(),
+        action: 'status_updated'
       });
     } catch (error) {
       console.warn('Failed to broadcast order status update:', error);
@@ -513,10 +478,12 @@ export const bulkUpdateOrderStatus = async (
     // Broadcast events for each updated order with robust error handling
     for (const order of updatedOrders) {
       try {
-        await BroadcastHelper.sendOrderUpdate('order-status-changed', {
+        await sendOrderBroadcast('order-status-updated', {
+          userId: order.customerId, // SECURITY: User-specific routing
           orderId: order.id,
-          newStatus: newStatus,
-          order: order
+          status: newStatus,
+          timestamp: new Date().toISOString(),
+          action: 'bulk_status_updated'
         });
       } catch (error) {
         console.warn(`Failed to broadcast order status update for ${order.id}:`, error);

@@ -17,6 +17,8 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCart } from '../hooks/useCart';
 import { useCurrentUser } from '../hooks/useAuth';
+import { useStockValidation } from '../hooks/useStockValidation';
+import { getStockDisplayInfo } from '../utils/stockDisplay';
 import { submitOrder } from '../services/orderService';
 import { CreateOrderRequest, CustomerInfo, FulfillmentType, OrderItem, RootStackParamList } from '../types';
 
@@ -25,6 +27,7 @@ type CheckoutScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Ord
 export const CheckoutScreen: React.FC = () => {
   const { items, total, clearCart, updateQuantity, removeItem } = useCart();
   const { data: user } = useCurrentUser();
+  const { validateStock, getStockInfo } = useStockValidation(); // Real-time stock validation
   const navigation = useNavigation<CheckoutScreenNavigationProp>();
   const queryClient = useQueryClient();
   
@@ -240,6 +243,32 @@ export const CheckoutScreen: React.FC = () => {
   const tax = Math.round(subtotal * 0.085 * 100) / 100; // 8.5% tax
   const orderTotal = subtotal + tax;
 
+  // Pre-submission stock validation using real-time data
+  const validateStockBeforeSubmission = (): { isValid: boolean; conflicts: Array<{ productName: string; requested: number; available: number; }> } => {
+    const conflicts: Array<{ productName: string; requested: number; available: number; }> = [];
+    
+    for (const cartItem of items) {
+      // For checkout validation, we validate the cart quantity against current stock
+      // NOT against adding more items (which would double-count)
+      const stockInfo = getStockInfo(cartItem.product);
+      const currentStock = stockInfo?.availableStock ?? cartItem.product.stock ?? 0;
+      
+      // Check if cart quantity exceeds current available stock
+      if (cartItem.quantity > currentStock) {
+        conflicts.push({
+          productName: cartItem.product.name,
+          requested: cartItem.quantity,
+          available: currentStock,
+        });
+      }
+    }
+    
+    return {
+      isValid: conflicts.length === 0,
+      conflicts
+    };
+  };
+
   // Form validation (customer info now comes from user profile)
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -293,6 +322,38 @@ export const CheckoutScreen: React.FC = () => {
         'Please Complete Required Fields',
         `• ${errorText}`,
         [{ text: 'OK', style: 'default' }]
+      );
+      return;
+    }
+
+    // Pre-submission stock validation using real-time data
+    const stockValidation = validateStockBeforeSubmission();
+    if (!stockValidation.isValid) {
+      // Create detailed conflict message
+      const conflictDetails = stockValidation.conflicts.map(conflict => {
+        if (conflict.available === 0) {
+          return `• ${conflict.productName} is out of stock`;
+        } else {
+          return `• ${conflict.productName}: only ${conflict.available} available (you have ${conflict.requested} in cart)`;
+        }
+      }).join('\n');
+
+      Alert.alert(
+        'Stock Availability Issue',
+        `Some items in your cart are no longer available:\n\n${conflictDetails}\n\nWould you like to update your cart automatically?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Update Cart', 
+            style: 'default', 
+            onPress: () => updateCartForConflicts(stockValidation.conflicts.map(c => ({
+              productId: items.find(item => item.product.name === c.productName)?.product.id || '',
+              productName: c.productName,
+              requested: c.requested,
+              available: c.available
+            })))
+          },
+        ]
       );
       return;
     }
@@ -362,14 +423,24 @@ export const CheckoutScreen: React.FC = () => {
       {/* Order Summary */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Order Summary</Text>
-        {items.map((item, index) => (
-          <View key={index} style={styles.orderItem}>
-            <Text style={styles.itemName}>{item.product.name}</Text>
-            <Text style={styles.itemDetails}>
-              {item.quantity} × ${item.product.price.toFixed(2)} = ${(item.quantity * item.product.price).toFixed(2)}
-            </Text>
-          </View>
-        ))}
+        {items.map((item, index) => {
+          // Use centralized stock display utility for consistency
+          const { lowStockWarning, stockColor } = getStockDisplayInfo(item.product, item.quantity, 'full');
+          
+          return (
+            <View key={index} style={styles.orderItem}>
+              <Text style={styles.itemName}>{item.product.name}</Text>
+              <Text style={styles.itemDetails}>
+                {item.quantity} × ${item.product.price.toFixed(2)} = ${(item.quantity * item.product.price).toFixed(2)}
+              </Text>
+              {lowStockWarning && (
+                <Text style={[styles.stockWarning, { color: stockColor === 'error' ? '#dc2626' : '#ea580c' }]}>
+                  {lowStockWarning}
+                </Text>
+              )}
+            </View>
+          );
+        })}
         
         <View style={styles.totalsContainer}>
           <View style={styles.totalRow}>
@@ -673,9 +744,15 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   orderItem: {
+    flexDirection: 'column',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: '#e0e0e0',
+  },
+  stockWarning: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginTop: 4,
   },
   itemName: {
     fontSize: 16,

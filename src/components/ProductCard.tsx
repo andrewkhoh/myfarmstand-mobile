@@ -4,13 +4,16 @@ import { Product } from '../types';
 import { Text } from './Text';
 import { Button } from './Button';
 import { Card } from './Card';
+import { getStockDisplayInfo } from '../utils/stockDisplay';
 import { spacing, colors, borderRadius } from '../utils/theme';
 
 interface ProductCardProps {
   product: Product;
   onPress: () => void;
   onAddToCart: () => void;
-  cartQuantity?: number; // New prop for cart quantity
+  cartQuantity?: number; // Cart quantity for stock calculation
+  canAddToCart?: boolean; // Real-time stock validation result
+  stockStatusMessage?: string; // Real-time stock status message
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({
@@ -18,10 +21,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   onPress,
   onAddToCart,
   cartQuantity = 0, // Default to 0 if not provided
+  canAddToCart = true, // Default to true for backward compatibility
+  stockStatusMessage, // Real-time stock status message
 }) => {
-  // Calculate available stock (total stock - quantity already in cart)
-  const availableStock = Math.max(0, product.stock - cartQuantity);
-  const isOutOfStock = availableStock === 0;
+  // Use centralized stock display utility for consistency (compact variant for cards)
+  const { availableStock, isOutOfStock, lowStockWarning, stockColor, stockMessage, canAddToCart: centralizedCanAddToCart, addToCartButtonText } = 
+    getStockDisplayInfo(product, cartQuantity, 'compact');
 
   return (
     <Card variant="elevated" style={styles.container}>
@@ -62,21 +67,24 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               <Text variant="heading3" color="primary" weight="bold">
                 ${product.price.toFixed(2)}
               </Text>
-              <Text variant="caption" color="secondary">
-                {availableStock > 0 ? `${availableStock} available` : 'Out of stock'}
-                {Boolean(cartQuantity > 0) && (
-                  <Text variant="caption" color="tertiary">
-                    {' '}({cartQuantity} in cart)
+              <View style={{ flexDirection: 'column' }}>
+                <Text variant="caption" color={stockColor}>
+                  {isOutOfStock ? 'Out of stock' : `${availableStock} available`}
+                  {Boolean(cartQuantity > 0) && ` (${cartQuantity} in cart)`}
+                </Text>
+                {Boolean(lowStockWarning) && (
+                  <Text variant="caption" color={stockColor} weight="medium" style={{ marginTop: 1 }}>
+                    {lowStockWarning}
                   </Text>
                 )}
-              </Text>
+              </View>
             </View>
 
             <Button
-              title="Add to Cart"
+              title={addToCartButtonText}
               variant="primary"
               onPress={onAddToCart}
-              disabled={isOutOfStock}
+              disabled={!centralizedCanAddToCart}
               style={styles.addButton}
             />
           </View>

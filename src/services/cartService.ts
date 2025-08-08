@@ -1,6 +1,6 @@
 import { supabase } from '../config/supabase';
 import { CartState, CartItem, Product } from '../types';
-import { BroadcastHelper } from '../utils/broadcastHelper';
+import { cartBroadcast } from '../utils/broadcastFactory';
 
 // Database cart item interface
 interface DbCartItem {
@@ -194,7 +194,7 @@ export const cartService = {
     }
   },
 
-  // Add item to cart - Atomic operation using database function
+  // Add item to cart - Atomic operation with real-time stock validation
   addItem: async (product: Product, quantity: number = 1): Promise<{ success: boolean; message?: string }> => {
     try {
       // Get current user
@@ -207,7 +207,72 @@ export const cartService = {
         };
       }
 
-      // Single Atomic Operation - Use database function for true atomicity
+      // REAL-TIME STOCK VALIDATION: Check current stock before adding
+      const { data: stockData, error: stockError } = await supabase
+        .from('products')
+        .select('stock_quantity, is_pre_order, min_pre_order_quantity, max_pre_order_quantity')
+        .eq('id', product.id)
+        .eq('is_available', true)
+        .single();
+
+      if (stockError || !stockData) {
+        return {
+          success: false,
+          message: 'Product is no longer available'
+        };
+      }
+
+      // Get current cart quantity for this product
+      const { data: currentCartData } = await supabase
+        .from('cart_items')
+        .select('quantity')
+        .eq('user_id', user.id)
+        .eq('product_id', product.id)
+        .single();
+
+      const currentCartQuantity = currentCartData?.quantity || 0;
+      const totalRequestedQuantity = currentCartQuantity + quantity;
+
+      // Validate stock limits
+      if (stockData.is_pre_order) {
+        // Pre-order validation
+        const minPreOrder = stockData.min_pre_order_quantity || 1;
+        const maxPreOrder = stockData.max_pre_order_quantity || 999;
+        
+        if (totalRequestedQuantity < minPreOrder) {
+          return {
+            success: false,
+            message: `Minimum pre-order quantity is ${minPreOrder}`
+          };
+        }
+        
+        if (totalRequestedQuantity > maxPreOrder) {
+          return {
+            success: false,
+            message: `Maximum pre-order quantity is ${maxPreOrder}`
+          };
+        }
+      } else {
+        // Regular stock validation
+        const availableStock = stockData.stock_quantity || 0;
+        
+        if (totalRequestedQuantity > availableStock) {
+          const remainingStock = Math.max(0, availableStock - currentCartQuantity);
+          if (remainingStock <= 0) {
+            return {
+              success: false,
+              message: 'This item is out of stock'
+            };
+          } else {
+            return {
+              success: false,
+              message: `Only ${remainingStock} more items can be added to your cart`
+            };
+          }
+        }
+      }
+
+      // Stock validation passed - proceed with atomic operation
       const { error } = await supabase
         .rpc('upsert_cart_item', {
           input_user_id: user.id,
@@ -225,10 +290,11 @@ export const cartService = {
 
       // Broadcast cart update for cross-device sync
       try {
-        await BroadcastHelper.sendCartUpdate('cart-item-added', {
+        await cartBroadcast.send('cart-item-added', {
           productId: product.id,
           quantity,
-          userId: user.id
+          userId: user.id,
+          timestamp: new Date().toISOString()
         });
       } catch (error) {
         console.warn('Failed to broadcast cart update:', error);
@@ -276,9 +342,10 @@ export const cartService = {
 
       // Broadcast cart update for cross-device sync
       try {
-        await BroadcastHelper.sendCartUpdate('cart-item-removed', {
+        await cartBroadcast.send('cart-item-removed', {
           productId,
-          userId: user.id
+          userId: user.id,
+          timestamp: new Date().toISOString()
         });
       } catch (error) {
         console.warn('Failed to broadcast cart update:', error);
@@ -326,10 +393,11 @@ export const cartService = {
 
       // Broadcast cart update for cross-device sync
       try {
-        await BroadcastHelper.sendCartUpdate('cart-quantity-updated', {
+        await cartBroadcast.send('cart-quantity-updated', {
           productId,
           quantity,
-          userId: user.id
+          userId: user.id,
+          timestamp: new Date().toISOString()
         });
       } catch (error) {
         console.warn('Failed to broadcast cart update:', error);
@@ -376,8 +444,9 @@ export const cartService = {
 
       // Broadcast cart update for cross-device sync
       try {
-        await BroadcastHelper.sendCartUpdate('cart-cleared', {
-          userId: user.id
+        await cartBroadcast.send('cart-cleared', {
+          userId: user.id,
+          timestamp: new Date().toISOString()
         });
       } catch (error) {
         console.warn('Failed to broadcast cart update:', error);

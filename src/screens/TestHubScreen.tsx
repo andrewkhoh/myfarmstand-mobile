@@ -133,6 +133,8 @@ const testCategories: TestCategory[] = [
       { name: 'Simple Broadcast Test', screen: 'SimpleBroadcastTest' },
       { name: 'Backend Integration Test', screen: 'BackendIntegrationTest' },
       { name: 'Cart RPC Function Test', screen: 'CartRPCTest' },
+      { name: 'Atomic Order Submission Test', screen: 'AtomicOrderTest' },
+      { name: 'Database Schema Inspector', screen: 'SchemaInspector' },
     ],
   },
   {
@@ -150,6 +152,14 @@ const testCategories: TestCategory[] = [
     icon: 'bug-outline',
     screenName: 'ProductDebugTest',
     color: '#F59E0B',
+  },
+  {
+    id: 'cart-migration',
+    title: 'Cart Migration Test',
+    description: 'Phase 1: Centralized system validation for cart user isolation',
+    icon: 'construct-outline',
+    screenName: 'CartMigrationTest',
+    color: '#059669',
   },
 ];
 
