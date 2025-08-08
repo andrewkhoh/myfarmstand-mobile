@@ -43,7 +43,7 @@ class SecureChannelNameGenerator {
         '4. Ensure app.config.js loads .env.secret (should be automatic)\n' +
         '5. Ensure .env.secret is in .gitignore (never commit secrets!)\n\n' +
         'The .env.secret file should contain:\n' +
-        'EXPO_PUBLIC_CHANNEL_SECRET=a7f2d8e9c1b4f6a3e5d7c9b2f8a4e6d1c3b5f7a9e2d4c6b8f1a3e5d7c9b2f8a4'
+        'EXPO_PUBLIC_CHANNEL_SECRET=<your-64-character-hex-key-here>'
       );
     }
     if (secret.length < 32) {
