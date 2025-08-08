@@ -7,7 +7,6 @@ node_modules/
 .expo/
 dist/
 web-build/
-expo-env.d.ts
 
 # Native
 .kotlin/
@@ -30,11 +29,18 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env files
-.env*.local
+# Environment files with secrets
+.env
+.env.secret
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Security: Never commit files containing secrets or API keys
+*.secret
+*secret*
+secrets/
 
 # typescript
 *.tsbuildinfo
-
-.env
-.env

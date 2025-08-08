@@ -1,6 +1,7 @@
 import { supabase } from '../config/supabase';
 import type { EntityType } from './queryKeyFactory';
 import CryptoJS from 'crypto-js';
+import Constants from 'expo-constants';
 
 // CRYPTOGRAPHIC SECURITY: Enhanced Channel Security with Hash-Based Names
 export type BroadcastTarget = 'user-specific' | 'admin-only' | 'global';
@@ -15,6 +16,7 @@ interface BroadcastPayload {
   [key: string]: any;
 }
 
+// Enhanced broadcast result with security metadata
 interface BroadcastResult {
   success: boolean;
   result?: any;
@@ -27,20 +29,31 @@ interface BroadcastResult {
 // SECURITY: Cryptographic channel name generation
 class SecureChannelNameGenerator {
   private static readonly CHANNEL_SECRET = (() => {
-    const secret = process.env.EXPO_PUBLIC_CHANNEL_SECRET;
+    // SECURITY: Load from Expo Constants (loaded from .env.secret via app.config.js)
+    // This ensures cryptographic keys are available in both development and production
+    const secret = Constants.expoConfig?.extra?.channelSecret || process.env.EXPO_PUBLIC_CHANNEL_SECRET;
+    
     if (!secret) {
       throw new Error(
-        '🚨 SECURITY ERROR: EXPO_PUBLIC_CHANNEL_SECRET environment variable is required for cryptographic channel security. ' +
-        'Generate a secure key with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))" ' +
-        'and add it to your .env file as EXPO_PUBLIC_CHANNEL_SECRET=<your-key>'
+        '🚨 SECURITY ERROR: EXPO_PUBLIC_CHANNEL_SECRET environment variable is required for cryptographic channel security.\n\n' +
+        'SETUP INSTRUCTIONS:\n' +
+        '1. Create a .env.secret file in your project root\n' +
+        '2. Generate a secure key: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"\n' +
+        '3. Add to .env.secret: EXPO_PUBLIC_CHANNEL_SECRET=<your-generated-key>\n' +
+        '4. Ensure app.config.js loads .env.secret (should be automatic)\n' +
+        '5. Ensure .env.secret is in .gitignore (never commit secrets!)\n\n' +
+        'The .env.secret file should contain:\n' +
+        'EXPO_PUBLIC_CHANNEL_SECRET=a7f2d8e9c1b4f6a3e5d7c9b2f8a4e6d1c3b5f7a9e2d4c6b8f1a3e5d7c9b2f8a4'
       );
     }
     if (secret.length < 32) {
       throw new Error(
-        '🚨 SECURITY ERROR: EXPO_PUBLIC_CHANNEL_SECRET must be at least 32 characters long for cryptographic security. ' +
-        'Current length: ' + secret.length + '. Generate a new key with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"'
+        '🚨 SECURITY ERROR: EXPO_PUBLIC_CHANNEL_SECRET must be at least 32 characters long for cryptographic security.\n' +
+        'Current length: ' + secret.length + '\n' +
+        'Generate a new 256-bit key: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"'
       );
     }
+    console.log('🔐 Cryptographic channel security enabled with 256-bit key');
     return secret;
   })();
   private static readonly SALT_PREFIX = 'myfarmstand-secure-channel';
