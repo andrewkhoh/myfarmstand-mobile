@@ -12,7 +12,7 @@ type ProductDetailRouteProp = RouteProp<{ ProductDetail: { productId: string } }
 export const ProductDetailScreen: React.FC = () => {
   const route = useRoute<ProductDetailRouteProp>();
   const navigation = useNavigation();
-  const { addItem } = useCart();
+  const { addItem, getCartQuantity } = useCart();
   
   const [imageError, setImageError] = useState(false);
   const [imageLoading, setImageLoading] = useState(true);
@@ -69,25 +69,21 @@ export const ProductDetailScreen: React.FC = () => {
     );
   }
 
+  // Calculate stock availability considering cart quantity (consistent with ShopScreen's ProductCard)
+  const cartQuantity = getCartQuantity(product.id);
+  const availableStock = Math.max(0, product.stock - cartQuantity);
+  const isOutOfStock = availableStock === 0;
+  const isMaxQuantityInCart = cartQuantity >= product.stock && product.stock > 0;
+
   const handleAddToCart = async () => {
-    const result = await addItem(product);
-    
-    if (!result.success && result.message) {
-      Alert.alert(
-        'Cannot Add to Cart',
-        result.message,
-        [{ text: 'OK', style: 'default' }]
-      );
-    } else if (result.success) {
-      Alert.alert(
-        'Added to Cart',
-        `${product.name} has been added to your cart`,
-        [{ text: 'OK', style: 'default' }]
-      );
+    try {
+      // Use direct mutation - React Query handles optimistic updates and error handling
+      addItem({ product, quantity: 1 });
+    } catch (error) {
+      console.error('Failed to add item to cart:', error);
+      Alert.alert('Error', 'Failed to add item to cart. Please try again.');
     }
   };
-
-  const isOutOfStock = product.stock === 0;
 
   return (
     <Screen>
@@ -150,7 +146,12 @@ export const ProductDetailScreen: React.FC = () => {
             <View style={styles.infoRow}>
               <Text variant="body" weight="medium">Stock:</Text>
               <Text variant="body" color={isOutOfStock ? "error" : "secondary"}>
-                {isOutOfStock ? 'Out of stock' : `${product.stock} available`}
+                {availableStock > 0 ? `${availableStock} available` : 'Out of stock'}
+                {cartQuantity > 0 && (
+                  <Text variant="body" color="tertiary">
+                    {' '}({cartQuantity} in cart)
+                  </Text>
+                )}
               </Text>
             </View>
             {product.seasonalAvailability && (
@@ -172,10 +173,10 @@ export const ProductDetailScreen: React.FC = () => {
 
           <View style={styles.actions}>
             <Button
-              title={isOutOfStock ? "Out of Stock" : "Add to Cart"}
+              title={isOutOfStock ? "Out of Stock" : isMaxQuantityInCart ? "Max Quantity in Cart" : "Add to Cart"}
               variant="primary"
               onPress={handleAddToCart}
-              disabled={isOutOfStock}
+              disabled={isOutOfStock || isMaxQuantityInCart}
               style={styles.addToCartButton}
             />
             <Button

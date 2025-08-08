@@ -3,16 +3,83 @@ import { supabase } from '../config/supabase';
 import { v4 as uuidv4 } from 'uuid';
 import { BroadcastHelper } from '../utils/broadcastHelper';
 
-// Mock API delay to simulate network requests (keeping for consistency)
-const API_DELAY = 500;
-
-// Mock order storage (keeping for fallback/testing)
-let mockOrders: Order[] = [];
-let orderIdCounter = 1;
-
 // Calculate tax (8.5% for example)
 const calculateTax = (subtotal: number): number => {
   return Math.round(subtotal * 0.085 * 100) / 100;
+};
+
+// Interface for inventory validation results
+interface InventoryValidationResult {
+  isValid: boolean;
+  conflicts: Array<{
+    productId: string;
+    productName: string;
+    requested: number;
+    available: number;
+  }>;
+}
+
+// Validate inventory availability at checkout time
+const validateInventoryAvailability = async (orderItems: CreateOrderRequest['items']): Promise<InventoryValidationResult> => {
+  const conflicts: InventoryValidationResult['conflicts'] = [];
+  
+  // Get current stock levels for all products in the order
+  const productIds = orderItems.map(item => item.productId);
+  const { data: products, error } = await supabase
+    .from('products')
+    .select('id, name, stock')
+    .in('id', productIds);
+    
+  if (error) {
+    console.error('Error fetching product stock:', error);
+    throw new Error('Unable to validate inventory availability');
+  }
+  
+  // Check each item against current stock
+  for (const orderItem of orderItems) {
+    const product = products?.find(p => p.id === orderItem.productId);
+    
+    if (!product) {
+      conflicts.push({
+        productId: orderItem.productId,
+        productName: orderItem.productName,
+        requested: orderItem.quantity,
+        available: 0
+      });
+      continue;
+    }
+    
+    if (product.stock < orderItem.quantity) {
+      conflicts.push({
+        productId: orderItem.productId,
+        productName: orderItem.productName,
+        requested: orderItem.quantity,
+        available: product.stock
+      });
+    }
+  }
+  
+  return {
+    isValid: conflicts.length === 0,
+    conflicts
+  };
+};
+
+// Atomically update stock levels for successful orders
+const updateProductStock = async (orderItems: CreateOrderRequest['items']): Promise<void> => {
+  // Use Supabase RPC for atomic stock updates
+  for (const item of orderItems) {
+    const { error } = await supabase.rpc('decrement_product_stock', {
+      product_id: item.productId,
+      quantity_to_subtract: item.quantity
+    });
+    
+    if (error) {
+      console.error(`Failed to update stock for product ${item.productId}:`, error);
+      // In a production system, you'd want to implement compensation logic here
+      throw new Error(`Failed to update inventory for ${item.productName}`);
+    }
+  }
 };
 
 // Real Supabase function to submit an order
@@ -33,11 +100,38 @@ export const submitOrder = async (orderRequest: CreateOrderRequest): Promise<Ord
       };
     }
     
-    // Validate delivery address if delivery is selected
+    // Validate fulfillment details
     if (orderRequest.fulfillmentType === 'delivery' && !orderRequest.deliveryAddress) {
       return {
         success: false,
         error: 'Delivery address is required for delivery orders'
+      };
+    } else if (orderRequest.fulfillmentType === 'pickup' && (!orderRequest.pickupDate || !orderRequest.pickupTime)) {
+      return {
+        success: false,
+        error: 'Pickup date and time are required for pickup orders'
+      };
+    }
+    
+    // CRITICAL: Validate inventory availability at checkout time
+    const inventoryValidation = await validateInventoryAvailability(orderRequest.items);
+    
+    if (!inventoryValidation.isValid) {
+      // Format user-friendly error message for stock conflicts
+      const conflictMessages = inventoryValidation.conflicts.map(conflict => {
+        if (conflict.available === 0) {
+          return `• ${conflict.productName} is out of stock`;
+        } else {
+          return `• ${conflict.productName}: only ${conflict.available} available (you requested ${conflict.requested})`;
+        }
+      });
+      
+      const errorMessage = `Some items in your cart are no longer available:\n\n${conflictMessages.join('\n')}\n\nPlease update your cart and try again.`;
+      
+      return {
+        success: false,
+        error: errorMessage,
+        inventoryConflicts: inventoryValidation.conflicts
       };
     }
     
@@ -49,99 +143,112 @@ export const submitOrder = async (orderRequest: CreateOrderRequest): Promise<Ord
     // Get current user for order association
     const { data: { user } } = await supabase.auth.getUser();
     
-    // Generate order ID and QR code data
-    const orderId = uuidv4();
-    const qrCodeData = JSON.stringify({
-      orderId,
-      customerEmail: orderRequest.customerInfo.email,
+    // Create order object with explicit field clearing based on fulfillment type
+    const order: Order = {
+      id: uuidv4(),
+      customerId: user?.id || 'anonymous',
+      customerInfo: orderRequest.customerInfo,
+      items: orderRequest.items,
+      subtotal,
+      tax,
       total,
-      timestamp: Date.now()
-    });
-    
-    // Create order in database
-    const { data: orderData, error: orderError } = await supabase
+      fulfillmentType: orderRequest.fulfillmentType,
+      // For delivery: set delivery fields, explicitly clear pickup fields
+      deliveryAddress: orderRequest.fulfillmentType === 'delivery' ? orderRequest.deliveryAddress : undefined,
+      deliveryDate: orderRequest.fulfillmentType === 'delivery' ? orderRequest.deliveryDate : undefined,
+      deliveryTime: orderRequest.fulfillmentType === 'delivery' ? orderRequest.deliveryTime : undefined,
+      // For pickup: set pickup fields, explicitly clear delivery fields
+      pickupDate: orderRequest.fulfillmentType === 'pickup' ? orderRequest.pickupDate : undefined,
+      pickupTime: orderRequest.fulfillmentType === 'pickup' ? orderRequest.pickupTime : undefined,
+      specialInstructions: orderRequest.specialInstructions,
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    // Insert order into database
+    const { data, error } = await supabase
       .from('orders')
-      .insert({
-        id: orderId,
-        user_id: user?.id || null,
-        status: 'pending',
-        total_amount: total,
-        tax_amount: tax,
-        subtotal: subtotal,
-        customer_name: orderRequest.customerInfo.name,
-        customer_email: orderRequest.customerInfo.email,
-        customer_phone: orderRequest.customerInfo.phone,
-        fulfillment_type: orderRequest.fulfillmentType,
-        pickup_date: orderRequest.pickupDate || null,
-        pickup_time: orderRequest.pickupTime || null,
-        delivery_address: orderRequest.deliveryAddress || null,
-        special_instructions: orderRequest.notes || null,
-        qr_code_data: qrCodeData
-      })
+      .insert([{
+        id: order.id,
+        user_id: order.customerId,
+        customer_name: order.customerInfo.name,
+        customer_email: order.customerInfo.email,
+        customer_phone: order.customerInfo.phone,
+        delivery_address: order.deliveryAddress,
+        delivery_date: order.deliveryDate,
+        delivery_time: order.deliveryTime,
+        pickup_date: order.pickupDate,
+        pickup_time: order.pickupTime,
+        special_instructions: order.specialInstructions,
+        subtotal: order.subtotal,
+        tax_amount: order.tax,
+        total_amount: order.total,
+        fulfillment_type: order.fulfillmentType,
+        status: order.status,
+        created_at: order.createdAt,
+        updated_at: order.updatedAt
+      }])
       .select()
       .single();
-    
-    if (orderError) {
-      console.error('Error creating order:', orderError);
+
+    if (error) {
+      console.error('Error inserting order:', error);
       return {
         success: false,
-        error: 'Failed to create order. Please try again.'
+        error: `Failed to create order: ${error.message}`
       };
     }
-    
-    // Create order items in database
-    const orderItems = orderRequest.items.map(item => ({
-      order_id: orderId,
+
+    // Insert order items
+    const orderItemsData = order.items.map(item => ({
+      id: uuidv4(),
+      order_id: order.id,
       product_id: item.productId,
       product_name: item.productName,
-      quantity: item.quantity,
       unit_price: item.price,
+      quantity: item.quantity,
       total_price: item.subtotal
     }));
-    
+
     const { error: itemsError } = await supabase
       .from('order_items')
-      .insert(orderItems);
-    
+      .insert(orderItemsData);
+
     if (itemsError) {
-      console.error('Error creating order items:', itemsError);
-      // Try to clean up the order if items failed
-      await supabase.from('orders').delete().eq('id', orderId);
+      console.error('Error inserting order items:', itemsError);
+      // Clean up the order if items failed
+      await supabase.from('orders').delete().eq('id', order.id);
       return {
         success: false,
-        error: 'Failed to create order items. Please try again.'
+        error: `Failed to create order items: ${itemsError.message}`
       };
     }
-    
-    // Convert database order back to app format
-    const order: Order = {
-      id: orderData.id,
-      customerId: orderData.user_id,
-      customerInfo: {
-        name: orderData.customer_name,
-        email: orderData.customer_email,
-        phone: orderData.customer_phone,
-        address: orderRequest.customerInfo.address
-      },
-      items: orderRequest.items,
-      subtotal: orderData.subtotal,
-      tax: orderData.tax_amount,
-      total: orderData.total_amount,
-      fulfillmentType: orderData.fulfillment_type as 'pickup' | 'delivery',
-      status: orderData.status as 'pending' | 'confirmed' | 'ready' | 'completed' | 'cancelled',
-      notes: orderData.special_instructions,
-      pickupDate: orderData.pickup_date,
-      pickupTime: orderData.pickup_time,
-      deliveryAddress: orderData.delivery_address,
-      createdAt: orderData.created_at,
-      updatedAt: orderData.updated_at
-    };
-    
-    // Send broadcast event to notify all clients of the new order
-    await BroadcastHelper.sendOrderUpdate('new-order', {
-      orderId: order.id,
-      order: order
-    });
+
+    // CRITICAL: Atomically update product stock levels
+    try {
+      await updateProductStock(orderRequest.items);
+    } catch (stockError) {
+      console.error('Error updating product stock:', stockError);
+      // Clean up order and items if stock update fails
+      await supabase.from('order_items').delete().eq('order_id', order.id);
+      await supabase.from('orders').delete().eq('id', order.id);
+      return {
+        success: false,
+        error: `Failed to update inventory: ${stockError instanceof Error ? stockError.message : 'Unknown error'}`
+      };
+    }
+
+    // Broadcast event with robust error handling
+    try {
+      await BroadcastHelper.sendOrderUpdate('new-order', {
+        orderId: order.id,
+        order: order
+      });
+    } catch (error) {
+      console.warn('Failed to broadcast order update:', error);
+      // Order still succeeds even if broadcast fails
+    }
     
     return {
       success: true,
@@ -157,10 +264,70 @@ export const submitOrder = async (orderRequest: CreateOrderRequest): Promise<Ord
   }
 };
 
-// Get order by ID (for future use)
+// Get order by ID - Real Supabase implementation (CartService pattern)
 export const getOrder = async (orderId: string): Promise<Order | null> => {
-  await new Promise(resolve => setTimeout(resolve, API_DELAY / 2));
-  return mockOrders.find(order => order.id === orderId) || null;
+  try {
+    const { data: orderData, error } = await supabase
+      .from('orders')
+      .select(`
+        *,
+        order_items (
+          id,
+          product_id,
+          product_name,
+          unit_price,
+          quantity,
+          total_price
+        )
+      `)
+      .eq('id', orderId)
+      .single();
+
+    if (error || !orderData) {
+      console.error('Error fetching order:', error);
+      return null;
+    }
+
+    // Convert database format to app format
+    const order: Order = {
+      id: orderData.id,
+      customerId: orderData.user_id,
+      customerInfo: {
+        name: orderData.customer_name,
+        email: orderData.customer_email,
+        phone: orderData.customer_phone,
+        address: orderData.delivery_address || undefined
+      },
+      items: orderData.order_items.map((item: any) => ({
+        product: {
+          id: item.product_id,
+          name: item.product_name,
+          price: item.unit_price,
+          // Note: Other product fields would need to be fetched separately if needed
+        } as any,
+        quantity: item.quantity,
+        subtotal: item.total_price
+      })),
+      subtotal: orderData.subtotal,
+      tax: orderData.tax_amount,
+      total: orderData.total_amount,
+      fulfillmentType: orderData.fulfillment_type,
+      deliveryAddress: orderData.delivery_address,
+      deliveryDate: orderData.delivery_date,
+      deliveryTime: orderData.delivery_time,
+      pickupDate: orderData.pickup_date,
+      pickupTime: orderData.pickup_time,
+      specialInstructions: orderData.special_instructions,
+      status: orderData.status,
+      createdAt: orderData.created_at,
+      updatedAt: orderData.updated_at
+    };
+
+    return order;
+  } catch (error) {
+    console.error('Error fetching order:', error);
+    return null;
+  }
 };
 
 // Get orders for a customer - Real Supabase implementation
@@ -179,8 +346,8 @@ export const getCustomerOrders = async (customerEmail: string): Promise<Order[]>
           id,
           product_id,
           product_name,
-          unit_price,
           quantity,
+          unit_price,
           total_price
         )
       `)
@@ -207,21 +374,26 @@ export const getCustomerOrders = async (customerEmail: string): Promise<Order[]>
         address: orderData.delivery_address || undefined
       },
       items: orderData.order_items.map((item: any) => ({
-        productId: item.product_id,
-        productName: item.product_name,
-        price: item.unit_price,
+        product: {
+          id: item.product_id,
+          name: item.product_name,
+          price: item.unit_price,
+          // Note: Other product fields would need to be fetched separately if needed
+        } as any,
         quantity: item.quantity,
         subtotal: item.total_price
       })),
       subtotal: orderData.subtotal,
       tax: orderData.tax_amount,
       total: orderData.total_amount,
-      fulfillmentType: orderData.fulfillment_type as 'pickup' | 'delivery',
-      status: orderData.status as 'pending' | 'confirmed' | 'ready' | 'completed' | 'cancelled',
-      notes: orderData.special_instructions,
+      fulfillmentType: orderData.fulfillment_type,
+      deliveryAddress: orderData.delivery_address,
+      deliveryDate: orderData.delivery_date,
+      deliveryTime: orderData.delivery_time,
       pickupDate: orderData.pickup_date,
       pickupTime: orderData.pickup_time,
-      deliveryAddress: orderData.delivery_address,
+      specialInstructions: orderData.special_instructions,
+      status: orderData.status,
       createdAt: orderData.created_at,
       updatedAt: orderData.updated_at
     }));
@@ -237,89 +409,134 @@ export const getCustomerOrders = async (customerEmail: string): Promise<Order[]>
 export const updateOrderStatus = async (orderId: string, newStatus: string): Promise<{ success: boolean; message?: string; order?: Order }> => {
   try {
     // Update order status in database
-    const { data: orderData, error } = await supabase
+    const { data, error } = await supabase
       .from('orders')
       .update({ 
         status: newStatus,
         updated_at: new Date().toISOString()
       })
       .eq('id', orderId)
-      .select(`
-        *,
-        order_items (
-          id,
-          product_id,
-          product_name,
-          quantity,
-          unit_price,
-          total_price
-        )
-      `)
+      .select()
       .single();
-    
+
     if (error) {
       console.error('Error updating order status:', error);
       return {
         success: false,
-        message: error.code === 'PGRST116' ? 'Order not found' : 'Failed to update order status'
+        message: `Failed to update order status: ${error.message}`
       };
     }
-    
-    // Convert database format to app format
-    const order: Order = {
-      id: orderData.id,
-      customerId: orderData.user_id,
-      customerInfo: {
-        name: orderData.customer_name,
-        email: orderData.customer_email,
-        phone: orderData.customer_phone,
-        address: orderData.delivery_address || undefined
-      },
-      items: orderData.order_items.map((item: any) => ({
-        productId: item.product_id,
-        productName: item.product_name,
-        price: item.unit_price,
-        quantity: item.quantity,
-        subtotal: item.total_price
-      })),
-      subtotal: orderData.subtotal,
-      tax: orderData.tax_amount,
-      total: orderData.total_amount,
-      fulfillmentType: orderData.fulfillment_type as 'pickup' | 'delivery',
-      status: orderData.status as 'pending' | 'confirmed' | 'ready' | 'completed' | 'cancelled',
-      notes: orderData.special_instructions,
-      pickupDate: orderData.pickup_date,
-      pickupTime: orderData.pickup_time,
-      deliveryAddress: orderData.delivery_address,
-      createdAt: orderData.created_at,
-      updatedAt: orderData.updated_at
-    };
-    
-    // Send broadcast event to notify all clients of the status change
-    await BroadcastHelper.sendOrderUpdate('order-status-changed', {
-      orderId: orderId,
-      newStatus: newStatus,
-      order: order
-    });
-    
+
+    if (!data) {
+      return {
+        success: false,
+        message: 'Order not found'
+      };
+    }
+
+    // Fetch complete order data for broadcast
+    const updatedOrder = await getOrder(orderId);
+    if (!updatedOrder) {
+      return {
+        success: false,
+        message: 'Failed to fetch updated order data'
+      };
+    }
+
+    // Broadcast event with robust error handling (CartService pattern)
+    try {
+      await BroadcastHelper.sendOrderUpdate('order-status-changed', {
+        orderId: orderId,
+        newStatus: newStatus,
+        order: updatedOrder
+      });
+    } catch (error) {
+      console.warn('Failed to broadcast order status update:', error);
+      // Order update still succeeds even if broadcast fails
+    }
+
     return {
       success: true,
-      message: `Order ${orderId} status updated to ${newStatus}`,
-      order
+      message: `Order status updated to ${newStatus}`,
+      order: updatedOrder
     };
+
   } catch (error) {
-    console.error('Error in updateOrderStatus:', error);
+    console.error('Error updating order status:', error);
     return {
       success: false,
-      message: 'Failed to update order status'
+      message: `Unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}`
     };
   }
 };
 
-// Clear mock orders (for testing)
-export const clearMockOrders = (): void => {
-  mockOrders = [];
-  orderIdCounter = 1;
+// Bulk update order status (admin only) - Enhanced with robust error handling
+export const bulkUpdateOrderStatus = async (
+  orderIds: string[], 
+  newStatus: string
+): Promise<{ success: boolean; message?: string; updatedOrders?: Order[] }> => {
+  try {
+    // Update all orders in database
+    const { data, error } = await supabase
+      .from('orders')
+      .update({ 
+        status: newStatus,
+        updated_at: new Date().toISOString()
+      })
+      .in('id', orderIds)
+      .select();
+
+    if (error) {
+      console.error('Error bulk updating order status:', error);
+      return {
+        success: false,
+        message: `Failed to bulk update order status: ${error.message}`
+      };
+    }
+
+    if (!data || data.length === 0) {
+      return {
+        success: false,
+        message: 'No orders found to update'
+      };
+    }
+
+    // Fetch complete order data for each updated order
+    const updatedOrders: Order[] = [];
+    for (const orderId of orderIds) {
+      const order = await getOrder(orderId);
+      if (order) {
+        updatedOrders.push(order);
+      }
+    }
+
+    // Broadcast events for each updated order with robust error handling
+    for (const order of updatedOrders) {
+      try {
+        await BroadcastHelper.sendOrderUpdate('order-status-changed', {
+          orderId: order.id,
+          newStatus: newStatus,
+          order: order
+        });
+      } catch (error) {
+        console.warn(`Failed to broadcast order status update for ${order.id}:`, error);
+        // Continue with other orders even if one broadcast fails
+      }
+    }
+
+    return {
+      success: true,
+      message: `Successfully updated ${updatedOrders.length} orders to ${newStatus}`,
+      updatedOrders
+    };
+
+  } catch (error) {
+    console.error('Error bulk updating order status:', error);
+    return {
+      success: false,
+      message: `Unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}`
+    };
+  }
 };
 
 // Admin order management functions
@@ -391,21 +608,26 @@ export const getAllOrders = async (filters?: OrderFilters): Promise<Order[]> => 
         address: orderData.delivery_address || undefined
       },
       items: orderData.order_items.map((item: any) => ({
-        productId: item.product_id,
-        productName: item.product_name,
-        price: item.unit_price,
+        product: {
+          id: item.product_id,
+          name: item.product_name,
+          price: item.unit_price,
+          // Note: Other product fields would need to be fetched separately if needed
+        } as any,
         quantity: item.quantity,
         subtotal: item.total_price
       })),
       subtotal: orderData.subtotal,
       tax: orderData.tax_amount,
       total: orderData.total_amount,
-      fulfillmentType: orderData.fulfillment_type as 'pickup' | 'delivery',
-      status: orderData.status as 'pending' | 'confirmed' | 'ready' | 'completed' | 'cancelled',
-      notes: orderData.special_instructions,
+      fulfillmentType: orderData.fulfillment_type,
+      deliveryAddress: orderData.delivery_address,
+      deliveryDate: orderData.delivery_date,
+      deliveryTime: orderData.delivery_time,
       pickupDate: orderData.pickup_date,
       pickupTime: orderData.pickup_time,
-      deliveryAddress: orderData.delivery_address,
+      specialInstructions: orderData.special_instructions,
+      status: orderData.status,
       createdAt: orderData.created_at,
       updatedAt: orderData.updated_at
     }));
@@ -526,41 +748,3 @@ export const getOrderStats = async (): Promise<{
     };
   }
 };
-
-// Bulk update order status (admin only)
-export const bulkUpdateOrderStatus = async (
-  orderIds: string[], 
-  newStatus: string
-): Promise<{ success: boolean; message?: string; updatedOrders?: Order[] }> => {
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, API_DELAY));
-  
-  try {
-    const updatedOrders: Order[] = [];
-    
-    for (const orderId of orderIds) {
-      const orderIndex = mockOrders.findIndex(order => order.id === orderId);
-      if (orderIndex !== -1) {
-        mockOrders[orderIndex] = {
-          ...mockOrders[orderIndex],
-          status: newStatus as any,
-          updatedAt: new Date().toISOString(),
-        };
-        updatedOrders.push(mockOrders[orderIndex]);
-      }
-    }
-    
-    return {
-      success: true,
-      message: `Successfully updated ${updatedOrders.length} orders to ${newStatus}`,
-      updatedOrders,
-    };
-  } catch (error) {
-    return {
-      success: false,
-      message: 'Failed to update orders',
-    };
-  }
-};
-
-

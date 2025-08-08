@@ -151,18 +151,12 @@ export const cartService = {
         throw new Error('User must be authenticated to save cart');
       }
       
-      // User is authenticated - save cart to Supabase
+      // User is authenticated - save cart to Supabase using atomic UPSERT
       console.log('💾 Saving cart to Supabase for user:', user.id);
       
-      // First, clear existing cart items for this user
-      await supabase
-        .from('cart_items')
-        .delete()
-        .eq('user_id', user.id);
-      
       if (cart.items.length > 0) {
-        // Insert new cart items
-        const cartItemsToInsert = cart.items.map(item => ({
+        // Use UPSERT (INSERT with ON CONFLICT UPDATE) for atomic cart operations
+        const cartItemsToUpsert = cart.items.map(item => ({
           user_id: user.id,
           product_id: item.product.id,
           quantity: item.quantity
@@ -170,12 +164,30 @@ export const cartService = {
         
         const { error } = await supabase
           .from('cart_items')
-          .insert(cartItemsToInsert);
+          .upsert(cartItemsToUpsert, {
+            onConflict: 'user_id,product_id'
+          });
         
         if (error) {
           console.warn('Failed to save cart to Supabase:', error);
           throw error; // Let React Query handle retries
         }
+        
+        // Remove any cart items not in the current cart (for items that were removed)
+        const productIds = cart.items.map(item => item.product.id);
+        if (productIds.length > 0) {
+          await supabase
+            .from('cart_items')
+            .delete()
+            .eq('user_id', user.id)
+            .not('product_id', 'in', `(${productIds.map(id => `"${id}"`).join(',')})`);
+        }
+      } else {
+        // Cart is empty - clear all items for this user
+        await supabase
+          .from('cart_items')
+          .delete()
+          .eq('user_id', user.id);
       }
       
       // Return updated cart with calculated total
@@ -212,12 +224,14 @@ export const cartService = {
       };
     }
     
-    // Add or update item
+    // Add or update item - FIXED: Match optimistic update calculation
     const newItems = [...currentCart.items];
     if (existingItemIndex >= 0) {
+      // Calculate the same way as optimistic update to avoid double-addition
+      const newQuantity = currentQuantity + quantity;
       newItems[existingItemIndex] = {
         ...newItems[existingItemIndex],
-        quantity: currentQuantity + quantity
+        quantity: newQuantity
       };
     } else {
       newItems.push({ product, quantity });

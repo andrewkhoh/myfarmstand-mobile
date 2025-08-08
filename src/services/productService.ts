@@ -1,480 +1,599 @@
 import { Product, Category, ApiResponse, PaginatedResponse } from '../types';
 import { supabase, TABLES } from '../config/supabase';
+import { BroadcastHelper } from '../utils/broadcastHelper';
 import type { Database } from '../config/supabase';
 
-// Mock API delay to simulate network requests
-const API_DELAY = 1000;
+// Custom API response types for ProductService
+interface ProductApiResponse<T> {
+  success: boolean;
+  error?: string;
+  products?: T extends Product[] ? Product[] : never;
+  product?: T extends Product ? Product : never;
+  categories?: T extends Category[] ? Category[] : never;
+  category?: T extends Category ? Category : never;
+  paginatedProducts?: T extends PaginatedResponse<Product> ? PaginatedResponse<Product> : never;
+}
 
-const mockDelay = (ms: number = API_DELAY) => 
-  new Promise(resolve => setTimeout(resolve, ms));
-
-// Mock categories data
-const mockCategories: Category[] = [
-  {
-    id: '1',
-    name: 'Vegetables',
-    description: 'Fresh, locally grown vegetables',
-    imageUrl: 'https://images.unsplash.com/photo-1540420773420-3366772f4999?w=400&h=400&fit=crop',
-    sortOrder: 1,
-    isActive: true,
-    createdAt: '2024-01-01T00:00:00Z',
-    updatedAt: '2024-01-01T00:00:00Z',
-  },
-  {
-    id: '2',
-    name: 'Fruits',
-    description: 'Sweet and fresh seasonal fruits',
-    imageUrl: 'https://images.unsplash.com/photo-1619566636858-adf3ef46400b?w=400&h=400&fit=crop',
-    sortOrder: 2,
-    isActive: true,
-    createdAt: '2024-01-01T00:00:00Z',
-    updatedAt: '2024-01-01T00:00:00Z',
-  },
-  {
-    id: '3',
-    name: 'Dairy & Eggs',
-    description: 'Farm fresh dairy products and eggs',
-    imageUrl: 'https://images.unsplash.com/photo-1563636619-e9143da7973b?w=400&h=400&fit=crop',
-    sortOrder: 3,
-    isActive: true,
-    createdAt: '2024-01-01T00:00:00Z',
-    updatedAt: '2024-01-01T00:00:00Z',
-  },
-  {
-    id: '4',
-    name: 'Herbs',
-    description: 'Fresh aromatic herbs',
-    imageUrl: 'https://images.unsplash.com/photo-1509358271058-acd22cc93898?w=400&h=400&fit=crop',
-    sortOrder: 4,
-    isActive: true,
-    createdAt: '2024-01-01T00:00:00Z',
-    updatedAt: '2024-01-01T00:00:00Z',
-  },
-  {
-    id: '5',
-    name: 'Bakery',
-    description: 'Freshly baked goods',
-    imageUrl: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=400&h=400&fit=crop',
-    sortOrder: 5,
-    isActive: true,
-    createdAt: '2024-01-01T00:00:00Z',
-    updatedAt: '2024-01-01T00:00:00Z',
-  },
-  {
-    id: '6',
-    name: 'Pantry',
-    description: 'Pantry staples and preserves',
-    imageUrl: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=400&h=400&fit=crop',
-    sortOrder: 6,
-    isActive: true,
-    createdAt: '2024-01-01T00:00:00Z',
-    updatedAt: '2024-01-01T00:00:00Z',
-  },
-];
-
-// Enhanced mock products with proper category relationships
-const mockProductsData: Product[] = [
-  {
-    id: '1',
-    name: 'Organic Tomatoes',
-    description: 'Fresh, locally grown organic tomatoes. Perfect for salads, cooking, or eating fresh. Grown without pesticides or chemicals.',
-    price: 4.99,
-    stock: 25,
-    categoryId: '1',
-    imageUrl: 'https://images.unsplash.com/photo-1546470427-e5ac89cd0b31?w=400&h=400&fit=crop',
-    isWeeklySpecial: true,
-    isBundle: false,
-    seasonalAvailability: true,
-    unit: 'lb',
-    weight: 1,
-    sku: 'VEG-TOM-001',
-    tags: ['organic', 'local', 'fresh'],
-    isActive: true,
-    createdAt: '2024-01-01T00:00:00Z',
-    updatedAt: '2024-01-01T00:00:00Z',
-  },
-  {
-    id: '2',
-    name: 'Fresh Spinach',
-    description: 'Crisp, fresh spinach leaves. Rich in iron and vitamins. Great for salads, smoothies, or cooking.',
-    price: 3.49,
-    stock: 18,
-    categoryId: '1',
-    imageUrl: 'https://images.unsplash.com/photo-1576045057995-568f588f82fb?w=400&h=400&fit=crop',
-    isWeeklySpecial: false,
-    isBundle: false,
-    seasonalAvailability: true,
-    unit: 'bunch',
-    weight: 0.5,
-    sku: 'VEG-SPI-001',
-    tags: ['leafy', 'healthy', 'iron'],
-    isActive: true,
-    createdAt: '2024-01-01T00:00:00Z',
-    updatedAt: '2024-01-01T00:00:00Z',
-  },
-  {
-    id: '3',
-    name: 'Honeycrisp Apples',
-    description: 'Sweet and crunchy Honeycrisp apples. Perfect for snacking or baking. Locally sourced when in season.',
-    price: 5.99,
-    stock: 32,
-    categoryId: '2',
-    imageUrl: 'https://images.unsplash.com/photo-1567306226416-28f0efdc88ce?w=400&h=400&fit=crop',
-    isWeeklySpecial: false,
-    isBundle: false,
-    seasonalAvailability: true,
-    unit: 'lb',
-    weight: 3,
-    sku: 'FRU-APP-001',
-    tags: ['sweet', 'crunchy', 'local'],
-    isActive: true,
-    createdAt: '2024-01-01T00:00:00Z',
-    updatedAt: '2024-01-01T00:00:00Z',
-  },
-  {
-    id: '4',
-    name: 'Farm Fresh Eggs',
-    description: 'Free-range eggs from our local partner farms. Rich, golden yolks and excellent for all your cooking needs.',
-    price: 6.99,
-    stock: 15,
-    categoryId: '3',
-    imageUrl: 'https://images.unsplash.com/photo-1518569656558-1f25e69d93d7?w=400&h=400&fit=crop',
-    isWeeklySpecial: true,
-    isBundle: false,
-    seasonalAvailability: false,
-    unit: 'dozen',
-    weight: 1.5,
-    sku: 'DAI-EGG-001',
-    tags: ['free-range', 'local', 'protein'],
-    isActive: true,
-    createdAt: '2024-01-01T00:00:00Z',
-    updatedAt: '2024-01-01T00:00:00Z',
-  },
-  {
-    id: '5',
-    name: 'Organic Carrots',
-    description: 'Sweet, crunchy organic carrots. Great for snacking, cooking, or juicing. Grown locally without chemicals.',
-    price: 2.99,
-    stock: 28,
-    categoryId: '1',
-    imageUrl: 'https://images.unsplash.com/photo-1445282768818-728615cc910a?w=400&h=400&fit=crop',
-    isWeeklySpecial: false,
-    isBundle: false,
-    seasonalAvailability: true,
-    unit: 'lb',
-    weight: 2,
-    sku: 'VEG-CAR-001',
-    tags: ['organic', 'sweet', 'healthy'],
-    isActive: true,
-    createdAt: '2024-01-01T00:00:00Z',
-    updatedAt: '2024-01-01T00:00:00Z',
-  },
-];
-
-// Product Service Class
-export class ProductService {
+// Product Service Class - Following CartService pattern
+class ProductService {
   // Get all categories from Supabase
-  static async getCategories(): Promise<ApiResponse<Category[]>> {
+  async getCategories(): Promise<ProductApiResponse<Category[]>> {
     try {
-      const { data, error } = await supabase
+      const { data: categoriesData, error } = await supabase
         .from(TABLES.CATEGORIES)
         .select('*')
-        .eq('is_active', true)
+        .eq('is_available', true)
         .order('sort_order', { ascending: true });
 
       if (error) {
-        console.error('Failed to fetch categories:', error);
+        console.error('Error fetching categories:', error);
         return {
-          data: [],
           success: false,
-          error: 'Failed to fetch categories',
+          error: `Failed to fetch categories: ${error.message}`,
+          categories: []
         };
       }
 
       // Convert database format to app format
-      const categories: Category[] = (data || []).map(cat => ({
+      const categories: Category[] = (categoriesData || []).map((cat: any) => ({
         id: cat.id,
         name: cat.name,
         description: cat.description,
         imageUrl: cat.image_url,
         sortOrder: cat.sort_order,
-        isActive: cat.is_active,
+        isActive: cat.is_available,
         createdAt: cat.created_at,
-        updatedAt: cat.updated_at,
+        updatedAt: cat.updated_at
       }));
 
       return {
-        data: categories,
         success: true,
-        message: 'Categories fetched successfully',
+        categories
       };
     } catch (error) {
-      console.error('Categories fetch error:', error);
+      console.error('Error in getCategories:', error);
       return {
-        data: [],
         success: false,
         error: 'Failed to fetch categories',
+        categories: []
       };
     }
   }
 
   // Get category by ID
-  static async getCategoryById(id: string): Promise<ApiResponse<Category>> {
-    await mockDelay(500);
-    
+  async getCategoryById(id: string): Promise<ProductApiResponse<Category>> {
     try {
-      const category = mockCategories.find(cat => cat.id === id && cat.isActive);
-      
-      if (!category) {
+      const { data: categoryData, error } = await supabase
+        .from(TABLES.CATEGORIES)
+        .select('*')
+        .eq('id', id)
+        .eq('is_available', true)
+        .single();
+
+      if (error || !categoryData) {
+        console.error('Error fetching category:', error);
         return {
-          data: {} as Category,
           success: false,
-          error: 'Category not found',
+          error: error?.code === 'PGRST116' ? 'Category not found' : `Failed to fetch category: ${error?.message}`,
+          category: null as any
         };
       }
 
+      // Convert database format to app format
+      const category: Category = {
+        id: categoryData.id,
+        name: categoryData.name,
+        description: categoryData.description,
+        imageUrl: categoryData.image_url,
+        sortOrder: categoryData.sort_order,
+        isActive: categoryData.is_available,
+        createdAt: categoryData.created_at,
+        updatedAt: categoryData.updated_at
+      };
+
       return {
-        data: category,
         success: true,
-        message: 'Category fetched successfully',
+        category
       };
     } catch (error) {
+      console.error('Error in getCategoryById:', error);
       return {
-        data: {} as Category,
         success: false,
         error: 'Failed to fetch category',
+        category: null as any
       };
     }
   }
 
   // Get all products with populated categories from Supabase
-  static async getProducts(): Promise<ApiResponse<Product[]>> {
+  async getProducts(): Promise<ProductApiResponse<Product[]>> {
     try {
-      const { data, error } = await supabase
+      const { data: productsData, error } = await supabase
         .from(TABLES.PRODUCTS)
-        .select('*')
+        .select(`
+          *,
+          categories!inner (
+            id,
+            name,
+            description,
+            image_url,
+            sort_order,
+            is_available,
+            created_at,
+            updated_at
+          )
+        `)
         .eq('is_available', true)
+        .eq('categories.is_available', true)
         .order('name', { ascending: true });
 
       if (error) {
-        console.error('Failed to fetch products:', error);
+        console.error('Error fetching products:', error);
         return {
-          data: [],
           success: false,
-          error: 'Failed to fetch products',
+          error: `Failed to fetch products: ${error.message}`,
+          products: []
         };
       }
 
       // Convert database format to app format
-      const products: Product[] = (data || []).map(product => ({
-        id: product.id,
-        name: product.name,
-        description: product.description,
-        price: product.price,
-        stock: product.stock_quantity,
-        categoryId: product.category,
-        imageUrl: product.image_url || '',
-        isActive: product.is_available,
-        isPreOrder: product.is_pre_order,
-        preOrderAvailableDate: product.pre_order_available_date,
-        minPreOrderQuantity: product.min_pre_order_quantity,
-        createdAt: product.created_at,
-        updatedAt: product.updated_at,
+      const products: Product[] = (productsData || []).map((prod: any) => ({
+        id: prod.id,
+        name: prod.name,
+        description: prod.description,
+        price: prod.price,
+        unit: prod.unit,
+        imageUrl: prod.image_url,
+        categoryId: prod.category_id,
+        category: {
+          id: prod.categories.id,
+          name: prod.categories.name,
+          description: prod.categories.description,
+          imageUrl: prod.categories.image_url,
+          sortOrder: prod.categories.sort_order,
+          isActive: prod.categories.is_available,
+          createdAt: prod.categories.created_at,
+          updatedAt: prod.categories.updated_at
+        },
+        stock: prod.stock_quantity,
+        isActive: prod.is_available,
+        isPreOrder: prod.is_pre_order || false,
+        minPreOrderQuantity: prod.min_pre_order_quantity,
+        maxPreOrderQuantity: prod.max_pre_order_quantity,
+        preOrderAvailableDate: prod.pre_order_deadline,
+        tags: prod.tags || [],
+        nutritionInfo: prod.nutrition_info,
+        createdAt: prod.created_at,
+        updatedAt: prod.updated_at
       }));
 
       return {
-        data: products,
         success: true,
-        message: 'Products fetched successfully',
+        products
       };
     } catch (error) {
+      console.error('Error in getProducts:', error);
       return {
-        data: [],
         success: false,
         error: 'Failed to fetch products',
+        products: []
       };
     }
   }
 
   // Get products with pagination from Supabase
-  static async getProductsPaginated(
-    page: number = 1, 
-    limit: number = 10
-  ): Promise<ApiResponse<PaginatedResponse<Product>>> {
+  async getProductsPaginated(page: number = 1, limit: number = 20): Promise<ProductApiResponse<PaginatedResponse<Product>>> {
     try {
-      const offset = (page - 1) * limit;
-      
-      // Get total count
+      // Get total count first
       const { count, error: countError } = await supabase
         .from(TABLES.PRODUCTS)
         .select('*', { count: 'exact', head: true })
         .eq('is_available', true);
 
       if (countError) {
-        console.error('Failed to get product count:', countError);
+        console.error('Error getting product count:', countError);
         return {
-          data: { data: [], total: 0, page, limit, totalPages: 0, hasMore: false },
           success: false,
-          error: 'Failed to get product count',
+          error: `Failed to get product count: ${countError.message}`,
+          paginatedProducts: null as any
         };
       }
 
+      const totalItems = count || 0;
+      const totalPages = Math.ceil(totalItems / limit);
+      const offset = (page - 1) * limit;
+
       // Get paginated products
-      const { data, error } = await supabase
+      const { data: productsData, error } = await supabase
         .from(TABLES.PRODUCTS)
-        .select('*')
+        .select(`
+          *,
+          categories!inner (
+            id,
+            name,
+            description,
+            image_url,
+            sort_order,
+            is_available,
+            created_at,
+            updated_at
+          )
+        `)
         .eq('is_available', true)
+        .eq('categories.is_available', true)
         .order('name', { ascending: true })
         .range(offset, offset + limit - 1);
 
       if (error) {
-        console.error('Failed to fetch paginated products:', error);
+        console.error('Error fetching paginated products:', error);
         return {
-          data: { data: [], total: 0, page, limit, totalPages: 0, hasMore: false },
           success: false,
-          error: 'Failed to fetch products',
+          error: `Failed to fetch products: ${error.message}`,
+          paginatedProducts: null as any
         };
       }
 
       // Convert database format to app format
-      const products: Product[] = (data || []).map(product => ({
-        id: product.id,
-        name: product.name,
-        description: product.description,
-        price: product.price,
-        stock: product.stock_quantity,
-        categoryId: product.category,
-        imageUrl: product.image_url || '',
-        isActive: product.is_available,
-        isPreOrder: product.is_pre_order,
-        preOrderAvailableDate: product.pre_order_available_date,
-        minPreOrderQuantity: product.min_pre_order_quantity,
-        unit: product.unit,
-        weight: product.weight,
-        sku: product.sku,
-        tags: product.tags || [],
-        createdAt: product.created_at,
-        updatedAt: product.updated_at,
+      const products: Product[] = (productsData || []).map((prod: any) => ({
+        id: prod.id,
+        name: prod.name,
+        description: prod.description,
+        price: prod.price,
+        unit: prod.unit,
+        imageUrl: prod.image_url,
+        categoryId: prod.category_id,
+        category: {
+          id: prod.categories.id,
+          name: prod.categories.name,
+          description: prod.categories.description,
+          imageUrl: prod.categories.image_url,
+          sortOrder: prod.categories.sort_order,
+          isActive: prod.categories.is_available,
+          createdAt: prod.categories.created_at,
+          updatedAt: prod.categories.updated_at
+        },
+        stock: prod.stock_quantity,
+        isActive: prod.is_available,
+        isPreOrder: prod.is_pre_order || false,
+        minPreOrderQuantity: prod.min_pre_order_quantity,
+        maxPreOrderQuantity: prod.max_pre_order_quantity,
+        preOrderAvailableDate: prod.pre_order_deadline,
+        tags: prod.tags || [],
+        nutritionInfo: prod.nutrition_info,
+        createdAt: prod.created_at,
+        updatedAt: prod.updated_at
       }));
 
-      const totalPages = Math.ceil((count || 0) / limit);
-
-      const hasMore = (page * limit) < (count || 0);
+      const paginatedResponse: PaginatedResponse<Product> = {
+        data: products,
+        total: totalItems,
+        page: page,
+        limit: limit,
+        hasMore: page < totalPages,
+        totalPages: totalPages
+      };
 
       return {
-        data: {
-          data: products,
-          total: count || 0,
-          page,
-          limit,
-          totalPages,
-          hasMore,
-        },
         success: true,
-        message: 'Products fetched successfully',
+        paginatedProducts: paginatedResponse
       };
     } catch (error) {
+      console.error('Error in getProductsPaginated:', error);
       return {
-        data: { data: [], total: 0, page, limit, totalPages: 0, hasMore: false },
         success: false,
-        error: 'Failed to fetch products',
+        error: 'Failed to fetch paginated products',
+        paginatedProducts: null as any
       };
     }
   }
 
   // Get product by ID
-  static async getProductById(id: string): Promise<ApiResponse<Product>> {
-    await mockDelay(500);
-    
+  async getProductById(id: string): Promise<ProductApiResponse<Product>> {
     try {
-      const product = mockProductsData.find(p => p.id === id && p.isActive);
-      
-      if (!product) {
+      const { data: productData, error } = await supabase
+        .from(TABLES.PRODUCTS)
+        .select(`
+          *,
+          categories!inner (
+            id,
+            name,
+            description,
+            image_url,
+            sort_order,
+            is_available,
+            created_at,
+            updated_at
+          )
+        `)
+        .eq('id', id)
+        .eq('is_available', true)
+        .eq('categories.is_available', true)
+        .single();
+
+      if (error || !productData) {
+        console.error('Error fetching product:', error);
         return {
-          data: {} as Product,
           success: false,
-          error: 'Product not found',
+          error: error?.code === 'PGRST116' ? 'Product not found' : `Failed to fetch product: ${error?.message}`,
+          product: null as any
         };
       }
 
-      const productWithCategory = {
-        ...product,
-        category: mockCategories.find(cat => cat.id === product.categoryId),
+      // Convert database format to app format
+      const product: Product = {
+        id: productData.id,
+        name: productData.name,
+        description: productData.description,
+        price: productData.price,
+        unit: productData.unit,
+        imageUrl: productData.image_url,
+        categoryId: productData.category_id,
+        category: {
+          id: productData.categories.id,
+          name: productData.categories.name,
+          description: productData.categories.description,
+          imageUrl: productData.categories.image_url,
+          sortOrder: productData.categories.sort_order,
+          isActive: productData.categories.is_available,
+          createdAt: productData.categories.created_at,
+          updatedAt: productData.categories.updated_at
+        },
+        stock: productData.stock_quantity,
+        isActive: productData.is_available,
+        isPreOrder: productData.is_pre_order || false,
+        minPreOrderQuantity: productData.min_pre_order_quantity,
+        maxPreOrderQuantity: productData.max_pre_order_quantity,
+        preOrderAvailableDate: productData.pre_order_deadline,
+        tags: productData.tags || [],
+        nutritionInfo: productData.nutrition_info,
+        createdAt: productData.created_at,
+        updatedAt: productData.updated_at
       };
 
       return {
-        data: productWithCategory,
         success: true,
-        message: 'Product fetched successfully',
+        product
       };
     } catch (error) {
+      console.error('Error in getProductById:', error);
       return {
-        data: {} as Product,
         success: false,
         error: 'Failed to fetch product',
+        product: null as any
       };
     }
   }
 
   // Search products
-  static async searchProducts(query: string): Promise<ApiResponse<Product[]>> {
-    await mockDelay(800);
-    
+  async searchProducts(query: string): Promise<ProductApiResponse<Product[]>> {
     try {
-      const searchQuery = query.toLowerCase();
-      const filteredProducts = mockProductsData
-        .filter(product => 
-          product.isActive && (
-            product.name.toLowerCase().includes(searchQuery) ||
-            product.description.toLowerCase().includes(searchQuery) ||
-            product.tags?.some(tag => tag.toLowerCase().includes(searchQuery))
+      const { data: productsData, error } = await supabase
+        .from(TABLES.PRODUCTS)
+        .select(`
+          *,
+          categories!inner (
+            id,
+            name,
+            description,
+            image_url,
+            sort_order,
+            is_available,
+            created_at,
+            updated_at
           )
-        )
-        .map(product => ({
-          ...product,
-          category: mockCategories.find(cat => cat.id === product.categoryId),
-        }));
+        `)
+        .eq('is_available', true)
+        .eq('categories.is_available', true)
+        .or(`name.ilike.%${query}%,description.ilike.%${query}%,tags.cs.{${query}}`)
+        .order('name', { ascending: true });
+
+      if (error) {
+        console.error('Error searching products:', error);
+        return {
+          success: false,
+          error: `Failed to search products: ${error.message}`,
+          products: []
+        };
+      }
+
+      // Convert database format to app format
+      const products: Product[] = (productsData || []).map((prod: any) => ({
+        id: prod.id,
+        name: prod.name,
+        description: prod.description,
+        price: prod.price,
+        unit: prod.unit,
+        imageUrl: prod.image_url,
+        categoryId: prod.category_id,
+        category: {
+          id: prod.categories.id,
+          name: prod.categories.name,
+          description: prod.categories.description,
+          imageUrl: prod.categories.image_url,
+          sortOrder: prod.categories.sort_order,
+          isActive: prod.categories.is_available,
+          createdAt: prod.categories.created_at,
+          updatedAt: prod.categories.updated_at
+        },
+        stock: prod.stock_quantity,
+        isActive: prod.is_available,
+        isPreOrder: prod.is_pre_order || false,
+        minPreOrderQuantity: prod.min_pre_order_quantity,
+        maxPreOrderQuantity: prod.max_pre_order_quantity,
+        preOrderAvailableDate: prod.pre_order_deadline,
+        tags: prod.tags || [],
+        nutritionInfo: prod.nutrition_info,
+        createdAt: prod.created_at,
+        updatedAt: prod.updated_at
+      }));
 
       return {
-        data: filteredProducts,
         success: true,
-        message: `Found ${filteredProducts.length} products`,
+        products
       };
     } catch (error) {
+      console.error('Error in searchProducts:', error);
       return {
-        data: [],
         success: false,
-        error: 'Search failed',
+        error: 'Failed to search products',
+        products: []
       };
     }
   }
 
   // Get products by category
-  static async getProductsByCategory(categoryId: string): Promise<ApiResponse<Product[]>> {
-    await mockDelay(600);
-    
+  async getProductsByCategory(categoryId: string): Promise<ProductApiResponse<Product[]>> {
     try {
-      const categoryProducts = mockProductsData
-        .filter(product => product.categoryId === categoryId && product.isActive)
-        .map(product => ({
-          ...product,
-          category: mockCategories.find(cat => cat.id === product.categoryId),
-        }));
+      const { data: productsData, error } = await supabase
+        .from(TABLES.PRODUCTS)
+        .select(`
+          *,
+          categories!inner (
+            id,
+            name,
+            description,
+            image_url,
+            sort_order,
+            is_available,
+            created_at,
+            updated_at
+          )
+        `)
+        .eq('category_id', categoryId)
+        .eq('is_available', true)
+        .eq('categories.is_available', true)
+        .order('name', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching products by category:', error);
+        return {
+          success: false,
+          error: `Failed to fetch products by category: ${error.message}`,
+          products: []
+        };
+      }
+
+      // Convert database format to app format
+      const products: Product[] = (productsData || []).map((prod: any) => ({
+        id: prod.id,
+        name: prod.name,
+        description: prod.description,
+        price: prod.price,
+        unit: prod.unit,
+        imageUrl: prod.image_url,
+        categoryId: prod.category_id,
+        category: {
+          id: prod.categories.id,
+          name: prod.categories.name,
+          description: prod.categories.description,
+          imageUrl: prod.categories.image_url,
+          sortOrder: prod.categories.sort_order,
+          isActive: prod.categories.is_available,
+          createdAt: prod.categories.created_at,
+          updatedAt: prod.categories.updated_at
+        },
+        stock: prod.stock_quantity,
+        isActive: prod.is_available,
+        isPreOrder: prod.is_pre_order || false,
+        minPreOrderQuantity: prod.min_pre_order_quantity,
+        maxPreOrderQuantity: prod.max_pre_order_quantity,
+        preOrderAvailableDate: prod.pre_order_deadline,
+        tags: prod.tags || [],
+        nutritionInfo: prod.nutrition_info,
+        createdAt: prod.created_at,
+        updatedAt: prod.updated_at
+      }));
 
       return {
-        data: categoryProducts,
         success: true,
-        message: `Found ${categoryProducts.length} products in category`,
+        products
       };
     } catch (error) {
+      console.error('Error in getProductsByCategory:', error);
       return {
-        data: [],
         success: false,
         error: 'Failed to fetch products by category',
+        products: []
+      };
+    }
+  }
+
+  // Update product stock (with broadcast) - Following CartService pattern
+  async updateProductStock(productId: string, newStock: number): Promise<{ success: boolean; message?: string; product?: Product }> {
+    try {
+      // Update stock in database
+      const { data, error } = await supabase
+        .from(TABLES.PRODUCTS)
+        .update({ 
+          stock_quantity: newStock,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', productId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating product stock:', error);
+        return {
+          success: false,
+          message: `Failed to update product stock: ${error.message}`
+        };
+      }
+
+      if (!data) {
+        return {
+          success: false,
+          message: 'Product not found'
+        };
+      }
+
+      // Fetch complete product data for broadcast
+      const productResponse = await this.getProductById(productId);
+      if (!productResponse.success || !productResponse.product) {
+        return {
+          success: false,
+          message: 'Failed to fetch updated product data'
+        };
+      }
+
+      // Broadcast event with robust error handling (CartService pattern)
+      try {
+        await BroadcastHelper.sendProductUpdate('stock-updated', {
+          productId: productId,
+          newStock: newStock,
+          product: productResponse.product
+        });
+      } catch (error) {
+        console.warn('Failed to broadcast product stock update:', error);
+        // Stock update still succeeds even if broadcast fails
+      }
+
+      return {
+        success: true,
+        message: `Product stock updated to ${newStock}`,
+        product: productResponse.product
+      };
+
+    } catch (error) {
+      console.error('Error updating product stock:', error);
+      return {
+        success: false,
+        message: `Unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}`
       };
     }
   }
 }
 
-// Export mock data for backward compatibility
-export { mockCategories, mockProductsData };
+// Create and export singleton instance
+const productService = new ProductService();
+export default productService;
+
+// Export individual methods for backward compatibility
+export const getCategories = () => productService.getCategories();
+export const getCategoryById = (id: string) => productService.getCategoryById(id);
+export const getProducts = () => productService.getProducts();
+export const getProductsPaginated = (page?: number, limit?: number) => productService.getProductsPaginated(page, limit);
+export const getProductById = (id: string) => productService.getProductById(id);
+export const searchProducts = (query: string) => productService.searchProducts(query);
+export const getProductsByCategory = (categoryId: string) => productService.getProductsByCategory(categoryId);
+export const updateProductStock = (productId: string, newStock: number) => productService.updateProductStock(productId, newStock);

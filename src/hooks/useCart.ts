@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback } from 'react';
 import { cartService } from '../services/cartService';
 import type { Product, CartState, CartItem } from '../types';
 
-const CART_QUERY_KEY = ['cart'];
+export const CART_QUERY_KEY = ['cart'];
 
 export const useCart = () => {
   const queryClient = useQueryClient();
@@ -16,153 +17,164 @@ export const useCart = () => {
   } = useQuery({
     queryKey: CART_QUERY_KEY,
     queryFn: cartService.getCart,
-    staleTime: 0, // Always refetch to ensure fresh data
-    gcTime: 0, // Don't cache data - always fetch fresh
+    staleTime: 2 * 60 * 1000, // 2 minutes (like orders - cart changes frequently)
+    gcTime: 5 * 60 * 1000,    // 5 minutes (standard across app)
     refetchOnMount: true,
     refetchOnWindowFocus: false,
   });
 
-  // Add item mutation with optimistic updates
+  // Add item mutation - Complete Pattern B with optimistic updates
   const addItemMutation = useMutation({
     mutationFn: ({ product, quantity = 1 }: { product: Product; quantity?: number }) =>
       cartService.addItem(product, quantity),
     onMutate: async ({ product, quantity = 1 }) => {
-      // Cancel outgoing refetches
+      // 1. Cancel outgoing refetches to prevent race conditions
       await queryClient.cancelQueries({ queryKey: CART_QUERY_KEY });
       
-      // Snapshot previous cart
+      // 2. Snapshot previous value for rollback
       const previousCart = queryClient.getQueryData<CartState>(CART_QUERY_KEY) || { items: [], total: 0 };
       
-      // Optimistically update cart
-      const existingItemIndex = previousCart.items.findIndex((item: CartItem) => item.product.id === product.id);
-      let newItems = [...previousCart.items];
+      // 3. Optimistic update - add item immediately for instant UI feedback
+      const existingItem = previousCart.items.find(item => item.product.id === product.id);
+      let optimisticItems: CartItem[];
       
-      if (existingItemIndex >= 0) {
-        newItems[existingItemIndex] = {
-          ...newItems[existingItemIndex],
-          quantity: newItems[existingItemIndex].quantity + quantity
-        };
+      if (existingItem) {
+        // Update existing item quantity
+        const newQuantity = existingItem.quantity + quantity;
+        optimisticItems = previousCart.items.map(item =>
+          item.product.id === product.id 
+            ? { ...item, quantity: newQuantity }
+            : item
+        );
       } else {
-        newItems.push({ product, quantity });
+        // Add new item
+        optimisticItems = [...previousCart.items, { product, quantity }];
       }
       
-      const newTotal = newItems.reduce((total, item) => total + (item.product.price * item.quantity), 0);
-      const optimisticCart = { items: newItems, total: newTotal };
+      const optimisticTotal = optimisticItems.reduce((sum: number, item: CartItem) => sum + (item.product.price * item.quantity), 0);
+      const optimisticCart = { items: optimisticItems, total: optimisticTotal };
       
       queryClient.setQueryData(CART_QUERY_KEY, optimisticCart);
       
       return { previousCart };
     },
+    onSuccess: () => {
+      // 4. Invalidate for server sync
+      queryClient.invalidateQueries({ queryKey: CART_QUERY_KEY });
+    },
     onError: (error, variables, context) => {
-      console.error('Failed to add item to cart:', error);
-      // Rollback on error
+      console.error('❌ ADD ITEM ERROR - Rolling back:', error);
+      // 5. Roll back (restore previous state)
       if (context?.previousCart) {
         queryClient.setQueryData(CART_QUERY_KEY, context.previousCart);
       }
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: CART_QUERY_KEY });
-    },
   });
-
-  // Remove item mutation
+  // Remove item mutation - Complete Pattern B with optimistic updates
   const removeItemMutation = useMutation({
     mutationFn: (productId: string) => cartService.removeItem(productId),
-    onSuccess: (result) => {
-      // Immediately update cache
-      queryClient.setQueryData(CART_QUERY_KEY, result.cart);
-      // Invalidate to ensure consistency
+    onMutate: async (productId) => {
+      // 1. Cancel outgoing refetches to prevent race conditions
+      await queryClient.cancelQueries({ queryKey: CART_QUERY_KEY });
+      
+      // 2. Snapshot previous value for rollback
+      const previousCart = queryClient.getQueryData<CartState>(CART_QUERY_KEY) || { items: [], total: 0 };
+      
+      // 3. Optimistic update - remove item immediately for instant UI feedback
+      const optimisticItems = previousCart.items.filter(item => item.product.id !== productId);
+      const optimisticTotal = optimisticItems.reduce((sum: number, item: CartItem) => sum + (item.product.price * item.quantity), 0);
+      const optimisticCart = { items: optimisticItems, total: optimisticTotal };
+      
+      queryClient.setQueryData(CART_QUERY_KEY, optimisticCart);
+      
+      return { previousCart };
+    },
+    onSuccess: () => {
+      // 4. Invalidate for server sync
       queryClient.invalidateQueries({ queryKey: CART_QUERY_KEY });
     },
-    onError: (error) => {
-      console.error('Failed to remove item from cart:', error);
+    onError: (error, variables, context) => {
+      console.error('❌ REMOVE ITEM ERROR - Rolling back:', error);
+      // 5. Roll back (restore previous state)
+      if (context?.previousCart) {
+        queryClient.setQueryData(CART_QUERY_KEY, context.previousCart);
+      }
     },
   });
-
-  // Update quantity mutation
+  // Update quantity mutation - Complete Pattern B with optimistic updates
   const updateQuantityMutation = useMutation({
     mutationFn: ({ productId, quantity }: { productId: string; quantity: number }) =>
       cartService.updateQuantity(productId, quantity),
-    onSuccess: (data) => {
-      // Immediately update cache
-      queryClient.setQueryData(CART_QUERY_KEY, data.cart);
-      // Invalidate to ensure consistency
+    onMutate: async ({ productId, quantity }) => {
+      // 1. Cancel outgoing refetches to prevent race conditions
+      await queryClient.cancelQueries({ queryKey: CART_QUERY_KEY });
+      
+      // 2. Snapshot previous value for rollback
+      const previousCart = queryClient.getQueryData<CartState>(CART_QUERY_KEY) || { items: [], total: 0 };
+      
+      // 3. Optimistic update - update quantity immediately for instant UI feedback
+      const optimisticItems = previousCart.items.map(item => {
+        if (item.product.id === productId) {
+          return { ...item, quantity };
+        }
+        return item;
+      }).filter(item => item.quantity > 0);
+      const optimisticTotal = optimisticItems.reduce((sum: number, item: CartItem) => sum + (item.product.price * item.quantity), 0);
+      const optimisticCart = { items: optimisticItems, total: optimisticTotal };
+      
+      queryClient.setQueryData(CART_QUERY_KEY, optimisticCart);
+      
+      return { previousCart };
+    },
+    onSuccess: () => {
+      // 4. Invalidate for server sync
       queryClient.invalidateQueries({ queryKey: CART_QUERY_KEY });
     },
-    onError: (error) => {
-      console.error('Failed to update item quantity:', error);
+    onError: (error, variables, context) => {
+      console.error('❌ UPDATE QUANTITY ERROR - Rolling back:', error);
+      // 5. Roll back (restore previous state)
+      if (context?.previousCart) {
+        queryClient.setQueryData(CART_QUERY_KEY, context.previousCart);
+      }
     },
   });
+
 
   // Clear cart mutation with optimistic updates
   const clearCartMutation = useMutation({
     mutationFn: cartService.clearCart,
-    // TEMPORARILY DISABLED: Testing if optimistic update interferes with broadcast sync
-    // onMutate: async () => {
-    //   // Cancel outgoing refetches to prevent race conditions
-    //   await queryClient.cancelQueries({ queryKey: CART_QUERY_KEY });
-    //   
-    //   // Snapshot previous cart for rollback
-    //   const previousCart = queryClient.getQueryData(CART_QUERY_KEY);
-    //   
-    //   // Optimistically update to empty cart immediately
-    //   const emptyCart = { items: [], total: 0 };
-    //   queryClient.setQueryData(CART_QUERY_KEY, emptyCart);
-    //   
-    //   return { previousCart };
-    // },
-    onSuccess: (result) => {
-      // Update cache with actual result
-      queryClient.setQueryData(CART_QUERY_KEY, result.cart);
+    onMutate: async () => {
+      // 1. Cancel outgoing refetches to prevent race conditions
+      await queryClient.cancelQueries({ queryKey: CART_QUERY_KEY });
+      
+      // 2. Snapshot previous cart for rollback
+      const previousCart = queryClient.getQueryData<CartState>(CART_QUERY_KEY);
+      
+      // 3. Optimistically update to empty cart immediately
+      const emptyCart = { items: [], total: 0 };
+      queryClient.setQueryData(CART_QUERY_KEY, emptyCart);
+      
+      return { previousCart };
     },
-    onError: (error, variables, context) => {
-      console.error('Failed to clear cart:', error);
-      // TEMPORARILY DISABLED: No rollback since optimistic update is disabled
-      // if (context?.previousCart) {
-      //   queryClient.setQueryData(CART_QUERY_KEY, context.previousCart);
-      // }
-    },
-    onSettled: () => {
-      // Always refetch to ensure consistency
+    onSuccess: () => {
+      // Get fresh server data to confirm empty state
       queryClient.invalidateQueries({ queryKey: CART_QUERY_KEY });
+    },
+    onError: (error: any, variables: any, context: any) => {
+      console.error('❌ CLEAR CART ERROR - Rolling back:', error);
+      // Rollback to previous cart state on error
+      if (context?.previousCart) {
+        queryClient.setQueryData(CART_QUERY_KEY, context.previousCart);
+      }
     },
   });
 
-  // Helper functions that return promises for better testing
-  const addItem = async (product: Product, quantity: number = 1): Promise<{ success: boolean; message?: string }> => {
-    try {
-      const result = await addItemMutation.mutateAsync({ product, quantity });
-      return { success: result.success, message: result.message };
-    } catch (error) {
-      return { success: false, message: 'Failed to add item to cart' };
-    }
-  };
-
-  const removeItem = async (productId: string): Promise<{ success: boolean; data?: CartState; message?: string }> => {
-    try {
-      const result = await removeItemMutation.mutateAsync(productId);
-      return { success: true, data: result.cart };
-    } catch (error) {
-      return { success: false, message: 'Failed to remove item from cart' };
-    }
-  };
-
-  const updateQuantity = async (productId: string, quantity: number): Promise<{ success: boolean; message?: string }> => {
-    try {
-      const result = await updateQuantityMutation.mutateAsync({ productId, quantity });
-      return { success: result.success, message: result.message };
-    } catch (error) {
-      return { success: false, message: 'Failed to update quantity' };
-    }
-  };
-
-  const clearCart = async (): Promise<{ success: boolean; data?: CartState; message?: string }> => {
-    try {
-      const result = await clearCartMutation.mutateAsync();
-      return { success: true, data: result.cart };
-    } catch (error) {
-      return { success: false, message: 'Failed to clear cart' };
-    }
+  // Centralized getCartQuantity function - single source of truth
+  // Removed useCallback to prevent stale closures during optimistic updates
+  const getCartQuantity = (productId: string): number => {
+    if (!cart.items) return 0;
+    const cartItem = cart.items.find(item => item.product.id === productId);
+    return cartItem?.quantity || 0;
   };
 
   return {
@@ -180,17 +192,22 @@ export const useCart = () => {
     isUpdatingQuantity: updateQuantityMutation.isPending,
     isClearingCart: clearCartMutation.isPending,
     
-    // Actions
-    addItem,
-    removeItem,
-    updateQuantity,
-    clearCart,
-    refetch,
+    // Direct mutations (standard React Query pattern)
+    addItem: addItemMutation.mutate,
+    removeItem: removeItemMutation.mutate,
+    updateQuantity: updateQuantityMutation.mutate,
+    clearCart: clearCartMutation.mutate,
     
-    // Raw mutations for advanced usage
-    addItemMutation,
-    removeItemMutation,
-    updateQuantityMutation,
-    clearCartMutation,
+    // Async mutations for when Promise return is needed
+    addItemAsync: addItemMutation.mutateAsync,
+    removeItemAsync: removeItemMutation.mutateAsync,
+    updateQuantityAsync: updateQuantityMutation.mutateAsync,
+    clearCartAsync: clearCartMutation.mutateAsync,
+    
+    // Centralized quantity getter
+    getCartQuantity,
+    
+    // Manual refetch
+    refetch
   };
 };

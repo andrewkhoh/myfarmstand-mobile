@@ -1,5 +1,6 @@
 import { supabase } from '../config/supabase';
 import { queryClient } from '../config/queryClient';
+import { CART_QUERY_KEY } from '../hooks/useCart';
 
 /**
  * Broadcast-based Real-time Service
@@ -130,7 +131,6 @@ export class RealtimeService {
     
     if (this.subscriptions.has(channelName)) {
       console.log('Cart updates subscription already exists');
-      return;
     }
 
     console.log('🚀 Setting up cart updates broadcast subscription...');
@@ -142,11 +142,8 @@ export class RealtimeService {
         { event: 'cart-item-added' },
         (payload: any) => {
           console.log('🔄 Cart item added (broadcast):', payload);
-          
-          // Invalidate cart queries to trigger refetch (standard pattern)
-          queryClient.invalidateQueries({ queryKey: ['cart'] });
-          
-          this.notifyDataUpdate(`Item added to cart from another device`);
+          queryClient.invalidateQueries({ queryKey: CART_QUERY_KEY });
+          this.notifyDataUpdate(`Added ${payload.payload?.productName || 'item'} to cart`);
         }
       )
       .on(
@@ -154,11 +151,8 @@ export class RealtimeService {
         { event: 'cart-item-removed' },
         (payload: any) => {
           console.log('🔄 Cart item removed (broadcast):', payload);
-          
-          // Invalidate cart queries to trigger refetch (standard pattern)
-          queryClient.invalidateQueries({ queryKey: ['cart'] });
-          
-          this.notifyDataUpdate(`Item removed from cart`);
+          queryClient.invalidateQueries({ queryKey: CART_QUERY_KEY });
+          this.notifyDataUpdate(`Removed ${payload.payload?.productName || 'item'} from cart`);
         }
       )
       .on(
@@ -166,39 +160,17 @@ export class RealtimeService {
         { event: 'cart-quantity-updated' },
         (payload: any) => {
           console.log('🔄 Cart quantity updated (broadcast):', payload);
-          
-          // Invalidate cart queries to trigger refetch (standard pattern)
-          queryClient.invalidateQueries({ queryKey: ['cart'] });
-          
-          this.notifyDataUpdate(`Cart quantity updated`);
+          queryClient.invalidateQueries({ queryKey: CART_QUERY_KEY });
+          this.notifyDataUpdate(`Updated ${payload.payload?.productName || 'item'} quantity`);
         }
       )
       .on(
         'broadcast',
         { event: 'cart-cleared' },
-        async (payload: any) => {
+        (payload: any) => {
           console.log('🔄 Cart cleared (broadcast):', payload);
-          
-          // AGGRESSIVE: Force immediate UI update for cart clearing
-          console.log('🔥 Forcing aggressive cart cache update for cart-cleared...');
-          
-          // 1. Remove existing cache
-          queryClient.removeQueries({ queryKey: ['cart'] });
-          console.log('🗑️ Cache removed');
-          
-          // 2. Invalidate to mark as stale
-          queryClient.invalidateQueries({ queryKey: ['cart'] });
-          console.log('⚠️ Cache invalidated');
-          
-          // 3. Force immediate refetch
-          const refetchResult = await queryClient.refetchQueries({ queryKey: ['cart'] });
-          console.log('🔄 Refetch completed:', refetchResult);
-          
-          // 4. DEBUG: Check what data is actually in cache now
-          const currentCacheData = queryClient.getQueryData(['cart']);
-          console.log('🔍 Current cache data after refetch:', currentCacheData);
-          
-          this.notifyDataUpdate(`Cart cleared`);
+          queryClient.invalidateQueries({ queryKey: CART_QUERY_KEY });
+          this.notifyDataUpdate('Cart cleared');
         }
       )
       .subscribe((status) => {
@@ -222,7 +194,7 @@ export class RealtimeService {
     
     this.subscribeToOrderUpdates();
     this.subscribeToProductUpdates();
-    this.subscribeToCartUpdates();
+    // this.subscribeToCartUpdates(); -
     
     this.isInitialized = true;
     console.log('✅ All broadcast subscriptions initialized');
@@ -310,7 +282,7 @@ export class RealtimeService {
     queryClient.invalidateQueries({ queryKey: ['categories'] });
     queryClient.invalidateQueries({ queryKey: ['orders'] });
     queryClient.invalidateQueries({ queryKey: ['userOrders'] }); // ProfileScreen format
-    queryClient.invalidateQueries({ queryKey: ['cart'] });
+    queryClient.invalidateQueries({ queryKey: CART_QUERY_KEY }); 
     
     console.log('✅ All cached data refreshed');
   }

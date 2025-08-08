@@ -10,14 +10,18 @@ interface ProductCardProps {
   product: Product;
   onPress: () => void;
   onAddToCart: () => void;
+  cartQuantity?: number; // New prop for cart quantity
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({
   product,
   onPress,
   onAddToCart,
+  cartQuantity = 0, // Default to 0 if not provided
 }) => {
-  const isOutOfStock = product.stock === 0;
+  // Calculate available stock (total stock - quantity already in cart)
+  const availableStock = Math.max(0, product.stock - cartQuantity);
+  const isOutOfStock = availableStock === 0;
 
   return (
     <Card variant="elevated" style={styles.container}>
@@ -59,7 +63,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                 ${product.price.toFixed(2)}
               </Text>
               <Text variant="caption" color="secondary">
-                {product.stock > 0 ? `${product.stock} in stock` : 'Out of stock'}
+                {availableStock > 0 ? `${availableStock} available` : 'Out of stock'}
+                {cartQuantity > 0 && (
+                  <Text variant="caption" color="tertiary">
+                    {' '}({cartQuantity} in cart)
+                  </Text>
+                )}
               </Text>
             </View>
 

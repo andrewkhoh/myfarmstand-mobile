@@ -162,6 +162,7 @@ export interface OrderItem {
   price: number;
   quantity: number;
   subtotal: number;
+  product?: Product; // Add optional product for populated data
 }
 
 export interface Order {
@@ -178,6 +179,9 @@ export interface Order {
   pickupDate?: string; // ISO date string
   pickupTime?: string; // Time string
   deliveryAddress?: string;
+  deliveryDate?: string; // Add missing delivery date
+  deliveryTime?: string; // Add missing delivery time
+  specialInstructions?: string; // Add missing special instructions
   createdAt: string;
   updatedAt: string;
 }
@@ -190,6 +194,9 @@ export interface CreateOrderRequest {
   pickupDate?: string;
   pickupTime?: string;
   deliveryAddress?: string;
+  deliveryDate?: string; // Add missing delivery date
+  deliveryTime?: string; // Add missing delivery time
+  specialInstructions?: string; // Add missing special instructions
 }
 
 export interface OrderSubmissionResult {
@@ -197,4 +204,10 @@ export interface OrderSubmissionResult {
   order?: Order;
   message?: string;
   error?: string;
+  inventoryConflicts?: Array<{
+    productId: string;
+    productName: string;
+    requested: number;
+    available: number;
+  }>;
 }

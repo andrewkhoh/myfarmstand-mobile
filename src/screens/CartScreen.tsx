@@ -14,51 +14,64 @@ export const CartScreen: React.FC = () => {
   const { items, total, updateQuantity, removeItem, clearCart } = useCart();
   const navigation = useNavigation<CartScreenNavigationProp>();
 
-  const handleQuantityChange = (productId: string, newQuantity: number) => {
-    if (newQuantity <= 0) {
-      handleRemoveItem(productId);
-    } else {
-      updateQuantity(productId, newQuantity);
+  const handleQuantityChange = async (productId: string, newQuantity: number) => {
+    try {
+      if (newQuantity === 0) {
+        // Decrement to zero = remove item (no confirmation)
+        await removeItem(productId);
+      } else {
+        // Update quantity
+        await updateQuantity({ productId, quantity: newQuantity });
+      }
+    } catch (error) {
+      console.error('❌ CART SCREEN - handleQuantityChange error:', error);
     }
   };
 
-  const handleRemoveItem = (productId: string) => {
-    const item = items.find(item => item.product.id === productId);
-    if (item) {
+  const handleRemoveItem = async (productId: string) => {
+    try {
+      await removeItem(productId);
+    } catch (error) {
+      console.error('❌ CART SCREEN - handleRemoveItem error:', error);
+    }
+  };
+
+  const handleClearCart = async () => {
+    try {
+      await clearCart(undefined);
+    } catch (error) {
+      console.error('❌ CART SCREEN - handleClearCart error:', error);
+    }
+  };
+
+  const handleDisabledIncrementTap = (item: CartItem) => {
+    const availableStock = Math.max(0, item.product.stock - item.quantity);
+    
+    if (availableStock === 0 && item.product.stock > 0) {
+      // All stock is in the cart
       Alert.alert(
-        'Remove Item',
-        `Remove ${item.product.name} from your cart?`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { 
-            text: 'Remove', 
-            style: 'destructive',
-            onPress: () => removeItem(productId)
-          }
-        ]
+        'Maximum Quantity Reached',
+        `You have all available stock for ${item.product.name} in your cart.\n\nTotal stock: ${item.product.stock}\nIn your cart: ${item.quantity}`,
+        [{ text: 'OK' }]
+      );
+    } else if (item.quantity >= 999) {
+      // Hit the system limit of 999
+      Alert.alert(
+        'Quantity Limit',
+        `Maximum quantity per item is 999.`,
+        [{ text: 'OK' }]
       );
     }
-  };
-
-  const handleClearCart = () => {
-    Alert.alert(
-      'Clear Cart',
-      'Remove all items from your cart?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Clear All', 
-          style: 'destructive',
-          onPress: clearCart
-        }
-      ]
-    );
   };
 
   const renderCartItem = ({ item }: { item: CartItem }) => {
     const itemTotal = item.product.price * item.quantity;
     const isOutOfStock = item.product.stock === 0;
-    const maxQuantity = Math.min(item.product.stock, 99); // Reasonable max
+    
+    // Calculate AVAILABLE stock (total stock - current cart quantity)
+    const availableStock = Math.max(0, item.product.stock - item.quantity);
+    const maxQuantity = Math.min(item.product.stock, 999); // Max possible quantity for this item
+    const canIncrease = item.quantity < maxQuantity && availableStock > 0;
 
     return (
       <Card variant="elevated" style={styles.itemCard}>
@@ -89,11 +102,19 @@ export const CartScreen: React.FC = () => {
                 per {item.product.unit}
               </Text>
             )}
-            {isOutOfStock && (
-              <Text variant="caption" style={styles.outOfStockText}>
-                ⚠️ Out of Stock
+            <View style={styles.stockInfo}>
+              <Text variant="caption" color="tertiary">
+                Stock: {Math.max(0, item.product.stock - item.quantity) > 0 
+                  ? `${Math.max(0, item.product.stock - item.quantity)} available` 
+                  : 'Out of stock'
+                } ({item.quantity} in cart)
               </Text>
-            )}
+              {item.quantity >= item.product.stock && item.product.stock > 0 && (
+                <Text variant="caption" style={styles.stockLimitText}>
+                  ⚠️ All available stock in cart
+                </Text>
+              )}
+            </View>
           </View>
 
           <View style={styles.quantityControls}>
@@ -120,15 +141,20 @@ export const CartScreen: React.FC = () => {
               <TouchableOpacity
                 style={[
                   styles.quantityButton,
-                  item.quantity >= maxQuantity && styles.quantityButtonDisabled
+                  !canIncrease && styles.quantityButtonDisabled
                 ]}
-                onPress={() => handleQuantityChange(item.product.id, item.quantity + 1)}
-                disabled={item.quantity >= maxQuantity || isOutOfStock}
+                onPress={() => {
+                  if (canIncrease) {
+                    handleQuantityChange(item.product.id, item.quantity + 1);
+                  } else {
+                    handleDisabledIncrementTap(item);
+                  }
+                }}
               >
                 <Ionicons 
                   name="add" 
                   size={16} 
-                  color={item.quantity >= maxQuantity || isOutOfStock ? colors.text.tertiary : colors.primary[600]} 
+                  color={!canIncrease ? colors.text.tertiary : colors.primary[600]} 
                 />
               </TouchableOpacity>
             </View>
@@ -291,6 +317,14 @@ const styles = StyleSheet.create({
   outOfStockText: {
     color: colors.warning,
     fontWeight: '600',
+  },
+  stockInfo: {
+    marginTop: spacing.xs,
+  },
+  stockLimitText: {
+    color: colors.warning,
+    fontWeight: '500',
+    marginTop: spacing.xs / 2,
   },
   // Compact layout styles
   compactControls: {

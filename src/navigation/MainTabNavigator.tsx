@@ -32,6 +32,13 @@ export const MainTabNavigator: React.FC = () => {
   const isAdmin = user?.role === 'admin' || user?.role === 'manager' || user?.role === 'staff';
   const isStaff = user?.role === 'admin' || user?.role === 'manager' || user?.role === 'staff';
   const cartItemCount = items.reduce((total, item) => total + item.quantity, 0);
+  
+  // Debug badge count changes
+  console.log('🏷️ BADGE COUNT UPDATE:', {
+    itemsLength: items.length,
+    cartItemCount,
+    timestamp: new Date().toISOString().split('T')[1]
+  });
 
   return (
     <Tab.Navigator

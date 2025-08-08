@@ -173,11 +173,6 @@ export const useUpdateOrderStatusMutation = () => {
         queryClient.setQueryData(orderKeys.stats(), context.previousStats);
       }
     },
-
-    // Always: cleanup
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: orderKeys.all });
-    },
   });
 };
 
@@ -263,10 +258,6 @@ export const useBulkUpdateOrderStatusMutation = () => {
       if (context?.previousStats) {
         queryClient.setQueryData(orderKeys.stats(), context.previousStats);
       }
-    },
-
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: orderKeys.all });
     },
   });
 };

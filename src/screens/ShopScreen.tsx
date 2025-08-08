@@ -16,7 +16,7 @@ type SortOption = 'name' | 'price-low' | 'price-high' | 'category';
 
 export const ShopScreen: React.FC = () => {
   const navigation = useNavigation<ShopScreenNavigationProp>();
-  const { addItem } = useCart();
+  const { addItem, getCartQuantity } = useCart(); // Use centralized getCartQuantity from useCart
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [sortBy, setSortBy] = useState<SortOption>('name');
@@ -32,6 +32,8 @@ export const ShopScreen: React.FC = () => {
     const categoryNames = categoriesData.map(cat => cat.name);
     return ['all', ...categoryNames];
   }, [categoriesData]);
+
+
 
   // Filter and sort products
   const filteredAndSortedProducts = useMemo(() => {
@@ -83,15 +85,12 @@ export const ShopScreen: React.FC = () => {
     navigation.navigate('ProductDetail', { productId: product.id });
   };
 
-  const handleAddToCart = async (product: Product) => {
-    const result = await addItem(product);
-    
-    if (!result.success && result.message) {
-      Alert.alert(
-        'Cannot Add to Cart',
-        result.message,
-        [{ text: 'OK', style: 'default' }]
-      );
+  const handleAddToCart = (product: Product) => {
+    try {
+      // Use direct mutation - React Query handles optimistic updates and error handling
+      addItem({ product, quantity: 1 });
+    } catch (error) {
+      console.error('Failed to add item to cart:', error);
     }
   };
 
@@ -121,6 +120,7 @@ export const ShopScreen: React.FC = () => {
       product={item}
       onPress={() => handleProductPress(item)}
       onAddToCart={() => handleAddToCart(item)}
+      cartQuantity={getCartQuantity(item.id)} // Pass cart quantity for stock calculation
     />
   );
 

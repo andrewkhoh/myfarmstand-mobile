@@ -23,7 +23,7 @@ import { CreateOrderRequest, CustomerInfo, FulfillmentType, OrderItem, RootStack
 type CheckoutScreenNavigationProp = StackNavigationProp<RootStackParamList, 'OrderConfirmation'>;
 
 export const CheckoutScreen: React.FC = () => {
-  const { items, total, clearCart } = useCart();
+  const { items, total, clearCart, updateQuantity, removeItem } = useCart();
   const { data: user } = useCurrentUser();
   const navigation = useNavigation<CheckoutScreenNavigationProp>();
   const queryClient = useQueryClient();
@@ -97,13 +97,13 @@ export const CheckoutScreen: React.FC = () => {
     return '';
   };
 
-  // React Query mutation for order submission
+  // React Query mutation for order submission with inventory conflict handling
   const orderMutation = useMutation({
     mutationFn: submitOrder,
     onSuccess: async (result) => {
       if (result.success && result.order) {
         // Clear cart first
-        await clearCart();
+        await clearCart(undefined);
         
         // Invalidate order history cache so new order appears in profile
         queryClient.invalidateQueries({ queryKey: ['userOrders'] });
@@ -113,6 +113,9 @@ export const CheckoutScreen: React.FC = () => {
           order: result.order,
           success: true,
         });
+      } else if (result.inventoryConflicts && result.inventoryConflicts.length > 0) {
+        // Handle inventory conflicts with user-friendly options
+        handleInventoryConflicts(result.inventoryConflicts, result.error || 'Inventory conflicts detected');
       } else {
         // Navigate to order confirmation with error
         navigation.navigate('OrderConfirmation', {
@@ -129,6 +132,97 @@ export const CheckoutScreen: React.FC = () => {
       });
     },
   });
+
+  // Handle inventory conflicts with user-friendly options
+  const handleInventoryConflicts = (conflicts: Array<{
+    productId: string;
+    productName: string;
+    requested: number;
+    available: number;
+  }>, errorMessage: string) => {
+    // Create detailed conflict message
+    const conflictDetails = conflicts.map(conflict => {
+      if (conflict.available === 0) {
+        return `• ${conflict.productName} is out of stock`;
+      } else {
+        return `• ${conflict.productName}: only ${conflict.available} available (you have ${conflict.requested} in cart)`;
+      }
+    }).join('\n');
+
+    const fullMessage = `Some items in your cart are no longer available:\n\n${conflictDetails}\n\nWould you like to update your cart automatically?`;
+
+    Alert.alert(
+      'Items No Longer Available',
+      fullMessage,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Update Cart',
+          style: 'default',
+          onPress: () => updateCartForConflicts(conflicts),
+        },
+        {
+          text: 'Review Cart',
+          style: 'default',
+          onPress: () => navigation.goBack(),
+        },
+      ],
+      { cancelable: false }
+    );
+  };
+
+  // Automatically update cart quantities based on inventory conflicts
+  const updateCartForConflicts = async (conflicts: Array<{
+    productId: string;
+    productName: string;
+    requested: number;
+    available: number;
+  }>) => {
+    try {
+      // Update each conflicted item
+      for (const conflict of conflicts) {
+        if (conflict.available === 0) {
+          // Remove items that are out of stock
+          await removeItem(conflict.productId);
+        } else {
+          // Update quantity to available amount
+          await updateQuantity({ productId: conflict.productId, quantity: conflict.available });
+        }
+      }
+
+      // Show success message
+      const updatedItems = conflicts.filter(c => c.available > 0).length;
+      const removedItems = conflicts.filter(c => c.available === 0).length;
+      
+      let message = 'Cart updated successfully!\n\n';
+      if (updatedItems > 0) {
+        message += `• ${updatedItems} item${updatedItems > 1 ? 's' : ''} updated to available quantities\n`;
+      }
+      if (removedItems > 0) {
+        message += `• ${removedItems} out-of-stock item${removedItems > 1 ? 's' : ''} removed\n`;
+      }
+      message += '\nYou can now proceed with checkout.';
+
+      Alert.alert(
+        'Cart Updated',
+        message,
+        [{ text: 'OK', style: 'default' }]
+      );
+
+    } catch (error) {
+      Alert.alert(
+        'Update Failed',
+        'Failed to update cart. Please manually review your cart items.',
+        [
+          { text: 'OK', style: 'default' },
+          { text: 'Go to Cart', style: 'default', onPress: () => navigation.goBack() },
+        ]
+      );
+    }
+  };
 
   // Convert cart items to order items
   const convertCartToOrderItems = (): OrderItem[] => {
@@ -516,14 +610,26 @@ export const CheckoutScreen: React.FC = () => {
 const styles = StyleSheet.create({
   keyboardAvoidingView: {
     flex: 1,
+    ...(Platform.OS === 'web' && {
+      height: '100vh' as any,
+      maxHeight: '100vh' as any,
+    }),
   },
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+    ...(Platform.OS === 'web' && {
+      height: '100%' as any,
+      overflow: 'auto' as any,
+    }),
   },
   scrollContent: {
     flexGrow: 1,
     paddingBottom: 20,
+    ...(Platform.OS === 'web' && {
+      minHeight: '100%',
+      paddingBottom: 40, // Extra padding for web
+    }),
   },
   emptyContainer: {
     flex: 1,
