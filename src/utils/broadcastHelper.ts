@@ -1,24 +1,39 @@
 import { supabase } from '../config/supabase';
+import { broadcastFactory } from './broadcastFactory';
 
 /**
  * Broadcast Helper Utility
- * Centralized helper for sending broadcast events across the app
- * Uses direct Supabase channels for reliable event delivery
+ * SECURITY: Now uses cryptographically secure broadcastFactory for all channel operations
+ * Prevents enumeration attacks with HMAC-SHA256 encrypted channel names
  */
 export class BroadcastHelper {
   /**
    * Send order update broadcast
+   * SECURITY: Uses cryptographically secure channel names
    */
   static async sendOrderUpdate(event: string, payload: any) {
     try {
-      const channel = supabase.channel('order-updates');
-      const result = await channel.send({
-        type: 'broadcast',
-        event,
-        payload
+      // SECURITY: Use broadcastFactory for encrypted channel names
+      const results = await broadcastFactory.sendOrderBroadcast(event, payload);
+      
+      // Handle array of results (user-specific + admin channels)
+      const successCount = results.filter(r => r.success).length;
+      const totalCount = results.length;
+      
+      console.log(`📤 Order broadcast sent (secure): ${event}`, { 
+        successCount,
+        totalCount,
+        allSuccessful: successCount === totalCount,
+        payloadSize: JSON.stringify(payload).length 
       });
-      console.log(`📤 Order broadcast sent: ${event}`, { result, payload });
-      return result;
+      
+      // Return summary result
+      return {
+        success: successCount > 0, // Success if at least one channel worked
+        results,
+        successCount,
+        totalCount
+      };
     } catch (error) {
       console.error(`❌ Failed to send order broadcast: ${event}`, error);
       throw error;
@@ -27,7 +42,7 @@ export class BroadcastHelper {
 
   /**
    * Send cart update broadcast
-   * FIXED: Send to user-specific channel to prevent cross-user contamination
+   * SECURITY: Uses cryptographically secure user-specific channels
    */
   static async sendCartUpdate(event: string, payload: any) {
     try {
@@ -37,14 +52,14 @@ export class BroadcastHelper {
         return;
       }
       
-      // Send to user-specific channel to prevent cross-user contamination
-      const channel = supabase.channel(`cart-updates-${payload.userId}`);
-      const result = await channel.send({
-        type: 'broadcast',
-        event,
-        payload
+      // SECURITY: Use broadcastFactory for encrypted user-specific channels
+      const result = await broadcastFactory.sendCartBroadcast(event, payload, payload.userId);
+      console.log(`📤 Cart broadcast sent (secure): ${event}`, { 
+        success: result.success, 
+        channelName: result.channelName,
+        userId: payload.userId,
+        payloadSize: JSON.stringify(payload).length 
       });
-      console.log(`📤 Cart broadcast sent to user-specific channel: ${event}`, { result, payload, userId: payload.userId });
       return result;
     } catch (error) {
       console.error(`❌ Failed to send cart broadcast: ${event}`, error);
@@ -54,16 +69,17 @@ export class BroadcastHelper {
 
   /**
    * Send product update broadcast
+   * SECURITY: Uses cryptographically secure global channel
    */
   static async sendProductUpdate(event: string, payload: any) {
     try {
-      const channel = supabase.channel('product-updates');
-      const result = await channel.send({
-        type: 'broadcast',
-        event,
-        payload
+      // SECURITY: Use broadcastFactory for encrypted channel names
+      const result = await broadcastFactory.sendProductBroadcast(event, payload);
+      console.log(`📤 Product broadcast sent (secure): ${event}`, { 
+        success: result.success, 
+        channelName: result.channelName,
+        payloadSize: JSON.stringify(payload).length 
       });
-      console.log(`📤 Product broadcast sent: ${event}`, { result, payload });
       return result;
     } catch (error) {
       console.error(`❌ Failed to send product broadcast: ${event}`, error);

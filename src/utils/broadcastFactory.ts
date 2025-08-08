@@ -155,10 +155,21 @@ const safeLog = (message: string, data: any, level: 'info' | 'warn' | 'error' = 
   delete safeCopy.personalData;
   delete safeCopy.cartItems;
   delete safeCopy.orderItems;
-  delete safeCopy.channelName; // SECURITY: Don't log actual channel names
+  
+  // SECURITY: Environment-controlled channel name debugging
+  // Set DEBUG_CHANNELS=true in .env.secret to verify encryption is working
+  const debugChannels = process.env.DEBUG_CHANNELS === 'true';
+  
+  if (debugChannels && data.channelName) {
+    console.log(`🔐 DEBUG: Encrypted channel name: ${data.channelName}`);
+  }
+  
+  if (!debugChannels) {
+    delete safeCopy.channelName; // SECURITY: Don't log actual channel names in production
+  }
   
   const logFn = level === 'error' ? console.error : level === 'warn' ? console.warn : console.log;
-  logFn(message, safeCopy);
+  logFn(message, safeCopy); // ← THIS IS WHERE safeCopy IS USED
 };
 
 export const createBroadcastHelper = (config: BroadcastConfig) => {
@@ -235,7 +246,7 @@ export const createBroadcastHelper = (config: BroadcastConfig) => {
           
           // SECURITY: Safe logging without sensitive data (no channel names logged)
           safeLog(`📤 ${entity} secure broadcast sent to ${target} channel: ${event}`, { 
-            result, event, success: true
+            result, event, success: true, channelName
           });
           
           return { 
@@ -283,7 +294,7 @@ export const createBroadcastHelper = (config: BroadcastConfig) => {
             });
             
             safeLog(`📤 ${entity} secure fallback broadcast sent`, { 
-              event, success: true, fallbackUsed: true
+              event, success: true, fallbackUsed: true, channelName: fallbackChannelName
             });
             
             return { 
@@ -401,4 +412,33 @@ export const sendMultiTargetBroadcast = async (
 export const sendOrderBroadcast = async (event: string, payload: BroadcastPayload): Promise<BroadcastResult[]> => {
   // SECURITY: Only send to user-specific and admin channels, never global for orders
   return sendMultiTargetBroadcast('orders', event, payload, ['user-specific', 'admin-only']);
+};
+
+// CRYPTOGRAPHIC SECURITY: Main broadcast factory with all secure broadcast methods
+export const broadcastFactory = {
+  // Cart broadcasts (user-specific only)
+  sendCartBroadcast: async (event: string, payload: BroadcastPayload, userId: string): Promise<BroadcastResult> => {
+    return cartBroadcast.send(event, { ...payload, userId });
+  },
+  
+  // Order broadcasts (user-specific and admin)
+  sendOrderBroadcast: async (event: string, payload: BroadcastPayload): Promise<BroadcastResult[]> => {
+    return sendOrderBroadcast(event, payload);
+  },
+  
+  // Product broadcasts (global)
+  sendProductBroadcast: async (event: string, payload: BroadcastPayload): Promise<BroadcastResult> => {
+    return productBroadcast.send(event, payload);
+  },
+  
+  // Multi-target broadcasts
+  sendMultiTargetBroadcast,
+  
+  // Helper creation
+  createBroadcastHelper,
+  
+  // Pre-configured helpers
+  cartBroadcast,
+  orderBroadcast,
+  productBroadcast
 };

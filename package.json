@@ -50,6 +50,7 @@
     "@babel/core": "^7.25.2",
     "@testing-library/jest-native": "^5.4.3",
     "@testing-library/react-native": "^13.2.2",
+    "@types/crypto-js": "^4.2.2",
     "@types/jest": "^30.0.0",
     "@types/react": "~19.0.10",
     "@types/uuid": "^10.0.0",
