@@ -1,4 +1,4 @@
-import 'dotenv/config';
+require('dotenv').config();
 
 // Load additional environment files
 const fs = require('fs');
@@ -21,16 +21,16 @@ function loadSecretEnv() {
         }
       }
     });
-    console.log('🔐 .env.secret loaded successfully');
+    console.log(' .env.secret loaded successfully');
   } else {
-    console.warn('⚠️  .env.secret not found - cryptographic security may not work');
+    console.warn(' .env.secret not found - cryptographic security may not work');
   }
 }
 
 // Load secret environment variables
 loadSecretEnv();
 
-export default {
+module.exports = {
   expo: {
     name: "myfarmstand-mobile",
     slug: "myfarmstand-mobile",
