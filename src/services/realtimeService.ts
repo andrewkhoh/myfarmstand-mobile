@@ -194,7 +194,7 @@ export class RealtimeService {
     
     this.subscribeToOrderUpdates();
     this.subscribeToProductUpdates();
-    // this.subscribeToCartUpdates(); -
+    this.subscribeToCartUpdates(); 
     
     this.isInitialized = true;
     console.log('✅ All broadcast subscriptions initialized');

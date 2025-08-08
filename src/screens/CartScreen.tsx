@@ -6,12 +6,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { Screen, Text, Card, Button } from '../components';
 import { useCart } from '../hooks/useCart';
 import { spacing, colors, borderRadius } from '../utils/theme';
-import { CartItem, RootStackParamList } from '../types';
+import { CartItem, Product, RootStackParamList } from '../types';
 
 type CartScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Checkout'>;
 
 export const CartScreen: React.FC = () => {
-  const { items, total, updateQuantity, removeItem, clearCart } = useCart();
+  const { items, total, updateQuantity, removeItem, clearCart, addItem } = useCart();
   const navigation = useNavigation<CartScreenNavigationProp>();
 
   const handleQuantityChange = async (productId: string, newQuantity: number) => {
@@ -25,6 +25,16 @@ export const CartScreen: React.FC = () => {
       }
     } catch (error) {
       console.error('❌ CART SCREEN - handleQuantityChange error:', error);
+    }
+  };
+
+  // New atomic increment handler - uses same approach as ProductDetailScreen/ShopScreen
+  const handleAtomicIncrement = async (product: Product) => {
+    try {
+      // Use atomic addItem(product, 1) - same as working screens
+      await addItem({ product, quantity: 1 });
+    } catch (error) {
+      console.error('❌ CART SCREEN - handleAtomicIncrement error:', error);
     }
   };
 
@@ -97,7 +107,7 @@ export const CartScreen: React.FC = () => {
             <Text variant="body" color="secondary" style={styles.itemPrice}>
               ${item.product.price.toFixed(2)} each
             </Text>
-            {item.product.unit && (
+            {Boolean(item.product.unit) && (
               <Text variant="caption" color="tertiary">
                 per {item.product.unit}
               </Text>
@@ -109,7 +119,7 @@ export const CartScreen: React.FC = () => {
                   : 'Out of stock'
                 } ({item.quantity} in cart)
               </Text>
-              {item.quantity >= item.product.stock && item.product.stock > 0 && (
+              {Boolean(item.quantity >= item.product.stock && item.product.stock > 0 ) && (
                 <Text variant="caption" style={styles.stockLimitText}>
                   ⚠️ All available stock in cart
                 </Text>
@@ -145,7 +155,8 @@ export const CartScreen: React.FC = () => {
                 ]}
                 onPress={() => {
                   if (canIncrease) {
-                    handleQuantityChange(item.product.id, item.quantity + 1);
+                    // Use atomic addItem approach - same as ProductDetailScreen/ShopScreen
+                    handleAtomicIncrement(item.product);
                   } else {
                     handleDisabledIncrementTap(item);
                   }
@@ -186,7 +197,7 @@ export const CartScreen: React.FC = () => {
           {items.length} {items.length === 1 ? 'item' : 'items'}
         </Text>
       </View>
-      {items.length > 0 && (
+      {Boolean(items.length > 0) && (
         <TouchableOpacity
           style={styles.clearButton}
           onPress={handleClearCart}

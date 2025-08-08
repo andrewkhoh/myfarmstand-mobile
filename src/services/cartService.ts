@@ -151,11 +151,11 @@ export const cartService = {
         throw new Error('User must be authenticated to save cart');
       }
       
-      // User is authenticated - save cart to Supabase using atomic UPSERT
+      // User is authenticated - save cart to Supabase using pure UPSERT
       console.log('💾 Saving cart to Supabase for user:', user.id);
       
       if (cart.items.length > 0) {
-        // Use UPSERT (INSERT with ON CONFLICT UPDATE) for atomic cart operations
+        // Use pure UPSERT - truly atomic for each cart item
         const cartItemsToUpsert = cart.items.map(item => ({
           user_id: user.id,
           product_id: item.product.id,
@@ -171,16 +171,6 @@ export const cartService = {
         if (error) {
           console.warn('Failed to save cart to Supabase:', error);
           throw error; // Let React Query handle retries
-        }
-        
-        // Remove any cart items not in the current cart (for items that were removed)
-        const productIds = cart.items.map(item => item.product.id);
-        if (productIds.length > 0) {
-          await supabase
-            .from('cart_items')
-            .delete()
-            .eq('user_id', user.id)
-            .not('product_id', 'in', `(${productIds.map(id => `"${id}"`).join(',')})`);
         }
       } else {
         // Cart is empty - clear all items for this user
@@ -204,153 +194,204 @@ export const cartService = {
     }
   },
 
-  // Add item to cart
-  addItem: async (product: Product, quantity: number = 1): Promise<{ success: boolean; message?: string; cart: CartState }> => {
-    const currentCart = await cartService.getCart();
-    const existingItemIndex = currentCart.items.findIndex(item => item.product.id === product.id);
-    
-    let currentQuantity = 0;
-    if (existingItemIndex >= 0) {
-      currentQuantity = currentCart.items[existingItemIndex].quantity;
-    }
-    
-    // Validate stock
-    const validation = validateStock(product, quantity, currentQuantity);
-    if (!validation.isValid) {
+  // Add item to cart - Atomic operation using database function
+  addItem: async (product: Product, quantity: number = 1): Promise<{ success: boolean; message?: string }> => {
+    try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        return {
+          success: false,
+          message: 'User must be authenticated to add items to cart'
+        };
+      }
+
+      // Single Atomic Operation - Use database function for true atomicity
+      const { error } = await supabase
+        .rpc('upsert_cart_item', {
+          input_user_id: user.id,
+          input_product_id: product.id,
+          input_quantity_to_add: quantity
+        });
+
+      if (error) {
+        console.error('Error adding item to cart:', error);
+        return {
+          success: false,
+          message: `Failed to add item to cart: ${error.message}`
+        };
+      }
+
+      // Broadcast cart update for cross-device sync
+      try {
+        await BroadcastHelper.sendCartUpdate('cart-item-added', {
+          productId: product.id,
+          quantity,
+          userId: user.id
+        });
+      } catch (error) {
+        console.warn('Failed to broadcast cart update:', error);
+      }
+
+      return {
+        success: true
+      };
+    } catch (error) {
+      console.error('Error in addItem:', error);
       return {
         success: false,
-        message: validation.message,
-        cart: currentCart
+        message: 'Failed to add item to cart. Please try again.'
       };
     }
-    
-    // Add or update item - FIXED: Match optimistic update calculation
-    const newItems = [...currentCart.items];
-    if (existingItemIndex >= 0) {
-      // Calculate the same way as optimistic update to avoid double-addition
-      const newQuantity = currentQuantity + quantity;
-      newItems[existingItemIndex] = {
-        ...newItems[existingItemIndex],
-        quantity: newQuantity
+  },
+
+  // Remove item from cart - Atomic operation
+  removeItem: async (productId: string): Promise<{ success: boolean; message?: string }> => {
+    try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        return {
+          success: false,
+          message: 'User must be authenticated to remove items from cart'
+        };
+      }
+
+      // Atomic DELETE operation
+      const { error } = await supabase
+        .from('cart_items')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('product_id', productId);
+
+      if (error) {
+        console.error('Error removing cart item:', error);
+        return {
+          success: false,
+          message: `Failed to remove item: ${error.message}`
+        };
+      }
+
+      // Broadcast cart update for cross-device sync
+      try {
+        await BroadcastHelper.sendCartUpdate('cart-item-removed', {
+          productId,
+          userId: user.id
+        });
+      } catch (error) {
+        console.warn('Failed to broadcast cart update:', error);
+      }
+
+      return {
+        success: true
       };
-    } else {
-      newItems.push({ product, quantity });
-    }
-    
-    const newCart = { items: newItems, total: calculateTotal(newItems) };
-    const savedCart = await cartService.saveCart(newCart);
-    
-    
-    // Broadcast cart update for cross-device sync
-    try {
-      await BroadcastHelper.sendCartUpdate('cart-item-added', {
-        productId: product.id,
-        quantity,
-        cartTotal: savedCart.total,
-        itemCount: savedCart.items.length
-      });
     } catch (error) {
-      console.warn('Failed to broadcast cart update:', error);
-    }
-
-    return {
-      success: true,
-      cart: savedCart
-    };
-  },
-
-  // Remove item from cart
-  removeItem: async (productId: string): Promise<{ success: boolean; message?: string; cart: CartState }> => {
-    const currentCart = await cartService.getCart();
-    const newItems = currentCart.items.filter(item => item.product.id !== productId);
-    const newCart = { items: newItems, total: calculateTotal(newItems) };
-    const savedCart = await cartService.saveCart(newCart);
-    
-    // Broadcast cart update for cross-device sync
-    try {
-      await BroadcastHelper.sendCartUpdate('cart-item-removed', {
-        productId,
-        cartTotal: savedCart.total,
-        itemCount: savedCart.items.length
-      });
-    } catch (error) {
-      console.warn('Failed to broadcast cart update:', error);
-    }
-    
-    return {
-      success: true,
-      cart: savedCart
-    };
-  },
-
-  // Update item quantity
-  updateQuantity: async (productId: string, quantity: number): Promise<{ success: boolean; message?: string; cart: CartState }> => {
-    const currentCart = await cartService.getCart();
-    const existingItemIndex = currentCart.items.findIndex(item => item.product.id === productId);
-    
-    if (existingItemIndex < 0) {
+      console.error('Error in removeItem:', error);
       return {
         success: false,
-        message: 'Item not found in cart',
-        cart: currentCart
+        message: 'Failed to remove item. Please try again.'
       };
     }
-    
-    const existingItem = currentCart.items[existingItemIndex];
-    
-    // Validate stock for new quantity
-    const validation = validateStock(existingItem.product, quantity, 0);
-    if (!validation.isValid) {
-      return {
-        success: false,
-        message: validation.message,
-        cart: currentCart
-      };
-    }
-    
-    const newItems = [...currentCart.items];
-    newItems[existingItemIndex] = { ...existingItem, quantity };
-    
-    const newCart = { items: newItems, total: calculateTotal(newItems) };
-    const savedCart = await cartService.saveCart(newCart);
-    
-    
-    // Broadcast cart update for cross-device sync
-    try {
-      await BroadcastHelper.sendCartUpdate('cart-quantity-updated', {
-        productId,
-        quantity,
-        cartTotal: savedCart.total,
-        itemCount: savedCart.items.length
-      });
-    } catch (error) {
-      console.warn('Failed to broadcast cart update:', error);
-    }
-
-    return {
-      success: true,
-      cart: savedCart
-    };
   },
 
-  // Clear cart
-  clearCart: async (): Promise<{ success: boolean; message?: string; cart: CartState }> => {
-    const emptyCart = { items: [], total: 0 };
-    const savedCart = await cartService.saveCart(emptyCart);
-    
-    // Broadcast cart update for cross-device sync
+  // Update item quantity - Atomic operation
+  updateQuantity: async (productId: string, quantity: number): Promise<{ success: boolean; message?: string }> => {
     try {
-      await BroadcastHelper.sendCartUpdate('cart-cleared', {
-        cartTotal: savedCart.total,
-        itemCount: savedCart.items.length
-      });
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        return {
+          success: false,
+          message: 'User must be authenticated to update cart'
+        };
+      }
+
+      // Atomic UPDATE operation - set exact quantity
+      const { error } = await supabase
+        .from('cart_items')
+        .update({ quantity })
+        .eq('user_id', user.id)
+        .eq('product_id', productId);
+
+      if (error) {
+        console.error('Error updating cart item quantity:', error);
+        return {
+          success: false,
+          message: `Failed to update quantity: ${error.message}`
+        };
+      }
+
+      // Broadcast cart update for cross-device sync
+      try {
+        await BroadcastHelper.sendCartUpdate('cart-quantity-updated', {
+          productId,
+          quantity,
+          userId: user.id
+        });
+      } catch (error) {
+        console.warn('Failed to broadcast cart update:', error);
+      }
+
+      return {
+        success: true
+      };
     } catch (error) {
-      console.warn('Failed to broadcast cart update:', error);
+      console.error('Error in updateQuantity:', error);
+      return {
+        success: false,
+        message: 'Failed to update quantity. Please try again.'
+      };
     }
-    
-    return {
-      success: true,
-      cart: savedCart
-    };
+  },
+
+  // Clear cart - Atomic operation
+  clearCart: async (): Promise<{ success: boolean; message?: string }> => {
+    try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        return {
+          success: false,
+          message: 'User must be authenticated to clear cart'
+        };
+      }
+
+      // Atomic DELETE operation - remove all cart items for user
+      const { error } = await supabase
+        .from('cart_items')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error('Error clearing cart:', error);
+        return {
+          success: false,
+          message: `Failed to clear cart: ${error.message}`
+        };
+      }
+
+      // Broadcast cart update for cross-device sync
+      try {
+        await BroadcastHelper.sendCartUpdate('cart-cleared', {
+          userId: user.id
+        });
+      } catch (error) {
+        console.warn('Failed to broadcast cart update:', error);
+      }
+
+      return {
+        success: true
+      };
+    } catch (error) {
+      console.error('Error in clearCart:', error);
+      return {
+        success: false,
+        message: 'Failed to clear cart. Please try again.'
+      };
+    }
   }
 };

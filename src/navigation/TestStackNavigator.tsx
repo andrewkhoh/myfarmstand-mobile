@@ -21,6 +21,7 @@ import {
   SimpleBroadcastTest,
 } from '../screens';
 import BackendIntegrationTestScreen from '../screens/testScreens/BackendIntegrationTestScreen';
+import CartRPCTest from '../tests/CartRPCTest';
 
 export type TestStackParamList = {
   TestHub: undefined;
@@ -42,6 +43,7 @@ export type TestStackParamList = {
   SimpleBroadcastTest: undefined;
   AutomatedTest: undefined;
   BackendIntegrationTest: undefined;
+  CartRPCTest: undefined;
 };
 
 const Stack = createStackNavigator<TestStackParamList>();
@@ -179,6 +181,14 @@ export const TestStackNavigator: React.FC = () => {
         component={BackendIntegrationTestScreen}
         options={{
           title: 'Backend Integration Test',
+          headerBackTitle: 'Tests',
+        }}
+      />
+      <Stack.Screen 
+        name="CartRPCTest" 
+        component={CartRPCTest}
+        options={{
+          title: 'Cart RPC Function Test',
           headerBackTitle: 'Tests',
         }}
       />

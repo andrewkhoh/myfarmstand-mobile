@@ -165,7 +165,7 @@ export const OrderConfirmationScreen: React.FC = () => {
           </Text>
         </View>
         
-        {order.fulfillmentType === 'pickup' && (
+        {Boolean(order.fulfillmentType === 'pickup') && (
           <>
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Pickup Date:</Text>
@@ -179,14 +179,14 @@ export const OrderConfirmationScreen: React.FC = () => {
           </>
         )}
         
-        {order.fulfillmentType === 'delivery' && order.deliveryAddress && (
+        {Boolean(order.fulfillmentType === 'delivery' && order.deliveryAddress) && (
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Delivery Address:</Text>
             <Text style={styles.detailValue}>{order.deliveryAddress}</Text>
           </View>
         )}
         
-        {order.notes && (
+        {Boolean(order.notes) && (
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Notes:</Text>
             <Text style={styles.detailValue}>{order.notes}</Text>

@@ -425,7 +425,7 @@ export const CheckoutScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
         
-        {fulfillmentType === 'pickup' && (
+        {Boolean(fulfillmentType === 'pickup') && (
           <View>
             <Text style={styles.subSectionTitle}>When would you like to pick up your order?</Text>
             
@@ -471,13 +471,13 @@ export const CheckoutScreen: React.FC = () => {
                     month: 'short', 
                     day: 'numeric' 
                   })}
-                  {getRelativeDateText(pickupDate) && (
+                  {Boolean(getRelativeDateText(pickupDate)) && (
                     <Text style={styles.relativeDateText}> ({getRelativeDateText(pickupDate)})</Text>
                   )}
                 </Text>
                 <Text style={styles.editIcon}>✏️</Text>
               </TouchableOpacity>
-              {errors.pickupDate && <Text style={styles.errorText}>{errors.pickupDate}</Text>}
+              {Boolean(errors.pickupDate) && <Text style={styles.errorText}>{errors.pickupDate}</Text>}
             </View>
             
             {/* Pickup Time Selection */}
@@ -510,7 +510,7 @@ export const CheckoutScreen: React.FC = () => {
           </View>
         )}
         
-        {fulfillmentType === 'delivery' && (
+        {Boolean(fulfillmentType === 'delivery') && (
           <View>
             <Text style={styles.subSectionTitle}>Delivery Address</Text>
             <TextInput
@@ -524,7 +524,7 @@ export const CheckoutScreen: React.FC = () => {
               multiline
               numberOfLines={3}
             />
-            {errors.deliveryAddress && <Text style={styles.errorText}>{errors.deliveryAddress}</Text>}
+            {Boolean(errors.deliveryAddress) && <Text style={styles.errorText}>{errors.deliveryAddress}</Text>}
             
             <Text style={styles.deliveryNote}>
               💡 Please include apartment/unit number, special delivery instructions, etc.

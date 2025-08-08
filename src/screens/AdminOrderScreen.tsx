@@ -146,7 +146,7 @@ const AdminOrderScreen: React.FC = () => {
             <Text style={styles.fulfillmentText}>
               {order.fulfillmentType === 'pickup' ? 'Pickup' : 'Delivery'}
             </Text>
-            {order.pickupDate && (
+            {Boolean(order.pickupDate) && (
               <Text style={styles.fulfillmentDetails}>
                 {order.pickupDate} at {order.pickupTime}
               </Text>
@@ -187,7 +187,7 @@ const AdminOrderScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
 
-        {isSelected && (
+        {Boolean(isSelected) && (
           <View style={styles.selectionIndicator}>
             <Ionicons name="checkmark-circle" size={26} color="#059669" />
           </View>
@@ -307,7 +307,7 @@ const AdminOrderScreen: React.FC = () => {
         >
           <View style={styles.tabContent}>
             <Text style={[styles.tabFilterText, !filters.status && styles.tabFilterActiveText]}>All</Text>
-            {allOrders.length > 0 && (
+            {Boolean(allOrders.length > 0) && (
               <View style={[styles.tabBadgeInline, !filters.status && styles.tabBadgeActive]}>
                 <Text style={styles.tabBadgeText}>{allOrders.length}</Text>
               </View>
@@ -325,7 +325,7 @@ const AdminOrderScreen: React.FC = () => {
         >
           <View style={styles.tabContent}>
             <Text style={[styles.tabFilterText, filters.status === 'pending' && styles.tabFilterActiveText]}>Pending</Text>
-            {allOrders.filter((order: Order) => order.status === 'pending').length > 0 && (
+            {Boolean(allOrders.filter((order: Order) => order.status === 'pending').length > 0) && (
               <View style={[styles.tabBadgeInline, styles.tabBadgePending, filters.status === 'pending' && styles.tabBadgeActive]}>
                 <Text style={styles.tabBadgeText}>{allOrders.filter((order: Order) => order.status === 'pending').length}</Text>
               </View>
@@ -343,7 +343,7 @@ const AdminOrderScreen: React.FC = () => {
         >
           <View style={styles.tabContent}>
             <Text style={[styles.tabFilterText, filters.status === 'confirmed' && styles.tabFilterActiveText]}>Confirmed</Text>
-            {allOrders.filter((order: Order) => order.status === 'confirmed').length > 0 && (
+            {Boolean(allOrders.filter((order: Order) => order.status === 'confirmed').length > 0) && (
               <View style={[styles.tabBadgeInline, styles.tabBadgeConfirmed, filters.status === 'confirmed' && styles.tabBadgeActive]}>
                 <Text style={styles.tabBadgeText}>{allOrders.filter((order: Order) => order.status === 'confirmed').length}</Text>
               </View>
@@ -361,7 +361,7 @@ const AdminOrderScreen: React.FC = () => {
         >
           <View style={styles.tabContent}>
             <Text style={[styles.tabFilterText, filters.status === 'ready' && styles.tabFilterActiveText]}>Ready</Text>
-            {allOrders.filter((order: Order) => order.status === 'ready').length > 0 && (
+            {Boolean(allOrders.filter((order: Order) => order.status === 'ready').length > 0) && (
               <View style={[styles.tabBadgeInline, styles.tabBadgeReady, filters.status === 'ready' && styles.tabBadgeActive]}>
                 <Text style={styles.tabBadgeText}>{allOrders.filter((order: Order) => order.status === 'ready').length}</Text>
               </View>
@@ -372,7 +372,7 @@ const AdminOrderScreen: React.FC = () => {
 
       {renderFilters()}
 
-      {selectedOrders.length > 0 && (
+      {Boolean(selectedOrders.length > 0) && (
         <View style={styles.bulkActions}>
           <Text style={styles.bulkActionsText}>
             {selectedOrders.length} order{selectedOrders.length !== 1 ? 's' : ''} selected
@@ -423,7 +423,7 @@ const AdminOrderScreen: React.FC = () => {
         }
       />
 
-      {isUpdating && (
+      {Boolean(isUpdating) && (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color="#3b82f6" />
           <Text style={styles.loadingText}>Updating orders...</Text>

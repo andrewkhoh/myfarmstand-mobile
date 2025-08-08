@@ -132,6 +132,7 @@ const testCategories: TestCategory[] = [
       { name: 'Broadcast Architecture Test', screen: 'BroadcastArchitectureTest' },
       { name: 'Simple Broadcast Test', screen: 'SimpleBroadcastTest' },
       { name: 'Backend Integration Test', screen: 'BackendIntegrationTest' },
+      { name: 'Cart RPC Function Test', screen: 'CartRPCTest' },
     ],
   },
   {

@@ -85,10 +85,10 @@ export const ShopScreen: React.FC = () => {
     navigation.navigate('ProductDetail', { productId: product.id });
   };
 
-  const handleAddToCart = (product: Product) => {
+  const handleAddToCart = async (product: Product) => {
     try {
-      // Use direct mutation - React Query handles optimistic updates and error handling
-      addItem({ product, quantity: 1 });
+      // Use async/await pattern like CartScreen for consistent behavior
+      await addItem({ product, quantity: 1 });
     } catch (error) {
       console.error('Failed to add item to cart:', error);
     }
@@ -171,7 +171,7 @@ export const ShopScreen: React.FC = () => {
         >
           {getSortLabel(option)}
         </Text>
-        {isSelected && (
+        {Boolean(isSelected) && (
           <Ionicons name="checkmark" size={16} color={colors.primary[600]} />
         )}
       </TouchableOpacity>
@@ -221,7 +221,7 @@ export const ShopScreen: React.FC = () => {
       </View>
 
       {/* Filters Panel */}
-      {showFilters && (
+      {Boolean(showFilters) && (
         <Card variant="elevated" style={styles.filtersCard}>
           <View style={styles.filtersHeader}>
             <Text variant="heading3">Sort By</Text>
@@ -242,12 +242,12 @@ export const ShopScreen: React.FC = () => {
             : 'All Products'
           }
         </Text>
-        {searchQuery && (
+        {Boolean(searchQuery) && (
           <Text variant="body" color="secondary">
             Showing results for "{searchQuery}"
           </Text>
         )}
-        {selectedCategory !== 'all' && !searchQuery && (
+        {Boolean(selectedCategory !== 'all' && !searchQuery) && (
           <Text variant="body" color="secondary">
             Category: {selectedCategory}
           </Text>

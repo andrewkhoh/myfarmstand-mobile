@@ -77,8 +77,8 @@ export const ProductDetailScreen: React.FC = () => {
 
   const handleAddToCart = async () => {
     try {
-      // Use direct mutation - React Query handles optimistic updates and error handling
-      addItem({ product, quantity: 1 });
+      // Use async/await pattern like CartScreen for consistent behavior
+      await addItem({ product, quantity: 1 });
     } catch (error) {
       console.error('Failed to add item to cart:', error);
       Alert.alert('Error', 'Failed to add item to cart. Please try again.');
@@ -89,7 +89,7 @@ export const ProductDetailScreen: React.FC = () => {
     <Screen>
       <ScrollView style={styles.container}>
         <View style={styles.imageContainer}>
-          {imageLoading && (
+          {Boolean(imageLoading) && (
             <View style={[styles.image, styles.imagePlaceholder]}>
               <Text variant="body" color="secondary">Loading image...</Text>
             </View>
@@ -147,14 +147,14 @@ export const ProductDetailScreen: React.FC = () => {
               <Text variant="body" weight="medium">Stock:</Text>
               <Text variant="body" color={isOutOfStock ? "error" : "secondary"}>
                 {availableStock > 0 ? `${availableStock} available` : 'Out of stock'}
-                {cartQuantity > 0 && (
+                {Boolean(cartQuantity > 0) && (
                   <Text variant="body" color="tertiary">
                     {' '}({cartQuantity} in cart)
                   </Text>
                 )}
               </Text>
             </View>
-            {product.seasonalAvailability && (
+            {Boolean(product.seasonalAvailability) && (
               <View style={styles.infoRow}>
                 <Text variant="body" weight="medium">Seasonal:</Text>
                 <Text variant="body" color="success">In season</Text>

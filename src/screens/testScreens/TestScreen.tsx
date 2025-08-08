@@ -121,7 +121,7 @@ export const TestScreen: React.FC = () => {
         </Card>
       </View>
 
-      {showLoading && <Loading overlay message="Testing loading..." />}
+      {Boolean(showLoading) && <Loading overlay message="Testing loading..." />}
       {showToast && (
         <Toast
           type="success"

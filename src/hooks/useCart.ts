@@ -8,7 +8,7 @@ export const CART_QUERY_KEY = ['cart'];
 export const useCart = () => {
   const queryClient = useQueryClient();
 
-  // Get cart query
+  // Get cart query - works with atomic database operations
   const {
     data: cart = { items: [], total: 0 },
     isLoading,
@@ -23,7 +23,7 @@ export const useCart = () => {
     refetchOnWindowFocus: false,
   });
 
-  // Add item mutation - Complete Pattern B with optimistic updates
+  // Add item mutation - Atomic operation with optimistic updates
   const addItemMutation = useMutation({
     mutationFn: ({ product, quantity = 1 }: { product: Product; quantity?: number }) =>
       cartService.addItem(product, quantity),
@@ -59,7 +59,7 @@ export const useCart = () => {
       return { previousCart };
     },
     onSuccess: () => {
-      // 4. Invalidate for server sync
+      // 4. Invalidate for server sync - atomic operation completed
       queryClient.invalidateQueries({ queryKey: CART_QUERY_KEY });
     },
     onError: (error, variables, context) => {
@@ -101,7 +101,7 @@ export const useCart = () => {
       }
     },
   });
-  // Update quantity mutation - Complete Pattern B with optimistic updates
+  // Update quantity mutation - Atomic operation with optimistic updates
   const updateQuantityMutation = useMutation({
     mutationFn: ({ productId, quantity }: { productId: string; quantity: number }) =>
       cartService.updateQuantity(productId, quantity),
@@ -127,7 +127,7 @@ export const useCart = () => {
       return { previousCart };
     },
     onSuccess: () => {
-      // 4. Invalidate for server sync
+      // 4. Invalidate to confirm atomic operation completed
       queryClient.invalidateQueries({ queryKey: CART_QUERY_KEY });
     },
     onError: (error, variables, context) => {
@@ -140,7 +140,7 @@ export const useCart = () => {
   });
 
 
-  // Clear cart mutation with optimistic updates
+  // Clear cart mutation - Atomic operation with optimistic updates
   const clearCartMutation = useMutation({
     mutationFn: cartService.clearCart,
     onMutate: async () => {
@@ -157,7 +157,7 @@ export const useCart = () => {
       return { previousCart };
     },
     onSuccess: () => {
-      // Get fresh server data to confirm empty state
+      // Invalidate to confirm atomic operation completed
       queryClient.invalidateQueries({ queryKey: CART_QUERY_KEY });
     },
     onError: (error: any, variables: any, context: any) => {

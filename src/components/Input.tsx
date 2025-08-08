@@ -29,7 +29,7 @@ export const Input: React.FC<InputProps> = ({
 
   return (
     <View style={[styles.container, containerStyle]}>
-      {label && <Text style={styles.label}>{label}</Text>}
+      {Boolean(label) && <Text style={styles.label}>{label}</Text>}
       <TextInput
         style={inputStyles}
         onFocus={() => setIsFocused(true)}
@@ -37,7 +37,7 @@ export const Input: React.FC<InputProps> = ({
         placeholderTextColor={colors.text.tertiary}
         {...props}
       />
-      {error && <Text style={styles.errorText}>{error}</Text>}
+      {Boolean(error) && <Text style={styles.errorText}>{error}</Text>}
     </View>
   );
 };

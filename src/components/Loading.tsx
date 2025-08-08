@@ -19,7 +19,7 @@ export const Loading: React.FC<LoadingProps> = ({
   return (
     <View style={containerStyle}>
       <ActivityIndicator size={size} color={colors.primary[600]} />
-      {message && (
+      {Boolean(message) && (
         <Text variant="body" color="secondary" style={styles.message}>
           {message}
         </Text>

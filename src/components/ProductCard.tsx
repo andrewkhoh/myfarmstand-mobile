@@ -32,14 +32,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             style={styles.image}
             resizeMode="cover"
           />
-          {product.isWeeklySpecial && (
+          {Boolean(product.isWeeklySpecial) && (
             <View style={styles.specialBadge}>
               <Text variant="caption" color="inverse" weight="bold">
                 SPECIAL
               </Text>
             </View>
           )}
-          {product.isBundle && (
+          {Boolean(product.isBundle) && (
             <View style={styles.bundleBadge}>
               <Text variant="caption" color="inverse" weight="bold">
                 BUNDLE
@@ -64,7 +64,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               </Text>
               <Text variant="caption" color="secondary">
                 {availableStock > 0 ? `${availableStock} available` : 'Out of stock'}
-                {cartQuantity > 0 && (
+                {Boolean(cartQuantity > 0) && (
                   <Text variant="caption" color="tertiary">
                     {' '}({cartQuantity} in cart)
                   </Text>
