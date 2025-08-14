@@ -10,7 +10,6 @@
     "moduleResolution": "node",
     "allowJs": true,
     "declaration": false,
-    "jsx": "react-native",
     "skipLibCheck": true
   },
   "ts-node": {
