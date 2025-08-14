@@ -27,7 +27,7 @@ interface BroadcastResult {
 }
 
 // SECURITY: Cryptographic channel name generation
-class SecureChannelNameGenerator {
+export class SecureChannelNameGenerator {
   private static readonly CHANNEL_SECRET = (() => {
     // SECURITY: Load from Expo Constants (loaded from .env.secret via app.config.js)
     // This ensures cryptographic keys are available in both development and production
@@ -43,7 +43,7 @@ class SecureChannelNameGenerator {
         '4. Ensure app.config.js loads .env.secret (should be automatic)\n' +
         '5. Ensure .env.secret is in .gitignore (never commit secrets!)\n\n' +
         'The .env.secret file should contain:\n' +
-        'EXPO_PUBLIC_CHANNEL_SECRET=<your-64-character-hex-key-here>'
+        'EXPO_PUBLIC_CHANNEL_SECRET=<your-64-character-hex-key-hhttp://localhost:8082/Main/Cartere>'
       );
     }
     if (secret.length < 32) {
@@ -158,13 +158,18 @@ const safeLog = (message: string, data: any, level: 'info' | 'warn' | 'error' = 
   
   // SECURITY: Environment-controlled channel name debugging
   // Set DEBUG_CHANNELS=true in .env.secret to verify encryption is working
-  const debugChannels = process.env.DEBUG_CHANNELS === 'true';
+  const debugChannels = Constants.expoConfig?.extra?.debugChannels === 'true';
   
-  if (debugChannels && data.channelName) {
+  // PRODUCTION SAFETY: Never log in production unless explicitly enabled
+  const nodeEnv = Constants.expoConfig?.extra?.nodeEnv || 'development';
+  const isProduction = nodeEnv === 'production';
+  const shouldDebug = debugChannels && !isProduction;
+  
+  if (shouldDebug && data.channelName) {
     console.log(`🔐 DEBUG: Encrypted channel name: ${data.channelName}`);
   }
   
-  if (!debugChannels) {
+  if (!shouldDebug) {
     delete safeCopy.channelName; // SECURITY: Don't log actual channel names in production
   }
   
@@ -181,7 +186,7 @@ export const createBroadcastHelper = (config: BroadcastConfig) => {
       case 'cart':
         return ['userId', 'productId', 'quantity', 'timestamp', 'action'];
       case 'orders':
-        return ['userId', 'orderId', 'status', 'timestamp', 'action'];
+        return ['userId', 'orderId', 'status', 'fulfillmentType', 'timestamp', 'action'];
       case 'products':
         return ['productId', 'action', 'timestamp']; // No userId for global products
       default:

@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.ts",
   "scripts": {
-    "start": "expo start",
+    "start": "expo start --clear",
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
@@ -11,7 +11,17 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:checkout": "jest CheckoutScreen",
-    "test:confirmation": "jest OrderConfirmationScreen"
+    "test:confirmation": "jest OrderConfirmationScreen",
+    "audit-and-fix": "ts-node automation/workflow-runner.ts",
+    "audit-services": "ts-node automation/audit-services.ts",
+    "validate-schemas": "ts-node automation/schema-validator.ts",
+    "generate-fixes": "ts-node automation/pattern-fixer.ts",
+    "apply-fixes": "ts-node automation/pattern-fixer.ts --apply",
+    "generate-tests": "ts-node automation/test-generator.ts",
+    "quick-audit": "ts-node automation/workflow-runner.ts quick",
+    "full-automation": "ts-node automation/workflow-runner.ts full",
+    "audit-only": "ts-node automation/workflow-runner.ts audit",
+    "fix-only": "ts-node automation/workflow-runner.ts fix"
   },
   "dependencies": {
     "@expo/metro-runtime": "~5.0.4",
@@ -52,9 +62,11 @@
     "@testing-library/react-native": "^13.2.2",
     "@types/crypto-js": "^4.2.2",
     "@types/jest": "^30.0.0",
+    "@types/node": "^24.2.1",
     "@types/react": "~19.0.10",
     "@types/uuid": "^10.0.0",
     "jest-expo": "^53.0.9",
+    "ts-node": "^10.9.2",
     "typescript": "~5.8.3"
   },
   "private": true

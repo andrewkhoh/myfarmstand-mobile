@@ -1,7 +1,9 @@
-import { CreateOrderRequest, Order, OrderSubmissionResult, FulfillmentType, OrderStatus } from '../types';
+import { CreateOrderRequest, Order, OrderSubmissionResult, FulfillmentType, OrderStatus, OrderItem, PaymentMethod, PaymentStatus } from '../types';
 import { supabase } from '../config/supabase';
-import { v4 as uuidv4 } from 'uuid';
 import { sendOrderBroadcast } from '../utils/broadcastFactory';
+import { sendPickupReadyNotification, sendOrderConfirmationNotification } from './notificationService';
+import { restoreOrderStock, verifyRestorationNeeded } from './stockRestorationService';
+import { v4 as uuidv4 } from 'uuid';
 
 // Calculate tax (8.5% for example)
 const calculateTax = (subtotal: number): number => {
@@ -100,6 +102,14 @@ export const submitOrder = async (orderRequest: CreateOrderRequest): Promise<Ord
       };
     }
     
+    // Validate payment method
+    if (!orderRequest.paymentMethod) {
+      return {
+        success: false,
+        error: 'Payment method is required'
+      };
+    }
+    
     // Validate fulfillment details
     if (orderRequest.fulfillmentType === 'delivery' && !orderRequest.deliveryAddress) {
       return {
@@ -118,6 +128,10 @@ export const submitOrder = async (orderRequest: CreateOrderRequest): Promise<Ord
     const tax = calculateTax(subtotal);
     const total = subtotal + tax;
     
+    // Determine payment status based on payment method
+    // Option A: Payment at checkout - online payments are processed immediately
+    const paymentStatus: PaymentStatus = orderRequest.paymentMethod === 'online' ? 'paid' : 'pending';
+    
     // Get current user for order association
     const { data: { user } } = await supabase.auth.getUser();
     
@@ -130,6 +144,15 @@ export const submitOrder = async (orderRequest: CreateOrderRequest): Promise<Ord
       total_price: item.subtotal
     }));
 
+    // Process online payment if selected (Option A: Payment at Checkout)
+    if (orderRequest.paymentMethod === 'online') {
+      // TODO: Integrate with payment processor (Stripe, Square, etc.)
+      // For now, we'll simulate successful payment processing
+      console.log('🔄 Processing online payment for order total:', total);
+      // In production, this would call your payment processor API
+      // const paymentResult = await processPayment({ amount: total, ... });
+    }
+    
     // ATOMIC ORDER SUBMISSION: Single RPC call eliminates race conditions
     const { data: result, error } = await supabase.rpc('submit_order_atomic', {
       p_order_id: uuidv4(),
@@ -141,6 +164,8 @@ export const submitOrder = async (orderRequest: CreateOrderRequest): Promise<Ord
       p_tax_amount: tax,
       p_total_amount: total,
       p_fulfillment_type: orderRequest.fulfillmentType,
+      p_payment_method: orderRequest.paymentMethod,
+      p_payment_status: paymentStatus,
       p_order_items: orderItemsData,
       p_delivery_address: orderRequest.fulfillmentType === 'delivery' ? orderRequest.deliveryAddress : null,
       p_pickup_date: orderRequest.fulfillmentType === 'delivery' ? orderRequest.deliveryDate : 
@@ -172,29 +197,27 @@ export const submitOrder = async (orderRequest: CreateOrderRequest): Promise<Ord
     // Success! Order created atomically
     const createdOrder = result.order;
     
-    // Convert database format to application format
+    // Convert RPC format to application format
     const order: Order = {
       id: createdOrder.id,
-      customerId: createdOrder.user_id,
-      customerInfo: {
-        name: createdOrder.customer_name,
-        email: createdOrder.customer_email,
-        phone: createdOrder.customer_phone
-      },
+      customerId: createdOrder.customerId, // RPC returns camelCase
+      customerInfo: createdOrder.customerInfo, // RPC returns nested object
       items: orderRequest.items, // Use original items with full product data
       subtotal: createdOrder.subtotal,
-      tax: createdOrder.tax_amount,
-      total: createdOrder.total_amount,
-      fulfillmentType: createdOrder.fulfillment_type as FulfillmentType,
-      deliveryAddress: createdOrder.delivery_address,
-      deliveryDate: createdOrder.delivery_date,
-      deliveryTime: createdOrder.delivery_time,
-      pickupDate: createdOrder.pickup_date,
-      pickupTime: createdOrder.pickup_time,
-      specialInstructions: createdOrder.special_instructions,
+      tax: createdOrder.taxAmount,
+      total: createdOrder.totalAmount,
+      fulfillmentType: createdOrder.fulfillmentType as FulfillmentType,
+      paymentMethod: createdOrder.paymentMethod as PaymentMethod,
+      paymentStatus: createdOrder.paymentStatus as PaymentStatus,
+      deliveryAddress: createdOrder.deliveryAddress,
+      deliveryDate: createdOrder.deliveryDate,
+      deliveryTime: createdOrder.deliveryTime,
+      pickupDate: createdOrder.pickupDate,
+      pickupTime: createdOrder.pickupTime,
+      specialInstructions: createdOrder.specialInstructions,
       status: createdOrder.status as OrderStatus,
-      createdAt: createdOrder.created_at,
-      updatedAt: createdOrder.updated_at
+      createdAt: createdOrder.createdAt,
+      updatedAt: createdOrder.updatedAt
     };
 
     // SECURITY-HARDENED: Broadcast order creation for real-time updates
@@ -211,6 +234,15 @@ export const submitOrder = async (orderRequest: CreateOrderRequest): Promise<Ord
     } catch (broadcastError) {
       console.warn('Failed to broadcast new order:', broadcastError);
       // Don't fail the order creation if broadcast fails
+    }
+
+    // Send order confirmation notification
+    try {
+      await sendOrderConfirmationNotification(order);
+      console.log('✅ Order confirmation notification sent for order:', order.id);
+    } catch (notificationError) {
+      console.warn('Failed to send order confirmation notification:', notificationError);
+      // Don't fail the order creation if notification fails
     }
 
     return {
@@ -259,22 +291,27 @@ export const getOrder = async (orderId: string): Promise<Order | null> => {
         name: orderData.customer_name,
         email: orderData.customer_email,
         phone: orderData.customer_phone,
-        address: orderData.delivery_address || undefined
+        address: orderData.delivery_address || ''
       },
       items: orderData.order_items.map((item: any) => ({
+        productId: item.product_id,
+        productName: item.product_name,
+        price: item.unit_price,
+        quantity: item.quantity,
+        subtotal: item.total_price,
         product: {
           id: item.product_id,
           name: item.product_name,
           price: item.unit_price,
           // Note: Other product fields would need to be fetched separately if needed
         } as any,
-        quantity: item.quantity,
-        subtotal: item.total_price
       })),
       subtotal: orderData.subtotal,
       tax: orderData.tax_amount,
       total: orderData.total_amount,
       fulfillmentType: orderData.fulfillment_type,
+      paymentMethod: (orderData.payment_method || 'cash_on_pickup') as PaymentMethod,
+      paymentStatus: (orderData.payment_status || 'pending') as PaymentStatus,
       deliveryAddress: orderData.delivery_address,
       deliveryDate: orderData.delivery_date,
       deliveryTime: orderData.delivery_time,
@@ -334,22 +371,27 @@ export const getCustomerOrders = async (customerEmail: string): Promise<Order[]>
         name: orderData.customer_name,
         email: orderData.customer_email,
         phone: orderData.customer_phone,
-        address: orderData.delivery_address || undefined
+        address: orderData.delivery_address || ''
       },
       items: orderData.order_items.map((item: any) => ({
+        productId: item.product_id,
+        productName: item.product_name,
+        price: item.unit_price,
+        quantity: item.quantity,
+        subtotal: item.total_price,
         product: {
           id: item.product_id,
           name: item.product_name,
           price: item.unit_price,
           // Note: Other product fields would need to be fetched separately if needed
         } as any,
-        quantity: item.quantity,
-        subtotal: item.total_price
       })),
       subtotal: orderData.subtotal,
       tax: orderData.tax_amount,
       total: orderData.total_amount,
       fulfillmentType: orderData.fulfillment_type,
+      paymentMethod: (orderData.payment_method || 'cash_on_pickup') as PaymentMethod,
+      paymentStatus: (orderData.payment_status || 'pending') as PaymentStatus,
       deliveryAddress: orderData.delivery_address,
       deliveryDate: orderData.delivery_date,
       deliveryTime: orderData.delivery_time,
@@ -408,6 +450,7 @@ export const updateOrderStatus = async (orderId: string, newStatus: string): Pro
 
     // SECURITY-HARDENED: Broadcast event with robust error handling (CartService pattern)
     try {
+      console.log('🔍 DEBUG: Broadcasting order update with userId:', updatedOrder.customerId, 'for order:', orderId);
       await sendOrderBroadcast('order-status-updated', {
         userId: updatedOrder.customerId, // SECURITY: User-specific routing
         orderId: orderId,
@@ -418,6 +461,35 @@ export const updateOrderStatus = async (orderId: string, newStatus: string): Pro
     } catch (error) {
       console.warn('Failed to broadcast order status update:', error);
       // Order update still succeeds even if broadcast fails
+    }
+
+    // Send pickup ready notification when order status changes to ready
+    if (newStatus === 'ready') {
+      try {
+        await sendPickupReadyNotification(updatedOrder);
+        console.log('📱 Pickup ready notification sent for order:', orderId);
+      } catch (notificationError) {
+        console.warn('Failed to send pickup ready notification:', notificationError);
+        // Order update still succeeds even if notification fails
+      }
+    }
+
+    // Handle stock restoration for cancelled orders
+    if (newStatus === 'cancelled') {
+      try {
+        console.log('🔄 Order cancelled, initiating stock restoration for order:', orderId);
+        const restorationResult = await restoreOrderStock(updatedOrder, 'order_cancelled');
+        
+        if (restorationResult.success) {
+          console.log('✅ Stock restoration completed:', restorationResult.message);
+        } else {
+          console.error('❌ Stock restoration failed:', restorationResult.error);
+          // Log the failure but don't fail the cancellation
+        }
+      } catch (restorationError) {
+        console.error('Failed to restore stock for cancelled order:', restorationError);
+        // Order cancellation still succeeds even if stock restoration fails
+      }
     }
 
     return {
@@ -572,22 +644,27 @@ export const getAllOrders = async (filters?: OrderFilters): Promise<Order[]> => 
         name: orderData.customer_name,
         email: orderData.customer_email,
         phone: orderData.customer_phone,
-        address: orderData.delivery_address || undefined
+        address: orderData.delivery_address || ''
       },
       items: orderData.order_items.map((item: any) => ({
+        productId: item.product_id,
+        productName: item.product_name,
+        price: item.unit_price,
+        quantity: item.quantity,
+        subtotal: item.total_price,
         product: {
           id: item.product_id,
           name: item.product_name,
           price: item.unit_price,
           // Note: Other product fields would need to be fetched separately if needed
         } as any,
-        quantity: item.quantity,
-        subtotal: item.total_price
       })),
       subtotal: orderData.subtotal,
       tax: orderData.tax_amount,
       total: orderData.total_amount,
       fulfillmentType: orderData.fulfillment_type,
+      paymentMethod: (orderData.payment_method || 'cash_on_pickup') as PaymentMethod,
+      paymentStatus: (orderData.payment_status || 'pending') as PaymentStatus,
       deliveryAddress: orderData.delivery_address,
       deliveryDate: orderData.delivery_date,
       deliveryTime: orderData.delivery_time,

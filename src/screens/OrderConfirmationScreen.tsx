@@ -2,9 +2,12 @@ import React from 'react';
 import {
   View,
   Text,
+  StyleSheet,
   ScrollView,
   TouchableOpacity,
-  StyleSheet,
+  SafeAreaView,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -92,7 +95,18 @@ export const OrderConfirmationScreen: React.FC = () => {
 
   // Success state
   return (
-    <ScrollView style={styles.container}>
+    <KeyboardAvoidingView 
+      style={styles.keyboardAvoidingView}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+    >
+      <SafeAreaView style={styles.safeArea}>
+        <ScrollView 
+          style={styles.container}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={true}
+          keyboardShouldPersistTaps="handled"
+        >
       <View style={styles.successContainer}>
         <Ionicons name="checkmark-circle" size={80} color="#2e7d32" />
         <Text style={styles.successTitle}>Order Confirmed!</Text>
@@ -130,7 +144,7 @@ export const OrderConfirmationScreen: React.FC = () => {
         
         <View style={styles.totalRow}>
           <Text style={styles.totalLabel}>Order Total:</Text>
-          <Text style={[styles.detailValue, styles.totalText]}>${order.total.toFixed(2)}</Text>
+          <Text style={[styles.detailValue, styles.totalText]}>${order.total?.toFixed(2) || '0.00'}</Text>
         </View>
       </View>
 
@@ -232,14 +246,41 @@ export const OrderConfirmationScreen: React.FC = () => {
       </View>
       
       <View style={styles.bottomSpacing} />
-    </ScrollView>
+        </ScrollView>
+      </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  keyboardAvoidingView: {
+    flex: 1,
+    ...(Platform.OS === 'web' && {
+      height: '100vh' as any,
+      maxHeight: '100vh' as any,
+    }),
+  },
+  safeArea: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  container: {
+    flex: 1,
+    ...(Platform.OS === 'web' && {
+      height: '100%' as any,
+      overflow: 'auto' as any,
+    }),
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 20,
+    ...(Platform.OS === 'web' && {
+      minHeight: '100%',
+      paddingBottom: 40, // Extra padding for web
+    }),
+  },
+  bottomSpacing: {
+    height: 20,
   },
   successContainer: {
     alignItems: 'center',
@@ -460,8 +501,5 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
-  },
-  bottomSpacing: {
-    height: 20,
   },
 });

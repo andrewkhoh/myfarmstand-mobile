@@ -8,7 +8,7 @@ import { useCart } from '../hooks/useCart';
 import { RootTabParamList } from '../types';
 
 // Import screens
-import { ShopScreen, CartScreen, ProfileScreen, StaffQRScannerScreen } from '../screens';
+import { ShopScreen, CartScreen, ProfileScreen, StaffQRScannerScreen, MyOrdersScreen } from '../screens';
 import { TestStackNavigator } from './TestStackNavigator';
 import { AdminStackNavigator } from './AdminStackNavigator';
 
@@ -61,6 +61,9 @@ export const MainTabNavigator: React.FC = () => {
               break;
             case 'Profile':
               iconName = focused ? 'person' : 'person-outline';
+              break;
+            case 'MyOrders':
+              iconName = focused ? 'receipt' : 'receipt-outline';
               break;
             case 'Admin':
               iconName = focused ? 'settings' : 'settings-outline';
@@ -126,7 +129,11 @@ export const MainTabNavigator: React.FC = () => {
           tabBarBadge: cartItemCount > 0 ? cartItemCount : undefined
         }}
       />
-
+      <Tab.Screen 
+        name="MyOrders" 
+        component={MyOrdersScreen}
+        options={{ title: 'My Orders' }}
+      />
       <Tab.Screen 
         name="Profile" 
         component={ProfileScreen}

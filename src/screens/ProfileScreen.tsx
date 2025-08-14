@@ -1,72 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Alert, ScrollView, TouchableOpacity, Platform, Modal } from 'react-native';
+import { View, StyleSheet, Alert, ScrollView, TouchableOpacity, Platform } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
 import { Screen, Text, Card, Button, Input, Loading } from '../components';
-import { useCurrentUser, useUpdateProfileMutation, useLogoutMutation } from '../hooks/useAuth';
-import { getCustomerOrders } from '../services/orderService';
+import { useCurrentUser, useUpdateProfileMutation, useLogoutMutation, useChangePasswordMutation } from '../hooks/useAuth';
 import { spacing, colors } from '../utils/theme';
-import { Order, User } from '../types';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { User, RootTabParamList } from '../types';
 import { Ionicons } from '@expo/vector-icons';
-import QRCode from 'react-native-qrcode-svg';
 
-// Mock user service for profile updates
-const updateUserProfile = async (userId: string, updates: Partial<User>): Promise<{ success: boolean; user?: User; message?: string }> => {
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  
-  // Mock validation
-  if (!updates.name || updates.name.trim().length < 2) {
-    throw new Error('Name must be at least 2 characters long');
-  }
-  
-  if (!updates.email || !updates.email.includes('@')) {
-    throw new Error('Please enter a valid email address');
-  }
-  
-  // Mock successful update
-  return {
-    success: true,
-    user: { ...updates } as User,
-    message: 'Profile updated successfully'
-  };
-};
+type ProfileNavigationProp = StackNavigationProp<RootTabParamList, 'Profile'>;
 
-// Mock password change service
-const changeUserPassword = async (userId: string, currentPassword: string, newPassword: string): Promise<{ success: boolean; message?: string }> => {
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 1200));
-  
-  // Mock current password verification (in real app, this would be handled by backend)
-  if (!currentPassword) {
-    throw new Error('Current password is required');
-  }
-  
-  // Mock password strength validation
-  if (newPassword.length < 8) {
-    throw new Error('New password must be at least 8 characters long');
-  }
-  
-  if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(newPassword)) {
-    throw new Error('Password must contain at least one uppercase letter, one lowercase letter, and one number');
-  }
-  
-  // Mock successful password change
-  return {
-    success: true,
-    message: 'Password changed successfully'
-  };
-};
-
-// Use real order service to get customer orders
-const getUserOrderHistory = async (userEmail: string): Promise<Order[]> => {
-  return await getCustomerOrders(userEmail);
-};
+// Services moved to authService.ts - following atomic pattern
 
 export const ProfileScreen: React.FC = () => {
   const { data: user, isLoading: userLoading, error: userError } = useCurrentUser();
   const updateProfileMutation = useUpdateProfileMutation();
+  const changePasswordMutation = useChangePasswordMutation();
   const logoutMutation = useLogoutMutation();
-  const queryClient = useQueryClient();
+  const navigation = useNavigation<ProfileNavigationProp>();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     name: user?.name || '',
@@ -82,8 +33,6 @@ export const ProfileScreen: React.FC = () => {
   });
   const [passwordErrors, setPasswordErrors] = useState<{ [key: string]: string }>({});
   const [showPasswordSection, setShowPasswordSection] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [showOrderModal, setShowOrderModal] = useState(false);
 
   // Update form data when user changes
   useEffect(() => {
@@ -97,33 +46,11 @@ export const ProfileScreen: React.FC = () => {
     }
   }, [user?.id]);
 
-  // Fetch order history
-  const { data: orders, isLoading: ordersLoading, error: ordersError } = useQuery({
-    queryKey: ['userOrders', user?.id],
-    queryFn: () => getUserOrderHistory(user?.email || ''),
-    enabled: !!user?.id,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes
-  });
+
 
   // Profile update mutation is already declared above
 
-  // Password change mutation
-  const changePasswordMutation = useMutation({
-    mutationFn: ({ currentPassword, newPassword }: { currentPassword: string; newPassword: string }) => 
-      changeUserPassword(user?.id || '', currentPassword, newPassword),
-    onSuccess: (result) => {
-      if (result.success) {
-        setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
-        setPasswordErrors({});
-        setShowPasswordSection(false);
-        Alert.alert('Success', result.message || 'Password changed successfully');
-      }
-    },
-    onError: (error: Error) => {
-      Alert.alert('Error', error.message || 'Failed to change password');
-    }
-  });
+  // Password change mutation now uses atomic hook from useAuth
 
   const validateForm = (): boolean => {
     const newErrors: { [key: string]: string } = {};
@@ -179,42 +106,52 @@ export const ProfileScreen: React.FC = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSaveProfile = async () => {
+  const handleSaveProfile = () => {
     if (!validateForm()) {
       return;
     }
     
-    try {
-      await updateProfileMutation.mutateAsync({
-        userId: user?.id || '',
-        updates: {
-          name: formData.name.trim(),
-          email: formData.email.trim(),
-          phone: formData.phone.trim() || undefined,
-          address: formData.address.trim() || undefined
-        }
-      });
-      setIsEditing(false);
-      setErrors({});
-      Alert.alert('Success', 'Profile updated successfully');
-    } catch (error) {
-      Alert.alert('Error', 'Failed to update profile');
-    }
+    // Direct mutation call - React Query handles success/error states
+    updateProfileMutation.mutate({
+      userId: user?.id || '',
+      updates: {
+        name: formData.name.trim(),
+        email: formData.email.trim(),
+        phone: formData.phone.trim() || undefined,
+        address: formData.address.trim() || undefined
+      }
+    }, {
+      onSuccess: () => {
+        setIsEditing(false);
+        setErrors({});
+        Alert.alert('Success', 'Profile updated successfully');
+      },
+      onError: () => {
+        Alert.alert('Error', 'Failed to update profile');
+      }
+    });
   };
 
-  const handleChangePassword = async () => {
+  const handleChangePassword = () => {
     if (!validatePasswordForm()) {
       return;
     }
     
-    try {
-      await changePasswordMutation.mutateAsync({
-        currentPassword: passwordData.currentPassword,
-        newPassword: passwordData.newPassword
-      });
-    } catch (error) {
-      // Error handled in onError callback
-    }
+    // Direct mutation call - React Query handles success/error states
+    changePasswordMutation.mutate({
+      currentPassword: passwordData.currentPassword,
+      newPassword: passwordData.newPassword
+    }, {
+      onSuccess: () => {
+        setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+        setPasswordErrors({});
+        setShowPasswordSection(false);
+        Alert.alert('Success', 'Password changed successfully');
+      },
+      onError: (error: any) => {
+        Alert.alert('Error', error.message || 'Failed to change password');
+      }
+    });
   };
 
   const handleCancelEdit = () => {
@@ -254,17 +191,18 @@ export const ProfileScreen: React.FC = () => {
     }
   };
 
-  const performLogout = async () => {
-    try {
-      await logoutMutation.mutateAsync();
-    } catch (error) {
-      console.error('Logout error:', error);
-      if (Platform.OS === 'web') {
-        window.alert('Failed to sign out. Please try again.');
-      } else {
-        Alert.alert('Error', 'Failed to sign out. Please try again.');
+  const performLogout = () => {
+    // Direct mutation call - React Query handles success/error states
+    logoutMutation.mutate(undefined, {
+      onError: (error) => {
+        console.error('Logout error:', error);
+        if (Platform.OS === 'web') {
+          window.alert('Failed to sign out. Please try again.');
+        } else {
+          Alert.alert('Error', 'Failed to sign out. Please try again.');
+        }
       }
-    }
+    });
   };
 
   const formatOrderStatus = (status: string): string => {
@@ -481,70 +419,32 @@ export const ProfileScreen: React.FC = () => {
           )}
         </Card>
 
-        {/* Order History Card */}
+        {/* My Orders Card */}
         <Card variant="outlined" style={styles.orderHistoryCard}>
           <Text variant="heading3" style={styles.sectionTitle}>
-            📋 Order History
+            📋 My Orders
+          </Text>
+          <Text variant="body" color="secondary" style={styles.orderDescription}>
+            View and manage your order history, track pickup times, and reschedule when needed.
           </Text>
           
-          {ordersLoading ? (
-            <Loading message="Loading order history..." />
-          ) : ordersError ? (
-            <Text variant="body" color="error" align="center">
-              Failed to load order history
-            </Text>
-          ) : !orders || orders.length === 0 ? (
-            <Text variant="body" color="secondary" align="center">
-              No orders found
-            </Text>
-          ) : (
-            <View style={styles.ordersList}>
-              {orders?.map((order) => (
-                <TouchableOpacity 
-                  key={order.id} 
-                  onPress={() => {
-                    setSelectedOrder(order);
-                    setShowOrderModal(true);
-                  }}
-                >
-                  <Card variant="outlined" style={styles.orderCard}>
-                    <View style={styles.orderHeader}>
-                      <View style={styles.orderTitleContainer}>
-                        <Text variant="body" weight="medium">
-                          Order #{order.id}
-                        </Text>
-                      </View>
-                      <View style={{...styles.statusBadge, backgroundColor: getStatusColor(order.status)}}>
-                        <Text style={styles.statusText}>
-                          {formatOrderStatus(order.status)}
-                        </Text>
-                      </View>
-                    </View>
-                    
-                    <View style={styles.orderDetails}>
-                      <Text variant="caption" color="secondary">
-                        {formatDate(order.createdAt)} • {order.fulfillmentType === 'pickup' ? 'Pickup' : 'Delivery'}
-                      </Text>
-                      <Text variant="body" weight="medium">
-                        ${order.total.toFixed(2)}
-                      </Text>
-                    </View>
-                    
-                    <Text variant="caption" color="secondary">
-                      {order.items.length} item{order.items.length !== 1 ? 's' : ''}: {order.items.map(item => item.productName).join(', ')}
-                    </Text>
-                    
-                    <View style={styles.orderTapHint}>
-                      <Text variant="caption" color="secondary" style={styles.tapHintText}>
-                        Tap to view details {order.fulfillmentType === 'pickup' ? '& QR code' : ''}
-                      </Text>
-                      <Ionicons name="chevron-forward" size={16} color={colors.text.secondary} />
-                    </View>
-                  </Card>
-                </TouchableOpacity>
-              ))}
+          <TouchableOpacity 
+            style={styles.myOrdersButton}
+            onPress={() => navigation.navigate('MyOrders' as any)}
+          >
+            <View style={styles.myOrdersButtonContent}>
+              <Ionicons name="receipt-outline" size={24} color={colors.primary[500]} />
+              <View style={styles.myOrdersButtonText}>
+                <Text variant="body" weight="medium">
+                  View My Orders
+                </Text>
+                <Text variant="caption" color="secondary">
+                  Order history & rescheduling
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.text.secondary} />
             </View>
-          )}
+          </TouchableOpacity>
         </Card>
 
         {/* Account Actions Card */}
@@ -560,116 +460,7 @@ export const ProfileScreen: React.FC = () => {
         </Card>
       </View>
 
-      {/* Order Details Modal */}
-      <Modal
-        visible={showOrderModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text variant="heading2">Order Details</Text>
-            <TouchableOpacity onPress={() => setShowOrderModal(false)}>
-              <Ionicons name="close" size={24} color={colors.text.primary} />
-            </TouchableOpacity>
-          </View>
 
-          <ScrollView style={styles.modalContent}>
-            {selectedOrder && (
-              <>
-                <Card variant="outlined" style={styles.orderDetailCard}>
-                  <View style={styles.orderDetailHeader}>
-                    <View style={styles.modalTitleContainer}>
-                      <Text variant="heading3">Order #{selectedOrder.id}</Text>
-                    </View>
-                    <View style={{...styles.statusBadge, backgroundColor: getStatusColor(selectedOrder.status)}}>
-                      <Text style={styles.statusText}>{formatOrderStatus(selectedOrder.status)}</Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.orderDetailSection}>
-                    <Text variant="body" weight="medium" style={styles.modalSectionTitle}>Order Information</Text>
-                    <Text variant="body">Date: {formatDate(selectedOrder.createdAt)}</Text>
-                    <Text variant="body">Type: {selectedOrder.fulfillmentType === 'pickup' ? 'Pickup' : 'Delivery'}</Text>
-                    {selectedOrder.pickupDate && (
-                      <Text variant="body">Pickup Date: {selectedOrder.pickupDate}</Text>
-                    )}
-                    {selectedOrder.pickupTime && (
-                      <Text variant="body">Pickup Time: {selectedOrder.pickupTime}</Text>
-                    )}
-                    {selectedOrder.deliveryAddress && (
-                      <Text variant="body">Delivery Address: {selectedOrder.deliveryAddress}</Text>
-                    )}
-                  </View>
-
-                  <View style={styles.orderDetailSection}>
-                    <Text variant="body" weight="medium" style={styles.modalSectionTitle}>Items Ordered</Text>
-                    {selectedOrder.items.map((item, index) => (
-                      <View key={index} style={styles.orderItem}>
-                        <Text variant="body">{item.productName}</Text>
-                        <Text variant="body">Qty: {item.quantity} × ${item.price.toFixed(2)} = ${item.subtotal.toFixed(2)}</Text>
-                      </View>
-                    ))}
-                  </View>
-
-                  {/* Order Notes Section */}
-                  {selectedOrder.notes && (
-                    <View style={styles.orderDetailSection}>
-                      <Text variant="body" weight="medium" style={styles.modalSectionTitle}>Order Notes</Text>
-                      <Text variant="body" style={styles.notesText}>{selectedOrder.notes}</Text>
-                    </View>
-                  )}
-
-                  <View style={styles.orderDetailSection}>
-                    <Text variant="body" weight="medium" style={styles.modalSectionTitle}>Order Summary</Text>
-                    <View style={styles.summaryRow}>
-                      <Text variant="body">Subtotal:</Text>
-                      <Text variant="body">${selectedOrder.subtotal.toFixed(2)}</Text>
-                    </View>
-                    <View style={styles.summaryRow}>
-                      <Text variant="body">Tax:</Text>
-                      <Text variant="body">${selectedOrder.tax.toFixed(2)}</Text>
-                    </View>
-                    <View style={[styles.summaryRow, styles.totalRow]}>
-                      <Text variant="body" weight="bold">Total:</Text>
-                      <Text variant="body" weight="bold">${selectedOrder.total.toFixed(2)}</Text>
-                    </View>
-                  </View>
-
-                  {/* QR Code for Pickup Orders */}
-                  {selectedOrder.fulfillmentType === 'pickup' && (
-                    <View style={styles.qrSection}>
-                      <Text variant="body" weight="medium" style={styles.modalSectionTitle}>Pickup QR Code</Text>
-                      <Text variant="caption" color="secondary" style={styles.qrInstructions}>
-                        Show this QR code to staff at pickup
-                      </Text>
-                      
-                      <View style={styles.qrContainer}>
-                        <QRCode
-                          value={JSON.stringify({
-                            orderId: selectedOrder.id,
-                            customerName: selectedOrder.customerInfo.name,
-                            customerEmail: selectedOrder.customerInfo.email,
-                            customerPhone: selectedOrder.customerInfo.phone,
-                            pickupDate: selectedOrder.pickupDate,
-                            pickupTime: selectedOrder.pickupTime,
-                            total: selectedOrder.total,
-                            status: selectedOrder.status,
-                            timestamp: new Date().toISOString()
-                          })}
-                          size={200}
-                          color="black"
-                          backgroundColor="white"
-                        />
-                      </View>
-                    </View>
-                  )}
-                </Card>
-              </>
-            )}
-          </ScrollView>
-        </View>
-      </Modal>
     </Screen>
   );
 };
@@ -739,6 +530,27 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     marginBottom: spacing.md,
+  },
+  orderDescription: {
+    marginBottom: spacing.md,
+    lineHeight: 20,
+  },
+  myOrdersButton: {
+    marginTop: spacing.sm,
+  },
+  myOrdersButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border.light,
+  },
+  myOrdersButtonText: {
+    flex: 1,
+    marginLeft: spacing.sm,
+    marginRight: spacing.sm,
   },
   ordersList: {
     gap: spacing.sm,

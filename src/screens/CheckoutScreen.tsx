@@ -20,7 +20,7 @@ import { useCurrentUser } from '../hooks/useAuth';
 import { useStockValidation } from '../hooks/useStockValidation';
 import { getStockDisplayInfo } from '../utils/stockDisplay';
 import { submitOrder } from '../services/orderService';
-import { CreateOrderRequest, CustomerInfo, FulfillmentType, OrderItem, RootStackParamList } from '../types';
+import { CreateOrderRequest, CustomerInfo, FulfillmentType, PaymentMethod, OrderItem, RootStackParamList } from '../types';
 
 type CheckoutScreenNavigationProp = StackNavigationProp<RootStackParamList, 'OrderConfirmation'>;
 
@@ -31,9 +31,8 @@ export const CheckoutScreen: React.FC = () => {
   const navigation = useNavigation<CheckoutScreenNavigationProp>();
   const queryClient = useQueryClient();
   
-  const [fulfillmentType, setFulfillmentType] = useState<FulfillmentType>('pickup');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('online');
   const [notes, setNotes] = useState('');
-  const [deliveryAddress, setDeliveryAddress] = useState('');
   
   // Simplified separate date and time state with smart defaults
   const getDefaultPickupDateTime = () => {
@@ -279,25 +278,19 @@ export const CheckoutScreen: React.FC = () => {
       return false;
     }
     
-    // Delivery address validation
-    if (fulfillmentType === 'delivery') {
-      if (!deliveryAddress.trim()) {
-        newErrors.deliveryAddress = 'Delivery address is required';
-      } else if (deliveryAddress.trim().length < 10) {
-        newErrors.deliveryAddress = 'Please enter a complete address';
-      }
+    // Payment method validation
+    if (!paymentMethod) {
+      newErrors.paymentMethod = 'Please select a payment method';
     }
     
-    // Pickup date validation
-    if (fulfillmentType === 'pickup') {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const selectedDate = new Date(pickupDate);
-      selectedDate.setHours(0, 0, 0, 0);
-      
-      if (selectedDate < today) {
-        newErrors.pickupDate = 'Pickup date cannot be in the past';
-      }
+    // Pickup date validation (always required since pickup is the only option)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const selectedDate = new Date(pickupDate);
+    selectedDate.setHours(0, 0, 0, 0);
+    
+    if (selectedDate < today) {
+      newErrors.pickupDate = 'Pickup date cannot be in the past';
     }
     
     // Cart validation
@@ -364,14 +357,14 @@ export const CheckoutScreen: React.FC = () => {
         name: user!.name,
         email: user?.email || '',
         phone: user?.phone || '',
-        address: fulfillmentType === 'delivery' ? deliveryAddress : (user?.address || ''),
+        address: user?.address || '',
       },
       items: convertCartToOrderItems(),
-      fulfillmentType,
+      fulfillmentType: 'pickup', // Always pickup since delivery is not an option
+      paymentMethod,
       notes: notes.trim() || undefined,
-      pickupDate: fulfillmentType === 'pickup' ? pickupDate.toISOString().split('T')[0] : undefined,
-      pickupTime: fulfillmentType === 'pickup' ? pickupTime.toTimeString().split(' ')[0].substring(0, 5) : undefined,
-      deliveryAddress: fulfillmentType === 'delivery' ? deliveryAddress : undefined,
+      pickupDate: pickupDate.toISOString().split('T')[0],
+      pickupTime: pickupTime.toTimeString().split(' ')[0].substring(0, 5),
     };
 
     // Submit order
@@ -460,44 +453,44 @@ export const CheckoutScreen: React.FC = () => {
 
 
 
-      {/* Fulfillment Type */}
+      {/* Payment Method */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Fulfillment Method</Text>
+        <Text style={styles.sectionTitle}>Payment Method</Text>
         
         <View style={styles.fulfillmentContainer}>
           <TouchableOpacity
             style={[
               styles.fulfillmentOption,
-              fulfillmentType === 'pickup' && styles.fulfillmentSelected
+              paymentMethod === 'online' && styles.fulfillmentSelected
             ]}
-            onPress={() => setFulfillmentType('pickup')}
+            onPress={() => setPaymentMethod('online')}
           >
             <Text style={[
               styles.fulfillmentText,
-              fulfillmentType === 'pickup' && styles.fulfillmentTextSelected
+              paymentMethod === 'online' && styles.fulfillmentTextSelected
             ]}>
-              🏪 Pickup
+              💳 Pay Online
             </Text>
           </TouchableOpacity>
           
           <TouchableOpacity
             style={[
               styles.fulfillmentOption,
-              fulfillmentType === 'delivery' && styles.fulfillmentSelected
+              paymentMethod === 'cash_on_pickup' && styles.fulfillmentSelected
             ]}
-            onPress={() => setFulfillmentType('delivery')}
+            onPress={() => setPaymentMethod('cash_on_pickup')}
           >
             <Text style={[
               styles.fulfillmentText,
-              fulfillmentType === 'delivery' && styles.fulfillmentTextSelected
+              paymentMethod === 'cash_on_pickup' && styles.fulfillmentTextSelected
             ]}>
-              🚚 Delivery
+              💵 Cash on Pickup
             </Text>
           </TouchableOpacity>
         </View>
         
-        {Boolean(fulfillmentType === 'pickup') && (
-          <View>
+        {/* Pickup Details - Always shown since pickup is the only option */}
+        <View>
             <Text style={styles.subSectionTitle}>When would you like to pick up your order?</Text>
             
             {/* Quick Preset Options */}
@@ -579,29 +572,7 @@ export const CheckoutScreen: React.FC = () => {
             </View>
             
           </View>
-        )}
         
-        {Boolean(fulfillmentType === 'delivery') && (
-          <View>
-            <Text style={styles.subSectionTitle}>Delivery Address</Text>
-            <TextInput
-              style={[styles.input, styles.addressInput, errors.deliveryAddress && styles.inputError]}
-              placeholder="Street Address *"
-              value={deliveryAddress}
-              onChangeText={(text) => {
-                setDeliveryAddress(text);
-                clearError('deliveryAddress');
-              }}
-              multiline
-              numberOfLines={3}
-            />
-            {Boolean(errors.deliveryAddress) && <Text style={styles.errorText}>{errors.deliveryAddress}</Text>}
-            
-            <Text style={styles.deliveryNote}>
-              💡 Please include apartment/unit number, special delivery instructions, etc.
-            </Text>
-          </View>
-        )}
       </View>
 
       {/* Notes */}

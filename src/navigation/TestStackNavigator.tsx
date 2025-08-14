@@ -20,7 +20,9 @@ import {
   BroadcastArchitectureTestScreen,
   SimpleBroadcastTest,
   CartMigrationTestScreen,
+  SecurityBroadcastTestScreen, // ← ADD THIS LINE
 } from '../screens';
+import AtomicOperationsTestScreen from '../screens/testScreens/AtomicOperationsTestScreen';
 import BackendIntegrationTestScreen from '../screens/testScreens/BackendIntegrationTestScreen';
 import CartRPCTest from '../tests/CartRPCTest';
 import AtomicOrderTest from '../tests/AtomicOrderTest';
@@ -45,6 +47,7 @@ export type TestStackParamList = {
   RealtimeTest: undefined;
   BroadcastArchitectureTest: undefined;
   SimpleBroadcastTest: undefined;
+  SecurityBroadcastTest: undefined;
   AutomatedTest: undefined;
   BackendIntegrationTest: undefined;
   CartRPCTest: undefined;
@@ -52,6 +55,7 @@ export type TestStackParamList = {
   SchemaInspector: undefined;
   SimpleStockValidationTest: undefined;
   CartMigrationTest: undefined;
+  AtomicOperationsTest: undefined;
 };
 
 const Stack = createStackNavigator<TestStackParamList>();
@@ -177,6 +181,11 @@ export const TestStackNavigator: React.FC = () => {
         options={{ title: 'Simple Broadcast Test' }}
       />
       <Stack.Screen 
+        name="SecurityBroadcastTest" 
+        component={SecurityBroadcastTestScreen}
+        options={{ title: 'Security Broadcast Test' }}
+      />
+      <Stack.Screen 
         name="AutomatedTest" 
         component={AutomatedTestRunner}
         options={{
@@ -216,6 +225,11 @@ export const TestStackNavigator: React.FC = () => {
         name="CartMigrationTest" 
         component={CartMigrationTestScreen} 
         options={{ title: 'Cart Migration Test - Phase 1' }} 
+      />
+      <Stack.Screen 
+        name="AtomicOperationsTest" 
+        component={AtomicOperationsTestScreen} 
+        options={{ title: 'Atomic Operations Test Suite' }} 
       />
     </Stack.Navigator>
   );

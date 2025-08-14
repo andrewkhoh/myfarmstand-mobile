@@ -439,6 +439,47 @@ export class AuthService {
   }
 
   /**
+   * Change user password using Supabase Auth
+   */
+  static async changePassword(currentPassword: string, newPassword: string): Promise<{ success: boolean; message?: string }> {
+    try {
+      // Input validation
+      if (!currentPassword) {
+        throw new Error('Current password is required');
+      }
+
+      if (!newPassword) {
+        throw new Error('New password is required');
+      }
+
+      if (newPassword.length < 8) {
+        throw new Error('New password must be at least 8 characters long');
+      }
+
+      if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(newPassword)) {
+        throw new Error('Password must contain at least one uppercase letter, one lowercase letter, and one number');
+      }
+
+      // Update password using Supabase Auth
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      return {
+        success: true,
+        message: 'Password changed successfully'
+      };
+    } catch (error) {
+      console.error('Change password error:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Check if user has valid authentication using Supabase
    */
   static async isAuthenticated(): Promise<boolean> {

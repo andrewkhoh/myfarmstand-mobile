@@ -146,6 +146,22 @@ export const useUpdateProfileMutation = () => {
 };
 
 /**
+ * Hook for password change mutation with React Query
+ */
+export const useChangePasswordMutation = () => {
+  return useMutation({
+    mutationFn: ({ currentPassword, newPassword }: { currentPassword: string; newPassword: string }) =>
+      AuthService.changePassword(currentPassword, newPassword),
+    onSuccess: (data) => {
+      console.log('✅ Password changed successfully:', data.message);
+    },
+    onError: (error) => {
+      console.error('❌ Password change error:', error);
+    },
+  });
+};
+
+/**
  * Hook for getting current user with React Query
  */
 export const useCurrentUser = () => {

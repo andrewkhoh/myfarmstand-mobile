@@ -30,7 +30,7 @@ const AdminOrderScreen: React.FC = () => {
   const { data: orders = [], isLoading, error, refetch } = useOrders(filters);
   const { data: allOrders = [] } = useOrders({}); // Get unfiltered orders for tab counts
 
-  const { updateOrderStatus, bulkUpdateOrderStatus, isLoading: isUpdating } = useOrderOperations();
+  const { updateOrderStatus, bulkUpdateOrderStatus, isUpdatingStatus, isBulkUpdating } = useOrderOperations();
 
   // Mock data functionality removed - now using real Supabase data
 
@@ -40,11 +40,11 @@ const AdminOrderScreen: React.FC = () => {
   }, [orders]);
 
   const handleStatusUpdate = async (orderId: string, newStatus: OrderStatus) => {
-    const result = await updateOrderStatus(orderId, newStatus);
-    if (result.success) {
+    try {
+      updateOrderStatus({ orderId, status: newStatus });
       Alert.alert('Success', `Order status updated to ${newStatus}`);
-    } else {
-      Alert.alert('Error', result.message || 'Failed to update order status');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update order status');
     }
   };
 
@@ -62,12 +62,12 @@ const AdminOrderScreen: React.FC = () => {
         {
           text: 'Update',
           onPress: async () => {
-            const result = await bulkUpdateOrderStatus(selectedOrders, newStatus);
-            if (result.success) {
+            try {
+              bulkUpdateOrderStatus({ orderIds: selectedOrders, status: newStatus });
               setSelectedOrders([]);
               Alert.alert('Success', `Updated ${selectedOrders.length} orders to ${newStatus}`);
-            } else {
-              Alert.alert('Error', result.message || 'Failed to update orders');
+            } catch (error) {
+              Alert.alert('Error', 'Failed to update orders');
             }
           },
         },
@@ -92,7 +92,6 @@ const AdminOrderScreen: React.FC = () => {
     switch (status) {
       case 'pending': return '#f59e0b';
       case 'confirmed': return '#3b82f6';
-      case 'preparing': return '#8b5cf6';
       case 'ready': return '#10b981';
       case 'completed': return '#059669';
       case 'cancelled': return '#ef4444';
@@ -167,21 +166,21 @@ const AdminOrderScreen: React.FC = () => {
           <TouchableOpacity
             style={[styles.actionButton, styles.confirmButton]}
             onPress={() => handleStatusUpdate(order.id, 'confirmed')}
-            disabled={isUpdating}
+            disabled={isUpdatingStatus}
           >
             <Text style={styles.actionButtonText}>Confirm</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.actionButton, styles.readyButton]}
             onPress={() => handleStatusUpdate(order.id, 'ready')}
-            disabled={isUpdating}
+            disabled={isUpdatingStatus}
           >
             <Text style={styles.actionButtonText}>Ready</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.actionButton, styles.completeButton]}
             onPress={() => handleStatusUpdate(order.id, 'completed')}
-            disabled={isUpdating}
+            disabled={isUpdatingStatus}
           >
             <Text style={styles.actionButtonText}>Complete</Text>
           </TouchableOpacity>
@@ -213,7 +212,7 @@ const AdminOrderScreen: React.FC = () => {
         <View style={styles.filterRow}>
           <Text style={styles.filterLabel}>Status:</Text>
           <View style={styles.filterButtons}>
-            {['pending', 'confirmed', 'preparing', 'ready', 'completed'].map(status => (
+            {['pending', 'confirmed', 'ready', 'completed'].map(status => (
               <TouchableOpacity
                 key={status}
                 style={[
@@ -381,14 +380,14 @@ const AdminOrderScreen: React.FC = () => {
             <TouchableOpacity
               style={[styles.bulkActionButton, styles.confirmButton]}
               onPress={() => handleBulkStatusUpdate('confirmed')}
-              disabled={isUpdating}
+              disabled={isUpdatingStatus}
             >
               <Text style={styles.bulkActionButtonText}>Confirm All</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.bulkActionButton, styles.readyButton]}
               onPress={() => handleBulkStatusUpdate('ready')}
-              disabled={isUpdating}
+              disabled={isUpdatingStatus}
             >
               <Text style={styles.bulkActionButtonText}>Ready All</Text>
             </TouchableOpacity>
@@ -423,7 +422,7 @@ const AdminOrderScreen: React.FC = () => {
         }
       />
 
-      {Boolean(isUpdating) && (
+      {Boolean(isUpdatingStatus || isBulkUpdating) && (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color="#3b82f6" />
           <Text style={styles.loadingText}>Updating orders...</Text>

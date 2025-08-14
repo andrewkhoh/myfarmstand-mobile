@@ -131,6 +131,7 @@ const testCategories: TestCategory[] = [
       { name: 'Real-time Integration Test', screen: 'RealtimeTest' },
       { name: 'Broadcast Architecture Test', screen: 'BroadcastArchitectureTest' },
       { name: 'Simple Broadcast Test', screen: 'SimpleBroadcastTest' },
+      { name: 'Security Broadcast Test', screen: 'SecurityBroadcastTest' },
       { name: 'Backend Integration Test', screen: 'BackendIntegrationTest' },
       { name: 'Cart RPC Function Test', screen: 'CartRPCTest' },
       { name: 'Atomic Order Submission Test', screen: 'AtomicOrderTest' },
@@ -160,6 +161,14 @@ const testCategories: TestCategory[] = [
     icon: 'construct-outline',
     screenName: 'CartMigrationTest',
     color: '#059669',
+  },
+  {
+    id: 'atomic-operations',
+    title: 'Atomic Operations',
+    description: 'Comprehensive testing of atomic RPC functions, React Query hooks, and services',
+    icon: 'nuclear-outline',
+    screenName: 'AtomicOperationsTest',
+    color: '#DC2626',
   },
 ];
 

@@ -2,6 +2,7 @@
 export type RootTabParamList = {
   Shop: undefined;
   Cart: undefined;
+  MyOrders: undefined;
   Profile: undefined;
   Admin: undefined;
   StaffQRScanner: undefined;
@@ -29,6 +30,7 @@ export type RootStackParamList = {
     success: boolean;
     error?: string;
   };
+  MyOrders: undefined;
 };
 
 // User Types
@@ -146,8 +148,10 @@ export interface CartState {
 }
 
 // Order Types
-export type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'ready' | 'completed' | 'cancelled';
+export type OrderStatus = 'pending' | 'confirmed' | 'ready' | 'completed' | 'cancelled';
 export type FulfillmentType = 'pickup' | 'delivery';
+export type PaymentMethod = 'online' | 'cash_on_pickup';
+export type PaymentStatus = 'paid' | 'pending' | 'failed';
 
 export interface CustomerInfo {
   name: string;
@@ -175,6 +179,8 @@ export interface Order {
   total: number;
   fulfillmentType: FulfillmentType;
   status: OrderStatus;
+  paymentMethod: PaymentMethod; // Payment method selection
+  paymentStatus: PaymentStatus; // Payment status tracking
   notes?: string;
   pickupDate?: string; // ISO date string
   pickupTime?: string; // Time string
@@ -190,6 +196,7 @@ export interface CreateOrderRequest {
   customerInfo: CustomerInfo;
   items: OrderItem[];
   fulfillmentType: FulfillmentType;
+  paymentMethod: PaymentMethod; // Payment method selection
   notes?: string;
   pickupDate?: string;
   pickupTime?: string;

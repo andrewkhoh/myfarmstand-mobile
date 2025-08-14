@@ -12,7 +12,19 @@ const SchemaInspector: React.FC = () => {
     setResults('Inspecting database schema...\n\n');
 
     try {
-      const tables = ['products', 'categories', 'orders', 'order_items', 'cart_items'];
+      const tables = [
+        'products', 
+        'categories', 
+        'orders', 
+        'order_items', 
+        'cart_items',
+        'users',
+        'error_recovery_log',
+        'notification_log', 
+        'pickup_reschedule_log',
+        'no_show_log',
+        'inventory_logs'
+      ];
       let schemaInfo = '';
 
       for (const table of tables) {

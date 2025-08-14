@@ -18,6 +18,13 @@ function loadSecretEnv() {
         if (key && valueParts.length > 0) {
           const value = valueParts.join('=');
           process.env[key] = value;
+          
+          // DEBUG: Log environment variable loading
+          if (key === 'DEBUG_CHANNELS') {
+            console.log(`🔧 Loading env var: ${key} = "${value}" (length: ${value.length})`);
+            console.log(`🔧 Raw line was: "${line}"`);
+            console.log(`🔧 Trimmed line: "${trimmedLine}"`);
+          }
         }
       }
     });
@@ -29,6 +36,15 @@ function loadSecretEnv() {
 
 // Load secret environment variables
 loadSecretEnv();
+
+// DEBUG: Verify environment loading worked
+console.log('🔧 Environment loading verification:', {
+  DEBUG_CHANNELS: process.env.DEBUG_CHANNELS,
+  NODE_ENV: process.env.NODE_ENV,
+  hasChannelSecret: !!process.env.EXPO_PUBLIC_CHANNEL_SECRET,
+  allDebugKeys: Object.keys(process.env).filter(k => k.includes('DEBUG'))
+});
+
 
 module.exports = {
   expo: {
@@ -69,6 +85,8 @@ module.exports = {
       supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
       supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
       channelSecret: process.env.EXPO_PUBLIC_CHANNEL_SECRET,
+      debugChannels: process.env.DEBUG_CHANNELS,
+      nodeEnv: process.env.NODE_ENV || 'development',
     }
   }
 };
