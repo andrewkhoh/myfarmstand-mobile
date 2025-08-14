@@ -148,7 +148,7 @@ export class PatternFixer {
       }
     }
 
-    if (insertLine === -1) return null;
+    if (insertLine === -1) return { file: filePath, type: 'service_pattern', description: 'Insert location not found', originalCode: '', fixedCode: '', severity: 'medium' };
 
     const originalCode = lines.slice(insertLine, insertLine + 5).join('\n');
     const fixedCode = `    try {
@@ -219,7 +219,7 @@ export class PatternFixer {
       }
     }
 
-    return null;
+    return { file: filePath, type: 'service_pattern', description: 'No return format fixes needed', originalCode: '', fixedCode: '', severity: 'low' };
   }
 
   private generateLoggingFix(filePath: string, content: string, lines: string[]): FixPatch {
@@ -246,7 +246,7 @@ export class PatternFixer {
       }
     }
 
-    return null;
+    return { file: filePath, type: 'service_pattern', description: 'No logging fixes needed', originalCode: '', fixedCode: '', severity: 'low' };
   }
 
   private generateIncorrectImplementationFix(filePath: string, content: string, lines: string[], gap: any): FixPatch | null {

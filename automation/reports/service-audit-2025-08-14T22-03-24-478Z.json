@@ -1,0 +1,138 @@
+[
+  {
+    "service": "orderService",
+    "score": 100,
+    "gaps": [],
+    "recommendations": [],
+    "status": "pass"
+  },
+  {
+    "service": "productService",
+    "score": 100,
+    "gaps": [],
+    "recommendations": [],
+    "status": "pass"
+  },
+  {
+    "service": "notificationService",
+    "score": 80,
+    "gaps": [
+      {
+        "type": "missing_pattern",
+        "severity": "medium",
+        "description": "Missing broadcast integration",
+        "suggestion": "Add broadcast events for data synchronization across devices"
+      },
+      {
+        "type": "missing_pattern",
+        "severity": "medium",
+        "description": "Inconsistent return format",
+        "suggestion": "Use consistent { success, data?, message?, error? } return format"
+      }
+    ],
+    "recommendations": [],
+    "status": "pass"
+  },
+  {
+    "service": "pickupReschedulingService",
+    "score": 100,
+    "gaps": [],
+    "recommendations": [],
+    "status": "pass"
+  },
+  {
+    "service": "noShowHandlingService",
+    "score": 90,
+    "gaps": [
+      {
+        "type": "missing_pattern",
+        "severity": "medium",
+        "description": "Missing broadcast integration",
+        "suggestion": "Add broadcast events for data synchronization across devices"
+      }
+    ],
+    "recommendations": [],
+    "status": "pass"
+  },
+  {
+    "service": "useOrders",
+    "score": 90,
+    "gaps": [
+      {
+        "type": "missing_pattern",
+        "severity": "medium",
+        "description": "Missing TypeScript type definitions",
+        "suggestion": "Add proper TypeScript interfaces and types"
+      }
+    ],
+    "recommendations": [],
+    "status": "pass"
+  },
+  {
+    "service": "useProducts",
+    "score": 65,
+    "gaps": [
+      {
+        "type": "missing_pattern",
+        "severity": "medium",
+        "description": "Missing optimistic update pattern",
+        "suggestion": "Implement onMutate, onSuccess, onError for better UX"
+      },
+      {
+        "type": "missing_pattern",
+        "severity": "medium",
+        "description": "Missing cache invalidation",
+        "suggestion": "Add proper cache invalidation after mutations"
+      },
+      {
+        "type": "missing_pattern",
+        "severity": "low",
+        "description": "Missing loading state management",
+        "suggestion": "Expose loading states for better user experience"
+      },
+      {
+        "type": "missing_pattern",
+        "severity": "medium",
+        "description": "Missing TypeScript type definitions",
+        "suggestion": "Add proper TypeScript interfaces and types"
+      }
+    ],
+    "recommendations": [],
+    "status": "warning"
+  },
+  {
+    "service": "useCart",
+    "score": 100,
+    "gaps": [],
+    "recommendations": [],
+    "status": "pass"
+  },
+  {
+    "service": "usePickupRescheduling",
+    "score": 90,
+    "gaps": [
+      {
+        "type": "missing_pattern",
+        "severity": "medium",
+        "description": "Missing TypeScript type definitions",
+        "suggestion": "Add proper TypeScript interfaces and types"
+      }
+    ],
+    "recommendations": [],
+    "status": "pass"
+  },
+  {
+    "service": "useNoShowHandling",
+    "score": 90,
+    "gaps": [
+      {
+        "type": "missing_pattern",
+        "severity": "medium",
+        "description": "Missing TypeScript type definitions",
+        "suggestion": "Add proper TypeScript interfaces and types"
+      }
+    ],
+    "recommendations": [],
+    "status": "pass"
+  }
+]

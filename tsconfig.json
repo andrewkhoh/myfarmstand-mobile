@@ -10,13 +10,29 @@
     "moduleResolution": "node",
     "allowJs": true,
     "declaration": false,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "jsx": "react-native",
+    "outDir": "./dist",
+    "noEmit": true
   },
+  "include": [
+    "src/**/*",
+    "automation/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.js",
+    "app.config.js",
+    "jest.config.js",
+    "fix-cart-broadcasts.js",
+    "schema_inspector.js"
+  ],
   "ts-node": {
     "esm": false,
     "compilerOptions": {
-      "module": "commonjs"
+      "module": "commonjs",
+      "noEmit": false
     }
-  },
-  "extends": "expo/tsconfig.base"
+  }
 }
