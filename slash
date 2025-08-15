@@ -1,0 +1,59 @@
+#!/bin/bash
+
+# Slash Command Wrapper for Claude Code
+# Usage: ./slash code-review --scope="src/hooks" --focus="patterns,architecture" --dry-run=true
+
+COMMAND="$1"
+shift  # Remove first argument
+ARGS="$@"
+
+case "$COMMAND" in
+    "code-review")
+        PROMPT="Perform a comprehensive code review with the following parameters: $ARGS. Focus on architectural patterns, React Query compliance, and comparison against CartService golden standard. Provide specific recommendations and code examples."
+        ;;
+    "refactor")
+        PROMPT="Perform refactoring analysis with parameters: $ARGS. Identify refactoring opportunities, provide specific code changes, and ensure compliance with established patterns."
+        ;;
+    "docs")
+        PROMPT="Generate documentation with parameters: $ARGS. Create comprehensive API documentation, usage examples, and architectural explanations."
+        ;;
+    "architecture")
+        PROMPT="Perform architectural analysis with parameters: $ARGS. Analyze system design, identify improvements, and provide architectural recommendations."
+        ;;
+    "farm-stand-schema-fix")
+        PROMPT="Analyze and fix schema mapping issues with parameters: $ARGS. Use live database schema inspection, identify camelCase vs snake_case mismatches, and provide specific fixes for the 327 critical mapping issues."
+        ;;
+    "pattern-compliance")
+        PROMPT="Check service pattern compliance with parameters: $ARGS. Compare against CartService golden standard, identify violations, and provide specific fixes."
+        ;;
+    "bug-investigation")
+        PROMPT="Investigate performance bugs with parameters: $ARGS. Perform root cause analysis, trace data flow, and provide specific solutions."
+        ;;
+    "security-audit")
+        PROMPT="Perform security audit with parameters: $ARGS. Analyze broadcast system, user isolation, and privacy compliance. Identify vulnerabilities and provide fixes."
+        ;;
+    "performance-optimization")
+        PROMPT="Analyze performance optimization opportunities with parameters: $ARGS. Identify bottlenecks, suggest improvements, and provide specific optimizations."
+        ;;
+    *)
+        echo "Unknown command: $COMMAND"
+        echo "Available commands:"
+        echo "  code-review"
+        echo "  refactor"
+        echo "  docs"
+        echo "  architecture"
+        echo "  farm-stand-schema-fix"
+        echo "  pattern-compliance"
+        echo "  bug-investigation"
+        echo "  security-audit"
+        echo "  performance-optimization"
+        exit 1
+        ;;
+esac
+
+echo "🚀 Executing: /$COMMAND $ARGS"
+echo "📝 Prompt: $PROMPT"
+echo ""
+
+# Execute Claude Code with the generated prompt
+~/.local/bin/claude --print "$PROMPT"
