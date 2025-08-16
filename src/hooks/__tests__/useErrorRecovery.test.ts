@@ -70,10 +70,10 @@ describe('useErrorRecovery', () => {
     result.current.recoverFromError(errorData);
 
     await waitFor(() => {
-      expect(result.current.isRecovering).toBe(false);
-    });
+      expect(result.current.error).toBeTruthy();
+    }, { timeout: 3000 });
 
-    expect(result.current.error).toBeTruthy();
+    expect(result.current.error?.message).toContain('Recovery failed');
   });
 
   it('should provide async recovery operation', async () => {

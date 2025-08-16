@@ -3,7 +3,7 @@
  * Testing the service-specific Jest setup
  */
 
-import { TokenService } from './tokenService';
+import { TokenService } from '../tokenService';
 
 describe('TokenService', () => {
   beforeEach(() => {

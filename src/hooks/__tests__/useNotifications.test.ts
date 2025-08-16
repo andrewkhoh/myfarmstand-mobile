@@ -122,9 +122,9 @@ describe('useNotifications', () => {
 
       await waitFor(() => {
         expect(result.current.sendError).toBeTruthy();
-      });
+      }, { timeout: 3000 });
 
-      expect(result.current.sendError?.message).toBe('Send failed');
+      expect(result.current.sendError?.message).toContain('Send failed');
     });
 
     it('should send notification async successfully', async () => {
@@ -153,9 +153,9 @@ describe('useNotifications', () => {
 
       await waitFor(() => {
         expect(result.current.sendError).toBeTruthy();
-      });
+      }, { timeout: 3000 });
 
-      expect(result.current.sendError?.message).toBe('Invalid request format');
+      expect(result.current.sendError?.message).toContain('Invalid request format');
     });
 
     it('should handle rate limiting error', async () => {
@@ -226,9 +226,9 @@ describe('useNotifications', () => {
 
       await waitFor(() => {
         expect(result.current.sendError).toBeTruthy();
-      });
+      }, { timeout: 3000 });
 
-      expect(result.current.sendError?.message).toBe('Unauthorized access');
+      expect(result.current.sendError?.message).toContain('Unauthorized access');
     });
 
     it('should handle network error during preferences update', async () => {

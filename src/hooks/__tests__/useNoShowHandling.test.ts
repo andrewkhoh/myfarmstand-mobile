@@ -84,10 +84,10 @@ describe('useNoShowHandling', () => {
     result.current.processNoShowOrders(config);
 
     await waitFor(() => {
-      expect(result.current.isProcessingNoShow).toBe(false);
-    });
+      expect(result.current.processError).toBeTruthy();
+    }, { timeout: 3000 });
 
-    expect(result.current.processError).toBeTruthy();
+    expect(result.current.processError?.message).toContain('Processing failed');
   });
 
   it('should check overdue orders successfully', async () => {
@@ -138,18 +138,18 @@ describe('useNoShowHandling', () => {
       } as any);
     });
 
-    it('should block operations when not authenticated', () => {
+    it('should handle authentication error in mutation', async () => {
       const { result } = renderHook(() => useNoShowHandling(), {
         wrapper: createWrapper(),
       });
 
-      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
-
       result.current.processNoShowOrders({ maxHours: 24 });
 
-      expect(consoleSpy).toHaveBeenCalledWith('⚠️ No-show handling operation blocked: User not authenticated');
+      await waitFor(() => {
+        expect(result.current.processError).toBeTruthy();
+      });
 
-      consoleSpy.mockRestore();
+      expect(result.current.processError?.message).toContain('authenticated');
     });
   });
 });

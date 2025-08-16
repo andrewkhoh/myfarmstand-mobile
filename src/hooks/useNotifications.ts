@@ -95,6 +95,8 @@ export const useNotifications = () => {
       // Safe no-op functions
       isSending: false,
       sendError: null,
+      isUpdatingPreferences: false,
+      preferencesError: null,
       sendNotification: () => {},
       sendNotificationAsync: async () => ({ success: false, message: 'Not authenticated' }),
       updatePreferences: () => {},
@@ -105,9 +107,14 @@ export const useNotifications = () => {
       preferences: null,
       isLoadingHistory: false,
       isLoadingPreferences: false,
+      historyError: null,
+      preferencesQueryError: null,
       
-      // Query keys
+      // Query keys and utilities
       getNotificationQueryKey: () => ['notifications'],
+      getPreferencesQueryKey: () => ['notifications', 'preferences'],
+      refetchHistory: () => Promise.resolve({} as any),
+      refetchPreferences: () => Promise.resolve({} as any),
     };
   }
 

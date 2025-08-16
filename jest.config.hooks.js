@@ -13,12 +13,7 @@ module.exports = {
   ],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],
   transform: {
-    '^.+\\.(ts|tsx)$': ['ts-jest', {
-      useESM: true,
-      tsconfig: {
-        jsx: 'react-jsx'
-      }
-    }]
+    '^.+\\.(js|jsx|ts|tsx)$': 'babel-jest'
   },
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
@@ -30,6 +25,5 @@ module.exports = {
   },
   transformIgnorePatterns: [
     'node_modules/(?!(@react-native|react-native|@tanstack|@testing-library|expo|@expo|@supabase|isows))'
-  ],
-  extensionsToTreatAsEsm: ['.ts', '.tsx']
+  ]
 };

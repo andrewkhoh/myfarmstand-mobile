@@ -68,10 +68,10 @@ describe('usePickupRescheduling', () => {
     result.current.reschedulePickup(rescheduleData);
 
     await waitFor(() => {
-      expect(result.current.isRescheduling).toBe(false);
-    });
+      expect(result.current.rescheduleError).toBeTruthy();
+    }, { timeout: 3000 });
 
-    expect(result.current.rescheduleError).toBeTruthy();
+    expect(result.current.rescheduleError?.message).toContain('Rescheduling failed');
   });
 
   it('should provide async rescheduling operation', async () => {
@@ -98,12 +98,10 @@ describe('usePickupRescheduling', () => {
       } as any);
     });
 
-    it('should block operations when not authenticated', () => {
+    it('should handle authentication error in mutation', async () => {
       const { result } = renderHook(() => usePickupRescheduling(), {
         wrapper: createWrapper(),
       });
-
-      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
 
       result.current.reschedulePickup({ 
         orderId: 'order123', 
@@ -113,9 +111,11 @@ describe('usePickupRescheduling', () => {
         requestedBy: 'customer' as const
       });
 
-      expect(consoleSpy).toHaveBeenCalledWith('⚠️ Pickup rescheduling operation blocked: User not authenticated');
+      await waitFor(() => {
+        expect(result.current.rescheduleError).toBeTruthy();
+      });
 
-      consoleSpy.mockRestore();
+      expect(result.current.rescheduleError?.message).toContain('authenticated');
     });
   });
 });

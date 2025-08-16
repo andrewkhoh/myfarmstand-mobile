@@ -3,10 +3,10 @@
  * Testing product management functionality
  */
 
-import productService from './productService';
+import productService from '../productService';
 
 // Mock the supabase module
-const mockSupabase = require('../config/supabase').supabase;
+const mockSupabase = require('../../config/supabase').supabase;
 
 describe('ProductService', () => {
   const mockProducts = [
@@ -36,9 +36,23 @@ describe('ProductService', () => {
     mockSupabase.from.mockReturnValue({
       select: jest.fn().mockReturnValue({
         eq: jest.fn().mockReturnValue({
-          order: jest.fn().mockResolvedValue({
-            data: mockProducts,
-            error: null
+          eq: jest.fn().mockReturnValue({
+            order: jest.fn().mockResolvedValue({
+              data: mockProducts.map(p => ({
+                ...p,
+                categories: {
+                  id: p.category_id,
+                  name: 'Test Category',
+                  description: 'Test Description',
+                  image_url: null,
+                  sort_order: 1,
+                  is_available: true,
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString()
+                }
+              })),
+              error: null
+            })
           })
         })
       })
@@ -73,9 +87,25 @@ describe('ProductService', () => {
     mockSupabase.from.mockReturnValue({
       select: jest.fn().mockReturnValue({
         eq: jest.fn().mockReturnValue({
-          single: jest.fn().mockResolvedValue({
-            data: mockProducts[0],
-            error: null
+          eq: jest.fn().mockReturnValue({
+            eq: jest.fn().mockReturnValue({
+              single: jest.fn().mockResolvedValue({
+                data: {
+                  ...mockProducts[0],
+                  categories: {
+                    id: mockProducts[0].category_id,
+                    name: 'Test Category',
+                    description: 'Test Description',
+                    image_url: null,
+                    sort_order: 1,
+                    is_available: true,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                  }
+                },
+                error: null
+              })
+            })
           })
         })
       })
@@ -92,9 +122,13 @@ describe('ProductService', () => {
     mockSupabase.from.mockReturnValue({
       select: jest.fn().mockReturnValue({
         eq: jest.fn().mockReturnValue({
-          single: jest.fn().mockResolvedValue({
-            data: null,
-            error: { message: 'Product not found' }
+          eq: jest.fn().mockReturnValue({
+            eq: jest.fn().mockReturnValue({
+              single: jest.fn().mockResolvedValue({
+                data: null,
+                error: { code: 'PGRST116' }
+              })
+            })
           })
         })
       })
@@ -107,14 +141,30 @@ describe('ProductService', () => {
   });
 
   it('should get products by category', async () => {
-    const categoryProducts = [mockProducts[0]];
+    const categoryProducts = [{
+      ...mockProducts[0],
+      categories: {
+        id: mockProducts[0].category_id,
+        name: 'Test Category',
+        description: 'Test Description',
+        image_url: null,
+        sort_order: 1,
+        is_available: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+    }];
     
     mockSupabase.from.mockReturnValue({
       select: jest.fn().mockReturnValue({
         eq: jest.fn().mockReturnValue({
-          order: jest.fn().mockResolvedValue({
-            data: categoryProducts,
-            error: null
+          eq: jest.fn().mockReturnValue({
+            eq: jest.fn().mockReturnValue({
+              order: jest.fn().mockResolvedValue({
+                data: categoryProducts,
+                error: null
+              })
+            })
           })
         })
       })
@@ -131,10 +181,24 @@ describe('ProductService', () => {
     mockSupabase.from.mockReturnValue({
       select: jest.fn().mockReturnValue({
         eq: jest.fn().mockReturnValue({
-          or: jest.fn().mockReturnValue({
-            order: jest.fn().mockResolvedValue({
-              data: [mockProducts[0]],
-              error: null
+          eq: jest.fn().mockReturnValue({
+            or: jest.fn().mockReturnValue({
+              order: jest.fn().mockResolvedValue({
+                data: [{
+                  ...mockProducts[0],
+                  categories: {
+                    id: mockProducts[0].category_id,
+                    name: 'Test Category',
+                    description: 'Test Description',
+                    image_url: null,
+                    sort_order: 1,
+                    is_available: true,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                  }
+                }],
+                error: null
+              })
             })
           })
         })

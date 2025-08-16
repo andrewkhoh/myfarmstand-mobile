@@ -3,9 +3,14 @@ import React from 'react';
 import { createWrapper } from '../../test/test-utils';
 import { useStockValidation } from '../useStockValidation';
 import { useCurrentUser } from '../useAuth';
+import { useCart } from '../useCart';
+import { createMockUser, createMockProduct } from '../../test/mockData';
 
 jest.mock('../useAuth');
 const mockUseCurrentUser = useCurrentUser as jest.MockedFunction<typeof useCurrentUser>;
+
+jest.mock('../useCart');
+const mockUseCart = useCart as jest.MockedFunction<typeof useCart>;
 
 jest.mock('../../utils/broadcastFactory', () => ({
   createBroadcastHelper: () => ({
@@ -13,19 +18,25 @@ jest.mock('../../utils/broadcastFactory', () => ({
   }),
 }));
 
-// Mock the stock validation service
-const mockValidateStock = jest.fn();
-const mockGetStockLevel = jest.fn();
-
-jest.mock('../../services/stockValidationService', () => ({
-  StockValidationService: {
-    validateStock: mockValidateStock,
-    getStockLevel: mockGetStockLevel,
-  },
+jest.mock('../../config/supabase', () => ({
+  supabase: {
+    from: () => ({
+      select: () => ({
+        eq: () => Promise.resolve({
+          data: [
+            { id: 'prod1', stock_quantity: 10, is_pre_order: false },
+            { id: 'prod2', stock_quantity: 5, is_pre_order: true, min_pre_order_quantity: 2, max_pre_order_quantity: 20 }
+          ],
+          error: null
+        })
+      })
+    })
+  }
 }));
 
 
-const mockUser = { id: 'user123', email: 'test@example.com', name: 'Test User', role: 'customer' as const };
+const mockUser = createMockUser({ id: 'user123' });
+const mockProduct = createMockProduct({ id: 'prod1', name: 'Test Product' });
 
 describe('useStockValidation', () => {
   beforeEach(() => {
@@ -35,6 +46,9 @@ describe('useStockValidation', () => {
       isLoading: false,
       error: null,
     } as any);
+    mockUseCart.mockReturnValue({
+      getCartQuantity: jest.fn().mockReturnValue(0),
+    } as any);
   });
 
   it('should provide stock validation functionality', () => {
@@ -43,76 +57,72 @@ describe('useStockValidation', () => {
     });
 
     expect(result.current.validateStock).toBeDefined();
-    expect(result.current.validateStockAsync).toBeDefined();
-    expect(typeof result.current.isValidating).toBe('boolean');
+    expect(result.current.getStockInfo).toBeDefined();
+    expect(result.current.canAddOneMore).toBeDefined();
+    expect(result.current.canAddQuantity).toBeDefined();
+    expect(typeof result.current.isLoading).toBe('boolean');
+    expect(typeof result.current.isRefreshing).toBe('boolean');
   });
 
   it('should validate stock successfully', async () => {
-    const mockResult = { isValid: true, availableQuantity: 10 };
-    mockValidateStock.mockResolvedValue(mockResult);
-
     const { result } = renderHook(() => useStockValidation(), {
       wrapper: createWrapper(),
     });
-
-    const validationData = { productId: 'prod123', requestedQuantity: 5 };
-    result.current.validateStock(validationData);
 
     await waitFor(() => {
-      expect(result.current.isValidating).toBe(false);
+      expect(result.current.isLoading).toBe(false);
     });
 
-    expect(mockValidateStock).toHaveBeenCalledWith(validationData);
-  });
-
-  it('should handle validation failure', async () => {
-    mockValidateStock.mockRejectedValue(new Error('Validation failed'));
-
-    const { result } = renderHook(() => useStockValidation(), {
-      wrapper: createWrapper(),
-    });
-
-    const validationData = { productId: 'prod123', requestedQuantity: 5 };
-    result.current.validateStock(validationData);
-
-    await waitFor(() => {
-      expect(result.current.isValidating).toBe(false);
-    });
-
-    expect(result.current.error).toBeTruthy();
-  });
-
-  it('should provide async validation operation', async () => {
-    const mockResult = { isValid: true, availableQuantity: 10 };
-    mockValidateStock.mockResolvedValue(mockResult);
-
-    const { result } = renderHook(() => useStockValidation(), {
-      wrapper: createWrapper(),
-    });
-
-    const validationData = { productId: 'prod123', requestedQuantity: 5 };
-    const response = await result.current.validateStockAsync(validationData);
-
-    expect(response.success).toBe(true);
-    expect(mockValidateStock).toHaveBeenCalledWith(validationData);
+    const validation = result.current.validateStock(mockProduct, 1);
+    expect(validation.isValid).toBe(true);
+    expect(validation.availableStock).toBe(10);
+    expect(validation.canAddMore).toBe(true);
   });
 
   it('should handle insufficient stock', async () => {
-    const mockResult = { isValid: false, availableQuantity: 2 };
-    mockValidateStock.mockResolvedValue(mockResult);
-
     const { result } = renderHook(() => useStockValidation(), {
       wrapper: createWrapper(),
     });
 
-    const validationData = { productId: 'prod123', requestedQuantity: 5 };
-    result.current.validateStock(validationData);
-
     await waitFor(() => {
-      expect(result.current.isValidating).toBe(false);
+      expect(result.current.isLoading).toBe(false);
     });
 
-    expect(mockValidateStock).toHaveBeenCalledWith(validationData);
+    const validation = result.current.validateStock(mockProduct, 15); // Request more than available
+    expect(validation.isValid).toBe(false);
+    expect(validation.message).toContain('Only 10 items available');
+  });
+
+  it('should provide stock information functions', async () => {
+    const { result } = renderHook(() => useStockValidation(), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    const stockInfo = result.current.getStockInfo(mockProduct);
+    expect(stockInfo.availableStock).toBe(10);
+    expect(stockInfo.currentCartQuantity).toBe(0);
+    expect(stockInfo.remainingStock).toBe(10);
+    
+    expect(result.current.canAddOneMore('prod1')).toBe(true);
+    expect(result.current.canAddQuantity(mockProduct, 5)).toBe(true);
+    expect(result.current.getRemainingStock('prod1')).toBe(10);
+  });
+
+  it('should provide stock status messages', async () => {
+    const { result } = renderHook(() => useStockValidation(), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    const message = result.current.getStockStatusMessage(mockProduct);
+    expect(message).toBe('10 available');
   });
 
   describe('when user is not authenticated', () => {
@@ -124,29 +134,27 @@ describe('useStockValidation', () => {
       } as any);
     });
 
-    it('should block operations when not authenticated', () => {
+    it('should return authentication error state', () => {
       const { result } = renderHook(() => useStockValidation(), {
         wrapper: createWrapper(),
       });
 
-      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
-
-      result.current.validateStock({ productId: 'prod123', requestedQuantity: 5 });
-
-      expect(consoleSpy).toHaveBeenCalledWith('⚠️ Stock validation operation blocked: User not authenticated');
-
-      consoleSpy.mockRestore();
+      expect(result.current.stockData).toEqual([]);
+      expect(result.current.error?.code).toBe('AUTHENTICATION_REQUIRED');
+      expect(result.current.isLoading).toBe(false);
     });
 
-    it('should return error for async operations when not authenticated', async () => {
+    it('should provide safe no-op functions', () => {
       const { result } = renderHook(() => useStockValidation(), {
         wrapper: createWrapper(),
       });
 
-      const response = await result.current.validateStockAsync({ productId: 'prod123', requestedQuantity: 5 });
-
-      expect(response.success).toBe(false);
-      expect(response.error?.code).toBe('AUTHENTICATION_REQUIRED');
+      const validation = result.current.validateStock(mockProduct, 1);
+      expect(validation.isValid).toBe(false);
+      expect(validation.message).toBe('Please sign in to validate stock');
+      
+      expect(result.current.canAddOneMore('prod1')).toBe(false);
+      expect(result.current.canAddQuantity(mockProduct, 1)).toBe(false);
     });
   });
 });

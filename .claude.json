@@ -1,0 +1,7 @@
+{
+    "rules": {
+      "edit": {
+        "allow": ["src/hooks/__tests__/**", "src/services/__tests__/**"]
+      }
+    }
+  }

@@ -3,10 +3,10 @@
  * Testing authentication functionality
  */
 
-import { AuthService } from './authService';
+import { AuthService } from '../authService';
 
 // Mock the supabase module at the service level
-const mockSupabase = require('../config/supabase').supabase;
+const mockSupabase = require('../../config/supabase').supabase;
 
 describe('AuthService', () => {
   beforeEach(() => {
