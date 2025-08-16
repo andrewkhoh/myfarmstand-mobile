@@ -1,11 +1,36 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useCallback } from 'react';
 import { supabase } from '../config/supabase';
 import { getProductStock, isProductPreOrder, getProductMinPreOrderQty, getProductMaxPreOrderQty } from '../utils/typeMappers';
 import { Product } from '../types';
 import { useCart } from './useCart';
+import { useCurrentUser } from './useAuth';
 import { Database } from '../types/database.generated';
+import { createQueryKeyFactory } from '../utils/queryKeyFactory';
+import { createBroadcastHelper } from '../utils/broadcastFactory';
 
 type DBProduct = Database['public']['Tables']['products']['Row'];
+
+// Enhanced interfaces following cart pattern
+interface StockError {
+  code: 'AUTHENTICATION_REQUIRED' | 'NETWORK_ERROR' | 'PRODUCT_NOT_FOUND' | 'UNKNOWN_ERROR';
+  message: string;
+  userMessage: string;
+  productId?: string;
+}
+
+interface StockOperationResult<T = any> {
+  success: boolean;
+  message?: string;
+  error?: StockError;
+  data?: T;
+}
+
+interface StockMutationContext {
+  previousStockData?: StockData[];
+  operationType: 'refresh' | 'validate';
+  metadata?: Record<string, any>;
+}
 
 // Real-time stock data interface
 interface StockData {
@@ -27,37 +52,151 @@ export interface StockValidationResult {
   remainingStock: number;
 }
 
-// Real-time stock validation hook
+// Enhanced error handling utility (following cart pattern)
+const createStockError = (
+  code: StockError['code'],
+  message: string,
+  userMessage: string,
+  productId?: string
+): StockError => ({
+  code,
+  message,
+  userMessage,
+  productId,
+});
+
+// Query key factory for stock operations (following cart pattern)
+const stockKeys = createQueryKeyFactory({
+  entity: 'products',
+  isolation: 'global'
+});
+
+// Broadcast helper for stock events (following cart pattern)
+const stockBroadcast = createBroadcastHelper({
+  entity: 'products',
+  target: 'global'
+});
+
+// Enhanced typed query function (following cart pattern)
+type StockDataQueryFn = () => Promise<StockData[]>;
+
+// Enhanced typed mutation functions (following cart pattern)
+type RefreshStockMutationFn = () => Promise<StockOperationResult<StockData[]>>;
+
+// Enhanced Real-time stock validation hook following useCart.ts golden standard
 export const useStockValidation = () => {
+  const { data: user } = useCurrentUser();
   const { getCartQuantity } = useCart();
-
-  // Real-time stock data query - React Query is the single source of truth
-  const { data: stockData = [], refetch: refetchStock, isLoading } = useQuery({
-    queryKey: ['stock-validation'],
+  const queryClient = useQueryClient();
+  
+  // Enhanced authentication guard (following cart pattern)
+  if (!user?.id) {
+    const authError = createStockError(
+      'AUTHENTICATION_REQUIRED',
+      'User not authenticated',
+      'Please sign in to access stock validation'
+    );
+    
+    return {
+      stockData: [],
+      isLoading: false,
+      error: authError,
+      
+      isRefreshing: false,
+      
+      // Safe no-op functions
+      validateStock: () => ({
+        isValid: false,
+        availableStock: 0,
+        currentCartQuantity: 0,
+        maxAllowedQuantity: 0,
+        message: 'Please sign in to validate stock',
+        canAddMore: false,
+        remainingStock: 0
+      } as StockValidationResult),
+      getStockInfo: () => ({ availableStock: 0, currentCartQuantity: 0, remainingStock: 0, isPreOrder: false }),
+      canAddOneMore: () => false,
+      canAddQuantity: () => false,
+      getRemainingStock: () => 0,
+      getStockStatusMessage: () => 'Please sign in',
+      canAddMore: () => false,
+      refetchStock: () => Promise.resolve(),
+      refreshStockAsync: async (): Promise<StockOperationResult<StockData[]>> => ({ 
+        success: false, 
+        error: authError 
+      }),
+      getStockQueryKey: () => ['stock-validation', 'unauthenticated'],
+    };
+  }
+  
+  const stockQueryKey = stockKeys.lists('global');
+  
+  // Enhanced query with proper enabled guard and error handling (following cart pattern)
+  const {
+    data: stockData = [],
+    isLoading,
+    error: queryError,
+    refetch: refetchStock
+  } = useQuery({
+    queryKey: stockQueryKey,
     queryFn: async (): Promise<StockData[]> => {
-      const { data, error } = await supabase
-        .from('products')
-        .select('id, stock_quantity, is_pre_order, min_pre_order_quantity, max_pre_order_quantity')
-        .eq('is_available', true);
+      try {
+        const { data, error } = await supabase
+          .from('products')
+          .select('id, stock_quantity, is_pre_order, min_pre_order_quantity, max_pre_order_quantity')
+          .eq('is_available', true);
 
-      if (error) {
-        console.error('Error fetching stock data:', error);
-        throw new Error('Failed to fetch stock data');
+        if (error) {
+          throw createStockError(
+            'NETWORK_ERROR',
+            error.message,
+            'Failed to load stock data'
+          );
+        }
+
+        return data.map((item: any) => ({
+          productId: item.id,
+          availableStock: getProductStock(item),
+          isPreOrder: isProductPreOrder(item),
+          minPreOrderQuantity: getProductMinPreOrderQty(item),
+          maxPreOrderQuantity: getProductMaxPreOrderQty(item)
+        }));
+      } catch (error: any) {
+        if (error.code) {
+          throw error; // Re-throw StockError
+        }
+        throw createStockError(
+          'UNKNOWN_ERROR',
+          error.message || 'Failed to fetch stock data',
+          'Unable to load stock information. Please try again.'
+        );
       }
-
-      return data.map((item: any) => ({
-        productId: item.id,
-        availableStock: getProductStock(item),
-        isPreOrder: isProductPreOrder(item),
-        minPreOrderQuantity: getProductMinPreOrderQty(item),
-        maxPreOrderQuantity: getProductMaxPreOrderQty(item)
-      }));
     },
-    staleTime: 30 * 1000, // 30 seconds - frequent updates for real-time validation
-    gcTime: 2 * 60 * 1000, // 2 minutes
+    staleTime: 30 * 1000, // 30 seconds - frequent updates for real-time validation (following cart pattern)
+    gcTime: 2 * 60 * 1000, // 2 minutes (following cart pattern)
+    refetchOnMount: true, // (following cart pattern)
+    refetchOnWindowFocus: true, // (following cart pattern)
+    refetchOnReconnect: true, // (following cart pattern)
     refetchInterval: 30 * 1000, // Auto-refresh every 30 seconds
-    refetchOnWindowFocus: true,
+    enabled: !!user?.id, // Enhanced enabled guard (following cart pattern)
+    retry: (failureCount, error) => {
+      // Smart retry logic (following cart pattern)
+      if (failureCount < 2) return true;
+      // Don't retry on authentication errors
+      if (error.message?.includes('authentication') || error.message?.includes('unauthorized')) {
+        return false;
+      }
+      return failureCount < 3;
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff (following cart pattern)
   });
+  
+  // Enhanced error processing (following cart pattern)
+  const error = queryError ? createStockError(
+    'NETWORK_ERROR',
+    queryError.message || 'Failed to load stock data',
+    'Unable to load stock information. Please try again.',
+  ) : null;
 
   // Core validation function - kept for flexibility
   const validateStock = (
@@ -199,6 +338,68 @@ export const useStockValidation = () => {
     return `${availableStock} available`;
   };
 
+  // Enhanced refresh stock mutation (following cart pattern)
+  const refreshStockMutation = useMutation<StockOperationResult<StockData[]>, Error, void, StockMutationContext>({
+    mutationFn: async (): Promise<StockOperationResult<StockData[]>> => {
+      try {
+        await refetchStock();
+        const newStockData = queryClient.getQueryData<StockData[]>(stockQueryKey) || [];
+        return { success: true, data: newStockData };
+      } catch (error: any) {
+        throw createStockError(
+          'UNKNOWN_ERROR',
+          error.message || 'Failed to refresh stock data',
+          'Unable to refresh stock information. Please try again.'
+        );
+      }
+    },
+    onMutate: async (): Promise<StockMutationContext> => {
+      // Cancel outgoing refetches (following cart pattern)
+      await queryClient.cancelQueries({ queryKey: stockQueryKey });
+      
+      // Snapshot previous value (following cart pattern)
+      const previousStockData = queryClient.getQueryData<StockData[]>(stockQueryKey);
+      
+      return { 
+        previousStockData, 
+        operationType: 'refresh',
+        metadata: { userId: user.id }
+      };
+    },
+    onError: (error: any, _variables: void, context?: StockMutationContext) => {
+      // Rollback on error (following cart pattern)
+      if (context?.previousStockData) {
+        queryClient.setQueryData(stockQueryKey, context.previousStockData);
+      }
+      
+      // Enhanced error logging (following cart pattern)
+      console.error('❌ Refresh stock failed:', {
+        error: error.message,
+        userMessage: (error as StockError).userMessage,
+        userId: user.id
+      });
+    },
+    onSuccess: async (_result: StockOperationResult<StockData[]>) => {
+      // Smart invalidation strategy (following cart pattern)
+      await queryClient.invalidateQueries({ queryKey: stockQueryKey });
+      await queryClient.invalidateQueries({ queryKey: ['products'] });
+      
+      // Broadcast success (following cart pattern)
+      await stockBroadcast.send('stock-refreshed', {
+        userId: user.id,
+        timestamp: new Date().toISOString()
+      });
+    },
+    // Enhanced retry logic (following cart pattern)
+    retry: (failureCount, _error: any) => {
+      return failureCount < 2;
+    },
+    retryDelay: 1000,
+  });
+  
+  // Enhanced utility functions with useCallback (following cart pattern)
+  const getStockQueryKey = useCallback(() => stockQueryKey, [user.id]);
+  
   // DEPRECATED: Keep for backward compatibility but mark as deprecated
   const canAddMore = (productId: string): boolean => {
     console.warn('canAddMore is deprecated, use canAddOneMore instead');
@@ -207,6 +408,12 @@ export const useStockValidation = () => {
 
   return {
     stockData,
+    isLoading,
+    error,
+    
+    // Mutation states (following cart pattern)
+    isRefreshing: refreshStockMutation.isPending,
+    
     // Core validation (for advanced use cases)
     validateStock,
     // Intent-specific functions (recommended)
@@ -215,10 +422,18 @@ export const useStockValidation = () => {
     canAddQuantity,
     getRemainingStock,
     getStockStatusMessage,
+    
+    // Direct mutation functions (following cart pattern - single source of truth)
+    refetchStock,
+    
+    // Async mutation functions (following cart pattern)
+    refreshStockAsync: refreshStockMutation.mutateAsync,
+    
+    // Query keys for external use (following cart pattern)
+    getStockQueryKey,
+    
     // Backward compatibility
     canAddMore,
-    getCartQuantity,
-    refetchStock,
-    isLoading
+    getCartQuantity
   };
 };

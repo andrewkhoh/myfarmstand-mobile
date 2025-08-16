@@ -1,6 +1,6 @@
 # React Query Hooks Audit Report
 
-Generated: 2025-08-16T13:58:38.315Z
+Generated: 2025-08-16T14:16:28.904Z
 Standard: useCart.ts patterns
 
 ## Executive Summary
@@ -418,7 +418,7 @@ Standard: useCart.ts patterns
 **Hooks:** useCart
 
 **Missing Patterns:**
-- Enabled Guard
+- Optimistic Updates (onMutate)
 - Rollback on Error
 - Invalidate on Success
 - Mutate & MutateAsync
@@ -426,22 +426,23 @@ Standard: useCart.ts patterns
 - Typed Mutation Function
 
 **Present Patterns:**
-- ✅ Query Key Factory Usage (lines: 41, 210)
-- ✅ Stale Time Configuration (lines: 51)
-- ✅ GC Time Configuration (lines: 52)
-- ✅ Refetch Configuration (lines: 53, 54)
-- ✅ Optimistic Updates (onMutate) (lines: 61, 107, 140, 178)
-- ✅ Query Cancellation (lines: 62, 108, 141, 179)
-- ✅ Previous Data Snapshot (lines: 64, 110, 143, 181)
-- ✅ Optimistic Cache Update (lines: 83, 89, 116, 122, 154, 160, 184, 191)
-- ✅ Broadcast Support (lines: 94, 127, 165, 195)
-- ✅ Authentication Guard (lines: 13)
-- ✅ User Context Usage (lines: 11)
-- ✅ isPending State (lines: 219, 220, 221, 222)
-- ✅ Error Handling (lines: 18, 188)
-- ✅ useCallback Usage (lines: 2, 210)
+- ✅ Query Key Factory Usage (lines: 66, 123, 249, 336, 440, 510, 532)
+- ✅ Stale Time Configuration (lines: 134)
+- ✅ GC Time Configuration (lines: 135)
+- ✅ Refetch Configuration (lines: 136, 137)
+- ✅ Enabled Guard (lines: 139)
+- ✅ Query Cancellation (lines: 194, 298, 392, 478)
+- ✅ Previous Data Snapshot (lines: 197, 301, 395, 481)
+- ✅ Optimistic Cache Update (lines: 223, 234, 311, 322, 414, 425, 485, 496)
+- ✅ Broadcast Support (lines: 253, 340, 444, 514)
+- ✅ Authentication Guard (lines: 77)
+- ✅ User Context Usage (lines: 74)
+- ✅ isPending State (lines: 541, 542, 543, 544)
+- ✅ Error Handling (lines: 88, 102, 106, 110, 114, 129, 167, 231, 239, 261, 279, 319, 327, 347, 365, 422, 430, 452, 468, 493, 501, 520)
+- ✅ useCallback Usage (lines: 2, 532)
 
 **Recommendations:**
+- Add Optimistic Updates (onMutate) pattern following useCart.ts standard
 - Add Rollback on Error pattern following useCart.ts standard
 - Add Invalidate on Success pattern following useCart.ts standard
 
@@ -451,18 +452,18 @@ Standard: useCart.ts patterns
 
 - ✅ **Query Key Factory Usage**: 10/12 files (83%)
 - ✅ **User Context Usage**: 10/12 files (83%)
-- ⚠️ **Optimistic Updates (onMutate)**: 7/12 files (58%)
 - ⚠️ **Query Cancellation**: 7/12 files (58%)
 - ⚠️ **Previous Data Snapshot**: 7/12 files (58%)
 - ⚠️ **Optimistic Cache Update**: 7/12 files (58%)
 - ⚠️ **isPending State**: 7/12 files (58%)
 - ⚠️ **GC Time Configuration**: 6/12 files (50%)
+- ⚠️ **Optimistic Updates (onMutate)**: 6/12 files (50%)
 - ⚠️ **useCallback Usage**: 6/12 files (50%)
 - ❌ **Stale Time Configuration**: 5/12 files (42%)
 - ❌ **Refetch Configuration**: 4/12 files (33%)
 - ❌ **Authentication Guard**: 4/12 files (33%)
+- ❌ **Enabled Guard**: 3/12 files (25%)
 - ❌ **Error Handling**: 3/12 files (25%)
-- ❌ **Enabled Guard**: 2/12 files (17%)
 - ❌ **Broadcast Support**: 2/12 files (17%)
 - ❌ **Rollback on Error**: 0/12 files (0%)
 - ❌ **Invalidate on Success**: 0/12 files (0%)

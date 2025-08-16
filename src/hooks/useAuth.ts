@@ -1,177 +1,569 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback } from 'react';
 import { AuthService } from '../services/authService';
 import { User } from '../types';
+import { createBroadcastHelper } from '../utils/broadcastFactory';
 
-// Query keys for auth-related queries
+// Enhanced interfaces following cart pattern
+interface AuthError {
+  code: 'INVALID_CREDENTIALS' | 'USER_EXISTS' | 'WEAK_PASSWORD' | 'NETWORK_ERROR' | 'TOKEN_EXPIRED' | 'UNAUTHORIZED' | 'UNKNOWN_ERROR';
+  message: string;
+  userMessage: string;
+  email?: string;
+  userId?: string;
+}
+
+interface AuthOperationResult<T = any> {
+  success: boolean;
+  message?: string;
+  error?: AuthError;
+  data?: T;
+}
+
+interface AuthMutationContext {
+  previousUser?: User | null;
+  operationType: 'login' | 'register' | 'logout' | 'update-profile' | 'refresh-token' | 'change-password';
+  metadata?: Record<string, any>;
+}
+
+// Enhanced error handling utility (following cart pattern)
+const createAuthError = (
+  code: AuthError['code'],
+  message: string,
+  userMessage: string,
+  metadata?: { email?: string; userId?: string }
+): AuthError => ({
+  code,
+  message,
+  userMessage,
+  ...metadata,
+});
+
+// Query key factory for auth operations (following cart pattern) - removed unused factory
+
+// Broadcast helper for auth events (following cart pattern)
+const authBroadcast = createBroadcastHelper({
+  entity: 'auth',
+  target: 'user-specific'
+});
+
+// Enhanced typed query functions (following cart pattern) - removed unused types for cleanup
+
+// Enhanced typed mutation functions (following cart pattern) - removed unused types for cleanup
+
+// Query keys for auth-related queries (enhanced following cart pattern)
 export const authKeys = {
   all: ['auth'] as const,
   user: () => [...authKeys.all, 'user'] as const,
   profile: (userId: string) => [...authKeys.all, 'profile', userId] as const,
+  status: () => [...authKeys.all, 'status'] as const,
 };
 
 /**
- * Hook for login mutation with React Query
+ * Enhanced Hook for login mutation with React Query (following cart pattern)
  */
 export const useLoginMutation = () => {
   const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: ({ email, password }: { email: string; password: string }) => {
-      console.log('🔐 Login mutation starting for:', email);
-      return AuthService.login(email, password);
+  return useMutation<AuthOperationResult<{ user: User; token?: string }>, Error, { email: string; password: string }, AuthMutationContext>({
+    mutationFn: async ({ email, password }): Promise<AuthOperationResult<{ user: User; token?: string }>> => {
+      try {
+        console.log('🔐 Login mutation starting for:', email);
+        const result = await AuthService.login(email, password);
+        return { success: true, data: result };
+      } catch (error: any) {
+        // Enhanced error classification (following cart pattern)
+        if (error.message?.includes('credentials') || error.message?.includes('password')) {
+          throw createAuthError(
+            'INVALID_CREDENTIALS',
+            error.message,
+            'Invalid email or password. Please try again.',
+            { email }
+          );
+        }
+        if (error.message?.includes('network') || error.message?.includes('connection')) {
+          throw createAuthError(
+            'NETWORK_ERROR',
+            error.message,
+            'Connection failed. Please check your internet and try again.'
+          );
+        }
+        throw createAuthError(
+          'UNKNOWN_ERROR',
+          error.message || 'Login failed',
+          'Unable to sign in. Please try again.'
+        );
+      }
     },
-    onSuccess: (data) => {
-      console.log('✅ Login mutation successful:', data.user.email);
-      // Set user data in React Query cache
-      queryClient.setQueryData(authKeys.user(), data.user);
-      // Invalidate and refetch user queries
-      queryClient.invalidateQueries({ queryKey: authKeys.user() });
+    onMutate: async ({ email }): Promise<AuthMutationContext> => {
+      // Cancel outgoing refetches (following cart pattern)
+      await queryClient.cancelQueries({ queryKey: authKeys.user() });
+      
+      // Snapshot previous value (following cart pattern)
+      const previousUser = queryClient.getQueryData<User | null>(authKeys.user());
+      
+      return { 
+        previousUser, 
+        operationType: 'login',
+        metadata: { email }
+      };
     },
-    onError: (error) => {
-      console.error('❌ Login mutation error:', error);
+    onError: (error: any, variables: { email: string; password: string }, context?: AuthMutationContext) => {
+      // Rollback on error (following cart pattern)
+      if (context?.previousUser !== undefined) {
+        queryClient.setQueryData(authKeys.user(), context.previousUser);
+      }
+      
+      // Enhanced error logging (following cart pattern)
+      console.error('❌ Login mutation failed:', {
+        error: error.message,
+        userMessage: (error as AuthError).userMessage,
+        email: variables.email
+      });
     },
+    onSuccess: async (result: AuthOperationResult<{ user: User; token?: string }>, _variables: { email: string; password: string }) => {
+      if (result.success && result.data) {
+        console.log('✅ Login mutation successful:', result.data.user.email);
+        
+        // Set user data in React Query cache
+        queryClient.setQueryData(authKeys.user(), result.data.user);
+        
+        // Smart invalidation strategy (following cart pattern)
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: authKeys.user() }),
+          queryClient.invalidateQueries({ queryKey: authKeys.status() })
+        ]);
+        
+        // Broadcast success (following cart pattern)
+        await authBroadcast.send('user-logged-in', {
+          userId: result.data.user.id,
+          email: result.data.user.email,
+          timestamp: new Date().toISOString()
+        });
+      }
+    },
+    // Enhanced retry logic (following cart pattern)
+    retry: (failureCount, error: any) => {
+      // Don't retry on invalid credentials
+      if ((error as AuthError).code === 'INVALID_CREDENTIALS') {
+        return false;
+      }
+      return failureCount < 2;
+    },
+    retryDelay: 1000,
   });
 };
 
 /**
- * Hook for register mutation with React Query
+ * Enhanced Hook for register mutation with React Query (following cart pattern)
  */
 export const useRegisterMutation = () => {
   const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: ({
+  return useMutation<AuthOperationResult<{ user: User }>, Error, { email: string; password: string; name: string; phone: string; address: string }, AuthMutationContext>({
+    mutationFn: async ({
       email,
       password,
       name,
       phone,
       address,
-    }: {
-      email: string;
-      password: string;
-      name: string;
-      phone: string;
-      address: string;
-    }) => AuthService.register(email, password, name, phone, address),
-    onSuccess: (data) => {
-      if (data.success && data.user) {
-        // Update React Query cache only
-        queryClient.setQueryData(authKeys.user(), data.user);
-        
-        // Invalidate and refetch any auth-related queries
-        queryClient.invalidateQueries({ queryKey: authKeys.all });
+    }): Promise<AuthOperationResult<{ user: User }>> => {
+      try {
+        const result = await AuthService.register(email, password, name, phone, address);
+        return { success: true, data: result };
+      } catch (error: any) {
+        // Enhanced error classification (following cart pattern)
+        if (error.message?.includes('exists') || error.message?.includes('already')) {
+          throw createAuthError(
+            'USER_EXISTS',
+            error.message,
+            'An account with this email already exists. Please try signing in instead.',
+            { email }
+          );
+        }
+        if (error.message?.includes('password') && error.message?.includes('weak')) {
+          throw createAuthError(
+            'WEAK_PASSWORD',
+            error.message,
+            'Password is too weak. Please choose a stronger password.'
+          );
+        }
+        throw createAuthError(
+          'UNKNOWN_ERROR',
+          error.message || 'Registration failed',
+          'Unable to create account. Please try again.'
+        );
       }
     },
-    onError: (error) => {
-      console.error('Register mutation error:', error);
-      // Clear any stale auth data
+    onMutate: async ({ email }): Promise<AuthMutationContext> => {
+      // Cancel outgoing refetches (following cart pattern)
+      await queryClient.cancelQueries({ queryKey: authKeys.user() });
+      
+      // Snapshot previous value (following cart pattern)
+      const previousUser = queryClient.getQueryData<User | null>(authKeys.user());
+      
+      return { 
+        previousUser, 
+        operationType: 'register',
+        metadata: { email }
+      };
+    },
+    onError: (error: any, variables, context?: AuthMutationContext) => {
+      // Rollback on error (following cart pattern)
+      if (context?.previousUser !== undefined) {
+        queryClient.setQueryData(authKeys.user(), context.previousUser);
+      }
+      
+      // Enhanced error logging (following cart pattern)
+      console.error('❌ Register mutation failed:', {
+        error: error.message,
+        userMessage: (error as AuthError).userMessage,
+        email: variables.email
+      });
+      
+      // Clear any stale auth data on registration failure
       queryClient.removeQueries({ queryKey: authKeys.all });
     },
+    onSuccess: async (result: AuthOperationResult<{ user: User }>, _variables) => {
+      if (result.success && result.data) {
+        // Update React Query cache only
+        queryClient.setQueryData(authKeys.user(), result.data.user);
+        
+        // Smart invalidation strategy (following cart pattern)
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: authKeys.all }),
+          queryClient.invalidateQueries({ queryKey: authKeys.status() })
+        ]);
+        
+        // Broadcast success (following cart pattern)
+        await authBroadcast.send('user-registered', {
+          userId: result.data.user.id,
+          email: result.data.user.email,
+          timestamp: new Date().toISOString()
+        });
+      }
+    },
+    // Enhanced retry logic (following cart pattern)
+    retry: (failureCount, error: any) => {
+      // Don't retry on user exists or weak password
+      if ((error as AuthError).code === 'USER_EXISTS' || (error as AuthError).code === 'WEAK_PASSWORD') {
+        return false;
+      }
+      return failureCount < 2;
+    },
+    retryDelay: 1000,
   });
 };
 
 /**
- * Hook for logout mutation with React Query
+ * Enhanced Hook for logout mutation with React Query (following cart pattern)
  */
 export const useLogoutMutation = () => {
   const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: () => {
-      console.log('🚪 Logout mutation starting...');
-      return AuthService.logout();
+  return useMutation<AuthOperationResult<void>, Error, void, AuthMutationContext>({
+    mutationFn: async (): Promise<AuthOperationResult<void>> => {
+      try {
+        console.log('🚪 Logout mutation starting...');
+        await AuthService.logout();
+        return { success: true };
+      } catch (error: any) {
+        throw createAuthError(
+          'UNKNOWN_ERROR',
+          error.message || 'Logout failed',
+          'Unable to sign out. Please try again.'
+        );
+      }
     },
-    onSuccess: () => {
-      console.log('✅ Logout successful, clearing React Query cache...');
-      // First, explicitly set user data to null
+    onMutate: async (): Promise<AuthMutationContext> => {
+      // Cancel outgoing refetches (following cart pattern)
+      await queryClient.cancelQueries({ queryKey: authKeys.user() });
+      
+      // Snapshot previous value (following cart pattern)
+      const previousUser = queryClient.getQueryData<User | null>(authKeys.user());
+      
+      return { 
+        previousUser, 
+        operationType: 'logout',
+        metadata: {}
+      };
+    },
+    onError: (error: any, _variables: void, _context?: AuthMutationContext) => {
+      // Enhanced error logging (following cart pattern)
+      console.error('❌ Logout mutation failed:', {
+        error: error.message,
+        userMessage: (error as AuthError).userMessage
+      });
+      
+      // Even if logout fails, clear states for security
       queryClient.setQueryData(authKeys.user(), null);
-      // Invalidate user queries to trigger re-render
       queryClient.invalidateQueries({ queryKey: authKeys.user() });
-      // Clear cache but preserve query client functionality
       queryClient.removeQueries();
+    },
+    onSuccess: async (_result: AuthOperationResult<void>) => {
+      console.log('✅ Logout successful, clearing React Query cache...');
+      
+      // Clear user data and cache (following cart pattern)
+      queryClient.setQueryData(authKeys.user(), null);
+      
+      // Smart invalidation strategy (following cart pattern)
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: authKeys.user() }),
+        queryClient.invalidateQueries({ queryKey: authKeys.status() })
+      ]);
+      
+      // Clear all cached data for security
+      queryClient.removeQueries();
+      
+      // Broadcast success (following cart pattern)
+      await authBroadcast.send('user-logged-out', {
+        timestamp: new Date().toISOString()
+      });
+      
       console.log('🧹 React Query cache cleared');
     },
-    onError: (error) => {
-      console.error('❌ Logout mutation error:', error);
-      // Even if logout fails, clear states
-      queryClient.setQueryData(authKeys.user(), null);
-      queryClient.invalidateQueries({ queryKey: authKeys.user() });
-      queryClient.removeQueries();
+    // Enhanced retry logic (following cart pattern)
+    retry: (failureCount, _error: any) => {
+      // Limited retries for logout
+      return failureCount < 1;
     },
+    retryDelay: 1000,
   });
 };
 
 /**
- * Hook for profile update mutation with React Query
+ * Enhanced Hook for profile update mutation with React Query (following cart pattern)
  */
 export const useUpdateProfileMutation = () => {
   const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: ({ userId, updates }: { userId: string; updates: Partial<User> }) =>
-      AuthService.updateProfile(userId, updates),
-    onMutate: async ({ updates }) => {
-      // Cancel any outgoing refetches
+  return useMutation<AuthOperationResult<{ user: User }>, Error, { userId: string; updates: Partial<User> }, AuthMutationContext>({
+    mutationFn: async ({ userId, updates }): Promise<AuthOperationResult<{ user: User }>> => {
+      try {
+        const result = await AuthService.updateProfile(userId, updates);
+        return { success: true, data: result };
+      } catch (error: any) {
+        // Enhanced error classification (following cart pattern)
+        if (error.message?.includes('unauthorized')) {
+          throw createAuthError(
+            'UNAUTHORIZED',
+            error.message,
+            'Session expired. Please sign in again.',
+            { userId }
+          );
+        }
+        if (error.message?.includes('validation')) {
+          throw createAuthError(
+            'UNKNOWN_ERROR',
+            error.message,
+            'Invalid profile data. Please check your information.',
+            { userId }
+          );
+        }
+        throw createAuthError(
+          'UNKNOWN_ERROR',
+          error.message || 'Profile update failed',
+          'Unable to update profile. Please try again.',
+          { userId }
+        );
+      }
+    },
+    onMutate: async ({ updates, userId }): Promise<AuthMutationContext> => {
+      // Cancel any outgoing refetches (following cart pattern)
       await queryClient.cancelQueries({ queryKey: authKeys.user() });
 
-      // Snapshot the previous value
-      const previousUser = queryClient.getQueryData<User>(authKeys.user());
+      // Snapshot the previous value (following cart pattern)
+      const previousUser = queryClient.getQueryData<User | null>(authKeys.user());
 
-      // Optimistically update to the new value
+      // Optimistically update to the new value (following cart pattern)
       if (previousUser) {
         const optimisticUser = { ...previousUser, ...updates };
         queryClient.setQueryData(authKeys.user(), optimisticUser);
       }
 
-      // Return a context object with the snapshotted value
-      return { previousUser };
+      return { 
+        previousUser, 
+        operationType: 'update-profile',
+        metadata: { updates, userId }
+      };
     },
-    onError: (err, variables, context) => {
-      // If the mutation fails, use the context returned from onMutate to roll back
-      if (context?.previousUser) {
+    onError: (error: any, variables: { userId: string; updates: Partial<User> }, context?: AuthMutationContext) => {
+      // Enhanced rollback on error (following cart pattern)
+      if (context?.previousUser !== undefined) {
         queryClient.setQueryData(authKeys.user(), context.previousUser);
       }
+      
+      // Enhanced error logging (following cart pattern)
+      console.error('❌ Update profile failed:', {
+        error: error.message,
+        userMessage: (error as AuthError).userMessage,
+        userId: variables.userId
+      });
     },
-    onSuccess: (data) => {
-      if (data.success && data.user) {
-        // Update React Query cache with server response
-        queryClient.setQueryData(authKeys.user(), data.user);
+    onSuccess: async (result: AuthOperationResult<{ user: User }>, variables: { userId: string; updates: Partial<User> }) => {
+      if (result.success && result.data) {
+        console.log('✅ Profile update successful:', result.data.user.id);
+        
+        // Update React Query cache with server response (following cart pattern)
+        queryClient.setQueryData(authKeys.user(), result.data.user);
+        
+        // Smart invalidation strategy (following cart pattern)
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: authKeys.user() }),
+          queryClient.invalidateQueries({ queryKey: authKeys.profile(variables.userId) })
+        ]);
+        
+        // Broadcast success (following cart pattern)
+        await authBroadcast.send('user-profile-updated', {
+          userId: result.data.user.id,
+          timestamp: new Date().toISOString()
+        });
       }
     },
-    onSettled: () => {
-      // Always refetch after error or success to ensure consistency
-      queryClient.invalidateQueries({ queryKey: authKeys.user() });
+    // Enhanced retry logic (following cart pattern)
+    retry: (failureCount, error: any) => {
+      // Don't retry on unauthorized errors
+      if ((error as AuthError).code === 'UNAUTHORIZED') {
+        return false;
+      }
+      return failureCount < 2;
     },
+    retryDelay: 1000,
+    // ✅ NO onSettled - invalidation happens in onSuccess only (following cart pattern)
   });
 };
 
 /**
- * Hook for password change mutation with React Query
+ * Enhanced Hook for password change mutation with React Query (following cart pattern)
  */
 export const useChangePasswordMutation = () => {
-  return useMutation({
-    mutationFn: ({ currentPassword, newPassword }: { currentPassword: string; newPassword: string }) =>
-      AuthService.changePassword(currentPassword, newPassword),
-    onSuccess: (data) => {
-      console.log('✅ Password changed successfully:', data.message);
+  const queryClient = useQueryClient();
+
+  return useMutation<AuthOperationResult<void>, Error, { currentPassword: string; newPassword: string }, AuthMutationContext>({
+    mutationFn: async ({ currentPassword, newPassword }): Promise<AuthOperationResult<void>> => {
+      try {
+        await AuthService.changePassword(currentPassword, newPassword);
+        return { success: true };
+      } catch (error: any) {
+        // Enhanced error classification (following cart pattern)
+        if (error.message?.includes('current password') || error.message?.includes('incorrect')) {
+          throw createAuthError(
+            'INVALID_CREDENTIALS',
+            error.message,
+            'Current password is incorrect. Please try again.'
+          );
+        }
+        if (error.message?.includes('weak') || error.message?.includes('strength')) {
+          throw createAuthError(
+            'WEAK_PASSWORD',
+            error.message,
+            'New password is too weak. Please choose a stronger password.'
+          );
+        }
+        if (error.message?.includes('unauthorized')) {
+          throw createAuthError(
+            'UNAUTHORIZED',
+            error.message,
+            'Session expired. Please sign in again.'
+          );
+        }
+        throw createAuthError(
+          'UNKNOWN_ERROR',
+          error.message || 'Password change failed',
+          'Unable to change password. Please try again.'
+        );
+      }
     },
-    onError: (error) => {
-      console.error('❌ Password change error:', error);
+    onMutate: async (): Promise<AuthMutationContext> => {
+      // Cancel outgoing refetches (following cart pattern)
+      await queryClient.cancelQueries({ queryKey: authKeys.user() });
+      
+      // Snapshot previous value (following cart pattern)
+      const previousUser = queryClient.getQueryData<User | null>(authKeys.user());
+      
+      return { 
+        previousUser, 
+        operationType: 'change-password',
+        metadata: {}
+      };
     },
+    onError: (error: any, _variables: { currentPassword: string; newPassword: string }, _context?: AuthMutationContext) => {
+      // Enhanced error logging (following cart pattern)
+      console.error('❌ Password change failed:', {
+        error: error.message,
+        userMessage: (error as AuthError).userMessage
+      });
+    },
+    onSuccess: async (_result: AuthOperationResult<void>) => {
+      console.log('✅ Password changed successfully');
+      
+      // No cache updates needed for password change, but refresh user session
+      await queryClient.invalidateQueries({ queryKey: authKeys.user() });
+      
+      // Broadcast success (following cart pattern)
+      await authBroadcast.send('user-password-changed', {
+        timestamp: new Date().toISOString()
+      });
+    },
+    // Enhanced retry logic (following cart pattern)
+    retry: (failureCount, error: any) => {
+      // Don't retry on credential or unauthorized errors
+      if ((error as AuthError).code === 'INVALID_CREDENTIALS' || (error as AuthError).code === 'UNAUTHORIZED') {
+        return false;
+      }
+      return failureCount < 2;
+    },
+    retryDelay: 1000,
   });
 };
 
 /**
- * Hook for getting current user with React Query
+ * Enhanced Hook for getting current user with React Query (following cart pattern)
  */
 export const useCurrentUser = () => {
   return useQuery({
     queryKey: authKeys.user(),
-    queryFn: () => AuthService.getCurrentUser(),
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes
-    retry: false, // Don't retry auth queries
-    refetchOnWindowFocus: true, // Revalidate when app becomes active
+    queryFn: async (): Promise<User | null> => {
+      try {
+        const result = await AuthService.getCurrentUser();
+        return result || null;
+      } catch (error: any) {
+        // Enhanced error classification (following cart pattern)
+        if (error.message?.includes('token') || error.message?.includes('expired')) {
+          throw createAuthError(
+            'TOKEN_EXPIRED',
+            error.message,
+            'Your session has expired. Please sign in again.'
+          );
+        }
+        if (error.message?.includes('unauthorized')) {
+          throw createAuthError(
+            'UNAUTHORIZED',
+            error.message,
+            'Please sign in to continue.'
+          );
+        }
+        throw createAuthError(
+          'NETWORK_ERROR',
+          error.message || 'Failed to get user',
+          'Unable to verify your session. Please try again.'
+        );
+      }
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes (following cart pattern)
+    gcTime: 10 * 60 * 1000, // 10 minutes (following cart pattern)
+    refetchOnMount: true, // (following cart pattern)
+    refetchOnWindowFocus: true, // Revalidate when app becomes active (following cart pattern)
+    refetchOnReconnect: true, // (following cart pattern)
+    retry: (failureCount, error) => {
+      // Smart retry logic (following cart pattern)
+      // Don't retry on auth errors
+      if (error.message?.includes('token') || error.message?.includes('unauthorized')) {
+        return false;
+      }
+      return failureCount < 2;
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff (following cart pattern)
   });
 };
 
@@ -190,27 +582,90 @@ export const useAuthStatus = () => {
 };
 
 /**
- * Hook for token refresh mutation
+ * Enhanced Hook for token refresh mutation with React Query (following cart pattern)
  */
 export const useRefreshTokenMutation = () => {
   const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: () => AuthService.refreshToken(),
-    onSuccess: () => {
-      // Invalidate all queries to refetch with new token
-      queryClient.invalidateQueries();
+  return useMutation<AuthOperationResult<{ token: string }>, Error, void, AuthMutationContext>({
+    mutationFn: async (): Promise<AuthOperationResult<{ token: string }>> => {
+      try {
+        const result = await AuthService.refreshToken();
+        return { success: true, data: { token: result.accessToken || '' } };
+      } catch (error: any) {
+        // Enhanced error classification (following cart pattern)
+        if (error.message?.includes('token') || error.message?.includes('expired')) {
+          throw createAuthError(
+            'TOKEN_EXPIRED',
+            error.message,
+            'Your session has expired. Please sign in again.'
+          );
+        }
+        if (error.message?.includes('unauthorized')) {
+          throw createAuthError(
+            'UNAUTHORIZED',
+            error.message,
+            'Authentication failed. Please sign in again.'
+          );
+        }
+        throw createAuthError(
+          'NETWORK_ERROR',
+          error.message || 'Token refresh failed',
+          'Unable to refresh session. Please sign in again.'
+        );
+      }
     },
-    onError: (error) => {
-      console.error('Token refresh error:', error);
-      // If refresh fails, logout user
+    onMutate: async (): Promise<AuthMutationContext> => {
+      // Cancel outgoing refetches (following cart pattern)
+      await queryClient.cancelQueries({ queryKey: authKeys.user() });
+      
+      // Snapshot previous value (following cart pattern)
+      const previousUser = queryClient.getQueryData<User | null>(authKeys.user());
+      
+      return { 
+        previousUser, 
+        operationType: 'refresh-token',
+        metadata: {}
+      };
+    },
+    onError: (error: any, _variables: void, _context?: AuthMutationContext) => {
+      // Enhanced error logging (following cart pattern)
+      console.error('❌ Token refresh failed:', {
+        error: error.message,
+        userMessage: (error as AuthError).userMessage
+      });
+      
+      // If refresh fails, clear user data for security (following cart pattern)
+      queryClient.setQueryData(authKeys.user(), null);
       queryClient.clear();
     },
+    onSuccess: async (result: AuthOperationResult<{ token: string }>) => {
+      if (result.success && result.data) {
+        console.log('✅ Token refresh successful');
+        
+        // Smart invalidation strategy - invalidate all queries to refetch with new token (following cart pattern)
+        await queryClient.invalidateQueries();
+        
+        // Broadcast success (following cart pattern)
+        await authBroadcast.send('user-token-refreshed', {
+          timestamp: new Date().toISOString()
+        });
+      }
+    },
+    // Enhanced retry logic (following cart pattern)
+    retry: (failureCount, error: any) => {
+      // Don't retry on token expired or unauthorized
+      if ((error as AuthError).code === 'TOKEN_EXPIRED' || (error as AuthError).code === 'UNAUTHORIZED') {
+        return false;
+      }
+      return failureCount < 1; // Limited retries for token refresh
+    },
+    retryDelay: 1000,
   });
 };
 
 /**
- * Combined auth hook that provides all auth operations
+ * Enhanced Combined auth hook that provides all auth operations (following cart pattern)
  */
 export const useAuthOperations = () => {
   const loginMutation = useLoginMutation();
@@ -221,36 +676,79 @@ export const useAuthOperations = () => {
   const currentUserQuery = useCurrentUser();
   const authStatusQuery = useAuthStatus();
 
+  // Enhanced utility functions with useCallback (following cart pattern)
+  const getAuthQueryKey = useCallback(() => authKeys.user(), []);
+  const getAuthStatusQueryKey = useCallback(() => authKeys.status(), []);
+
   return {
-    // Mutations
-    login: loginMutation.mutateAsync,
-    register: registerMutation.mutateAsync,
-    logout: logoutMutation.mutateAsync,
-    updateProfile: updateProfileMutation.mutateAsync,
-    refreshToken: refreshTokenMutation.mutateAsync,
+    // Direct mutation functions (following cart pattern - single source of truth)
+    login: loginMutation.mutate,
+    register: registerMutation.mutate,
+    logout: logoutMutation.mutate,
+    updateProfile: updateProfileMutation.mutate,
+    refreshToken: refreshTokenMutation.mutate,
     
-    // Mutation states
+    // Async mutation functions (following cart pattern)
+    loginAsync: loginMutation.mutateAsync,
+    registerAsync: registerMutation.mutateAsync,
+    logoutAsync: logoutMutation.mutateAsync,
+    updateProfileAsync: updateProfileMutation.mutateAsync,
+    refreshTokenAsync: refreshTokenMutation.mutateAsync,
+    
+    // Mutation states (following cart pattern)
     isLoggingIn: loginMutation.isPending,
     isRegistering: registerMutation.isPending,
     isLoggingOut: logoutMutation.isPending,
     isUpdatingProfile: updateProfileMutation.isPending,
     isRefreshingToken: refreshTokenMutation.isPending,
     
-    // Query data
-    currentUser: currentUserQuery.data,
+    // Query data (following cart pattern)
+    currentUser: currentUserQuery.data || null,
     isAuthenticated: authStatusQuery.data ?? false,
     
-    // Query states
+    // Query states (following cart pattern)
     isLoadingUser: currentUserQuery.isLoading,
     isLoadingAuthStatus: authStatusQuery.isLoading,
     
-    // Errors
-    loginError: loginMutation.error,
-    registerError: registerMutation.error,
-    logoutError: logoutMutation.error,
-    updateProfileError: updateProfileMutation.error,
-    refreshTokenError: refreshTokenMutation.error,
-    userError: currentUserQuery.error,
-    authStatusError: authStatusQuery.error,
+    // Enhanced error states (following cart pattern)
+    loginError: loginMutation.error ? createAuthError(
+      'UNKNOWN_ERROR',
+      loginMutation.error.message,
+      'Login failed'
+    ) : null,
+    registerError: registerMutation.error ? createAuthError(
+      'UNKNOWN_ERROR',
+      registerMutation.error.message,
+      'Registration failed'
+    ) : null,
+    logoutError: logoutMutation.error ? createAuthError(
+      'UNKNOWN_ERROR',
+      logoutMutation.error.message,
+      'Logout failed'
+    ) : null,
+    updateProfileError: updateProfileMutation.error ? createAuthError(
+      'UNKNOWN_ERROR',
+      updateProfileMutation.error.message,
+      'Profile update failed'
+    ) : null,
+    refreshTokenError: refreshTokenMutation.error ? createAuthError(
+      'TOKEN_EXPIRED',
+      refreshTokenMutation.error.message,
+      'Session refresh failed'
+    ) : null,
+    userError: currentUserQuery.error ? createAuthError(
+      'NETWORK_ERROR',
+      currentUserQuery.error.message,
+      'Unable to load user data'
+    ) : null,
+    authStatusError: authStatusQuery.error ? createAuthError(
+      'NETWORK_ERROR',
+      authStatusQuery.error.message,
+      'Unable to check authentication status'
+    ) : null,
+    
+    // Query keys for external use (following cart pattern)
+    getAuthQueryKey,
+    getAuthStatusQueryKey,
   };
 };
