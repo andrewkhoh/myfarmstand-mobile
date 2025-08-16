@@ -5,10 +5,10 @@ const inspectSchema = async () => {
   // This would use your supabase client
   const { createClient } = require('@supabase/supabase-js');
   
-  // Replace with your actual Supabase URL and anon key
+  // Use environment variables for credentials
   const supabase = createClient(
-    'YOUR_SUPABASE_URL', 
-    'YOUR_SUPABASE_ANON_KEY'
+    process.env.EXPO_PUBLIC_SUPABASE_URL || '', 
+    process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || ''
   );
 
   try {

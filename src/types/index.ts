@@ -253,3 +253,19 @@ export interface OrderSubmissionResult {
     available: number;
   }>;
 }
+
+// Error Types
+export interface BaseError {
+  message: string;
+  userMessage?: string;
+  code?: string;
+}
+
+export interface AuthError extends BaseError {
+  type?: 'authentication' | 'authorization' | 'validation';
+}
+
+export interface MutationError extends BaseError {
+  operationType?: string;
+  metadata?: Record<string, unknown>;
+}

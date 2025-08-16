@@ -108,7 +108,7 @@ export const useLoginMutation = () => {
         metadata: { email }
       };
     },
-    onError: (error: any, variables: { email: string; password: string }, context?: AuthMutationContext) => {
+    onError: (error: AuthError, variables: { email: string; password: string }, context?: AuthMutationContext) => {
       // Rollback on error (following cart pattern)
       if (context?.previousUser !== undefined) {
         queryClient.setQueryData(authKeys.user(), context.previousUser);
@@ -208,7 +208,7 @@ export const useRegisterMutation = () => {
         metadata: { email }
       };
     },
-    onError: (error: any, variables, context?: AuthMutationContext) => {
+    onError: (error: AuthError, variables, context?: AuthMutationContext) => {
       // Rollback on error (following cart pattern)
       if (context?.previousUser !== undefined) {
         queryClient.setQueryData(authKeys.user(), context.previousUser);
@@ -288,7 +288,7 @@ export const useLogoutMutation = () => {
         metadata: {}
       };
     },
-    onError: (error: any, _variables: void, _context?: AuthMutationContext) => {
+    onError: (error: AuthError, _variables: void, _context?: AuthMutationContext) => {
       // Enhanced error logging (following cart pattern)
       console.error('❌ Logout mutation failed:', {
         error: error.message,
@@ -387,7 +387,7 @@ export const useUpdateProfileMutation = () => {
         metadata: { updates, userId }
       };
     },
-    onError: (error: any, variables: { userId: string; updates: Partial<User> }, context?: AuthMutationContext) => {
+    onError: (error: AuthError, variables: { userId: string; updates: Partial<User> }, context?: AuthMutationContext) => {
       // Enhanced rollback on error (following cart pattern)
       if (context?.previousUser !== undefined) {
         queryClient.setQueryData(authKeys.user(), context.previousUser);
@@ -487,7 +487,7 @@ export const useChangePasswordMutation = () => {
         metadata: {}
       };
     },
-    onError: (error: any, _variables: { currentPassword: string; newPassword: string }, _context?: AuthMutationContext) => {
+    onError: (error: AuthError, _variables: { currentPassword: string; newPassword: string }, _context?: AuthMutationContext) => {
       // Enhanced error logging (following cart pattern)
       console.error('❌ Password change failed:', {
         error: error.message,
@@ -628,7 +628,7 @@ export const useRefreshTokenMutation = () => {
         metadata: {}
       };
     },
-    onError: (error: any, _variables: void, _context?: AuthMutationContext) => {
+    onError: (error: AuthError, _variables: void, _context?: AuthMutationContext) => {
       // Enhanced error logging (following cart pattern)
       console.error('❌ Token refresh failed:', {
         error: error.message,

@@ -228,7 +228,7 @@ export const useCart = () => {
         metadata: { productId: product.id, quantity }
       };
     },
-    onError: (error: any, variables: AddItemParams, context?: CartMutationContext) => {
+    onError: (error: CartError, variables: AddItemParams, context?: CartMutationContext) => {
       // Rollback on error
       if (context?.previousCart) {
         queryClient.setQueryData(cartQueryKey, context.previousCart);
@@ -316,7 +316,7 @@ export const useCart = () => {
         metadata: { productId }
       };
     },
-    onError: (error: any, _variables: string, context?: CartMutationContext) => {
+    onError: (error: CartError, _variables: string, context?: CartMutationContext) => {
       // Rollback on error
       if (context?.previousCart) {
         queryClient.setQueryData(cartQueryKey, context.previousCart);
@@ -419,7 +419,7 @@ export const useCart = () => {
         metadata: { productId, quantity }
       };
     },
-    onError: (error: any, variables: UpdateQuantityParams, context?: CartMutationContext) => {
+    onError: (error: CartError, variables: UpdateQuantityParams, context?: CartMutationContext) => {
       // Rollback on error
       if (context?.previousCart) {
         queryClient.setQueryData(cartQueryKey, context.previousCart);
@@ -490,7 +490,7 @@ export const useCart = () => {
         metadata: { itemCount: previousCart.items.length }
       };
     },
-    onError: (error: any, _variables: void, context?: CartMutationContext) => {
+    onError: (error: CartError, _variables: void, context?: CartMutationContext) => {
       // Rollback on error
       if (context?.previousCart) {
         queryClient.setQueryData(cartQueryKey, context.previousCart);
