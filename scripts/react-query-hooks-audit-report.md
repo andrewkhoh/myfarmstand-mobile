@@ -1,6 +1,6 @@
 # React Query Hooks Audit Report
 
-Generated: 2025-08-16T01:44:07.429Z
+Generated: 2025-08-16T13:58:38.315Z
 Standard: useCart.ts patterns
 
 ## Executive Summary
@@ -111,8 +111,8 @@ Standard: useCart.ts patterns
 - Typed Mutation Function
 
 **Present Patterns:**
-- ✅ GC Time Configuration (lines: 53)
-- ✅ Refetch Configuration (lines: 55)
+- ✅ GC Time Configuration (lines: 57)
+- ✅ Refetch Configuration (lines: 59)
 
 **Recommendations:**
 - Add Query Key Factory Usage pattern following useCart.ts standard
