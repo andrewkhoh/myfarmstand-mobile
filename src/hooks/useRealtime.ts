@@ -78,53 +78,15 @@ type RefreshStatusMutationFn = () => Promise<RealtimeOperationResult<RealtimeSta
 export const useRealtime = () => {
   const { data: user } = useCurrentUser();
   const queryClient = useQueryClient();
-  const [isInitialized, setIsInitialized] = useState(false);
 
-  // Enhanced authentication guard (following cart pattern)
-  if (!user?.id) {
-    const authError = createRealtimeError(
-      'AUTHENTICATION_REQUIRED',
-      'User not authenticated',
-      'Please sign in to use real-time features'
-    );
-    
-    return {
-      status: {
-        totalSubscriptions: 0,
-        subscriptions: [],
-        allConnected: false,
-        isInitialized: false
-      } as RealtimeStatus,
-      isLoading: false,
-      error: authError,
-      
-      isInitializing: false,
-      isRefreshing: false,
-      isCleaning: false,
-      
-      initializeSubscriptions: () => console.warn('⚠️ Realtime operation blocked: User not authenticated'),
-      cleanupSubscriptions: () => console.warn('⚠️ Realtime operation blocked: User not authenticated'),
-      refreshStatus: () => console.warn('⚠️ Realtime operation blocked: User not authenticated'),
-      forceRefresh: () => console.warn('⚠️ Realtime operation blocked: User not authenticated'),
-      
-      initializeSubscriptionsAsync: async (): Promise<RealtimeOperationResult<RealtimeStatus>> => ({ 
-        success: false, 
-        error: authError 
-      }),
-      cleanupSubscriptionsAsync: async (): Promise<RealtimeOperationResult<void>> => ({ 
-        success: false, 
-        error: authError 
-      }),
-      refreshStatusAsync: async (): Promise<RealtimeOperationResult<RealtimeStatus>> => ({ 
-        success: false, 
-        error: authError 
-      }),
-      
-      getRealtimeQueryKey: () => ['realtime', 'unauthenticated'],
-    };
-  }
+  // Create auth error for unauthenticated users
+  const authError = !user?.id ? createRealtimeError(
+    'AUTHENTICATION_REQUIRED',
+    'User not authenticated',
+    'Please sign in to use real-time features'
+  ) : null;
   
-  const realtimeQueryKey = realtimeKeys.detail(user.id, 'status');
+  const realtimeQueryKey = user?.id ? realtimeKeys.detail(user.id, 'status') : ['realtime', 'unauthenticated'];
   
   // Enhanced query with proper enabled guard and error handling (following cart pattern)
   const {
@@ -142,6 +104,8 @@ export const useRealtime = () => {
     queryFn: async (): Promise<RealtimeStatus> => {
       try {
         const subscriptionStatus = RealtimeService.getSubscriptionStatus();
+        // Derive initialization status from actual subscription state
+        const isInitialized = subscriptionStatus.totalSubscriptions > 0 && subscriptionStatus.allConnected;
         return {
           ...subscriptionStatus,
           isInitialized
@@ -181,38 +145,41 @@ export const useRealtime = () => {
   
   // Initialize subscriptions when user is authenticated
   useEffect(() => {
-    if (user && !isInitialized) {
+    if (user && !status.isInitialized) {
       console.log('🚀 User authenticated, initializing real-time subscriptions...');
       RealtimeService.initializeAllSubscriptions();
-      setIsInitialized(true);
       
-      // Update React Query cache after initialization
-      setTimeout(() => {
+      // Update React Query cache after initialization (with cleanup)
+      const timeoutId = setTimeout(() => {
         refetch();
       }, 1000);
+      
+      return () => clearTimeout(timeoutId);
     }
     
     // Clean up subscriptions when user logs out
-    if (!user && isInitialized) {
+    if (!user && status.isInitialized) {
       console.log('🧹 User logged out, cleaning up real-time subscriptions...');
       RealtimeService.unsubscribeAll();
-      setIsInitialized(false);
+      // Invalidate query to update state
+      queryClient.invalidateQueries({ queryKey: realtimeQueryKey });
     }
-  }, [user, isInitialized, refetch]);
+  }, [user, status.isInitialized, refetch, queryClient, realtimeQueryKey]);
 
   // Enhanced initialize subscriptions mutation (following cart pattern)
   const initializeSubscriptionsMutation = useMutation<RealtimeOperationResult<RealtimeStatus>, Error, void, RealtimeMutationContext>({
     mutationFn: async (): Promise<RealtimeOperationResult<RealtimeStatus>> => {
       try {
         RealtimeService.initializeAllSubscriptions();
-        setIsInitialized(true);
         
         // Wait for connections to establish
         await new Promise(resolve => setTimeout(resolve, 1000));
         
+        const subscriptionStatus = RealtimeService.getSubscriptionStatus();
+        const isInitialized = subscriptionStatus.totalSubscriptions > 0 && subscriptionStatus.allConnected;
         const newStatus = {
-          ...RealtimeService.getSubscriptionStatus(),
-          isInitialized: true
+          ...subscriptionStatus,
+          isInitialized
         };
         
         return { success: true, data: newStatus };
@@ -346,8 +313,10 @@ export const useRealtime = () => {
     mutationFn: async (): Promise<RealtimeOperationResult<RealtimeStatus>> => {
       try {
         RealtimeService.forceRefreshAllData();
+        const subscriptionStatus = RealtimeService.getSubscriptionStatus();
+        const isInitialized = subscriptionStatus.totalSubscriptions > 0 && subscriptionStatus.allConnected;
         const newStatus = {
-          ...RealtimeService.getSubscriptionStatus(),
+          ...subscriptionStatus,
           isInitialized
         };
         return { success: true, data: newStatus };
@@ -382,7 +351,50 @@ export const useRealtime = () => {
     refetch();
   }, [refetch]);
   
-  const getRealtimeQueryKey = useCallback(() => realtimeKeys.detail(user.id, 'status'), [user.id]);
+  const getRealtimeQueryKey = useCallback(() => 
+    user?.id ? realtimeKeys.detail(user.id, 'status') : ['realtime', 'unauthenticated'], 
+    [user?.id]
+  );
+
+  // Handle unauthenticated users by returning safe defaults
+  if (authError) {
+    return {
+      status: {
+        totalSubscriptions: 0,
+        subscriptions: [],
+        allConnected: false,
+        isInitialized: false
+      } as RealtimeStatus,
+      isLoading: false,
+      error: authError,
+      
+      isInitializing: false,
+      isRefreshing: false,
+      isCleaning: false,
+      
+      initializeSubscriptions: () => console.warn('⚠️ Realtime operation blocked: User not authenticated'),
+      cleanupSubscriptions: () => console.warn('⚠️ Realtime operation blocked: User not authenticated'),
+      refreshStatus: () => console.warn('⚠️ Realtime operation blocked: User not authenticated'),
+      forceRefresh: () => console.warn('⚠️ Realtime operation blocked: User not authenticated'),
+      
+      initializeSubscriptionsAsync: async (): Promise<RealtimeOperationResult<RealtimeStatus>> => ({ 
+        success: false, 
+        error: authError 
+      }),
+      cleanupSubscriptionsAsync: async (): Promise<RealtimeOperationResult<void>> => ({ 
+        success: false, 
+        error: authError 
+      }),
+      refreshStatusAsync: async (): Promise<RealtimeOperationResult<RealtimeStatus>> => ({ 
+        success: false, 
+        error: authError 
+      }),
+      
+      getRealtimeQueryKey: () => ['realtime', 'unauthenticated'],
+      isUserAuthenticated: false,
+      isInitialized: false
+    };
+  }
 
   return {
     status,
@@ -427,23 +439,15 @@ export const useRealtimeNotifications = () => {
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
   const [updateCount, setUpdateCount] = useState(0);
   
-  // Enhanced authentication guard (following cart pattern)
-  if (!user?.id) {
-    return {
-      lastUpdate: null,
-      updateCount: 0,
-      hasRecentUpdate: false,
-      isLoading: false,
-      error: createRealtimeError(
-        'AUTHENTICATION_REQUIRED',
-        'User not authenticated',
-        'Please sign in to receive notifications'
-      )
-    };
-  }
+  // Create auth error for unauthenticated users
+  const authError = !user?.id ? createRealtimeError(
+    'AUTHENTICATION_REQUIRED',
+    'User not authenticated',
+    'Please sign in to receive notifications'
+  ) : null;
   
   // Query for notification history (following cart pattern)
-  const notificationKeys = realtimeKeys.lists(user.id);
+  const notificationKeys = user?.id ? realtimeKeys.lists(user.id) : ['notifications', 'unauthenticated'];
   
   const {
     data: notificationHistory = [],
@@ -486,7 +490,20 @@ export const useRealtimeNotifications = () => {
   }, [queryClient]);
   
   // Enhanced return with useCallback for stable references (following cart pattern)
-  const getNotificationQueryKey = useCallback(() => notificationKeys, [user.id]);
+  const getNotificationQueryKey = useCallback(() => notificationKeys, [user?.id]);
+
+  // Handle unauthenticated users by returning safe defaults
+  if (authError) {
+    return {
+      lastUpdate: null,
+      updateCount: 0,
+      hasRecentUpdate: false,
+      notificationHistory: [],
+      isLoading: false,
+      error: authError,
+      getNotificationQueryKey,
+    };
+  }
 
   return {
     lastUpdate,

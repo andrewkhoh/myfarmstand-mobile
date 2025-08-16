@@ -62,55 +62,15 @@ export const useCentralizedRealtime = () => {
   const subscriptionsRef = useRef<{ [key: string]: any }>({});
   const [connectionErrors, setConnectionErrors] = useState<RealtimeError[]>([]);
 
-  // Enhanced authentication guard (following cart pattern)
-  if (!user?.id) {
-    const authError = createRealtimeError(
-      'AUTHENTICATION_REQUIRED',
-      'User not authenticated',
-      'Please sign in to use real-time features'
-    );
-    
-    return {
-      connectionState: {
-        isConnected: false,
-        activeSubscriptions: [],
-        connectionCount: 0,
-        errors: [authError]
-      } as ConnectionState,
-      isLoading: false,
-      error: authError,
-      
-      isConnecting: false,
-      isDisconnecting: false,
-      isRefreshing: false,
-      
-      connect: () => console.warn('⚠️ Realtime operation blocked: User not authenticated'),
-      disconnect: () => console.warn('⚠️ Realtime operation blocked: User not authenticated'),
-      refreshConnection: () => console.warn('⚠️ Realtime operation blocked: User not authenticated'),
-      
-      connectAsync: async (): Promise<RealtimeOperationResult<ConnectionState>> => ({ 
-        success: false, 
-        error: authError 
-      }),
-      disconnectAsync: async (): Promise<RealtimeOperationResult<void>> => ({ 
-        success: false, 
-        error: authError 
-      }),
-      refreshConnectionAsync: async (): Promise<RealtimeOperationResult<ConnectionState>> => ({ 
-        success: false, 
-        error: authError 
-      }),
-      
-      getRealtimeQueryKey: () => ['realtime', 'unauthenticated'],
-      
-      // Legacy compatibility
-      isConnected: false,
-      activeSubscriptions: [],
-    };
-  }
+  // Create auth error for unauthenticated users
+  const authError = !user?.id ? createRealtimeError(
+    'AUTHENTICATION_REQUIRED',
+    'User not authenticated',
+    'Please sign in to use real-time features'
+  ) : null;
   
   // SECURITY: Validate user ID format to prevent injection (following cart pattern)
-  if (!/^[a-zA-Z0-9\-_]+$/.test(user.id)) {
+  if (user?.id && !/^[a-zA-Z0-9\-_]+$/.test(user.id)) {
     const invalidUserError = createRealtimeError(
       'INVALID_USER',
       'Invalid user ID format',
@@ -120,7 +80,7 @@ export const useCentralizedRealtime = () => {
     console.error('❌ Invalid user ID format, blocking realtime subscriptions');
   }
   
-  const realtimeQueryKey = ['realtime', 'connection', user.id];
+  const realtimeQueryKey = user?.id ? ['realtime', 'connection', user.id] : ['realtime', 'unauthenticated'];
   
   // Enhanced query with proper enabled guard and error handling (following cart pattern)
   const {
@@ -583,7 +543,48 @@ export const useCentralizedRealtime = () => {
   });
   
   // Enhanced utility functions with useCallback (following cart pattern)
-  const getRealtimeQueryKey = useCallback(() => realtimeQueryKey, [user.id]);
+  const getRealtimeQueryKey = useCallback(() => realtimeQueryKey, [user?.id]);
+
+  // Handle unauthenticated users by returning safe defaults
+  if (authError) {
+    return {
+      connectionState: {
+        isConnected: false,
+        activeSubscriptions: [],
+        connectionCount: 0,
+        errors: [authError]
+      } as ConnectionState,
+      isLoading: false,
+      error: authError,
+      
+      isConnecting: false,
+      isDisconnecting: false,
+      isRefreshing: false,
+      
+      connect: () => console.warn('⚠️ Realtime operation blocked: User not authenticated'),
+      disconnect: () => console.warn('⚠️ Realtime operation blocked: User not authenticated'),
+      refreshConnection: () => console.warn('⚠️ Realtime operation blocked: User not authenticated'),
+      
+      connectAsync: async (): Promise<RealtimeOperationResult<ConnectionState>> => ({ 
+        success: false, 
+        error: authError 
+      }),
+      disconnectAsync: async (): Promise<RealtimeOperationResult<void>> => ({ 
+        success: false, 
+        error: authError 
+      }),
+      refreshConnectionAsync: async (): Promise<RealtimeOperationResult<ConnectionState>> => ({ 
+        success: false, 
+        error: authError 
+      }),
+      
+      getRealtimeQueryKey,
+      
+      // Legacy compatibility
+      isConnected: false,
+      activeSubscriptions: [],
+    };
+  }
 
   // SECURITY: Return enhanced subscription status information (following cart pattern)
   return {

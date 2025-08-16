@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCart } from '../hooks/useCart';
 import { useCurrentUser } from '../hooks/useAuth';
 import { useStockValidation } from '../hooks/useStockValidation';
+import { useCheckoutForm } from '../hooks/useCheckoutForm';
 import { getStockDisplayInfo } from '../utils/stockDisplay';
 import { submitOrder } from '../services/orderService';
 import { CreateOrderRequest, CustomerInfo, FulfillmentType, PaymentMethod, OrderItem, RootStackParamList } from '../types';
@@ -31,28 +32,27 @@ export const CheckoutScreen: React.FC = () => {
   const navigation = useNavigation<CheckoutScreenNavigationProp>();
   const queryClient = useQueryClient();
   
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('online');
-  const [notes, setNotes] = useState('');
-  
-  // Simplified separate date and time state with smart defaults
-  const getDefaultPickupDateTime = () => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    
-    const defaultTime = new Date();
-    defaultTime.setHours(10, 0, 0, 0); // 10:00 AM
-    
-    return { date: tomorrow, time: defaultTime };
-  };
-  
-  const defaultDateTime = getDefaultPickupDateTime();
-  const [pickupDate, setPickupDate] = useState<Date>(defaultDateTime.date);
-  const [pickupTime, setPickupTime] = useState<Date>(defaultDateTime.time);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
-  
-  // Form validation state
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  // Use isolated form hook to prevent race conditions with cart state
+  const {
+    paymentMethod,
+    setPaymentMethod,
+    notes,
+    setNotes,
+    pickupDate,
+    setPickupDate,
+    pickupTime,
+    setPickupTime,
+    showDatePicker,
+    setShowDatePicker,
+    showTimePicker,
+    setShowTimePicker,
+    errors,
+    formattedPickupDateTime,
+    validateForm,
+    getFormData,
+    resetForm,
+    clearError,
+  } = useCheckoutForm();
 
   // Helper functions for pickup date/time
   const setPickupToPreset = (day: 'today' | 'tomorrow', time: string) => {
@@ -268,54 +268,39 @@ export const CheckoutScreen: React.FC = () => {
     };
   };
 
-  // Form validation (customer info now comes from user profile)
-  const validateForm = (): boolean => {
-    const newErrors: Record<string, string> = {};
-    
+  // Form validation using the isolated form hook with additional business logic
+  const validateCompleteForm = (): boolean => {
     // Check if user profile is complete (should always be true now)
     if (!user?.name || !user?.email || !user?.phone || !user?.address) {
       Alert.alert('Profile Incomplete', 'Please complete your profile before placing an order.');
       return false;
     }
     
-    // Payment method validation
-    if (!paymentMethod) {
-      newErrors.paymentMethod = 'Please select a payment method';
-    }
+    // Validate form fields using the hook
+    const formValidation = validateForm();
     
-    // Pickup date validation (always required since pickup is the only option)
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const selectedDate = new Date(pickupDate);
-    selectedDate.setHours(0, 0, 0, 0);
-    
-    if (selectedDate < today) {
-      newErrors.pickupDate = 'Pickup date cannot be in the past';
-    }
-    
-    // Cart validation
+    // Additional cart validation
     if (items.length === 0) {
-      newErrors.cart = 'Please add items to your cart before checkout';
+      Alert.alert('Empty Cart', 'Please add items to your cart before checkout.');
+      return false;
     }
     
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return formValidation.isValid;
   };
   
   // Handle order submission
   const handleSubmitOrder = () => {
-    if (!validateForm()) {
-      // Create user-friendly error message
+    if (!validateCompleteForm()) {
+      // Create user-friendly error message from form validation
       const errorMessages = Object.values(errors).filter(msg => msg.length > 0);
-      const errorText = errorMessages.length > 0 
-        ? errorMessages.join('\n• ') 
-        : 'Please check your information and try again.';
-      
-      Alert.alert(
-        'Please Complete Required Fields',
-        `• ${errorText}`,
-        [{ text: 'OK', style: 'default' }]
-      );
+      if (errorMessages.length > 0) {
+        const errorText = errorMessages.join('\n• ');
+        Alert.alert(
+          'Please Complete Required Fields',
+          `• ${errorText}`,
+          [{ text: 'OK', style: 'default' }]
+        );
+      }
       return;
     }
 
@@ -374,20 +359,14 @@ export const CheckoutScreen: React.FC = () => {
   // Modal picker handlers
   const handleDateConfirm = (selectedDate: Date) => {
     setPickupDate(selectedDate);
-    setErrors(prev => ({ ...prev, pickupDate: '' }));
+    clearError('pickupDate');
     setShowDatePicker(false);
   };
   
   const handleTimeConfirm = (selectedTime: Date) => {
     setPickupTime(selectedTime);
+    clearError('pickupTime');
     setShowTimePicker(false);
-  };
-  
-  // Clear specific error when user starts typing
-  const clearError = (field: string) => {
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: '' }));
-    }
   };
 
   if (items.length === 0) {
