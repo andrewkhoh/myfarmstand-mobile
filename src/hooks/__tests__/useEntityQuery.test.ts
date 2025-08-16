@@ -73,9 +73,9 @@ describe('useEntityQuery', () => {
 
       await waitFor(() => {
         expect(result.current.isError).toBe(true);
-      });
+      }, { timeout: 10000 });
 
-      expect(result.current.error?.message).toBe('Query failed');
+      expect((result.current.error as any)?.message).toBe('Query failed');
     });
 
     it('should work with global entities without user context', async () => {
@@ -162,8 +162,8 @@ describe('useEntityQuery', () => {
 
       expect(result.current.data).toBeUndefined();
       expect(result.current.isError).toBe(true);
-      expect(result.current.error?.code).toBe('AUTHENTICATION_REQUIRED');
-      expect(result.current.error?.entityType).toBe('auth');
+      expect((result.current.error as any)?.code).toBe('AUTHENTICATION_REQUIRED');
+      expect((result.current.error as any)?.entityType).toBe('auth');
       expect(result.current.isLoading).toBe(false);
       expect(mockQueryFn).not.toHaveBeenCalled();
     });

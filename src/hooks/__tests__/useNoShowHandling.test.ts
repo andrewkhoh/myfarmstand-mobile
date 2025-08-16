@@ -87,7 +87,7 @@ describe('useNoShowHandling', () => {
       expect(result.current.processError).toBeTruthy();
     }, { timeout: 3000 });
 
-    expect(result.current.processError?.message).toContain('Processing failed');
+    expect((result.current.processError as any)?.message).toContain('Processing failed');
   });
 
   it('should check overdue orders successfully', async () => {
@@ -149,7 +149,7 @@ describe('useNoShowHandling', () => {
         expect(result.current.processError).toBeTruthy();
       });
 
-      expect(result.current.processError?.message).toContain('authenticated');
+      expect((result.current.processError as any)?.message).toContain('authenticated');
     });
   });
 });

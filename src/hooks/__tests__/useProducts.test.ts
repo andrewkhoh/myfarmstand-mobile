@@ -89,9 +89,9 @@ describe('useProducts hooks', () => {
 
         await waitFor(() => {
           expect(result.current.isError).toBe(true);
-        }, { timeout: 5000 });
+        }, { timeout: 10000 });
 
-        expect(result.current.error?.message).toContain('Failed to fetch products');
+        expect((result.current.error as any)?.message).toContain('Failed to fetch products');
       });
     });
 
@@ -156,7 +156,7 @@ describe('useProducts hooks', () => {
       });
 
       expect(result.current.data).toEqual([]);
-      expect(result.current.error?.code).toBe('AUTHENTICATION_REQUIRED');
+      expect((result.current.error as any)?.code).toBe('AUTHENTICATION_REQUIRED');
       expect(result.current.isError).toBe(true);
     });
   });

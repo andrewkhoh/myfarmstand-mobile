@@ -124,7 +124,7 @@ describe('useNotifications', () => {
         expect(result.current.sendError).toBeTruthy();
       }, { timeout: 3000 });
 
-      expect(result.current.sendError?.message).toContain('Send failed');
+      expect((result.current.sendError as any)?.message).toContain('Send failed');
     });
 
     it('should send notification async successfully', async () => {
@@ -155,7 +155,7 @@ describe('useNotifications', () => {
         expect(result.current.sendError).toBeTruthy();
       }, { timeout: 3000 });
 
-      expect(result.current.sendError?.message).toContain('Invalid request format');
+      expect((result.current.sendError as any)?.message).toContain('Invalid request format');
     });
 
     it('should handle rate limiting error', async () => {
@@ -171,7 +171,7 @@ describe('useNotifications', () => {
         expect(result.current.sendError).toBeTruthy();
       });
 
-      expect(result.current.sendError?.message).toBe('Rate limit exceeded');
+      expect((result.current.sendError as any)?.message).toBe('Rate limit exceeded');
     });
 
     it('should update preferences successfully', async () => {
@@ -228,7 +228,7 @@ describe('useNotifications', () => {
         expect(result.current.sendError).toBeTruthy();
       }, { timeout: 3000 });
 
-      expect(result.current.sendError?.message).toContain('Unauthorized access');
+      expect((result.current.sendError as any)?.message).toContain('Unauthorized access');
     });
 
     it('should handle network error during preferences update', async () => {

@@ -71,7 +71,7 @@ describe('usePickupRescheduling', () => {
       expect(result.current.rescheduleError).toBeTruthy();
     }, { timeout: 3000 });
 
-    expect(result.current.rescheduleError?.message).toContain('Rescheduling failed');
+    expect((result.current.rescheduleError as any)?.message).toContain('Rescheduling failed');
   });
 
   it('should provide async rescheduling operation', async () => {
@@ -115,7 +115,7 @@ describe('usePickupRescheduling', () => {
         expect(result.current.rescheduleError).toBeTruthy();
       });
 
-      expect(result.current.rescheduleError?.message).toContain('authenticated');
+      expect((result.current.rescheduleError as any)?.message).toContain('authenticated');
     });
   });
 });
