@@ -14,6 +14,7 @@ import {
 import { Database } from '../types/database.generated';
 
 type DBOrderItem = Database['public']['Tables']['order_items']['Row'];
+type DBOrder = Database['public']['Tables']['orders']['Row'];
 
 // Calculate tax (8.5% for example)
 const calculateTax = (subtotal: number): number => {
@@ -372,7 +373,7 @@ export const getCustomerOrders = async (customerEmail: string): Promise<Order[]>
     }
 
     // Convert database format to app format
-    const orders: Order[] = ordersData.map((orderData: any) => {
+    const orders: Order[] = ordersData.map((orderData: DBOrder) => {
       const orderItems = orderData.order_items?.map((item: DBOrderItem) => ({
         productId: item.product_id,
         productName: item.product_name || '',
@@ -619,7 +620,7 @@ export const getAllOrders = async (filters?: OrderFilters): Promise<Order[]> => 
     }
     
     // Convert database format to app format
-    const orders: Order[] = ordersData.map((orderData: any) => {
+    const orders: Order[] = ordersData.map((orderData: DBOrder) => {
       const orderItems = orderData.order_items?.map((item: DBOrderItem) => ({
         productId: item.product_id,
         productName: item.product_name || '',

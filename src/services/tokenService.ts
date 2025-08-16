@@ -1,6 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import { User } from '../types';
 
 // Keys for secure storage
 const ACCESS_TOKEN_KEY = 'accessToken';
@@ -68,7 +69,7 @@ export class TokenService {
     }
   }
 
-  static async setUser(user: any): Promise<void> {
+  static async setUser(user: User): Promise<void> {
     try {
       const userJson = JSON.stringify(user);
       if (this.isSecureStoreAvailable()) {
@@ -82,7 +83,7 @@ export class TokenService {
     }
   }
 
-  static async getUser(): Promise<any | null> {
+  static async getUser(): Promise<User | null> {
     try {
       let userJson: string | null;
       if (this.isSecureStoreAvailable()) {
