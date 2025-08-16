@@ -68,7 +68,7 @@ export class NoShowHandlingService {
       console.log('🕐 Starting no-show order processing...');
       
       // Find orders that are past their pickup window
-      const noShowOrders = await this.findNoShowOrders(finalConfig.gracePeriodMinutes);
+      const noShowOrders = await NoShowHandlingService.findNoShowOrders(finalConfig.gracePeriodMinutes);
       
       if (noShowOrders.length === 0) {
         return {
@@ -87,7 +87,7 @@ export class NoShowHandlingService {
       // Process each no-show order
       for (const order of noShowOrders) {
         try {
-          const result = await this.handleNoShowOrder(order, finalConfig);
+          const result = await NoShowHandlingService.handleNoShowOrder(order, finalConfig);
           processedOrders.push(result);
         } catch (error) {
           console.error(`Failed to process no-show order ${order.id}:`, error);
@@ -99,7 +99,7 @@ export class NoShowHandlingService {
       }
       
       // Log no-show processing summary
-      await this.logNoShowProcessing(processedOrders, errors, finalConfig);
+      await NoShowHandlingService.logNoShowProcessing(processedOrders, errors, finalConfig);
       
       const message = `Processed ${processedOrders.length} no-show orders, ${errors.length} errors`;
       console.log(`✅ No-show processing completed: ${message}`);
@@ -177,7 +177,7 @@ export class NoShowHandlingService {
       }
       
       // Step 3: Log the no-show event
-      await this.logNoShowEvent(order, action, stockRestored, notificationSent);
+      await NoShowHandlingService.logNoShowEvent(order, action, stockRestored, notificationSent);
       
       return {
         orderId: order.id,
@@ -411,7 +411,7 @@ export class NoShowHandlingService {
     
     return setInterval(async () => {
       try {
-        await this.processNoShowOrders(finalConfig);
+        await NoShowHandlingService.processNoShowOrders(finalConfig);
       } catch (error) {
         console.error('Error in automated no-show processing:', error);
       }

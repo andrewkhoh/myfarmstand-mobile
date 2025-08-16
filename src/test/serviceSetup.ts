@@ -96,6 +96,15 @@ jest.mock('../utils/typeMappers', () => ({
   getOrderItems: jest.fn((order) => order.items || []),
   getOrderCustomerInfo: jest.fn((order) => ({ email: order.customer_email })),
   getProductStock: jest.fn((product) => product.stock_quantity || 0),
+  isProductPreOrder: jest.fn((product) => product.is_pre_order || false),
+  getProductMinPreOrderQty: jest.fn((product) => product.min_pre_order_quantity || 1),
+  getProductMaxPreOrderQty: jest.fn((product) => product.max_pre_order_quantity || 10),
+  getOrderCustomerId: jest.fn((order) => order.customer_id || order.customer_email),
+  getOrderTotal: jest.fn((order) => order.total || 0),
+  getOrderFulfillmentType: jest.fn((order) => order.fulfillment_type || 'pickup'),
+  getOrderPaymentMethod: jest.fn((order) => order.payment_method || 'cash_on_pickup'),
+  getOrderPickupDate: jest.fn((order) => order.pickup_date),
+  getOrderPickupTime: jest.fn((order) => order.pickup_time),
 }));
 
 // Mock query client
@@ -104,6 +113,14 @@ jest.mock('../config/queryClient', () => ({
     invalidateQueries: jest.fn(),
   },
 }));
+
+// Pickup rescheduling service should not be mocked globally to allow proper testing
+
+// Order service should not be mocked globally to allow proper testing
+
+// Notification service should not be mocked globally to allow proper testing
+
+// Stock restoration service should not be mocked globally to allow proper testing
 
 // Set test timeout
 jest.setTimeout(10000);

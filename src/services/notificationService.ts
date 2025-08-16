@@ -55,7 +55,7 @@ export class NotificationService {
         order
       };
       
-      return await this.sendNotification(notificationRequest);
+      return await NotificationService.sendNotification(notificationRequest);
     } catch (error) {
       console.error('Error sending pickup ready notification:', error);
       return {

@@ -56,7 +56,7 @@ export class PickupReschedulingService {
       console.log(`📅 Processing pickup reschedule request for order: ${request.orderId}`);
       
       // Step 1: Validate the reschedule request
-      const validation = await this.validateRescheduleRequest(request);
+      const validation = await PickupReschedulingService.validateRescheduleRequest(request);
       if (!validation.isValid) {
         return {
           success: false,
@@ -85,7 +85,7 @@ export class PickupReschedulingService {
       }
       
       // Step 4: Update pickup time in database
-      const updateResult = await this.updatePickupTime(request, currentOrder);
+      const updateResult = await PickupReschedulingService.updatePickupTime(request, currentOrder);
       if (!updateResult.success) {
         return {
           success: false,
@@ -95,13 +95,13 @@ export class PickupReschedulingService {
       }
       
       // Step 5: Log the rescheduling event
-      await this.logRescheduleEvent(request, currentOrder);
+      await PickupReschedulingService.logRescheduleEvent(request, currentOrder);
       
       // Step 6: Send notifications if requested
       let notificationSent = false;
       if (request.customerNotification !== false) { // Default to true
         try {
-          await this.sendRescheduleNotification(updateResult.order!, request);
+          await PickupReschedulingService.sendRescheduleNotification(updateResult.order!, request);
           notificationSent = true;
         } catch (notificationError) {
           console.warn('Failed to send reschedule notification:', notificationError);
@@ -109,7 +109,7 @@ export class PickupReschedulingService {
       }
       
       // Step 7: Broadcast the change for real-time updates
-      await this.broadcastReschedule(updateResult.order!, request);
+      await PickupReschedulingService.broadcastReschedule(updateResult.order!, request);
       
       console.log(`✅ Pickup rescheduled successfully for order: ${request.orderId}`);
       

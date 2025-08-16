@@ -57,7 +57,7 @@ export class StockRestorationService {
       const orderItems = getOrderItems(order);
       for (const item of orderItems) {
         try {
-          const restorationResult = await this.restoreProductStock(
+          const restorationResult = await StockRestorationService.restoreProductStock(
             item.productId,
             item.quantity,
             order.id,
@@ -91,11 +91,11 @@ export class StockRestorationService {
       }
       
       // Log stock restoration for audit trail
-      await this.logStockRestoration(order, reason, restoredItems, failedItems);
+      await StockRestorationService.logStockRestoration(order, reason, restoredItems, failedItems);
       
       // Broadcast stock updates for real-time inventory sync
       if (restoredItems.length > 0) {
-        await this.broadcastStockUpdates(restoredItems);
+        await StockRestorationService.broadcastStockUpdates(restoredItems);
       }
       
       const success = restoredItems.length > 0;
@@ -309,7 +309,7 @@ export class StockRestorationService {
     try {
       console.log(`🚨 Emergency stock restoration: ${quantity} units for product ${productId}`);
       
-      const restorationResult = await this.restoreProductStock(
+      const restorationResult = await StockRestorationService.restoreProductStock(
         productId,
         quantity,
         'emergency-restoration',
