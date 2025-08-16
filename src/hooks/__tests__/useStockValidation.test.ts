@@ -140,7 +140,7 @@ describe('useStockValidation', () => {
       });
 
       expect(result.current.stockData).toEqual([]);
-      expect(result.current.error?.code).toBe('AUTHENTICATION_REQUIRED');
+      expect((result.current.error as any)?.code).toBe('AUTHENTICATION_REQUIRED');
       expect(result.current.isLoading).toBe(false);
     });
 
