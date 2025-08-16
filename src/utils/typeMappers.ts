@@ -114,10 +114,10 @@ export function mapOrderFromDB(
 export function mapOrderItemFromDB(dbItem: DBOrderItem & { products?: DBProduct }): OrderItem {
   return {
     productId: dbItem.product_id,
-    productName: dbItem.products?.name ?? '',
-    price: dbItem.price,
+    productName: dbItem.product_name,
+    price: dbItem.unit_price,
     quantity: dbItem.quantity,
-    subtotal: dbItem.price * dbItem.quantity,
+    subtotal: dbItem.total_price,
     product: dbItem.products ? mapProductFromDB(dbItem.products) : undefined,
   };
 }
