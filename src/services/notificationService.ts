@@ -47,9 +47,9 @@ export class NotificationService {
       
       const notificationRequest: NotificationRequest = {
         userId: order.customerId,
-        customerEmail: order.customerInfo.email,
-        customerPhone: order.customerInfo.phone,
-        customerName: order.customerInfo.name,
+        customerEmail: order.customer_email,
+        customerPhone: order.customer_phone,
+        customerName: order.customer_name,
         type: 'order_ready',
         channels: ['push', 'sms'], // Default channels for pickup ready
         order
@@ -76,9 +76,9 @@ export class NotificationService {
       
       const notificationRequest: NotificationRequest = {
         userId: order.customerId,
-        customerEmail: order.customerInfo.email,
-        customerPhone: order.customerInfo.phone,
-        customerName: order.customerInfo.name,
+        customerEmail: order.customer_email,
+        customerPhone: order.customer_phone,
+        customerName: order.customer_name,
         type: 'order_confirmed',
         channels: ['push', 'email'], // Confirmation via push and email
         order
@@ -253,7 +253,7 @@ export class NotificationService {
         return {
           type,
           title: '🎉 Your order is ready for pickup!',
-          body: `Hi ${order.customerInfo.name}! Your order #${order.id.slice(-6)} is ready for pickup at ${farmStandName}. ${order.paymentMethod === 'cash_on_pickup' ? 'Please bring cash for payment. ' : ''}Pickup location: ${pickupLocation}`,
+          body: `Hi ${order.customer_name}! Your order #${order.id.slice(-6)} is ready for pickup at ${farmStandName}. ${order.payment_method === 'cash_on_pickup' ? 'Please bring cash for payment. ' : ''}Pickup location: ${pickupLocation}`,
           data: {
             orderId: order.id,
             pickupLocation,
@@ -266,7 +266,7 @@ export class NotificationService {
         return {
           type,
           title: '✅ Order confirmed!',
-          body: `Thank you ${order.customerInfo.name}! Your order #${order.id.slice(-6)} has been confirmed. We'll notify you when it's ready for pickup. ${order.pickupDate ? `Pickup date: ${order.pickupDate}` : ''}`,
+          body: `Thank you ${order.customer_name}! Your order #${order.id.slice(-6)} has been confirmed. We'll notify you when it's ready for pickup. ${order.pickup_date ? `Pickup date: ${order.pickup_date}` : ''}`,
           data: {
             orderId: order.id,
             pickupDate: order.pickupDate,
@@ -290,7 +290,7 @@ export class NotificationService {
         return {
           type,
           title: '💳 Payment reminder',
-          body: `Hi ${order.customerInfo.name}! Don't forget to bring cash ($${order.total.toFixed(2)}) for your order #${order.id.slice(-6)} pickup.`,
+          body: `Hi ${order.customer_name}! Don't forget to bring cash ($${order.total_amount.toFixed(2)}) for your order #${order.id.slice(-6)} pickup.`,
           data: {
             orderId: order.id,
             total: order.total

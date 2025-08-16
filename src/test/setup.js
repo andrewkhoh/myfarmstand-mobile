@@ -1,4 +1,4 @@
-import '@testing-library/jest-native/extend-expect';
+require('@testing-library/jest-native/extend-expect');
 
 // Mock React Native modules
 jest.mock('react-native/Libraries/Animated/NativeAnimatedHelper');
@@ -29,7 +29,7 @@ jest.mock('@react-native-community/datetimepicker', () => {
   const React = require('react');
   return {
     __esModule: true,
-    default: (props: any) => {
+    default: function MockDateTimePicker(props) {
       return React.createElement('MockDateTimePicker', {
         testID: `datetimepicker-${props.mode}`,
         onPress: () => props.onChange && props.onChange({}, props.value),
@@ -44,7 +44,9 @@ jest.mock('@tanstack/react-query', () => ({
   useMutation: jest.fn(),
   useQueryClient: jest.fn(),
   QueryClient: jest.fn(),
-  QueryClientProvider: (props: any) => props.children,
+  QueryClientProvider: function QueryClientProvider(props) {
+    return props.children;
+  },
 }));
 
 // Mock Alert

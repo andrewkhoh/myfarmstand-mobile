@@ -10,6 +10,10 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
+    "test:hooks": "jest --config jest.config.hooks.js src/hooks/__tests__/",
+    "test:hooks:watch": "jest --config jest.config.hooks.js --watch src/hooks/__tests__/",
+    "test:services": "TEST_TYPE=services jest --config jest.config.services.js src/services/",
+    "test:services:watch": "TEST_TYPE=services jest --config jest.config.services.js --watch src/services/",
     "test:checkout": "jest CheckoutScreen",
     "test:confirmation": "jest OrderConfirmationScreen",
     "audit-and-fix": "ts-node automation/workflow-runner.ts",
@@ -67,6 +71,7 @@
     "@types/react": "~19.0.10",
     "@types/uuid": "^10.0.0",
     "jest-expo": "^53.0.9",
+    "ts-jest": "^29.4.1",
     "ts-node": "^10.9.2",
     "typescript": "~5.8.3"
   },
