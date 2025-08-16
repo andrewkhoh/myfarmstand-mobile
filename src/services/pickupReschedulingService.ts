@@ -3,6 +3,11 @@ import { Order } from '../types';
 import { getOrder, updateOrderStatus } from './orderService';
 import { sendOrderBroadcast } from '../utils/broadcastFactory';
 import { NotificationService } from './notificationService';
+import { 
+  getOrderCustomerId, 
+  getOrderCustomerInfo, 
+  getOrderFulfillmentType 
+} from '../utils/typeMappers';
 
 // Rescheduling request interface
 export interface RescheduleRequest {
@@ -141,8 +146,10 @@ export class PickupReschedulingService {
       const cutoffTime = new Date();
       cutoffTime.setMinutes(cutoffTime.getMinutes() - withinMinutes);
       
+      // TODO: Create pickup_reschedule_logs table in database
+      // For now, using pickup_reschedule_log table that exists
       const { data: rescheduleLog, error } = await supabase
-        .from('pickup_reschedule_logs')
+        .from('pickup_reschedule_log')  // Using existing table name
         .select('created_at')
         .eq('order_id', orderId)
         .gte('created_at', cutoffTime.toISOString())
@@ -225,7 +232,7 @@ export class PickupReschedulingService {
       }
       
       // Check if order is for pickup (not delivery)
-      if (order.fulfillmentType !== 'pickup') {
+      if (getOrderFulfillmentType(order) !== 'pickup') {
         return {
           isValid: false,
           canReschedule: false,
@@ -309,14 +316,17 @@ export class PickupReschedulingService {
     currentOrder: Order
   ): Promise<void> {
     try {
+      const customerInfo = getOrderCustomerInfo(currentOrder);
+      // TODO: Create pickup_reschedule_logs table in database
+      // For now, using pickup_reschedule_log table that exists
       const { error } = await supabase
-        .from('pickup_reschedule_logs')
+        .from('pickup_reschedule_log')  // Using existing table name
         .insert({
           order_id: request.orderId,
-          customer_email: currentOrder.customerInfo.email,
-          customer_name: currentOrder.customerInfo.name,
-          previous_pickup_date: currentOrder.pickupDate,
-          previous_pickup_time: currentOrder.pickupTime,
+          customer_email: customerInfo.email,
+          customer_name: customerInfo.name,
+          previous_pickup_date: currentOrder.pickup_date || currentOrder.pickupDate,
+          previous_pickup_time: currentOrder.pickup_time || currentOrder.pickupTime,
           new_pickup_date: request.newPickupDate,
           new_pickup_time: request.newPickupTime,
           requested_by: request.requestedBy,
@@ -341,11 +351,12 @@ export class PickupReschedulingService {
     request: RescheduleRequest
   ): Promise<void> {
     try {
+      const customerInfo = getOrderCustomerInfo(order);
       await NotificationService.sendNotification({
-        userId: order.customerId,
-        customerEmail: order.customerInfo.email,
-        customerPhone: order.customerInfo.phone,
-        customerName: order.customerInfo.name,
+        userId: getOrderCustomerId(order),
+        customerEmail: customerInfo.email,
+        customerPhone: customerInfo.phone,
+        customerName: customerInfo.name,
         type: 'pickup_rescheduled' as any,
         channels: ['push', 'sms'],
         order
@@ -366,7 +377,7 @@ export class PickupReschedulingService {
   ): Promise<void> {
     try {
       await sendOrderBroadcast('pickup-rescheduled', {
-        userId: order.customerId,
+        userId: getOrderCustomerId(order),
         orderId: order.id,
         newPickupDate: request.newPickupDate,
         newPickupTime: request.newPickupTime,

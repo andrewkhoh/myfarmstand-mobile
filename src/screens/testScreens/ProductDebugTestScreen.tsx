@@ -3,6 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { ProductService } from '../../services/productService';
 import { useProducts, useCategories } from '../../hooks/useProducts';
 import { supabase } from '../../config/supabase';
+import { getProductStock, getProductCategoryId } from '../../utils/typeMappers';
 
 export default function ProductDebugTestScreen() {
   const [debugInfo, setDebugInfo] = useState<string>('');
@@ -325,8 +326,8 @@ Key: ${supabaseKey ? supabaseKey.substring(0, 20) + '...' : 'Not found'}`);
             <View key={product.id} style={{ marginBottom: 10, padding: 10, backgroundColor: '#f0f0f0', borderRadius: 5 }}>
               <Text style={{ fontWeight: 'bold' }}>{product.name}</Text>
               <Text>Price: ${product.price}</Text>
-              <Text>Stock: {product.stock}</Text>
-              <Text>Category ID: {product.categoryId}</Text>
+              <Text>Stock: {getProductStock(product)}</Text>
+              <Text>Category ID: {getProductCategoryId(product)}</Text>
             </View>
           ))}
         </View>

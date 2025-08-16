@@ -1,9 +1,19 @@
-import { CreateOrderRequest, Order, OrderSubmissionResult, FulfillmentType, OrderStatus, OrderItem, PaymentMethod, PaymentStatus } from '../types';
+import { CreateOrderRequest, Order, OrderSubmissionResult, PaymentStatus } from '../types';
 import { supabase } from '../config/supabase';
 import { sendOrderBroadcast } from '../utils/broadcastFactory';
 import { sendPickupReadyNotification, sendOrderConfirmationNotification } from './notificationService';
-import { restoreOrderStock, verifyRestorationNeeded } from './stockRestorationService';
+import { restoreOrderStock } from './stockRestorationService';
 import { v4 as uuidv4 } from 'uuid';
+import { 
+  getProductStock,
+  getOrderCustomerId, 
+  getOrderTotal, 
+  getOrderFulfillmentType,
+  mapOrderFromDB
+} from '../utils/typeMappers';
+import { Database } from '../types/database.generated';
+
+type DBOrderItem = Database['public']['Tables']['order_items']['Row'];
 
 // Calculate tax (8.5% for example)
 const calculateTax = (subtotal: number): number => {
@@ -29,7 +39,7 @@ const validateInventoryAvailability = async (orderItems: CreateOrderRequest['ite
   const productIds = orderItems.map(item => item.productId);
   const { data: products, error } = await supabase
     .from('products')
-    .select('id, name, stock')
+    .select('id, name, stock_quantity')
     .in('id', productIds);
     
   if (error) {
@@ -51,12 +61,13 @@ const validateInventoryAvailability = async (orderItems: CreateOrderRequest['ite
       continue;
     }
     
-    if (product.stock < orderItem.quantity) {
+    const stock = getProductStock(product);
+    if (stock < orderItem.quantity) {
       conflicts.push({
         productId: orderItem.productId,
         productName: orderItem.productName,
         requested: orderItem.quantity,
-        available: product.stock
+        available: stock
       });
     }
   }
@@ -199,35 +210,60 @@ export const submitOrder = async (orderRequest: CreateOrderRequest): Promise<Ord
     
     // Convert RPC format to application format
     const order: Order = {
+      // Primary database fields
       id: createdOrder.id,
-      customerId: createdOrder.customerId, // RPC returns camelCase
-      customerInfo: createdOrder.customerInfo, // RPC returns nested object
-      items: orderRequest.items, // Use original items with full product data
+      user_id: createdOrder.customerId || createdOrder.user_id,
+      customer_name: createdOrder.customerInfo?.name || createdOrder.customer_name,
+      customer_email: createdOrder.customerInfo?.email || createdOrder.customer_email,
+      customer_phone: createdOrder.customerInfo?.phone || createdOrder.customer_phone,
+      order_items: orderRequest.items,
       subtotal: createdOrder.subtotal,
-      tax: createdOrder.taxAmount,
-      total: createdOrder.totalAmount,
-      fulfillmentType: createdOrder.fulfillmentType as FulfillmentType,
-      paymentMethod: createdOrder.paymentMethod as PaymentMethod,
-      paymentStatus: createdOrder.paymentStatus as PaymentStatus,
-      deliveryAddress: createdOrder.deliveryAddress,
-      deliveryDate: createdOrder.deliveryDate,
-      deliveryTime: createdOrder.deliveryTime,
-      pickupDate: createdOrder.pickupDate,
-      pickupTime: createdOrder.pickupTime,
-      specialInstructions: createdOrder.specialInstructions,
-      status: createdOrder.status as OrderStatus,
-      createdAt: createdOrder.createdAt,
-      updatedAt: createdOrder.updatedAt
-    };
+      tax_amount: createdOrder.taxAmount || createdOrder.tax_amount,
+      total_amount: createdOrder.totalAmount || createdOrder.total_amount,
+      fulfillment_type: createdOrder.fulfillmentType || createdOrder.fulfillment_type,
+      status: createdOrder.status,
+      payment_method: createdOrder.paymentMethod || createdOrder.payment_method,
+      payment_status: createdOrder.paymentStatus || createdOrder.payment_status,
+      notes: createdOrder.notes,
+      pickup_date: createdOrder.pickupDate || createdOrder.pickup_date,
+      pickup_time: createdOrder.pickupTime || createdOrder.pickup_time,
+      delivery_address: createdOrder.deliveryAddress || createdOrder.delivery_address,
+      special_instructions: createdOrder.specialInstructions || createdOrder.special_instructions,
+      created_at: createdOrder.createdAt || createdOrder.created_at,
+      updated_at: createdOrder.updatedAt || createdOrder.updated_at,
+      
+      // Legacy field mappings
+      customerId: createdOrder.customerId || createdOrder.user_id,
+      customerInfo: createdOrder.customerInfo || {
+        name: createdOrder.customer_name,
+        email: createdOrder.customer_email,
+        phone: createdOrder.customer_phone,
+        address: createdOrder.delivery_address
+      },
+      items: orderRequest.items,
+      tax: createdOrder.taxAmount || createdOrder.tax_amount,
+      total: createdOrder.totalAmount || createdOrder.total_amount,
+      fulfillmentType: createdOrder.fulfillmentType || createdOrder.fulfillment_type,
+      paymentMethod: createdOrder.paymentMethod || createdOrder.payment_method,
+      paymentStatus: createdOrder.paymentStatus || createdOrder.payment_status,
+      pickupDate: createdOrder.pickupDate || createdOrder.pickup_date,
+      pickupTime: createdOrder.pickupTime || createdOrder.pickup_time,
+      deliveryAddress: createdOrder.deliveryAddress || createdOrder.delivery_address,
+      delivery_date: createdOrder.deliveryDate || createdOrder.delivery_date,
+      delivery_time: createdOrder.deliveryTime || createdOrder.delivery_time,
+      specialInstructions: createdOrder.specialInstructions || createdOrder.special_instructions,
+      createdAt: createdOrder.createdAt || createdOrder.created_at,
+      updatedAt: createdOrder.updatedAt || createdOrder.updated_at
+    } as Order;
 
     // SECURITY-HARDENED: Broadcast order creation for real-time updates
     try {
       await sendOrderBroadcast('new-order', {
-        userId: order.customerId, // SECURITY: User-specific routing
+        userId: getOrderCustomerId(order), // SECURITY: User-specific routing
         orderId: order.id,
         status: order.status,
-        total: order.total,
-        fulfillmentType: order.fulfillmentType,
+        total: getOrderTotal(order),
+        fulfillmentType: getOrderFulfillmentType(order),
         timestamp: new Date().toISOString(),
         action: 'order_created'
       });
@@ -284,44 +320,16 @@ export const getOrder = async (orderId: string): Promise<Order | null> => {
     }
 
     // Convert database format to app format
-    const order: Order = {
-      id: orderData.id,
-      customerId: orderData.user_id,
-      customerInfo: {
-        name: orderData.customer_name,
-        email: orderData.customer_email,
-        phone: orderData.customer_phone,
-        address: orderData.delivery_address || ''
-      },
-      items: orderData.order_items.map((item: any) => ({
-        productId: item.product_id,
-        productName: item.product_name,
-        price: item.unit_price,
-        quantity: item.quantity,
-        subtotal: item.total_price,
-        product: {
-          id: item.product_id,
-          name: item.product_name,
-          price: item.unit_price,
-          // Note: Other product fields would need to be fetched separately if needed
-        } as any,
-      })),
-      subtotal: orderData.subtotal,
-      tax: orderData.tax_amount,
-      total: orderData.total_amount,
-      fulfillmentType: orderData.fulfillment_type,
-      paymentMethod: (orderData.payment_method || 'cash_on_pickup') as PaymentMethod,
-      paymentStatus: (orderData.payment_status || 'pending') as PaymentStatus,
-      deliveryAddress: orderData.delivery_address,
-      deliveryDate: orderData.delivery_date,
-      deliveryTime: orderData.delivery_time,
-      pickupDate: orderData.pickup_date,
-      pickupTime: orderData.pickup_time,
-      specialInstructions: orderData.special_instructions,
-      status: orderData.status,
-      createdAt: orderData.created_at,
-      updatedAt: orderData.updated_at
-    };
+    const orderItems = orderData.order_items?.map((item: DBOrderItem) => ({
+      productId: item.product_id,
+      productName: item.product_name || '',
+      price: item.unit_price || 0,
+      quantity: item.quantity,
+      subtotal: item.total_price || 0,
+      product: undefined
+    })) || [];
+    
+    const order = mapOrderFromDB(orderData, orderItems);
 
     return order;
   } catch (error) {
@@ -364,44 +372,18 @@ export const getCustomerOrders = async (customerEmail: string): Promise<Order[]>
     }
 
     // Convert database format to app format
-    const orders: Order[] = ordersData.map((orderData: any) => ({
-      id: orderData.id,
-      customerId: orderData.user_id,
-      customerInfo: {
-        name: orderData.customer_name,
-        email: orderData.customer_email,
-        phone: orderData.customer_phone,
-        address: orderData.delivery_address || ''
-      },
-      items: orderData.order_items.map((item: any) => ({
+    const orders: Order[] = ordersData.map((orderData: any) => {
+      const orderItems = orderData.order_items?.map((item: DBOrderItem) => ({
         productId: item.product_id,
-        productName: item.product_name,
-        price: item.unit_price,
+        productName: item.product_name || '',
+        price: item.unit_price || 0,
         quantity: item.quantity,
-        subtotal: item.total_price,
-        product: {
-          id: item.product_id,
-          name: item.product_name,
-          price: item.unit_price,
-          // Note: Other product fields would need to be fetched separately if needed
-        } as any,
-      })),
-      subtotal: orderData.subtotal,
-      tax: orderData.tax_amount,
-      total: orderData.total_amount,
-      fulfillmentType: orderData.fulfillment_type,
-      paymentMethod: (orderData.payment_method || 'cash_on_pickup') as PaymentMethod,
-      paymentStatus: (orderData.payment_status || 'pending') as PaymentStatus,
-      deliveryAddress: orderData.delivery_address,
-      deliveryDate: orderData.delivery_date,
-      deliveryTime: orderData.delivery_time,
-      pickupDate: orderData.pickup_date,
-      pickupTime: orderData.pickup_time,
-      specialInstructions: orderData.special_instructions,
-      status: orderData.status,
-      createdAt: orderData.created_at,
-      updatedAt: orderData.updated_at
-    }));
+        subtotal: item.total_price || 0,
+        product: undefined
+      })) || [];
+      
+      return mapOrderFromDB(orderData, orderItems);
+    });
 
     return orders;
   } catch (error) {
@@ -551,7 +533,7 @@ export const bulkUpdateOrderStatus = async (
     for (const order of updatedOrders) {
       try {
         await sendOrderBroadcast('order-status-updated', {
-          userId: order.customerId, // SECURITY: User-specific routing
+          userId: getOrderCustomerId(order), // SECURITY: User-specific routing
           orderId: order.id,
           status: newStatus,
           timestamp: new Date().toISOString(),
@@ -637,44 +619,18 @@ export const getAllOrders = async (filters?: OrderFilters): Promise<Order[]> => 
     }
     
     // Convert database format to app format
-    const orders: Order[] = ordersData.map(orderData => ({
-      id: orderData.id,
-      customerId: orderData.user_id,
-      customerInfo: {
-        name: orderData.customer_name,
-        email: orderData.customer_email,
-        phone: orderData.customer_phone,
-        address: orderData.delivery_address || ''
-      },
-      items: orderData.order_items.map((item: any) => ({
+    const orders: Order[] = ordersData.map((orderData: any) => {
+      const orderItems = orderData.order_items?.map((item: DBOrderItem) => ({
         productId: item.product_id,
-        productName: item.product_name,
-        price: item.unit_price,
+        productName: item.product_name || '',
+        price: item.unit_price || 0,
         quantity: item.quantity,
-        subtotal: item.total_price,
-        product: {
-          id: item.product_id,
-          name: item.product_name,
-          price: item.unit_price,
-          // Note: Other product fields would need to be fetched separately if needed
-        } as any,
-      })),
-      subtotal: orderData.subtotal,
-      tax: orderData.tax_amount,
-      total: orderData.total_amount,
-      fulfillmentType: orderData.fulfillment_type,
-      paymentMethod: (orderData.payment_method || 'cash_on_pickup') as PaymentMethod,
-      paymentStatus: (orderData.payment_status || 'pending') as PaymentStatus,
-      deliveryAddress: orderData.delivery_address,
-      deliveryDate: orderData.delivery_date,
-      deliveryTime: orderData.delivery_time,
-      pickupDate: orderData.pickup_date,
-      pickupTime: orderData.pickup_time,
-      specialInstructions: orderData.special_instructions,
-      status: orderData.status,
-      createdAt: orderData.created_at,
-      updatedAt: orderData.updated_at
-    }));
+        subtotal: item.total_price || 0,
+        product: undefined
+      })) || [];
+      
+      return mapOrderFromDB(orderData, orderItems);
+    });
     
     return orders;
   } catch (error) {
@@ -770,13 +726,13 @@ export const getOrderStats = async (): Promise<{
       daily: {
         ordersPlaced: todayOrders.length,
         ordersCompleted: dailyCompleted.length,
-        revenue: dailyCompleted.reduce((sum, order) => sum + order.total_amount, 0),
+        revenue: dailyCompleted.reduce((sum, order) => sum + getOrderTotal(order), 0),
         pendingFromToday: dailyPending.length
       },
       weekly: {
         ordersPlaced: weekOrders.length,
         ordersCompleted: weeklyCompleted.length,
-        revenue: weeklyCompleted.reduce((sum, order) => sum + order.total_amount, 0),
+        revenue: weeklyCompleted.reduce((sum, order) => sum + getOrderTotal(order), 0),
         pendingFromWeek: weeklyPending.length
       },
       active: {

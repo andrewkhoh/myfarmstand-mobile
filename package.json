@@ -21,7 +21,8 @@
     "quick-audit": "ts-node automation/workflow-runner.ts quick",
     "full-automation": "ts-node automation/workflow-runner.ts full",
     "audit-only": "ts-node automation/workflow-runner.ts audit",
-    "fix-only": "ts-node automation/workflow-runner.ts fix"
+    "fix-only": "ts-node automation/workflow-runner.ts fix",
+    "sync-schema": "node scripts/sync-supabase-schema.js"
   },
   "dependencies": {
     "@expo/metro-runtime": "~5.0.4",

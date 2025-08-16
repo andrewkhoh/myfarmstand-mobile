@@ -9,6 +9,7 @@ import { useProducts, useCategories } from '../hooks/useProducts';
 import { useCart } from '../hooks/useCart';
 import { spacing, colors, borderRadius } from '../utils/theme';
 import { Product, RootStackParamList } from '../types';
+import { getProductCategoryId } from '../utils/typeMappers';
 
 type ShopScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Main'>;
 
@@ -44,7 +45,7 @@ export const ShopScreen: React.FC = () => {
       // Filter by category name (database stores category as string name, not ID)
       filtered = filtered.filter((product: Product) => {
         // Handle both possible data structures for compatibility
-        const productCategory = (product as any).category || product.categoryId;
+        const productCategory = (product as any).category || getProductCategoryId(product);
         return productCategory === selectedCategory;
       });
     }

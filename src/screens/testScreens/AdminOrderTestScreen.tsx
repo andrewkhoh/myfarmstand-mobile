@@ -11,6 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useOrders, useOrderStats, useOrderOperations } from '../../hooks/useOrders';
 import { addMockOrdersForTesting, clearMockOrders } from '../../services/orderService';
+import { getOrderFulfillmentType } from '../../utils/typeMappers';
 
 interface TestResult {
   testName: string;
@@ -210,7 +211,7 @@ const AdminOrderTestScreen: React.FC = () => {
       
       if (pendingOrders && pendingOrders.length > 0) {
         const statusTypes = [...new Set(pendingOrders.map(order => order.status))];
-        const fulfillmentTypes = [...new Set(pendingOrders.map(order => order.fulfillmentType))];
+        const fulfillmentTypes = [...new Set(pendingOrders.map(order => getOrderFulfillmentType(order)))];
         
         addTestResult(
           'Order Filtering',

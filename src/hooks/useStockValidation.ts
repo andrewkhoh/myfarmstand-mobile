@@ -1,7 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../config/supabase';
+import { getProductStock, isProductPreOrder, getProductMinPreOrderQty, getProductMaxPreOrderQty } from '../utils/typeMappers';
 import { Product } from '../types';
 import { useCart } from './useCart';
+import { Database } from '../types/database.generated';
+
+type DBProduct = Database['public']['Tables']['products']['Row'];
 
 // Real-time stock data interface
 interface StockData {
@@ -43,10 +47,10 @@ export const useStockValidation = () => {
 
       return data.map((item: any) => ({
         productId: item.id,
-        availableStock: item.stock_quantity || 0,
-        isPreOrder: item.is_pre_order || false,
-        minPreOrderQuantity: item.min_pre_order_quantity,
-        maxPreOrderQuantity: item.max_pre_order_quantity
+        availableStock: getProductStock(item),
+        isPreOrder: isProductPreOrder(item),
+        minPreOrderQuantity: getProductMinPreOrderQty(item),
+        maxPreOrderQuantity: getProductMaxPreOrderQty(item)
       }));
     },
     staleTime: 30 * 1000, // 30 seconds - frequent updates for real-time validation
@@ -64,16 +68,16 @@ export const useStockValidation = () => {
     const currentCartQuantity = getCartQuantity(product.id);
     
     // Default values if stock data not available
-    const availableStock = stockInfo?.availableStock ?? product.stock ?? 0;
-    const isPreOrder = stockInfo?.isPreOrder ?? product.isPreOrder ?? false;
+    const availableStock = stockInfo?.availableStock ?? getProductStock(product);
+    const isPreOrder = stockInfo?.isPreOrder ?? isProductPreOrder(product);
     
     // Calculate totals
     const totalRequestedQuantity = currentCartQuantity + requestedQuantity;
     
     // Pre-order validation
     if (isPreOrder) {
-      const minPreOrder = stockInfo?.minPreOrderQuantity ?? product.minPreOrderQuantity ?? 1;
-      const maxPreOrder = stockInfo?.maxPreOrderQuantity ?? product.maxPreOrderQuantity ?? 999;
+      const minPreOrder = stockInfo?.minPreOrderQuantity ?? getProductMinPreOrderQty(product) ?? 1;
+      const maxPreOrder = stockInfo?.maxPreOrderQuantity ?? getProductMaxPreOrderQty(product) ?? 999;
       
       if (totalRequestedQuantity < minPreOrder) {
         return {
@@ -138,8 +142,8 @@ export const useStockValidation = () => {
   const getStockInfo = (product: Product) => {
     const stockInfo = stockData.find(s => s.productId === product.id);
     const currentCartQuantity = getCartQuantity(product.id);
-    const availableStock = stockInfo?.availableStock ?? product.stock ?? 0;
-    const isPreOrder = stockInfo?.isPreOrder ?? product.isPreOrder ?? false;
+    const availableStock = stockInfo?.availableStock ?? getProductStock(product);
+    const isPreOrder = stockInfo?.isPreOrder ?? isProductPreOrder(product);
     
     return {
       availableStock,

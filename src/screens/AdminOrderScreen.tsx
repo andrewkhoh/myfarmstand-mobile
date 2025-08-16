@@ -14,6 +14,15 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Order, OrderStatus, FulfillmentType } from '../types';
 import { useOrders, useOrderOperations } from '../hooks/useOrders';
+import { 
+  getOrderCustomerInfo, 
+  getOrderCreatedAt, 
+  getOrderTotal, 
+  getOrderFulfillmentType,
+  getOrderPickupDate,
+  getOrderPickupTime,
+  getOrderItems 
+} from '../utils/typeMappers';
 
 interface OrderFilters {
   status?: string;
@@ -124,40 +133,40 @@ const AdminOrderScreen: React.FC = () => {
         <View style={styles.orderHeader}>
           <View style={styles.orderInfo}>
             <Text style={styles.orderId}>{order.id}</Text>
-            <Text style={styles.customerName}>{order.customerInfo.name}</Text>
-            <Text style={styles.orderDate}>{formatDate(order.createdAt)}</Text>
+            <Text style={styles.customerName}>{getOrderCustomerInfo(order).name}</Text>
+            <Text style={styles.orderDate}>{formatDate(getOrderCreatedAt(order))}</Text>
           </View>
           <View style={styles.orderMeta}>
-            <View style={[styles.statusBadge, { backgroundColor: getStatusColor(order.status) }]}>
+            <View style={[styles.statusBadge, { backgroundColor: getStatusColor(order.status as OrderStatus) }]}>
               <Text style={styles.statusText}>{order.status.toUpperCase()}</Text>
             </View>
-            <Text style={styles.orderTotal}>{formatCurrency(order.total)}</Text>
+            <Text style={styles.orderTotal}>{formatCurrency(getOrderTotal(order))}</Text>
           </View>
         </View>
 
         <View style={styles.orderDetails}>
           <View style={styles.fulfillmentInfo}>
             <Ionicons
-              name={order.fulfillmentType === 'pickup' ? 'car-outline' : 'home-outline'}
+              name={getOrderFulfillmentType(order) === 'pickup' ? 'car-outline' : 'home-outline'}
               size={16}
               color="#6b7280"
             />
             <Text style={styles.fulfillmentText}>
-              {order.fulfillmentType === 'pickup' ? 'Pickup' : 'Delivery'}
+              {getOrderFulfillmentType(order) === 'pickup' ? 'Pickup' : 'Delivery'}
             </Text>
-            {Boolean(order.pickupDate) && (
+            {Boolean(getOrderPickupDate(order)) && (
               <Text style={styles.fulfillmentDetails}>
-                {order.pickupDate} at {order.pickupTime}
+                {getOrderPickupDate(order)} at {getOrderPickupTime(order)}
               </Text>
             )}
           </View>
 
           <View style={styles.itemsInfo}>
             <Text style={styles.itemsCount}>
-              {order.items.length} item{order.items.length !== 1 ? 's' : ''}
+              {getOrderItems(order).length} item{getOrderItems(order).length !== 1 ? 's' : ''}
             </Text>
             <Text style={styles.itemsList}>
-              {order.items.map(item => `${item.quantity}x ${item.productName}`).join(', ')}
+              {getOrderItems(order).map(item => `${item.quantity}x ${item.productName}`).join(', ')}
             </Text>
           </View>
         </View>

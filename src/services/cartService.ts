@@ -1,6 +1,13 @@
 import { supabase } from '../config/supabase';
 import { CartState, CartItem, Product } from '../types';
 import { cartBroadcast } from '../utils/broadcastFactory';
+import { 
+  getProductStock, 
+  isProductPreOrder, 
+  getProductMinPreOrderQty, 
+  getProductMaxPreOrderQty,
+  mapProductFromDB 
+} from '../utils/typeMappers';
 
 // Database cart item interface
 interface DbCartItem {
@@ -11,38 +18,6 @@ interface DbCartItem {
   created_at: string;
   updated_at: string;
 }
-
-// Stock validation helper
-const validateStock = (product: Product, requestedQuantity: number, currentCartQuantity: number = 0): { isValid: boolean; message?: string } => {
-  const totalQuantity = currentCartQuantity + requestedQuantity;
-  
-  // Pre-order item validation
-  if (product.isPreOrder) {
-    if (product.minPreOrderQuantity && totalQuantity < product.minPreOrderQuantity) {
-      return {
-        isValid: false,
-        message: `Minimum pre-order quantity is ${product.minPreOrderQuantity}`
-      };
-    }
-    if (product.maxPreOrderQuantity && totalQuantity > product.maxPreOrderQuantity) {
-      return {
-        isValid: false,
-        message: `Maximum pre-order quantity is ${product.maxPreOrderQuantity}`
-      };
-    }
-    return { isValid: true };
-  }
-  
-  // Regular stock validation
-  if (product.stock !== undefined && totalQuantity > product.stock) {
-    return {
-      isValid: false,
-      message: `Only ${product.stock} items available in stock`
-    };
-  }
-  
-  return { isValid: true };
-};
 
 // Calculate total helper
 const calculateTotal = (items: CartItem[]): number => {
@@ -68,23 +43,7 @@ const convertDbCartItemsToCartState = async (dbItems: DbCartItem[]): Promise<Car
     
     if (product) {
       cartItems.push({
-        product: {
-          id: product.id,
-          name: product.name,
-          description: product.description,
-          price: product.price,
-          stock: product.stock_quantity,
-          categoryId: product.category, // Note: database uses category name, not ID
-          imageUrl: product.image_url,
-          unit: product.unit,
-          isActive: product.is_available,
-          isPreOrder: product.is_pre_order,
-          minPreOrderQuantity: product.min_pre_order_quantity,
-          maxPreOrderQuantity: product.max_pre_order_quantity,
-          tags: product.tags || [],
-          createdAt: product.created_at || new Date().toISOString(),
-          updatedAt: product.updated_at || new Date().toISOString()
-        },
+        product: mapProductFromDB(product),
         quantity: dbItem.quantity
       });
     }
@@ -254,7 +213,7 @@ export const cartService = {
         }
       } else {
         // Regular stock validation
-        const availableStock = stockData.stock_quantity || 0;
+        const availableStock = getProductStock(stockData);
         
         if (totalRequestedQuantity > availableStock) {
           const remainingStock = Math.max(0, availableStock - currentCartQuantity);

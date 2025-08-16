@@ -18,6 +18,15 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { RootStackParamList, Order } from '../types';
 import { useCurrentUser } from '../hooks/useAuth';
 import { useCustomerOrders } from '../hooks/useOrders';
+import { 
+  getOrderCustomerId,
+  getOrderItems, 
+  getOrderPickupDate,
+  getOrderPickupTime,
+  getOrderCreatedAt,
+  getOrderTotal,
+  getOrderDeliveryAddress
+} from '../utils/typeMappers';
 import { usePickupRescheduling } from '../hooks/usePickupRescheduling';
 import { RescheduleRequest } from '../services/pickupReschedulingService';
 import { spacing, colors } from '../utils/theme';
@@ -66,8 +75,8 @@ export const MyOrdersScreen: React.FC = () => {
   const { data: user } = useCurrentUser();
   
   // Use React Query hooks for data and mutations
-  const { data: orders = [], isLoading, error, refetch } = useCustomerOrders();
-  const { reschedulePickup, isRescheduling, rescheduleError } = usePickupRescheduling();
+  const { data: orders = [], isLoading, refetch } = useCustomerOrders();
+  const { reschedulePickup, isRescheduling } = usePickupRescheduling();
   
   const [rescheduleModalVisible, setRescheduleModalVisible] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -98,21 +107,26 @@ export const MyOrdersScreen: React.FC = () => {
         if (order.id.toLowerCase().includes(query)) return true;
         
         // Search in order items
-        if (order.items?.some(item => 
+        if (getOrderItems(order).some(item => 
           item.productName?.toLowerCase().includes(query)
         )) return true;
         
         // Search in customer info (using available Order properties)
-        if (order.customerId?.toLowerCase().includes(query)) return true;
+        const customerId = getOrderCustomerId(order);
+        if (customerId?.toLowerCase().includes(query)) return true;
         
         return false;
       });
     }
     
     // Sort by most recent first
-    return filtered.sort((a: Order, b: Order) => 
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
+    return filtered.sort((a: Order, b: Order) => {
+      const aCreatedAt = getOrderCreatedAt(a);
+      const bCreatedAt = getOrderCreatedAt(b);
+      const aTime = aCreatedAt ? new Date(aCreatedAt).getTime() : 0;
+      const bTime = bCreatedAt ? new Date(bCreatedAt).getTime() : 0;
+      return bTime - aTime;
+    });
   }, [orders, selectedStatusFilter, searchQuery]);
 
   const onRefresh = async () => {
@@ -128,11 +142,13 @@ export const MyOrdersScreen: React.FC = () => {
     setSelectedOrder(order);
     
     // Set initial date/time from current pickup schedule
-    if (order.pickupDate) {
-      setNewPickupDate(new Date(order.pickupDate));
+    const pickupDate = getOrderPickupDate(order);
+    if (pickupDate) {
+      setNewPickupDate(new Date(pickupDate));
     }
-    if (order.pickupTime) {
-      const [hours, minutes] = order.pickupTime.split(':');
+    const pickupTime = getOrderPickupTime(order);
+    if (pickupTime) {
+      const [hours, minutes] = pickupTime.split(':');
       const timeDate = new Date();
       timeDate.setHours(parseInt(hours), parseInt(minutes));
       setNewPickupTime(timeDate);
@@ -155,7 +171,7 @@ export const MyOrdersScreen: React.FC = () => {
     };
 
     try {
-      await reschedulePickup(rescheduleRequest);
+      reschedulePickup(rescheduleRequest);
       Alert.alert('Success', 'Your pickup has been rescheduled successfully!');
       setRescheduleModalVisible(false);
     } catch (error) {
@@ -166,11 +182,12 @@ export const MyOrdersScreen: React.FC = () => {
 
   // Create order description helper
   const getOrderDescription = (order: Order): string => {
-    if (!order.items || order.items.length === 0) {
+    const orderItems = getOrderItems(order);
+    if (!orderItems || orderItems.length === 0) {
       return 'No items in this order';
     }
     
-    const items = order.items;
+    const items = orderItems;
     
     if (items.length === 1) {
       const item = items[0];
@@ -206,7 +223,7 @@ export const MyOrdersScreen: React.FC = () => {
   };
 
   const renderOrder = (order: Order) => {
-    const itemCount = order.items?.length || 0;
+    const itemCount = getOrderItems(order).length || 0;
     const itemSummary = itemCount > 0 
       ? `${itemCount} item${itemCount > 1 ? 's' : ''}`
       : 'No items';
@@ -217,7 +234,7 @@ export const MyOrdersScreen: React.FC = () => {
         <View style={styles.orderHeader}>
           <View style={styles.orderInfo}>
             <Text style={styles.orderNumber}>Order #{order.id}</Text>
-            <Text style={styles.orderDate}>{formatDate(order.createdAt)}</Text>
+            <Text style={styles.orderDate}>{formatDate(getOrderCreatedAt(order))}</Text>
           </View>
           <View style={[styles.statusBadge, { backgroundColor: getStatusColor(order.status) }]}>
             <Ionicons 
@@ -235,20 +252,20 @@ export const MyOrdersScreen: React.FC = () => {
             <Text style={styles.itemSummary}>{itemSummary}</Text>
             <Text style={styles.orderDescription}>{orderDescription}</Text>
           </View>
-          <Text style={styles.totalAmount}>${order.total?.toFixed(2) || '0.00'}</Text>
+          <Text style={styles.totalAmount}>${getOrderTotal(order)?.toFixed(2) || '0.00'}</Text>
         </View>
 
         <View style={styles.pickupInfo}>
           <View style={styles.pickupRow}>
             <Ionicons name="calendar-outline" size={16} color={colors.text.secondary} />
             <Text style={styles.pickupText}>
-              Pickup: {formatDate(order.pickupDate)} at {formatTime(order.pickupTime)}
+              Pickup: {formatDate(getOrderPickupDate(order))} at {formatTime(getOrderPickupTime(order))}
             </Text>
           </View>
-          {order.deliveryAddress && (
+          {getOrderDeliveryAddress(order) && (
             <View style={styles.pickupRow}>
               <Ionicons name="location-outline" size={16} color={colors.text.secondary} />
-              <Text style={styles.pickupText}>{order.deliveryAddress}</Text>
+              <Text style={styles.pickupText}>{getOrderDeliveryAddress(order)}</Text>
             </View>
           )}
         </View>
@@ -434,7 +451,7 @@ export const MyOrdersScreen: React.FC = () => {
                 mode="date"
                 display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                 minimumDate={new Date()}
-                onChange={(event, selectedDate) => {
+                onChange={(_, selectedDate) => {
                   setShowDatePicker(false);
                   if (selectedDate) {
                     setNewPickupDate(selectedDate);
@@ -449,7 +466,7 @@ export const MyOrdersScreen: React.FC = () => {
                 value={newPickupTime}
                 mode="time"
                 display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                onChange={(event, selectedTime) => {
+                onChange={(_, selectedTime) => {
                   setShowTimePicker(false);
                   if (selectedTime) {
                     setNewPickupTime(selectedTime);

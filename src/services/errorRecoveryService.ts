@@ -489,9 +489,11 @@ export class ErrorRecoveryService {
    */
   private static async logErrorAttempt(context: ErrorContext): Promise<void> {
     try {
-      const { error } = await supabase
-        .from('error_recovery_logs')
-        .insert({
+      // TODO: Create error_recovery_logs table in database
+      // const { error } = await supabase
+      //   .from('error_recovery_logs')
+      //   .insert({
+      const logData = {
           error_type: context.errorType,
           operation: context.operation,
           order_id: context.orderId,
@@ -502,11 +504,14 @@ export class ErrorRecoveryService {
           metadata: context.metadata,
           timestamp: context.timestamp,
           created_at: new Date().toISOString()
-        });
+      }; // });
       
-      if (error) {
-        console.warn('Failed to log error attempt:', error);
-      }
+      // Log to console for now until table is created
+      console.log('Error recovery attempt:', logData);
+      
+      // if (error) {
+      //   console.warn('Failed to log error attempt:', error);
+      // }
     } catch (error) {
       console.warn('Failed to log error attempt:', error);
     }
@@ -520,9 +525,11 @@ export class ErrorRecoveryService {
     result: ErrorRecoveryResult
   ): Promise<void> {
     try {
-      const { error } = await supabase
-        .from('error_recovery_results')
-        .insert({
+      // TODO: Create error_recovery_results table in database
+      // const { error } = await supabase
+      //   .from('error_recovery_results')
+      //   .insert({
+      const resultData = {
           error_type: context.errorType,
           operation: context.operation,
           order_id: context.orderId,
@@ -534,11 +541,14 @@ export class ErrorRecoveryService {
           result_message: result.message,
           result_error: result.error,
           created_at: new Date().toISOString()
-        });
+      }; // });
       
-      if (error) {
-        console.warn('Failed to log recovery result:', error);
-      }
+      // Log to console for now until table is created
+      console.log('Error recovery result:', resultData);
+      
+      // if (error) {
+      //   console.warn('Failed to log recovery result:', error);
+      // }
     } catch (error) {
       console.warn('Failed to log recovery result:', error);
     }
@@ -549,9 +559,11 @@ export class ErrorRecoveryService {
    */
   private static async logCriticalError(context: ErrorContext): Promise<void> {
     try {
-      const { error } = await supabase
-        .from('critical_errors')
-        .insert({
+      // TODO: Create critical_errors table in database
+      // const { error } = await supabase
+      //   .from('critical_errors')
+      //   .insert({
+      const criticalData = {
           error_type: context.errorType,
           operation: context.operation,
           order_id: context.orderId,
@@ -561,11 +573,14 @@ export class ErrorRecoveryService {
           requires_manual_intervention: true,
           metadata: context.metadata,
           created_at: new Date().toISOString()
-        });
+      }; // });
       
-      if (error) {
-        console.warn('Failed to log critical error:', error);
-      }
+      // Log to console for now until table is created
+      console.error('CRITICAL ERROR:', criticalData);
+      
+      // if (error) {
+      //   console.warn('Failed to log critical error:', error);
+      // }
     } catch (error) {
       console.warn('Failed to log critical error:', error);
     }

@@ -1,6 +1,7 @@
 import { Product, Category, ApiResponse, PaginatedResponse } from '../types';
 import { supabase, TABLES } from '../config/supabase';
 import { BroadcastHelper } from '../utils/broadcastHelper';
+import { mapProductFromDB } from '../utils/typeMappers';
 import type { Database } from '../config/supabase';
 
 // Custom API response types for ProductService
@@ -137,35 +138,7 @@ class ProductService {
       }
 
       // Convert database format to app format
-      const products: Product[] = (productsData || []).map((prod: any) => ({
-        id: prod.id,
-        name: prod.name,
-        description: prod.description,
-        price: prod.price,
-        unit: prod.unit,
-        imageUrl: prod.image_url,
-        categoryId: prod.category_id,
-        category: {
-          id: prod.categories.id,
-          name: prod.categories.name,
-          description: prod.categories.description,
-          imageUrl: prod.categories.image_url,
-          sortOrder: prod.categories.sort_order,
-          isActive: prod.categories.is_available,
-          createdAt: prod.categories.created_at,
-          updatedAt: prod.categories.updated_at
-        },
-        stock: prod.stock_quantity,
-        isActive: prod.is_available,
-        isPreOrder: prod.is_pre_order || false,
-        minPreOrderQuantity: prod.min_pre_order_quantity,
-        maxPreOrderQuantity: prod.max_pre_order_quantity,
-        preOrderAvailableDate: prod.pre_order_available_date,
-        tags: prod.tags || [],
-        nutritionInfo: prod.nutrition_info,
-        createdAt: prod.created_at,
-        updatedAt: prod.updated_at
-      }));
+      const products: Product[] = (productsData || []).map((prod: any) => mapProductFromDB(prod));
 
       return {
         success: true,
@@ -234,35 +207,7 @@ class ProductService {
       }
 
       // Convert database format to app format
-      const products: Product[] = (productsData || []).map((prod: any) => ({
-        id: prod.id,
-        name: prod.name,
-        description: prod.description,
-        price: prod.price,
-        unit: prod.unit,
-        imageUrl: prod.image_url,
-        categoryId: prod.category_id,
-        category: {
-          id: prod.categories.id,
-          name: prod.categories.name,
-          description: prod.categories.description,
-          imageUrl: prod.categories.image_url,
-          sortOrder: prod.categories.sort_order,
-          isActive: prod.categories.is_available,
-          createdAt: prod.categories.created_at,
-          updatedAt: prod.categories.updated_at
-        },
-        stock: prod.stock_quantity,
-        isActive: prod.is_available,
-        isPreOrder: prod.is_pre_order || false,
-        minPreOrderQuantity: prod.min_pre_order_quantity,
-        maxPreOrderQuantity: prod.max_pre_order_quantity,
-        preOrderAvailableDate: prod.pre_order_available_date,
-        tags: prod.tags || [],
-        nutritionInfo: prod.nutrition_info,
-        createdAt: prod.created_at,
-        updatedAt: prod.updated_at
-      }));
+      const products: Product[] = (productsData || []).map((prod: any) => mapProductFromDB(prod));
 
       const paginatedResponse: PaginatedResponse<Product> = {
         data: products,
@@ -320,35 +265,7 @@ class ProductService {
       }
 
       // Convert database format to app format
-      const product: Product = {
-        id: productData.id,
-        name: productData.name,
-        description: productData.description,
-        price: productData.price,
-        unit: productData.unit,
-        imageUrl: productData.image_url,
-        categoryId: productData.category_id,
-        category: {
-          id: productData.categories.id,
-          name: productData.categories.name,
-          description: productData.categories.description,
-          imageUrl: productData.categories.image_url,
-          sortOrder: productData.categories.sort_order,
-          isActive: productData.categories.is_available,
-          createdAt: productData.categories.created_at,
-          updatedAt: productData.categories.updated_at
-        },
-        stock: productData.stock_quantity,
-        isActive: productData.is_available,
-        isPreOrder: productData.is_pre_order || false,
-        minPreOrderQuantity: productData.min_pre_order_quantity,
-        maxPreOrderQuantity: productData.max_pre_order_quantity,
-        preOrderAvailableDate: productData.pre_order_deadline,
-        tags: productData.tags || [],
-        nutritionInfo: productData.nutrition_info,
-        createdAt: productData.created_at,
-        updatedAt: productData.updated_at
-      };
+      const product: Product = mapProductFromDB(productData);
 
       return {
         success: true,
@@ -397,35 +314,7 @@ class ProductService {
       }
 
       // Convert database format to app format
-      const products: Product[] = (productsData || []).map((prod: any) => ({
-        id: prod.id,
-        name: prod.name,
-        description: prod.description,
-        price: prod.price,
-        unit: prod.unit,
-        imageUrl: prod.image_url,
-        categoryId: prod.category_id,
-        category: {
-          id: prod.categories.id,
-          name: prod.categories.name,
-          description: prod.categories.description,
-          imageUrl: prod.categories.image_url,
-          sortOrder: prod.categories.sort_order,
-          isActive: prod.categories.is_available,
-          createdAt: prod.categories.created_at,
-          updatedAt: prod.categories.updated_at
-        },
-        stock: prod.stock_quantity,
-        isActive: prod.is_available,
-        isPreOrder: prod.is_pre_order || false,
-        minPreOrderQuantity: prod.min_pre_order_quantity,
-        maxPreOrderQuantity: prod.max_pre_order_quantity,
-        preOrderAvailableDate: prod.pre_order_available_date,
-        tags: prod.tags || [],
-        nutritionInfo: prod.nutrition_info,
-        createdAt: prod.created_at,
-        updatedAt: prod.updated_at
-      }));
+      const products: Product[] = (productsData || []).map((prod: any) => mapProductFromDB(prod));
 
       return {
         success: true,
@@ -474,35 +363,7 @@ class ProductService {
       }
 
       // Convert database format to app format
-      const products: Product[] = (productsData || []).map((prod: any) => ({
-        id: prod.id,
-        name: prod.name,
-        description: prod.description,
-        price: prod.price,
-        unit: prod.unit,
-        imageUrl: prod.image_url,
-        categoryId: prod.category_id,
-        category: {
-          id: prod.categories.id,
-          name: prod.categories.name,
-          description: prod.categories.description,
-          imageUrl: prod.categories.image_url,
-          sortOrder: prod.categories.sort_order,
-          isActive: prod.categories.is_available,
-          createdAt: prod.categories.created_at,
-          updatedAt: prod.categories.updated_at
-        },
-        stock: prod.stock_quantity,
-        isActive: prod.is_available,
-        isPreOrder: prod.is_pre_order || false,
-        minPreOrderQuantity: prod.min_pre_order_quantity,
-        maxPreOrderQuantity: prod.max_pre_order_quantity,
-        preOrderAvailableDate: prod.pre_order_available_date,
-        tags: prod.tags || [],
-        nutritionInfo: prod.nutrition_info,
-        createdAt: prod.created_at,
-        updatedAt: prod.updated_at
-      }));
+      const products: Product[] = (productsData || []).map((prod: any) => mapProductFromDB(prod));
 
       return {
         success: true,

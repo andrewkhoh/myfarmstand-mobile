@@ -8,6 +8,7 @@ import { Screen, Text, Button, Card } from '../../components';
 import { mockProducts } from '../../data/mockProducts';
 import { spacing, colors } from '../../utils/theme';
 import { RootStackParamList, RootTabParamList } from '../../types';
+import { getProductImageUrl } from '../../utils/typeMappers';
 
 type EnhancedCatalogTestNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<RootTabParamList>,
@@ -175,7 +176,7 @@ export const EnhancedCatalogTestScreen: React.FC = () => {
           productsWithTags++;
         }
         
-        if (product.imageUrl) {
+        if (getProductImageUrl(product)) {
           productsWithImages++;
         }
       });

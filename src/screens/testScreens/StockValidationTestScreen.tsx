@@ -11,6 +11,12 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useCart } from '../../hooks/useCart';
 import { Product } from '../../types';
+import { 
+  getProductStock, 
+  isProductPreOrder, 
+  getProductMinPreOrderQty, 
+  getProductMaxPreOrderQty 
+} from '../../utils/typeMappers';
 
 export const StockValidationTestScreen: React.FC = () => {
   const { addItem, updateQuantity, clearCart, items, total } = useCart();
@@ -272,8 +278,8 @@ export const StockValidationTestScreen: React.FC = () => {
             <View key={product.id} style={styles.productInfo}>
               <Text style={styles.productName}>{product.name}</Text>
               <Text style={styles.productDetails}>
-                Stock: {product.stock} | Price: ${product.price}
-                {product.isPreOrder && ` | Pre-order (${product.minPreOrderQuantity}-${product.maxPreOrderQuantity})`}
+                Stock: {getProductStock(product)} | Price: ${product.price}
+                {isProductPreOrder(product) && ` | Pre-order (${getProductMinPreOrderQty(product)}-${getProductMaxPreOrderQty(product)})`}
               </Text>
             </View>
           ))}
