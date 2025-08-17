@@ -34,8 +34,19 @@ function loadSecretEnv() {
   }
 }
 
-// Load secret environment variables
-loadSecretEnv();
+// Load secrets for build-time configuration
+const { loadSecretsForBuild } = require('./scripts/build-config');
+
+// Load secrets into environment variables
+try {
+  loadSecretsForBuild();
+} catch (error) {
+  console.warn('⚠️ Could not load secrets for build:', error.message);
+  console.log('💡 Run "npm run setup-secrets" to configure secrets');
+  
+  // Fallback to legacy .env.secret loading
+  loadSecretEnv();
+}
 
 // DEBUG: Verify environment loading worked
 // console.log('🔧 Environment loading verification:', {
@@ -80,13 +91,18 @@ module.exports = {
       "expo-secure-store"
     ],
     extra: {
-      // SECURITY: Expose environment variables to the app
-      // These are loaded from .env.secret at build time
-      supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
-      supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
-      channelSecret: process.env.EXPO_PUBLIC_CHANNEL_SECRET,
-      debugChannels: process.env.DEBUG_CHANNELS,
+      // SECURITY: Expose secrets to the app
+      // These are loaded from SecureStore via build-config.js
+      supabaseUrl: process.env.BUILD_SUPABASE_URL || process.env.EXPO_PUBLIC_SUPABASE_URL,
+      supabaseAnonKey: process.env.BUILD_SUPABASE_ANON_KEY || process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
+      channelSecret: process.env.BUILD_CHANNEL_SECRET || process.env.EXPO_PUBLIC_CHANNEL_SECRET,
+      debugChannels: process.env.BUILD_DEBUG_CHANNELS || process.env.DEBUG_CHANNELS,
       nodeEnv: process.env.NODE_ENV || 'development',
+      
+      // Production optimization flags
+      showTests: process.env.EXPO_PUBLIC_SHOW_TESTS === 'true',
+      enableCrashReporting: process.env.NODE_ENV === 'production',
+      enableAnalytics: process.env.NODE_ENV === 'production',
     }
   }
 };

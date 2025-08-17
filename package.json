@@ -38,7 +38,13 @@
     "full-automation": "ts-node automation/workflow-runner.ts full",
     "audit-only": "ts-node automation/workflow-runner.ts audit",
     "fix-only": "ts-node automation/workflow-runner.ts fix",
-    "sync-schema": "node scripts/sync-supabase-schema.js"
+    "sync-schema": "node scripts/sync-supabase-schema.js",
+    "build": "expo build",
+    "build:production": "NODE_ENV=production expo build",
+    "lint": "eslint . --ext .ts,.tsx,.js,.jsx || echo 'ESLint not configured - install @typescript-eslint/eslint-plugin for linting'",
+    "typecheck": "tsc --noEmit",
+    "setup-secrets": "node scripts/setup-secrets.js",
+    "validate-secrets": "node scripts/validate-secrets.js"
   },
   "dependencies": {
     "@expo/metro-runtime": "~5.0.4",

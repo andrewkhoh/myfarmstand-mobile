@@ -25,153 +25,107 @@ interface TestCategory {
   }>;
 }
 
+const runAutomatedTests = () => {
+  Alert.alert(
+    'Automated Tests',
+    'Run automated Jest tests via command line:\n\n• npm test\n• npm run test:services\n• npm run test:hooks\n• npm run test:hooks:race',
+    [{ text: 'OK' }]
+  );
+};
+
+const runBuildOptimization = () => {
+  Alert.alert(
+    'Build Optimization',
+    'Production build commands:\n\n• npm run build\n• npm run lint\n• npm run typecheck\n\nCheck bundle analyzer for size optimization.',
+    [{ text: 'OK' }]
+  );
+};
+
+// Environment detection
+const isDevelopment = __DEV__ || process.env.NODE_ENV === 'development';
+
 const testCategories: TestCategory[] = [
+  // ✅ ESSENTIAL - Core UI/UX Tests (Always Visible)
   {
-    id: 'basic',
-    title: 'Basic Tests',
-    description: 'Core functionality and data layer tests',
-    icon: 'flask-outline',
-    screenName: 'Test',
-    color: '#3B82F6',
-  },
-  {
-    id: 'catalog',
-    title: 'Product Catalog',
-    description: 'Product listing and basic catalog features',
-    icon: 'grid-outline',
-    screenName: 'CatalogTest',
-    color: '#8B5CF6',
-  },
-  {
-    id: 'data',
-    title: 'Data Layer',
-    description: 'Data management and persistence tests',
-    icon: 'server-outline',
-    screenName: 'DataTest',
-    color: '#06B6D4',
-  },
-  {
-    id: 'enhanced-catalog',
-    title: 'Enhanced Catalog',
-    description: 'Advanced browsing, filtering, and search features',
-    icon: 'layers-outline',
-    screenName: 'EnhancedCatalogTest',
-    color: '#10B981',
-  },
-  {
-    id: 'cart',
-    title: 'Shopping Cart',
-    description: 'Cart functionality, quantity management, and persistence',
-    icon: 'basket-outline',
-    screenName: 'CartFunctionalityTest',
-    color: '#F59E0B',
-  },
-  {
-    id: 'stock',
-    title: 'Stock Validation',
-    description: 'Stock limits, pre-order validation, and inventory management',
+    id: 'core-ui',
+    title: '✅ Core UI/UX Tests',
+    description: 'Essential manual testing for developers and QA',
     icon: 'checkmark-circle-outline',
-    screenName: 'StockValidationTest',
-    color: '#EF4444',
-  },
-  {
-    id: 'order',
-    title: 'Order Placement',
-    description: 'Checkout flow, order submission, and React Query integration',
-    icon: 'receipt-outline',
-    screenName: 'OrderPlacementTest',
-    color: '#8B5CF6',
-  },
-  {
-    id: 'enhanced-checkout',
-    title: 'Enhanced Checkout',
-    description: 'Advanced validation, date/time picker, and order confirmation',
-    icon: 'card-outline',
-    screenName: 'EnhancedCheckoutTest',
-    color: '#F59E0B',
-  },
-  {
-    id: 'automated-tests',
-    title: 'Automated Tests',
-    description: 'In-app automated test runner with pass/fail validation',
-    icon: 'flash-outline',
-    screenName: 'AutomatedTest',
-    color: '#8B5CF6',
-  },
-  {
-    id: 'profile-management',
-    title: 'Profile Management',
-    description: 'User profile editing, validation, and order history',
-    icon: 'person-outline',
-    screenName: 'ProfileManagementTest',
-    color: '#EC4899',
-  },
-  {
-    id: 'staff-qr-scanner',
-    title: 'Staff QR Scanner',
-    description: 'QR code scanning, order verification, and pickup completion',
-    icon: 'qr-code-outline',
-    screenName: 'StaffQRScannerTest',
     color: '#10B981',
-  },
-  {
-    id: 'hybrid-auth',
-    title: 'Hybrid Auth System',
-    description: 'React Query + AuthContext hybrid authentication testing',
-    icon: 'shield-checkmark-outline',
-    screenName: 'HybridAuthTest',
-    color: '#DC2626',
-  },
-  {
-    id: 'backend-integration',
-    title: 'Backend Integration',
-    description: 'Supabase Auth and Database integration testing',
-    icon: 'cloud-outline',
-    screenName: 'BackendIntegrationTest',
-    color: '#7C3AED',
+    visible: true,
     tests: [
-      { name: 'Product Debug Test', screen: 'ProductDebugTest' },
-      { name: 'Real-time Integration Test', screen: 'RealtimeTest' },
-      { name: 'Broadcast Architecture Test', screen: 'BroadcastArchitectureTest' },
-      { name: 'Simple Broadcast Test', screen: 'SimpleBroadcastTest' },
-      { name: 'Security Broadcast Test', screen: 'SecurityBroadcastTest' },
-      { name: 'Backend Integration Test', screen: 'BackendIntegrationTest' },
-      { name: 'Cart RPC Function Test', screen: 'CartRPCTest' },
-      { name: 'Atomic Order Submission Test', screen: 'AtomicOrderTest' },
-      { name: 'Database Schema Inspector', screen: 'SchemaInspector' },
+      { name: 'Design System & Components', screen: 'Test' },
+      { name: 'Shopping Cart Functionality', screen: 'CartFunctionalityTest' },
+      { name: 'Order Placement Flow', screen: 'OrderPlacementTest' },
+      { name: 'Enhanced Checkout', screen: 'EnhancedCheckoutTest' },
+      { name: 'Stock Validation', screen: 'StockValidationTest' },
     ],
   },
   {
-    id: 'admin-order',
-    title: 'Admin Order Management',
-    description: 'Order filtering, bulk updates, statistics, and admin operations',
-    icon: 'business-outline',
-    screenName: 'AdminOrderTest',
-    color: '#7C3AED',
+    id: 'staff-workflows',
+    title: '👥 Staff & Admin Workflows',
+    description: 'Staff and administrative interface testing',
+    icon: 'people-outline',
+    color: '#8B5CF6',
+    visible: true,
+    tests: [
+      { name: 'Staff QR Scanner', screen: 'StaffQRScannerTest' },
+      { name: 'Admin Order Management', screen: 'AdminOrderTest' },
+      { name: 'Profile Management', screen: 'ProfileManagementTest' },
+      { name: 'Hybrid Auth System', screen: 'HybridAuthTest' },
+    ],
   },
+  // 🔧 DEVELOPMENT - Debug Tools (Dev Environment Only)
   {
-    id: 'product-debug',
-    title: 'Product Debug Test',
-    description: 'Debug product loading, Supabase connection, and data fetching issues',
-    icon: 'bug-outline',
-    screenName: 'ProductDebugTest',
-    color: '#F59E0B',
-  },
-  {
-    id: 'cart-migration',
-    title: 'Cart Migration Test',
-    description: 'Phase 1: Centralized system validation for cart user isolation',
+    id: 'development-tools',
+    title: '🔧 Development Tools',
+    description: 'Debug tools and development utilities',
     icon: 'construct-outline',
-    screenName: 'CartMigrationTest',
-    color: '#059669',
+    color: '#F59E0B',
+    visible: isDevelopment,
+    tests: [
+      { name: 'Product Debug Test', screen: 'ProductDebugTest' },
+      { name: 'Real-time Integration', screen: 'RealtimeTest' },
+      { name: 'Broadcast Architecture', screen: 'BroadcastArchitectureTest' },
+      { name: 'Security Broadcast', screen: 'SecurityBroadcastTest' },
+      { name: 'Atomic Operations', screen: 'AtomicOperationsTest' },
+      { name: 'Backend Integration', screen: 'BackendIntegrationTest' },
+    ],
   },
   {
-    id: 'atomic-operations',
-    title: 'Atomic Operations',
-    description: 'Comprehensive testing of atomic RPC functions, React Query hooks, and services',
-    icon: 'nuclear-outline',
-    screenName: 'AtomicOperationsTest',
+    id: 'database-tools',
+    title: '🗄️ Database & RPC Tools',
+    description: 'Database inspection and RPC function testing',
+    icon: 'server-outline',
+    color: '#06B6D4',
+    visible: isDevelopment,
+    tests: [
+      { name: 'Database Schema Inspector', screen: 'SchemaInspector' },
+      { name: 'Cart RPC Functions', screen: 'CartRPCTest' },
+      { name: 'Atomic Order Submission', screen: 'AtomicOrderTest' },
+      { name: 'Simple Stock Validation', screen: 'SimpleStockValidationTest' },
+    ],
+  },
+  // ⚡ AUTOMATED - Run via Jest
+  {
+    id: 'automated-tests',
+    title: '⚡ Automated Tests',
+    description: 'Run comprehensive Jest test suites via command line',
+    icon: 'flash-outline',
     color: '#DC2626',
+    visible: true,
+    type: 'action',
+    action: runAutomatedTests,
+  },
+  {
+    id: 'build-optimization',
+    title: '📦 Build & Optimization',
+    description: 'Production build optimization and performance analysis',
+    icon: 'cube-outline',
+    color: '#7C3AED',
+    visible: isDevelopment,
+    type: 'action',
+    action: runBuildOptimization,
   },
 ];
 
@@ -181,14 +135,17 @@ export const TestHubScreen: React.FC = () => {
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
 
   const handleCategoryPress = (category: TestCategory) => {
-    if (category.tests && category.tests.length > 0) {
+    if (category.type === 'action' && category.action) {
+      // Execute action for action-type categories
+      category.action();
+    } else if (category.tests && category.tests.length > 0) {
       // If category has sub-tests, toggle expansion instead of navigating
       setExpandedCategory(expandedCategory === category.id ? null : category.id);
-    } else {
+    } else if (category.screenName) {
       // Navigate directly for categories without sub-tests
       setSelectedCategory(category.id);
       setTimeout(() => {
-        navigation.navigate(category.screenName);
+        navigation.navigate(category.screenName!);
         setSelectedCategory(null);
       }, 150);
     }
@@ -198,10 +155,14 @@ export const TestHubScreen: React.FC = () => {
     navigation.navigate(screenName);
   };
 
+  // Filter categories based on visibility
+  const visibleCategories = testCategories.filter(category => category.visible !== false);
+
   const renderTestCategory = (category: TestCategory) => {
     const isSelected = selectedCategory === category.id;
     const isExpanded = expandedCategory === category.id;
     const hasSubTests = category.tests && category.tests.length > 0;
+    const isAction = category.type === 'action';
     
     return (
       <View key={category.id}>
@@ -228,9 +189,20 @@ export const TestHubScreen: React.FC = () => {
                 <Text variant="body" color="secondary" style={styles.categoryDescription}>
                   {category.description}
                 </Text>
+                {!isDevelopment && category.visible === isDevelopment && (
+                  <Text variant="caption" style={{ color: '#9CA3AF', fontStyle: 'italic' }}>
+                    Development only
+                  </Text>
+                )}
               </View>
               <Ionicons 
-                name={hasSubTests ? (isExpanded ? "chevron-down" : "chevron-forward") : "chevron-forward"} 
+                name={
+                  isAction 
+                    ? "play-outline" 
+                    : hasSubTests 
+                      ? (isExpanded ? "chevron-down" : "chevron-forward") 
+                      : "chevron-forward"
+                } 
                 size={20} 
                 color="#9CA3AF" 
               />
@@ -268,11 +240,16 @@ export const TestHubScreen: React.FC = () => {
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Text variant="heading1" style={styles.title}>
-            Test Hub
+            🧪 Test Hub
           </Text>
           <Text variant="body" color="secondary" style={styles.subtitle}>
-            Comprehensive testing suite for all app features
+            Organized testing suite with smart environment detection
           </Text>
+          {isDevelopment && (
+            <View style={styles.environmentBadge}>
+              <Text style={styles.environmentText}>🔧 Development Mode</Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.categoriesContainer}>
@@ -280,11 +257,11 @@ export const TestHubScreen: React.FC = () => {
             Test Categories
           </Text>
           <Text variant="body" color="secondary" style={styles.sectionDescription}>
-            Select a category to run specific tests and validate functionality
+            Organized by purpose: Core UI/UX tests, Staff workflows, and Development tools
           </Text>
 
           <View style={styles.categoriesList}>
-            {testCategories.map(renderTestCategory)}
+            {visibleCategories.map(renderTestCategory)}
           </View>
         </View>
 
@@ -293,13 +270,14 @@ export const TestHubScreen: React.FC = () => {
             <View style={styles.infoHeader}>
               <Ionicons name="information-circle" size={20} color="#3B82F6" />
               <Text variant="heading3" style={styles.infoTitle}>
-                About Testing
+                Smart Test Organization
               </Text>
             </View>
             <Text variant="body" color="secondary" style={styles.infoText}>
-              Each test category contains comprehensive validation for specific app features. 
-              Tests include both automated checks and manual verification steps to ensure 
-              quality and reliability across all functionality.
+              ✅ <Text style={{ fontWeight: 'bold' }}>Core UI/UX</Text>: Essential manual tests always available{'\n'}
+              👥 <Text style={{ fontWeight: 'bold' }}>Staff Workflows</Text>: Administrative interface testing{'\n'}
+              🔧 <Text style={{ fontWeight: 'bold' }}>Development Tools</Text>: Debug utilities (dev environment only){'\n'}
+              ⚡ <Text style={{ fontWeight: 'bold' }}>Automated Tests</Text>: Run Jest test suites via command line
             </Text>
           </Card>
         </View>
@@ -379,6 +357,21 @@ const styles = StyleSheet.create({
   },
   infoText: {
     lineHeight: 20,
+  },
+  environmentBadge: {
+    backgroundColor: '#F59E0B20',
+    borderColor: '#F59E0B',
+    borderWidth: 1,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    alignSelf: 'flex-start',
+    marginTop: spacing.sm,
+  },
+  environmentText: {
+    color: '#F59E0B',
+    fontSize: 12,
+    fontWeight: '600',
   },
   subTestsContainer: {
     marginLeft: spacing.lg,

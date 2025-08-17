@@ -74,21 +74,6 @@ export const MainTabNavigator: React.FC = () => {
             case 'TestHub':
               iconName = focused ? 'flask' : 'flask-outline';
               break;
-            case 'Test':
-              iconName = focused ? 'flask' : 'flask-outline';
-              break;
-            case 'CatalogTest':
-              iconName = focused ? 'grid' : 'grid-outline';
-              break;
-            case 'DataTest':
-              iconName = focused ? 'server' : 'server-outline';
-              break;
-            case 'EnhancedCatalogTest':
-              iconName = focused ? 'layers' : 'layers-outline';
-              break;
-            case 'CartFunctionalityTest':
-              iconName = focused ? 'basket' : 'basket-outline';
-              break;
 
             default:
               iconName = 'help-outline';
@@ -153,11 +138,13 @@ export const MainTabNavigator: React.FC = () => {
           options={{ title: 'QR Scanner' }}
         />
       )}
-      <Tab.Screen 
-        name="TestHub" 
-        component={TestStackNavigator}
-        options={{ title: 'Tests', headerShown: false }}
-      />
+      {(__DEV__ || process.env.EXPO_PUBLIC_SHOW_TESTS === 'true') && (
+        <Tab.Screen 
+          name="TestHub" 
+          component={TestStackNavigator}
+          options={{ title: 'Tests', headerShown: false }}
+        />
+      )}
     </Tab.Navigator>
   );
 };

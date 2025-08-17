@@ -3,8 +3,6 @@ import { createStackNavigator } from '@react-navigation/stack';
 import {
   TestHubScreen,
   TestScreen,
-  ProductCatalogTestScreen,
-  DataLayerTestScreen,
   EnhancedCatalogTestScreen,
   CartFunctionalityTestScreen,
   StockValidationTestScreen,
@@ -18,9 +16,7 @@ import {
   AutomatedTestRunner,
   RealtimeTestScreen,
   BroadcastArchitectureTestScreen,
-  SimpleBroadcastTest,
-  CartMigrationTestScreen,
-  SecurityBroadcastTestScreen, // ← ADD THIS LINE
+  SecurityBroadcastTestScreen,
 } from '../screens';
 import AtomicOperationsTestScreen from '../screens/testScreens/AtomicOperationsTestScreen';
 import BackendIntegrationTestScreen from '../screens/testScreens/BackendIntegrationTestScreen';
@@ -30,32 +26,39 @@ import SchemaInspector from '../tests/SchemaInspector';
 import SimpleStockValidationTest from '../tests/SimpleStockValidationTest';
 
 export type TestStackParamList = {
+  // Core Test Hub
   TestHub: undefined;
+  
+  // Essential UI/UX Tests (Always Available)
   Test: undefined;
-  CatalogTest: undefined;
-  DataTest: undefined;
-  EnhancedCatalogTest: undefined;
   CartFunctionalityTest: undefined;
-  StockValidationTest: undefined;
   OrderPlacementTest: undefined;
   EnhancedCheckoutTest: undefined;
-  ProfileManagementTest: undefined;
+  StockValidationTest: undefined;
+  
+  // Staff & Admin Workflows
   StaffQRScannerTest: undefined;
-  HybridAuthTest: undefined;
   AdminOrderTest: undefined;
+  ProfileManagementTest: undefined;
+  HybridAuthTest: undefined;
+  
+  // Development Tools (Dev Environment Only)
   ProductDebugTest: undefined;
   RealtimeTest: undefined;
   BroadcastArchitectureTest: undefined;
-  SimpleBroadcastTest: undefined;
   SecurityBroadcastTest: undefined;
-  AutomatedTest: undefined;
+  AtomicOperationsTest: undefined;
   BackendIntegrationTest: undefined;
+  
+  // Database & RPC Tools (Dev Environment Only)
+  SchemaInspector: undefined;
   CartRPCTest: undefined;
   AtomicOrderTest: undefined;
-  SchemaInspector: undefined;
   SimpleStockValidationTest: undefined;
-  CartMigrationTest: undefined;
-  AtomicOperationsTest: undefined;
+  
+  // Legacy (To Be Removed)
+  AutomatedTest: undefined;
+  EnhancedCatalogTest: undefined;
 };
 
 const Stack = createStackNavigator<TestStackParamList>();
@@ -83,16 +86,6 @@ export const TestStackNavigator: React.FC = () => {
         name="Test" 
         component={TestScreen}
         options={{ title: 'Basic Tests' }}
-      />
-      <Stack.Screen 
-        name="CatalogTest" 
-        component={ProductCatalogTestScreen}
-        options={{ title: 'Product Catalog Tests' }}
-      />
-      <Stack.Screen 
-        name="DataTest" 
-        component={DataLayerTestScreen}
-        options={{ title: 'Data Layer Tests' }}
       />
       <Stack.Screen 
         name="EnhancedCatalogTest" 
@@ -176,11 +169,6 @@ export const TestStackNavigator: React.FC = () => {
         options={{ title: 'Broadcast Architecture Test' }}
       />
       <Stack.Screen 
-        name="SimpleBroadcastTest" 
-        component={SimpleBroadcastTest}
-        options={{ title: 'Simple Broadcast Test' }}
-      />
-      <Stack.Screen 
         name="SecurityBroadcastTest" 
         component={SecurityBroadcastTestScreen}
         options={{ title: 'Security Broadcast Test' }}
@@ -220,11 +208,6 @@ export const TestStackNavigator: React.FC = () => {
         name="SimpleStockValidationTest" 
         component={SimpleStockValidationTest} 
         options={{ title: 'Real-Time Stock Validation Test' }} 
-      />
-      <Stack.Screen 
-        name="CartMigrationTest" 
-        component={CartMigrationTestScreen} 
-        options={{ title: 'Cart Migration Test - Phase 1' }} 
       />
       <Stack.Screen 
         name="AtomicOperationsTest" 
