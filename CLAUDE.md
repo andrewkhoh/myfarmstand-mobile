@@ -71,7 +71,7 @@ npm run typecheck
 ## 📁 **Important Files**
 - `src/test/serviceSetup.ts` - Mock-based setup for services
 - `src/test/race-condition-setup.ts` - Real React Query setup for race conditions
-- `src/scratchpads/` - Session analysis and documentation
+- `src/scratchpad*/` - Session analysis and documentation
 - `jest.config.*.js` - Test configurations for different test types
 
 ## ⚡ **Quick Reference**

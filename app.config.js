@@ -19,18 +19,18 @@ function loadSecretEnv() {
           const value = valueParts.join('=');
           process.env[key] = value;
           
-          // DEBUG: Log environment variable loading
-          if (key === 'DEBUG_CHANNELS') {
-            console.log(`🔧 Loading env var: ${key} = "${value}" (length: ${value.length})`);
-            console.log(`🔧 Raw line was: "${line}"`);
-            console.log(`🔧 Trimmed line: "${trimmedLine}"`);
-          }
+          // // DEBUG: Log environment variable loading
+          // if (key === 'DEBUG_CHANNELS') {
+          //   console.log(`🔧 Loading env var: ${key} = "${value}" (length: ${value.length})`);
+          //   console.log(`🔧 Raw line was: "${line}"`);
+          //   console.log(`🔧 Trimmed line: "${trimmedLine}"`);
+          // }
         }
       }
     });
-    console.log(' .env.secret loaded successfully');
+    // console.log(' .env.secret loaded successfully');
   } else {
-    console.warn(' .env.secret not found - cryptographic security may not work');
+    // console.warn(' .env.secret not found - cryptographic security may not work');
   }
 }
 
@@ -38,12 +38,12 @@ function loadSecretEnv() {
 loadSecretEnv();
 
 // DEBUG: Verify environment loading worked
-console.log('🔧 Environment loading verification:', {
-  DEBUG_CHANNELS: process.env.DEBUG_CHANNELS,
-  NODE_ENV: process.env.NODE_ENV,
-  hasChannelSecret: !!process.env.EXPO_PUBLIC_CHANNEL_SECRET,
-  allDebugKeys: Object.keys(process.env).filter(k => k.includes('DEBUG'))
-});
+// console.log('🔧 Environment loading verification:', {
+//   DEBUG_CHANNELS: process.env.DEBUG_CHANNELS,
+//   NODE_ENV: process.env.NODE_ENV,
+//   hasChannelSecret: !!process.env.EXPO_PUBLIC_CHANNEL_SECRET,
+//   allDebugKeys: Object.keys(process.env).filter(k => k.includes('DEBUG'))
+// });
 
 
 module.exports = {

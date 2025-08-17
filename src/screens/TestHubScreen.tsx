@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Screen, Text, Card } from '../components';
+import { Screen, Text, Card, Button } from '../components';
 import { spacing, colors, borderRadius } from '../utils/theme';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -14,8 +14,11 @@ interface TestCategory {
   title: string;
   description: string;
   icon: keyof typeof Ionicons.glyphMap;
-  screenName: keyof TestStackParamList;
+  screenName?: keyof TestStackParamList;
   color: string;
+  visible?: boolean;
+  type?: 'screen' | 'action';
+  action?: () => void;
   tests?: Array<{
     name: string;
     screen: keyof TestStackParamList;

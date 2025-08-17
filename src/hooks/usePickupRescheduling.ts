@@ -193,12 +193,17 @@ export const usePickupRescheduling = () => {
         ]);
         
         // Broadcast the reschedule event for real-time sync (following cart pattern)
-        await orderBroadcast.user.send('pickup-rescheduled', {
-          orderId: request.orderId,
-          newPickupDate: request.newPickupDate,
-          userId: user?.id,
-          timestamp: new Date().toISOString()
-        });
+        try {
+          await orderBroadcast.user.send('pickup-rescheduled', {
+            orderId: request.orderId,
+            newPickupDate: request.newPickupDate,
+            userId: user?.id,
+            timestamp: new Date().toISOString()
+          });
+        } catch (broadcastError) {
+          // Don't fail the entire operation if broadcast fails
+          console.warn('Failed to broadcast reschedule event:', broadcastError);
+        }
       }
     },
     

@@ -1,5 +1,9 @@
 # Green Valley Farm Stand - Complete Requirements Document
 
+## Update: Aug 17 - 
+* No delivery services
+* Kiosk mode for Staff to enable sales at farmstand without customers using the app on their phones
+
 ## Overview
 Green Valley Farm Stand is a comprehensive e-commerce platform designed for local farm operations. This document outlines the complete feature set based on analysis of the existing React web application codebase, intended for use in planning a React Native mobile application rewrite.
 
