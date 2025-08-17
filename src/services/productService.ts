@@ -2,7 +2,11 @@ import { Product, Category, ApiResponse, PaginatedResponse } from '../types';
 import { supabase, TABLES } from '../config/supabase';
 import { BroadcastHelper } from '../utils/broadcastHelper';
 import { mapProductFromDB } from '../utils/typeMappers';
+import { ProductSchema, CategorySchema, ProductArraySchema, CategoryArraySchema } from '../schemas/product.schema';
 import type { Database } from '../config/supabase';
+import { ZodError, z } from 'zod';
+import { ValidationMonitor } from '../utils/validationMonitor';
+import { DefensiveDatabase, DatabaseHelpers } from '../utils/defensiveDatabase';
 
 // Custom API response types for ProductService
 interface ProductApiResponse<T> {
@@ -14,6 +18,94 @@ interface ProductApiResponse<T> {
   category?: T extends Category ? Category : never;
   paginatedProducts?: T extends PaginatedResponse<Product> ? PaginatedResponse<Product> : never;
 }
+
+// Validation helper functions with backward-compatible error handling
+const validateProduct = (productData: any): Product => {
+  try {
+    return ProductSchema.parse(productData);
+  } catch (error) {
+    // Add production validation monitoring
+    ValidationMonitor.recordValidationError({
+      context: 'ProductService.validateProduct',
+      errorMessage: error instanceof Error ? error.message : 'Unknown validation error',
+      errorCode: 'PRODUCT_VALIDATION_FAILED'
+    });
+    
+    if (error instanceof ZodError) {
+      const firstIssue = error.issues[0];
+      throw new Error(`Invalid product data: ${firstIssue.message}`);
+    }
+    throw new Error('Invalid product data provided');
+  }
+};
+
+const validateCategory = (categoryData: any): Category => {
+  try {
+    return CategorySchema.parse(categoryData);
+  } catch (error) {
+    // Add production validation monitoring
+    ValidationMonitor.recordValidationError({
+      context: 'ProductService.validateCategory',
+      errorMessage: error instanceof Error ? error.message : 'Unknown validation error',
+      errorCode: 'CATEGORY_VALIDATION_FAILED'
+    });
+    
+    if (error instanceof ZodError) {
+      const firstIssue = error.issues[0];
+      throw new Error(`Invalid category data: ${firstIssue.message}`);
+    }
+    throw new Error('Invalid category data provided');
+  }
+};
+
+const validateAndMapProducts = (productsData: any[]): Product[] => {
+  const validProducts: Product[] = [];
+  
+  for (const prod of productsData) {
+    try {
+      const mappedProduct = mapProductFromDB(prod);
+      const validatedProduct = validateProduct(mappedProduct);
+      validProducts.push(validatedProduct);
+    } catch (error) {
+      console.warn(`Invalid product data, skipping product:`, {
+        productId: prod?.id,
+        error: error instanceof Error ? error.message : 'Unknown validation error',
+        invalidData: prod
+      });
+    }
+  }
+  
+  return validProducts;
+};
+
+const validateAndMapCategories = (categoriesData: any[]): Category[] => {
+  const validCategories: Category[] = [];
+  
+  for (const cat of categoriesData) {
+    try {
+      const mappedCategory = {
+        id: cat.id,
+        name: cat.name,
+        description: cat.description,
+        imageUrl: cat.image_url,
+        sortOrder: cat.sort_order,
+        isActive: cat.is_available,
+        createdAt: cat.created_at,
+        updatedAt: cat.updated_at
+      };
+      const validatedCategory = validateCategory(mappedCategory);
+      validCategories.push(validatedCategory);
+    } catch (error) {
+      console.warn(`Invalid category data, skipping category:`, {
+        categoryId: cat?.id,
+        error: error instanceof Error ? error.message : 'Unknown validation error',
+        invalidData: cat
+      });
+    }
+  }
+  
+  return validCategories;
+};
 
 // Product Service Class - Following CartService pattern
 class ProductService {
@@ -35,17 +127,8 @@ class ProductService {
         };
       }
 
-      // Convert database format to app format
-      const categories: Category[] = (categoriesData || []).map((cat: any) => ({
-        id: cat.id,
-        name: cat.name,
-        description: cat.description,
-        imageUrl: cat.image_url,
-        sortOrder: cat.sort_order,
-        isActive: cat.is_available,
-        createdAt: cat.created_at,
-        updatedAt: cat.updated_at
-      }));
+      // Convert database format to app format with validation
+      const categories = validateAndMapCategories(categoriesData || []);
 
       return {
         success: true,
@@ -80,8 +163,8 @@ class ProductService {
         };
       }
 
-      // Convert database format to app format
-      const category: Category = {
+      // Convert database format to app format with validation
+      const mappedCategory = {
         id: categoryData.id,
         name: categoryData.name,
         description: categoryData.description,
@@ -91,6 +174,18 @@ class ProductService {
         createdAt: categoryData.created_at,
         updatedAt: categoryData.updated_at
       };
+      
+      let category: Category;
+      try {
+        category = validateCategory(mappedCategory);
+      } catch (validationError) {
+        console.error('Invalid category data from database:', validationError);
+        return {
+          success: false,
+          error: 'Invalid category data received from server',
+          category: null as any
+        };
+      }
 
       return {
         success: true,
@@ -109,36 +204,43 @@ class ProductService {
   // Get all products with populated categories from Supabase
   async getProducts(): Promise<ProductApiResponse<Product[]>> {
     try {
-      const { data: productsData, error } = await supabase
-        .from(TABLES.PRODUCTS)
-        .select(`
-          *,
-          categories!inner (
-            id,
-            name,
-            description,
-            image_url,
-            sort_order,
-            is_available,
-            created_at,
-            updated_at
-          )
-        `)
-        .eq('is_available', true)
-        .eq('categories.is_available', true)
-        .order('name', { ascending: true });
+      // Create schema for products with categories using defensive database access
+      const ProductWithCategorySchema = z.object({
+        ...ProductSchema.shape,
+        categories: CategorySchema.nullable().optional()
+      });
+      
+      const productsData = await DatabaseHelpers.fetchFiltered(
+        'products',
+        'all-available-with-categories',
+        ProductWithCategorySchema,
+        async () => supabase
+          .from(TABLES.PRODUCTS)
+          .select(`
+            *,
+            categories!inner (
+              id,
+              name,
+              description,
+              image_url,
+              sort_order,
+              is_available,
+              created_at,
+              updated_at
+            )
+          `)
+          .eq('is_available', true)
+          .eq('categories.is_available', true)
+          .order('name', { ascending: true }),
+        {
+          maxErrorThreshold: 0.05, // Allow up to 5% invalid products
+          includeDetailedErrors: false,
+          throwOnCriticalFailure: false
+        }
+      );
 
-      if (error) {
-        console.error('Error fetching products:', error);
-        return {
-          success: false,
-          error: `Failed to fetch products: ${error.message}`,
-          products: []
-        };
-      }
-
-      // Convert database format to app format
-      const products: Product[] = (productsData || []).map((prod: any) => mapProductFromDB(prod));
+      // Convert database format to app format with validation
+      const products = validateAndMapProducts(productsData || []);
 
       return {
         success: true,
@@ -206,8 +308,8 @@ class ProductService {
         };
       }
 
-      // Convert database format to app format
-      const products: Product[] = (productsData || []).map((prod: any) => mapProductFromDB(prod));
+      // Convert database format to app format with validation
+      const products = validateAndMapProducts(productsData || []);
 
       const paginatedResponse: PaginatedResponse<Product> = {
         data: products,
@@ -232,40 +334,64 @@ class ProductService {
     }
   }
 
-  // Get product by ID
+  // Get product by ID using defensive database access
   async getProductById(id: string): Promise<ProductApiResponse<Product>> {
     try {
-      const { data: productData, error } = await supabase
-        .from(TABLES.PRODUCTS)
-        .select(`
-          *,
-          categories!inner (
-            id,
-            name,
-            description,
-            image_url,
-            sort_order,
-            is_available,
-            created_at,
-            updated_at
-          )
-        `)
-        .eq('id', id)
-        .eq('is_available', true)
-        .eq('categories.is_available', true)
-        .single();
+      // Create schema for product with category
+      const ProductWithCategorySchema = z.object({
+        ...ProductSchema.shape,
+        categories: CategorySchema.nullable().optional()
+      });
+      
+      const productData = await DefensiveDatabase.fetchSingleWithValidation(
+        async () => supabase
+          .from(TABLES.PRODUCTS)
+          .select(`
+            *,
+            categories!inner (
+              id,
+              name,
+              description,
+              image_url,
+              sort_order,
+              is_available,
+              created_at,
+              updated_at
+            )
+          `)
+          .eq('id', id)
+          .eq('is_available', true)
+          .eq('categories.is_available', true)
+          .single(),
+        ProductWithCategorySchema,
+        `getProductById-${id}`,
+        {
+          throwOnCriticalFailure: false,
+          includeDetailedErrors: false
+        }
+      );
 
-      if (error || !productData) {
-        console.error('Error fetching product:', error);
+      if (!productData) {
         return {
           success: false,
-          error: error?.code === 'PGRST116' ? 'Product not found' : `Failed to fetch product: ${error?.message}`,
+          error: 'Product not found',
           product: null as any
         };
       }
 
-      // Convert database format to app format
-      const product: Product = mapProductFromDB(productData);
+      // Convert database format to app format with validation
+      let product: Product;
+      try {
+        const mappedProduct = mapProductFromDB(productData);
+        product = validateProduct(mappedProduct);
+      } catch (validationError) {
+        console.error('Invalid product data from database:', validationError);
+        return {
+          success: false,
+          error: 'Invalid product data received from server',
+          product: null as any
+        };
+      }
 
       return {
         success: true,
@@ -313,8 +439,8 @@ class ProductService {
         };
       }
 
-      // Convert database format to app format
-      const products: Product[] = (productsData || []).map((prod: any) => mapProductFromDB(prod));
+      // Convert database format to app format with validation
+      const products = validateAndMapProducts(productsData || []);
 
       return {
         success: true,
@@ -362,8 +488,8 @@ class ProductService {
         };
       }
 
-      // Convert database format to app format
-      const products: Product[] = (productsData || []).map((prod: any) => mapProductFromDB(prod));
+      // Convert database format to app format with validation
+      const products = validateAndMapProducts(productsData || []);
 
       return {
         success: true,

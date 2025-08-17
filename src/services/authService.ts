@@ -2,6 +2,148 @@ import { User } from '../types';
 import { TokenService } from './tokenService';
 import { supabase } from '../config/supabase';
 import type { AuthError, Session, AuthResponse } from '@supabase/supabase-js';
+import { 
+  UserSchema, 
+  LoginResponseSchema, 
+  RegisterResponseSchema, 
+  UpdateProfileResponseSchema,
+  RefreshTokenResponseSchema,
+  SupabaseAuthUserSchema,
+  SupabaseSessionSchema,
+  LoginRequestSchema,
+  RegisterRequestSchema,
+  UpdateProfileRequestSchema
+} from '../schemas/auth.schema';
+import { ServiceOperationResultSchema } from '../schemas/common.schema';
+import { ZodError, z } from 'zod';
+import { ValidationMonitor } from '../utils/validationMonitor';
+import { ServiceValidator, ValidationUtils } from '../utils/validationPipeline';
+
+// Validation helper functions
+const validateUser = (userData: any): User => {
+  try {
+    return UserSchema.parse(userData);
+  } catch (error) {
+    // Add production validation monitoring
+    ValidationMonitor.recordValidationError({
+      context: 'AuthService.validateUser',
+      errorMessage: error instanceof Error ? error.message : 'Unknown validation error',
+      errorCode: 'USER_VALIDATION_FAILED'
+    });
+    
+    console.warn('Invalid user data received:', {
+      error: error instanceof Error ? error.message : 'Unknown validation error',
+      invalidData: userData
+    });
+    throw new Error('Invalid user data received from server');
+  }
+};
+
+const validateSupabaseAuthUser = (authUser: any): any => {
+  try {
+    return SupabaseAuthUserSchema.parse(authUser);
+  } catch (error) {
+    // Add production validation monitoring
+    ValidationMonitor.recordValidationError({
+      context: 'AuthService.validateSupabaseAuthUser',
+      errorMessage: error instanceof Error ? error.message : 'Unknown validation error',
+      errorCode: 'SUPABASE_AUTH_USER_VALIDATION_FAILED'
+    });
+    
+    console.warn('Invalid Supabase auth user data:', {
+      error: error instanceof Error ? error.message : 'Unknown validation error',
+      invalidData: authUser
+    });
+    throw new Error('Invalid authentication data received');
+  }
+};
+
+const validateSupabaseSession = (session: any): any => {
+  try {
+    return SupabaseSessionSchema.parse(session);
+  } catch (error) {
+    console.warn('Invalid Supabase session data:', {
+      error: error instanceof Error ? error.message : 'Unknown validation error',
+      invalidData: session
+    });
+    throw new Error('Invalid session data received');
+  }
+};
+
+// Input validation helpers that convert ZodError to domain errors
+const validateLoginInput = (email: string, password: string): { email: string; password: string } => {
+  // Pre-validate for backward compatibility with original error messages
+  if (!email || !password) {
+    throw new Error('Email and password are required');
+  }
+  
+  if (!email.includes('@')) {
+    throw new Error('Please enter a valid email address');
+  }
+  
+  try {
+    return LoginRequestSchema.parse({ email, password });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      const firstIssue = error.issues[0];
+      if (firstIssue.path.includes('email')) {
+        throw new Error('Please enter a valid email address');
+      }
+      if (firstIssue.path.includes('password')) {
+        throw new Error(firstIssue.message);
+      }
+    }
+    throw new Error('Invalid login credentials provided');
+  }
+};
+
+const validateRegisterInput = (email: string, password: string, name: string, phone?: string, address?: string) => {
+  // Pre-validate for backward compatibility
+  if (!email || !password || !name) {
+    throw new Error('Email, password, and name are required');
+  }
+  
+  if (!email.includes('@')) {
+    throw new Error('Please enter a valid email address');
+  }
+  
+  if (password.length < 6) {
+    throw new Error('Password must be at least 6 characters long');
+  }
+  
+  try {
+    return RegisterRequestSchema.parse({ 
+      email, 
+      password, 
+      confirmPassword: password,
+      name,
+      phone,
+      address
+    });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      const firstIssue = error.issues[0];
+      throw new Error(firstIssue.message);
+    }
+    throw new Error('Invalid registration data provided');
+  }
+};
+
+const validateUpdateProfileInput = (updates: Partial<User>) => {
+  try {
+    return UpdateProfileRequestSchema.parse({
+      name: updates.name,
+      phone: updates.phone,
+      address: updates.address,
+    });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      const firstIssue = error.issues[0];
+      throw new Error(firstIssue.message);
+    }
+    throw new Error('Invalid profile update data provided');
+  }
+};
 
 // Auth API response types
 export interface LoginResponse {
@@ -46,14 +188,21 @@ export class AuthService {
     try {
       console.log('🔐 Starting login process for:', email);
       
-      // Input validation
-      if (!email || !password) {
-        throw new Error('Email and password are required');
-      }
-
-      if (!email.includes('@')) {
-        throw new Error('Please enter a valid email address');
-      }
+      // Enhanced input validation using validation pipeline
+      const LoginInputSchema = z.object({
+        email: ValidationUtils.createEmailSchema(),
+        password: z.string().min(6, 'Password must be at least 6 characters long')
+      });
+      
+      const validatedInput = await ServiceValidator.validateInput(
+        { email, password },
+        LoginInputSchema,
+        'AuthService.login'
+      );
+      
+      // Use validated input for consistency
+      email = validatedInput.email;
+      password = validatedInput.password;
 
       // Clear any existing session first to prevent conflicts (device-specific)
       console.log('🧹 Clearing any existing session...');
@@ -87,6 +236,10 @@ export class AuthService {
         throw new Error('Authentication failed');
       }
 
+      // Validate Supabase auth response data
+      const validatedAuthUser = validateSupabaseAuthUser(data.user);
+      const validatedSession = validateSupabaseSession(data.session);
+
       // Get user profile from database
       let { data: userProfile, error: profileError } = await supabase
         .from('users')
@@ -118,15 +271,17 @@ export class AuthService {
         userProfile = createdProfile;
       }
 
-      // Convert to app User type
-      const user: User = {
+      // Convert to app User type and validate
+      const userObject = {
         id: userProfile.id,
         email: userProfile.email,
         name: userProfile.name,
-        phone: userProfile.phone || '',
-        address: userProfile.address || '',
+        phone: userProfile.phone || undefined,
+        address: userProfile.address || undefined,
         role: userProfile.role,
       };
+      
+      const user = validateUser(userObject);
 
       // Store tokens and user data securely
       await Promise.all([
@@ -155,22 +310,17 @@ export class AuthService {
     email: string,
     password: string,
     name: string,
-    phone: string,
-    address: string
+    phone?: string,
+    address?: string
   ): Promise<RegisterResponse> {
     try {
-      // Input validation
-      if (!email || !password || !name) {
-        throw new Error('Email, password, and name are required');
-      }
-
-      if (!email.includes('@')) {
-        throw new Error('Please enter a valid email address');
-      }
-
-      if (password.length < 6) {
-        throw new Error('Password must be at least 6 characters long');
-      }
+      // Input validation with backward-compatible error handling
+      const validatedInput = validateRegisterInput(email, password, name, phone, address);
+      
+      // Use validated input for consistency
+      email = validatedInput.email;
+      password = validatedInput.password;
+      name = validatedInput.name;
 
       // Register with Supabase Auth
       const { data, error } = await supabase.auth.signUp({
@@ -316,6 +466,9 @@ export class AuthService {
         return null;
       }
 
+      // Validate session data
+      const validatedSession = validateSupabaseSession(session);
+
       // Get user profile from database
       const { data: userProfile, error } = await supabase
         .from('users')
@@ -328,16 +481,17 @@ export class AuthService {
         return null;
       }
 
-      // Convert to app User type
-      const user: User = {
+      // Convert to app User type and validate
+      const userObject = {
         id: userProfile.id,
         email: userProfile.email,
         name: userProfile.name,
-        phone: userProfile.phone || '',
-        address: userProfile.address || '',
+        phone: userProfile.phone || undefined,
+        address: userProfile.address || undefined,
         role: userProfile.role,
       };
-
+      
+      const user = validateUser(userObject);
       return user;
     } catch (error) {
       console.error('Get current user error:', error);
@@ -350,22 +504,16 @@ export class AuthService {
    */
   static async updateProfile(userId: string, updates: Partial<User>): Promise<UpdateProfileResponse> {
     try {
-      // Input validation
-      if (updates.name && updates.name.trim().length < 2) {
-        throw new Error('Name must be at least 2 characters long');
-      }
-
-      if (updates.email && !updates.email.includes('@')) {
-        throw new Error('Please enter a valid email address');
-      }
+      // Input validation with backward-compatible error handling
+      const validatedUpdates = validateUpdateProfileInput(updates);
 
       // Update user profile in database
       const { data: updatedProfile, error } = await supabase
         .from('users')
         .update({
-          name: updates.name,
-          phone: updates.phone || null,
-          address: updates.address || null,
+          name: validatedUpdates.name,
+          phone: validatedUpdates.phone || null,
+          address: validatedUpdates.address || null,
           // Note: email and role updates might need special handling
         })
         .eq('id', userId)
@@ -380,15 +528,17 @@ export class AuthService {
         throw new Error('Failed to update user profile');
       }
 
-      // Convert to app User type
-      const updatedUser: User = {
+      // Convert to app User type and validate
+      const userObject = {
         id: updatedProfile.id,
         email: updatedProfile.email,
         name: updatedProfile.name,
-        phone: updatedProfile.phone || '',
-        address: updatedProfile.address || '',
+        phone: updatedProfile.phone || undefined,
+        address: updatedProfile.address || undefined,
         role: updatedProfile.role,
       };
+      
+      const updatedUser = validateUser(userObject);
 
       // Update local storage
       await TokenService.setUser(updatedUser);

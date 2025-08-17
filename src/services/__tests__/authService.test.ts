@@ -32,11 +32,21 @@ describe('AuthService', () => {
       data: {
         session: {
           access_token: 'mock-access-token',
-          refresh_token: 'mock-refresh-token'
+          refresh_token: 'mock-refresh-token',
+          expires_in: 3600,
+          token_type: 'bearer',
+          user: {
+            id: 'user-123',
+            email: 'test@example.com',
+            created_at: '2023-01-01T00:00:00Z',
+            updated_at: '2023-01-01T00:00:00Z'
+          }
         },
         user: {
           id: 'user-123',
-          email: 'test@example.com'
+          email: 'test@example.com',
+          created_at: '2023-01-01T00:00:00Z',
+          updated_at: '2023-01-01T00:00:00Z'
         }
       },
       error: null
