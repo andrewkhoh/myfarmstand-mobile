@@ -342,8 +342,10 @@ describe('useCentralizedRealtime hooks', () => {
         result.current.disconnect();
         result.current.refreshConnection();
 
-        expect(consoleSpy).toHaveBeenCalledTimes(3);
         expect(consoleSpy).toHaveBeenCalledWith('⚠️ Realtime operation blocked: User not authenticated');
+        expect(consoleSpy.mock.calls.filter(call => 
+          call[0] === '⚠️ Realtime operation blocked: User not authenticated'
+        )).toHaveLength(3);
 
         consoleSpy.mockRestore();
       });

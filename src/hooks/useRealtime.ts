@@ -246,7 +246,6 @@ export const useRealtime = () => {
     mutationFn: async (): Promise<RealtimeOperationResult<void>> => {
       try {
         RealtimeService.unsubscribeAll();
-        setIsInitialized(false);
         return { success: true };
       } catch (error: any) {
         throw createRealtimeError(
@@ -465,6 +464,11 @@ export const useRealtimeNotifications = () => {
 
   // Enhanced event handling with React Query integration (following cart pattern)
   useEffect(() => {
+    // Skip event listener setup if user is not authenticated
+    if (!user?.id) {
+      return;
+    }
+
     const handleRealtimeUpdate = (event: CustomEvent<{ message: string }>) => {
       setLastUpdate(event.detail.message);
       setUpdateCount(prev => prev + 1);
@@ -487,7 +491,7 @@ export const useRealtimeNotifications = () => {
         window.removeEventListener('realtimeUpdate', handleRealtimeUpdate as EventListener);
       };
     }
-  }, [queryClient]);
+  }, [user?.id, queryClient]);
   
   // Enhanced return with useCallback for stable references (following cart pattern)
   const getNotificationQueryKey = useCallback(() => notificationKeys, [user?.id]);

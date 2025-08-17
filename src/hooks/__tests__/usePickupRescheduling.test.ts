@@ -12,6 +12,10 @@ jest.mock('../useAuth');
 const mockUseCurrentUser = useCurrentUser as jest.MockedFunction<typeof useCurrentUser>;
 
 jest.mock('../../utils/broadcastFactory', () => ({
+  createBroadcastHelper: jest.fn(() => ({
+    send: jest.fn(),
+    getAuthorizedChannelNames: jest.fn(() => ['test-channel'])
+  })),
   orderBroadcast: {
     send: jest.fn(),
   },
