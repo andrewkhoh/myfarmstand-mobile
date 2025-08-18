@@ -73,7 +73,7 @@ describe('OrderService', () => {
       }
     ],
     fulfillmentType: 'pickup',
-    paymentMethod: 'stripe',
+    paymentMethod: 'online',
     pickupDate: '2024-03-20',
     pickupTime: '10:00',
     notes: 'Test order'
@@ -81,28 +81,32 @@ describe('OrderService', () => {
 
   const mockOrder: Order = {
     id: 'order-123',
-    customerEmail: 'test@example.com',
-    customerPhone: '+1234567890',
-    status: 'pending',
-    fulfillmentType: 'pickup',
-    preferredPickupDate: '2024-03-20',
-    preferredPickupTime: '10:00',
-    subtotal: 37.48,
-    tax: 3.19,
-    total: 40.67,
-    paymentStatus: 'paid' as PaymentStatus,
-    paymentMethod: 'stripe',
-    notes: 'Test order',
+    customerId: 'user-123',
+    customerInfo: {
+      name: 'Test User',
+      email: 'test@example.com',
+      phone: '+1234567890',
+      address: '123 Test St'
+    },
     items: [
       {
-        id: 'item-1',
         productId: 'product-1',
         productName: 'Test Product 1',
         quantity: 2,
-        unitPrice: 10.99,
-        totalPrice: 21.98
+        price: 10.99,
+        subtotal: 21.98
       }
     ],
+    subtotal: 37.48,
+    tax: 3.19,
+    total: 40.67,
+    fulfillmentType: 'pickup',
+    status: 'pending',
+    paymentMethod: 'online',
+    paymentStatus: 'paid' as PaymentStatus,
+    pickupDate: '2024-03-20',
+    pickupTime: '10:00',
+    notes: 'Test order',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
@@ -129,10 +133,28 @@ describe('OrderService', () => {
     mockGetOrderTotal.mockReturnValue(40.67);
     mockGetOrderFulfillmentType.mockReturnValue('pickup');
     mockMapOrderFromDB.mockImplementation((orderData, items) => ({
-      ...mockOrder,
-      ...orderData,
-      customer_email: orderData.customer_email,
-      order_items: items || []
+      id: orderData.id || 'order-123',
+      customerId: orderData.user_id || 'user-123',
+      customerInfo: {
+        name: orderData.customer_name || 'Test User',
+        email: orderData.customer_email || 'test@example.com',
+        phone: orderData.customer_phone || '+1234567890',
+        address: orderData.delivery_address || '123 Test St'
+      },
+      items: items || [],
+      subtotal: orderData.subtotal || 37.48,
+      tax: orderData.tax_amount || 3.19,
+      total: orderData.total_amount || 40.67,
+      fulfillmentType: orderData.fulfillment_type || 'pickup',
+      status: orderData.status || 'pending',
+      paymentMethod: orderData.payment_method || 'online',
+      paymentStatus: orderData.payment_status || 'paid',
+      pickupDate: orderData.pickup_date || '2024-03-20',
+      pickupTime: orderData.pickup_time || '10:00',
+      deliveryAddress: orderData.delivery_address,
+      notes: orderData.special_instructions || orderData.notes || 'Test order',
+      createdAt: orderData.created_at || new Date().toISOString(),
+      updatedAt: orderData.updated_at || new Date().toISOString()
     }));
     mockSendOrderBroadcast.mockResolvedValue({ success: true });
     mockSendPickupReadyNotification.mockResolvedValue({ success: true });
@@ -159,20 +181,30 @@ describe('OrderService', () => {
           success: true,
           order: {
             id: 'order-123',
+            user_id: 'user-123',
             status: 'pending',
             customer_name: 'Test User',
             customer_email: 'test@example.com',
             customer_phone: '+1234567890',
-            subtotal: 37.48,
+            subtotal: 21.98,
             tax_amount: 3.19,
-            total_amount: 40.67,
+            total_amount: 25.17,
             fulfillment_type: 'pickup',
-            payment_method: 'stripe',
+            payment_method: 'online',
             payment_status: 'paid',
             pickup_date: '2024-03-20',
             pickup_time: '10:00',
+            special_instructions: 'Test order',
             created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
+            order_items: [{
+              id: 'item-1',
+              product_id: 'product-1',
+              product_name: 'Test Product',
+              unit_price: 10.99,
+              quantity: 2,
+              total_price: 21.98
+            }]
           }
         },
         error: null
@@ -230,10 +262,22 @@ describe('OrderService', () => {
             single: jest.fn().mockResolvedValue({
               data: {
                 id: 'order-123',
+                user_id: 'user-123',
                 status: 'pending',
                 customer_name: 'Test User',
                 customer_email: 'test@example.com',
                 customer_phone: '+1234567890',
+                subtotal: 37.48,
+                tax_amount: 3.19,
+                total_amount: 40.67,
+                fulfillment_type: 'pickup',
+                payment_method: 'online',
+                payment_status: 'paid',
+                pickup_date: '2024-03-20',
+                pickup_time: '10:00',
+                special_instructions: 'Test order',
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
                 order_items: [{
                   id: 'item-1',
                   product_id: 'product-1',
@@ -298,10 +342,22 @@ describe('OrderService', () => {
             order: jest.fn().mockResolvedValue({
               data: [{
                 id: 'order-123',
+                user_id: 'user-123',
                 customer_email: 'test@example.com',
                 customer_name: 'Test User',
                 customer_phone: '+1234567890',
                 status: 'pending',
+                subtotal: 21.98,
+                tax_amount: 3.19,
+                total_amount: 25.17,
+                fulfillment_type: 'pickup',
+                payment_method: 'online',
+                payment_status: 'paid',
+                pickup_date: '2024-03-20',
+                pickup_time: '10:00',
+                special_instructions: 'Test order',
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
                 order_items: [{
                   id: 'item-1',
                   product_id: 'product-1',
@@ -320,7 +376,7 @@ describe('OrderService', () => {
       const result = await getCustomerOrders('test@example.com');
 
       expect(result).toHaveLength(1);
-      expect(result[0].customer_email).toBe('test@example.com');
+      expect(result[0].customerInfo.email).toBe('test@example.com');
     });
 
     it('should return empty array for customer with no orders', async () => {
@@ -374,10 +430,22 @@ describe('OrderService', () => {
             single: jest.fn().mockResolvedValue({
               data: {
                 id: 'order-123',
+                user_id: 'user-123',
                 status: 'ready',
                 customer_name: 'Test User',
                 customer_email: 'test@example.com',
                 customer_phone: '+1234567890',
+                subtotal: 37.48,
+                tax_amount: 3.19,
+                total_amount: 40.67,
+                fulfillment_type: 'pickup',
+                payment_method: 'online',
+                payment_status: 'paid',
+                pickup_date: '2024-03-20',
+                pickup_time: '10:00',
+                special_instructions: 'Test order',
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
                 order_items: []
               },
               error: null
@@ -552,9 +620,18 @@ describe('OrderService', () => {
         order: jest.fn().mockResolvedValue({
           data: [{
             id: 'order-123',
-            status: 'pending',
             customer_name: 'Test User',
             customer_email: 'test@example.com',
+            customer_phone: '+1234567890',
+            status: 'pending',
+            subtotal: 0,
+            tax_amount: 0,
+            total_amount: 0,
+            fulfillment_type: 'pickup',
+            payment_method: 'online',
+            payment_status: 'paid',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
             order_items: []
           }],
           error: null
@@ -582,14 +659,32 @@ describe('OrderService', () => {
               id: 'order-123',
               customer_name: 'Test User 1',
               customer_email: 'test1@example.com',
+              customer_phone: '+1234567890',
               status: 'pending',
+              subtotal: 0,
+              tax_amount: 0,
+              total_amount: 0,
+              fulfillment_type: 'pickup',
+              payment_method: 'online',
+              payment_status: 'paid',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
               order_items: []
             },
             {
               id: 'order-456',
               customer_name: 'Test User 2',
               customer_email: 'test2@example.com',
+              customer_phone: '+1234567891',
               status: 'ready',
+              subtotal: 0,
+              tax_amount: 0,
+              total_amount: 0,
+              fulfillment_type: 'delivery',
+              payment_method: 'cash_on_pickup',
+              payment_status: 'pending',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
               order_items: []
             }
           ],
@@ -718,8 +813,40 @@ describe('OrderService', () => {
           success: true,
           order: {
             id: 'order-123',
+            user_id: 'user-123',
             total_amount: 37.98,
-            status: 'pending'
+            status: 'pending',
+            customer_name: 'Test User',
+            customer_email: 'test@example.com',
+            customer_phone: '+1234567890',
+            subtotal: 35.00,
+            tax_amount: 2.98,
+            fulfillment_type: 'pickup',
+            payment_method: 'online',
+            payment_status: 'paid',
+            pickup_date: '2024-03-20',
+            pickup_time: '10:00',
+            special_instructions: 'Test order',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            order_items: [
+              {
+                id: 'item-1',
+                product_id: 'product-1',
+                product_name: 'Test Product 1',
+                unit_price: 15.00,
+                quantity: 1,
+                total_price: 15.00
+              },
+              {
+                id: 'item-2',
+                product_id: 'product-2',
+                product_name: 'Test Product 2',
+                unit_price: 20.00,
+                quantity: 1,
+                total_price: 20.00
+              }
+            ]
           }
         },
         error: null

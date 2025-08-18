@@ -13,18 +13,24 @@ describe('ProductService', () => {
     {
       id: 'product-1',
       name: 'Test Product 1',
+      description: 'A test product for testing',
       price: 10.00,
       stock_quantity: 5,
       category_id: 'cat-1',
-      is_available: true
+      is_available: true,
+      created_at: '2023-01-01T00:00:00Z',
+      updated_at: '2023-01-01T00:00:00Z'
     },
     {
       id: 'product-2',
       name: 'Test Product 2',
+      description: 'Another test product',
       price: 15.00,
       stock_quantity: 0,
       category_id: 'cat-2',
-      is_available: false
+      is_available: false,
+      created_at: '2023-01-01T00:00:00Z',
+      updated_at: '2023-01-01T00:00:00Z'
     }
   ];
 
@@ -33,12 +39,15 @@ describe('ProductService', () => {
   });
 
   it('should get all products successfully', async () => {
+    // Only return available products since service filters for is_available: true
+    const availableProducts = mockProducts.filter(p => p.is_available);
+    
     mockSupabase.from.mockReturnValue({
       select: jest.fn().mockReturnValue({
         eq: jest.fn().mockReturnValue({
           eq: jest.fn().mockReturnValue({
             order: jest.fn().mockResolvedValue({
-              data: mockProducts.map(p => ({
+              data: availableProducts.map(p => ({
                 ...p,
                 categories: {
                   id: p.category_id,
@@ -61,7 +70,7 @@ describe('ProductService', () => {
     const result = await productService.getProducts();
     
     expect(result.success).toBe(true);
-    expect(result.products).toHaveLength(2);
+    expect(result.products).toHaveLength(1); // Only one available product
     expect(result.products![0].name).toBe('Test Product 1');
   });
 
@@ -69,9 +78,11 @@ describe('ProductService', () => {
     mockSupabase.from.mockReturnValue({
       select: jest.fn().mockReturnValue({
         eq: jest.fn().mockReturnValue({
-          order: jest.fn().mockResolvedValue({
-            data: null,
-            error: { message: 'Database error' }
+          eq: jest.fn().mockReturnValue({
+            order: jest.fn().mockResolvedValue({
+              data: null,
+              error: { message: 'Database error' }
+            })
           })
         })
       })
@@ -215,7 +226,21 @@ describe('ProductService', () => {
   // Testing only the methods that actually exist
 
   it('should update product stock', async () => {
-    const updatedProduct = { ...mockProducts[0], stock_quantity: 15 };
+    const updatedProduct = { 
+      ...mockProducts[0], 
+      stock_quantity: 15,
+      // Ensure all required fields are present for validation
+      category: {
+        id: 'cat-1',
+        name: 'Test Category',
+        description: 'Test Description',
+        imageUrl: null,
+        sortOrder: 1,
+        isActive: true,
+        createdAt: '2023-01-01T00:00:00Z',
+        updatedAt: '2023-01-01T00:00:00Z'
+      }
+    };
     
     mockSupabase.from.mockReturnValue({
       update: jest.fn().mockReturnValue({
@@ -230,7 +255,7 @@ describe('ProductService', () => {
       })
     });
 
-    // Mock getProductById
+    // Mock getProductById to return a valid product
     productService.getProductById = jest.fn().mockResolvedValue({
       success: true,
       product: updatedProduct

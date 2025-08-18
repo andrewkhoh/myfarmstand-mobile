@@ -30,28 +30,28 @@ describe('CartService', () => {
   const mockProduct: Product = {
     id: 'product-1',
     name: 'Test Product',
-    price: 10.99,
-    category_id: 'cat-1',
     description: 'Test Description',
-    imageUrl: 'test-image.jpg',
-    isAvailable: true,
-    stockQuantity: 100,
-    isPreOrder: false,
-    minPreOrderQuantity: 1,
-    maxPreOrderQuantity: 10,
+    price: 10.99,
+    stock_quantity: 100,
+    category_id: 'cat-1',
+    image_url: 'https://example.com/test-image.jpg',
+    is_available: true,
+    is_pre_order: false,
+    min_pre_order_quantity: 1,
+    max_pre_order_quantity: 10,
     tags: [],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
   };
 
   const mockPreOrderProduct: Product = {
     ...mockProduct,
     id: 'product-2',
     name: 'Pre-Order Product',
-    isPreOrder: true,
-    stockQuantity: 0,
-    minPreOrderQuantity: 2,
-    maxPreOrderQuantity: 5
+    is_pre_order: true,
+    stock_quantity: 0,
+    min_pre_order_quantity: 2,
+    max_pre_order_quantity: 5
   };
 
   const mockDbCartItem = {
@@ -140,18 +140,27 @@ describe('CartService', () => {
         })
       });
 
-      // Mock product query
+      // Mock product query with .in() method
       mockSupabase.from.mockReturnValueOnce({
         select: jest.fn().mockReturnValue({
-          eq: jest.fn().mockReturnValue({
-            single: jest.fn().mockResolvedValue({
-              data: {
-                id: 'product-1',
-                name: 'Test Product',
-                price: 10.99
-              },
-              error: null
-            })
+          in: jest.fn().mockResolvedValue({
+            data: [{
+              id: 'product-1',
+              name: 'Test Product',
+              description: 'Test Description',
+              price: 10.99,
+              stock_quantity: 100,
+              category_id: 'cat-1',
+              image_url: 'https://example.com/test-image.jpg',
+              is_available: true,
+              is_pre_order: false,
+              min_pre_order_quantity: 1,
+              max_pre_order_quantity: 10,
+              tags: [],
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }],
+            error: null
           })
         })
       });
@@ -616,7 +625,7 @@ describe('CartService', () => {
           { product: { ...mockProduct, price: 10.00 }, quantity: 2 },
           { product: { ...mockProduct, id: 'product-2', price: 5.50 }, quantity: 3 }
         ],
-        total: 0 // Will be recalculated
+        total: 36.50 // (10.00 * 2) + (5.50 * 3) = 36.50
       };
 
       mockSupabase.from.mockReturnValue({

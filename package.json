@@ -15,7 +15,7 @@
     "test:hooks:race": "jest --config jest.config.hooks.race.js src/hooks/__tests__/ --forceExit",
     "test:hooks:race:watch": "jest --config jest.config.hooks.race.js --watch src/hooks/__tests__/",
     "test:race:cart": "jest --config jest.config.hooks.race.js src/hooks/__tests__/useCart.race.test.tsx --forceExit",
-    "test:race:orders": "jest --config jest.config.hooks.race.js src/hooks/__tests__/useOrders.race.test.tsx --forceExit", 
+    "test:race:orders": "jest --config jest.config.hooks.race.js src/hooks/__tests__/useOrders.race.test.tsx --forceExit",
     "test:race:realtime": "jest --config jest.config.hooks.race.js src/hooks/__tests__/useCentralizedRealtime.race.test.tsx --forceExit",
     "test:race:auth": "jest --config jest.config.hooks.race.js src/hooks/__tests__/useAuth.race.test.tsx --forceExit",
     "test:race:stock": "jest --config jest.config.hooks.race.js src/hooks/__tests__/useStockValidation.race.test.tsx --forceExit",
@@ -77,7 +77,8 @@
     "react-native-screens": "~4.11.1",
     "react-native-svg": "^15.12.1",
     "react-native-vector-icons": "^10.3.0",
-    "react-native-web": "^0.20.0"
+    "react-native-web": "^0.20.0",
+    "zod": "^4.0.17"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
@@ -89,7 +90,6 @@
     "@types/react": "~19.0.10",
     "@types/uuid": "^10.0.0",
     "jest-expo": "^53.0.9",
-    "ts-jest": "^29.4.1",
     "ts-jest": "^29.4.1",
     "ts-node": "^10.9.2",
     "typescript": "~5.8.3"

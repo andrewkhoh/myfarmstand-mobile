@@ -12,13 +12,203 @@ import {
   mapOrderFromDB
 } from '../utils/typeMappers';
 import { Database } from '../types/database.generated';
+import {
+  OrderSchema,
+  OrderSubmissionResultSchema,
+  CreateOrderRequestSchema,
+  OrderArraySchema,
+} from '../schemas/order.schema';
+import { ZodError, z } from 'zod';
+import { ValidationMonitor } from '../utils/validationMonitor';
+import { DefensiveDatabase, DatabaseHelpers } from '../utils/defensiveDatabase';
+import { ServiceValidator, ValidationUtils } from '../utils/validationPipeline';
 
 type DBOrderItem = Database['public']['Tables']['order_items']['Row'];
 type DBOrder = Database['public']['Tables']['orders']['Row'];
 
+// Database schemas for defensive database access
+const DbOrderItemSchema = z.object({
+  id: z.string().min(1),
+  order_id: z.string().min(1),
+  product_id: z.string().min(1),
+  product_name: z.string().min(1),
+  unit_price: z.number().min(0),
+  quantity: z.number().min(1).max(1000),
+  total_price: z.number().min(0),
+  created_at: z.string().nullable()
+});
+
+const DbOrderSchema = z.object({
+  id: z.string().min(1),
+  user_id: z.string().nullable(),
+  customer_name: z.string().min(1),
+  customer_email: z.string().email(),
+  customer_phone: z.string().min(1),
+  subtotal: z.number().min(0),
+  tax_amount: z.number().min(0),
+  total_amount: z.number().min(0),
+  fulfillment_type: z.string().min(1),
+  status: z.string().min(1),
+  payment_method: z.string().nullable(),
+  payment_status: z.string().min(1),
+  notes: z.string().nullable(),
+  pickup_date: z.string().nullable(),
+  pickup_time: z.string().nullable(),
+  delivery_address: z.string().nullable(),
+  special_instructions: z.string().nullable(),
+  created_at: z.string(),
+  updated_at: z.string()
+});
+
+// Validation helper functions with backward-compatible error handling
+const validateOrder = (orderData: any): Order => {
+  try {
+    return OrderSchema.parse(orderData);
+  } catch (error) {
+    // Add production validation monitoring
+    ValidationMonitor.recordValidationError({
+      context: 'OrderService.validateOrder',
+      errorMessage: error instanceof Error ? error.message : 'Unknown validation error',
+      errorCode: 'ORDER_VALIDATION_FAILED'
+    });
+    
+    console.warn('Invalid order data received:', {
+      error: error instanceof Error ? error.message : 'Unknown validation error',
+      invalidData: orderData
+    });
+    throw new Error('Invalid order data received from server');
+  }
+};
+
+const validateCreateOrderRequest = (requestData: any): CreateOrderRequest => {
+  try {
+    return CreateOrderRequestSchema.parse(requestData);
+  } catch (error) {
+    // Add production validation monitoring
+    ValidationMonitor.recordValidationError({
+      context: 'OrderService.validateCreateOrderRequest',
+      errorMessage: error instanceof Error ? error.message : 'Unknown validation error',
+      errorCode: 'CREATE_ORDER_REQUEST_VALIDATION_FAILED'
+    });
+    
+    if (error instanceof ZodError) {
+      const firstIssue = error.issues[0];
+      throw new Error(`Invalid order request: ${firstIssue.message}`);
+    }
+    console.warn('Invalid create order request:', {
+      error: error instanceof Error ? error.message : 'Unknown validation error',
+      invalidData: requestData
+    });
+    throw new Error('Invalid order request data');
+  }
+};
+
+const validateAndMapOrders = (ordersData: any[]): Order[] => {
+  const validOrders: Order[] = [];
+  
+  for (const orderData of ordersData) {
+    try {
+      // Validate database order structure before any transformation
+      const validatedOrderData = validateOrder(orderData);
+      
+      const orderItems = validatedOrderData.order_items?.map((item: DBOrderItem) => ({
+        productId: item.product_id,
+        productName: item.product_name || '',
+        price: item.unit_price || 0,
+        quantity: item.quantity,
+        subtotal: item.total_price || 0,
+        product: undefined
+      })) || [];
+      
+      const mappedOrder = mapOrderFromDB(validatedOrderData, orderItems);
+      
+      // Add production calculation validation
+      const validatedMappedOrder = validateOrderCalculations(mappedOrder);
+      
+      validOrders.push(validatedMappedOrder);
+    } catch (error) {
+      console.warn('Invalid order data, skipping order:', {
+        orderId: orderData?.id,
+        error: error instanceof Error ? error.message : 'Unknown validation error',
+        invalidData: orderData
+      });
+    }
+  }
+  
+  return validOrders;
+};
+
 // Calculate tax (8.5% for example)
 const calculateTax = (subtotal: number): number => {
   return Math.round(subtotal * 0.085 * 100) / 100;
+};
+
+// Production order calculation validation helper
+const validateOrderCalculations = (order: Order): Order => {
+  if (!order.order_items?.length) {
+    return order;
+  }
+  
+  // Validate subtotal calculation using database structure
+  const calculatedSubtotal = order.order_items.reduce((sum, item: any) => {
+    // Handle both database and application field names
+    const itemTotal = item.total_price || item.subtotal || 0;
+    return sum + itemTotal;
+  }, 0);
+  
+  const subtotalTolerance = 0.01;
+  const subtotalDifference = Math.abs(order.subtotal - calculatedSubtotal);
+  
+  if (subtotalDifference > subtotalTolerance) {
+    ValidationMonitor.recordCalculationMismatch({
+      type: 'order_subtotal',
+      expected: calculatedSubtotal,
+      actual: order.subtotal,
+      difference: subtotalDifference,
+      tolerance: subtotalTolerance,
+      orderId: order.id
+    });
+  }
+  
+  // Validate total calculation (subtotal + tax)
+  const expectedTotal = order.subtotal + order.tax_amount;
+  const totalTolerance = 0.01;
+  const totalDifference = Math.abs(order.total_amount - expectedTotal);
+  
+  if (totalDifference > totalTolerance) {
+    ValidationMonitor.recordCalculationMismatch({
+      type: 'order_total',
+      expected: expectedTotal,
+      actual: order.total_amount,
+      difference: totalDifference,
+      tolerance: totalTolerance,
+      orderId: order.id
+    });
+  }
+  
+  // Validate individual item calculations
+  order.order_items.forEach((item: any, index) => {
+    // Handle both database and application field names
+    const unitPrice = item.unit_price || item.price || 0;
+    const itemTotal = item.total_price || item.subtotal || 0;
+    const expectedItemTotal = unitPrice * item.quantity;
+    const itemTolerance = 0.01;
+    const itemDifference = Math.abs(itemTotal - expectedItemTotal);
+    
+    if (itemDifference > itemTolerance) {
+      ValidationMonitor.recordCalculationMismatch({
+        type: 'item_subtotal',
+        expected: expectedItemTotal,
+        actual: itemTotal,
+        difference: itemDifference,
+        tolerance: itemTolerance,
+        orderId: order.id,
+        itemId: `${order.id}-item-${index}`
+      });
+    }
+  });
+  
+  return order;
 };
 
 // Interface for inventory validation results
@@ -32,21 +222,32 @@ interface InventoryValidationResult {
   }>;
 }
 
-// Validate inventory availability at checkout time
+// Validate inventory availability at checkout time using defensive database access
 const validateInventoryAvailability = async (orderItems: CreateOrderRequest['items']): Promise<InventoryValidationResult> => {
   const conflicts: InventoryValidationResult['conflicts'] = [];
   
-  // Get current stock levels for all products in the order
+  // Schema for product stock validation
+  const ProductStockSchema = z.object({
+    id: z.string().min(1),
+    name: z.string().min(1),
+    stock_quantity: z.number().min(0)
+  });
+  
+  // Get current stock levels for all products in the order using defensive database access
   const productIds = orderItems.map(item => item.productId);
-  const { data: products, error } = await supabase
-    .from('products')
-    .select('id, name, stock_quantity')
-    .in('id', productIds);
-    
-  if (error) {
-    console.error('Error fetching product stock:', error);
-    throw new Error('Unable to validate inventory availability');
-  }
+  const products = await DatabaseHelpers.fetchFiltered(
+    'products',
+    `inventory-check-${productIds.length}`,
+    ProductStockSchema,
+    async () => supabase
+      .from('products')
+      .select('id, name, stock_quantity')
+      .in('id', productIds),
+    {
+      maxErrorThreshold: 0.0, // Don't allow any invalid product data for inventory validation
+      throwOnCriticalFailure: true // This is critical for order processing
+    }
+  );
   
   // Check each item against current stock
   for (const orderItem of orderItems) {
@@ -99,41 +300,35 @@ const updateProductStock = async (orderItems: CreateOrderRequest['items']): Prom
 // Real Supabase function to submit an order - ATOMIC VERSION
 export const submitOrder = async (orderRequest: CreateOrderRequest): Promise<OrderSubmissionResult> => {
   try {
-    // Validate required fields
-    if (!orderRequest.customerInfo.name || !orderRequest.customerInfo.email || !orderRequest.customerInfo.phone) {
-      return {
-        success: false,
-        error: 'Missing required customer information'
-      };
-    }
+    // Enhanced input validation using validation pipeline
+    const SubmitOrderInputSchema = z.object({
+      customerInfo: z.object({
+        name: ValidationUtils.createSafeStringSchema(2, 100),
+        email: ValidationUtils.createEmailSchema(),
+        phone: ValidationUtils.createPhoneSchema()
+      }),
+      items: z.array(z.object({
+        productId: z.string().min(1),
+        productName: ValidationUtils.createSafeStringSchema(1, 200),
+        price: ValidationUtils.createMoneySchema(),
+        quantity: ValidationUtils.createQuantitySchema(),
+        subtotal: ValidationUtils.createMoneySchema()
+      })).min(1, 'Order must contain at least one item'),
+      fulfillmentType: z.enum(['pickup', 'delivery']),
+      paymentMethod: z.enum(['online', 'cash_on_pickup']),
+      specialInstructions: ValidationUtils.createSafeStringSchema(0, 500).optional(),
+      pickupDate: z.string().optional(),
+      pickupTime: z.string().optional(),
+      deliveryAddress: ValidationUtils.createSafeStringSchema(10, 500).optional(),
+      deliveryDate: z.string().optional(),
+      deliveryTime: z.string().optional()
+    });
     
-    if (!orderRequest.items || orderRequest.items.length === 0) {
-      return {
-        success: false,
-        error: 'Order must contain at least one item'
-      };
-    }
-    
-    // Validate payment method
-    if (!orderRequest.paymentMethod) {
-      return {
-        success: false,
-        error: 'Payment method is required'
-      };
-    }
-    
-    // Validate fulfillment details
-    if (orderRequest.fulfillmentType === 'delivery' && !orderRequest.deliveryAddress) {
-      return {
-        success: false,
-        error: 'Delivery address is required for delivery orders'
-      };
-    } else if (orderRequest.fulfillmentType === 'pickup' && (!orderRequest.pickupDate || !orderRequest.pickupTime)) {
-      return {
-        success: false,
-        error: 'Pickup date and time are required for pickup orders'
-      };
-    }
+    const validatedRequest = await ServiceValidator.validateInput(
+      orderRequest,
+      SubmitOrderInputSchema,
+      'OrderService.submitOrder'
+    );
     
     // Calculate totals
     const subtotal = orderRequest.items.reduce((sum, item) => sum + item.subtotal, 0);
@@ -209,8 +404,8 @@ export const submitOrder = async (orderRequest: CreateOrderRequest): Promise<Ord
     // Success! Order created atomically
     const createdOrder = result.order;
     
-    // Convert RPC format to application format
-    const order: Order = {
+    // Convert RPC format to application format and validate
+    const orderObject = {
       // Primary database fields
       id: createdOrder.id,
       user_id: createdOrder.customerId || createdOrder.user_id,
@@ -255,16 +450,21 @@ export const submitOrder = async (orderRequest: CreateOrderRequest): Promise<Ord
       specialInstructions: createdOrder.specialInstructions || createdOrder.special_instructions,
       createdAt: createdOrder.createdAt || createdOrder.created_at,
       updatedAt: createdOrder.updatedAt || createdOrder.updated_at
-    } as Order;
+    };
+    
+    const order = validateOrder(orderObject);
+    
+    // Add production calculation validation
+    const validatedOrder = validateOrderCalculations(order);
 
     // SECURITY-HARDENED: Broadcast order creation for real-time updates
     try {
       await sendOrderBroadcast('new-order', {
-        userId: getOrderCustomerId(order), // SECURITY: User-specific routing
-        orderId: order.id,
-        status: order.status,
-        total: getOrderTotal(order),
-        fulfillmentType: getOrderFulfillmentType(order),
+        userId: getOrderCustomerId(validatedOrder), // SECURITY: User-specific routing
+        orderId: validatedOrder.id,
+        status: validatedOrder.status,
+        total: getOrderTotal(validatedOrder),
+        fulfillmentType: getOrderFulfillmentType(validatedOrder),
         timestamp: new Date().toISOString(),
         action: 'order_created'
       });
@@ -275,8 +475,8 @@ export const submitOrder = async (orderRequest: CreateOrderRequest): Promise<Ord
 
     // Send order confirmation notification
     try {
-      await sendOrderConfirmationNotification(order);
-      console.log('✅ Order confirmation notification sent for order:', order.id);
+      await sendOrderConfirmationNotification(validatedOrder);
+      console.log('✅ Order confirmation notification sent for order:', validatedOrder.id);
     } catch (notificationError) {
       console.warn('Failed to send order confirmation notification:', notificationError);
       // Don't fail the order creation if notification fails
@@ -284,7 +484,7 @@ export const submitOrder = async (orderRequest: CreateOrderRequest): Promise<Ord
 
     return {
       success: true,
-      order
+      order: validatedOrder
     };
 
   } catch (error) {
@@ -296,27 +496,40 @@ export const submitOrder = async (orderRequest: CreateOrderRequest): Promise<Ord
   }
 };
 
-// Get order by ID - Real Supabase implementation (CartService pattern)
+// Get order by ID - Real Supabase implementation with defensive database access
 export const getOrder = async (orderId: string): Promise<Order | null> => {
   try {
-    const { data: orderData, error } = await supabase
-      .from('orders')
-      .select(`
-        *,
-        order_items (
-          id,
-          product_id,
-          product_name,
-          unit_price,
-          quantity,
-          total_price
-        )
-      `)
-      .eq('id', orderId)
-      .single();
+    // Create a combined schema for order with items
+    const OrderWithItemsSchema = DbOrderSchema.extend({
+      order_items: z.array(DbOrderItemSchema).optional().default([])
+    });
+    
+    const orderData = await DefensiveDatabase.fetchSingleWithValidation(
+      async () => supabase
+        .from('orders')
+        .select(`
+          *,
+          order_items (
+            id,
+            product_id,
+            product_name,
+            unit_price,
+            quantity,
+            total_price
+          )
+        `)
+        .eq('id', orderId)
+        .single(),
+      OrderWithItemsSchema,
+      `getOrder-${orderId}`,
+      {
+        throwOnCriticalFailure: false,
+        includeDetailedErrors: false // Don't log order details for privacy
+      }
+    );
 
-    if (error || !orderData) {
-      console.error('Error fetching order:', error);
+    if (!orderData) {
+      console.error('Order not found or invalid:', orderId);
       return null;
     }
 
@@ -331,15 +544,18 @@ export const getOrder = async (orderId: string): Promise<Order | null> => {
     })) || [];
     
     const order = mapOrderFromDB(orderData, orderItems);
+    
+    // Add production calculation validation
+    const validatedOrder = validateOrderCalculations(order);
 
-    return order;
+    return validatedOrder;
   } catch (error) {
     console.error('Error fetching order:', error);
     return null;
   }
 };
 
-// Get orders for a customer - Real Supabase implementation
+// Get orders for a customer - Real Supabase implementation with defensive database access
 export const getCustomerOrders = async (customerEmail: string): Promise<Order[]> => {
   if (!customerEmail) {
     console.warn('getCustomerOrders: customerEmail is required');
@@ -347,44 +563,43 @@ export const getCustomerOrders = async (customerEmail: string): Promise<Order[]>
   }
 
   try {
-    const { data: ordersData, error } = await supabase
-      .from('orders')
-      .select(`
-        *,
-        order_items (
-          id,
-          product_id,
-          product_name,
-          quantity,
-          unit_price,
-          total_price
-        )
-      `)
-      .eq('customer_email', customerEmail)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching customer orders:', error);
-      return [];
-    }
+    // Create a combined schema for orders with items
+    const OrdersWithItemsSchema = z.array(DbOrderSchema.extend({
+      order_items: z.array(DbOrderItemSchema).optional().default([])
+    }));
+    
+    const ordersData = await DatabaseHelpers.fetchFiltered(
+      'orders',
+      `customer-${customerEmail.split('@')[0]}`, // Use email prefix for context
+      OrdersWithItemsSchema,
+      async () => supabase
+        .from('orders')
+        .select(`
+          *,
+          order_items (
+            id,
+            product_id,
+            product_name,
+            quantity,
+            unit_price,
+            total_price
+          )
+        `)
+        .eq('customer_email', customerEmail)
+        .order('created_at', { ascending: false }),
+      {
+        maxErrorThreshold: 0.1, // Allow up to 10% invalid orders
+        includeDetailedErrors: false, // Don't log order details for privacy
+        throwOnCriticalFailure: false
+      }
+    );
 
     if (!ordersData || ordersData.length === 0) {
       return [];
     }
 
-    // Convert database format to app format
-    const orders: Order[] = ordersData.map((orderData: DBOrder) => {
-      const orderItems = orderData.order_items?.map((item: DBOrderItem) => ({
-        productId: item.product_id,
-        productName: item.product_name || '',
-        price: item.unit_price || 0,
-        quantity: item.quantity,
-        subtotal: item.total_price || 0,
-        product: undefined
-      })) || [];
-      
-      return mapOrderFromDB(orderData, orderItems);
-    });
+    // Convert database format to app format with validation
+    const orders = validateAndMapOrders(ordersData);
 
     return orders;
   } catch (error) {
@@ -619,19 +834,8 @@ export const getAllOrders = async (filters?: OrderFilters): Promise<Order[]> => 
       return [];
     }
     
-    // Convert database format to app format
-    const orders: Order[] = ordersData.map((orderData: DBOrder) => {
-      const orderItems = orderData.order_items?.map((item: DBOrderItem) => ({
-        productId: item.product_id,
-        productName: item.product_name || '',
-        price: item.unit_price || 0,
-        quantity: item.quantity,
-        subtotal: item.total_price || 0,
-        product: undefined
-      })) || [];
-      
-      return mapOrderFromDB(orderData, orderItems);
-    });
+    // Convert database format to app format with validation
+    const orders = validateAndMapOrders(ordersData);
     
     return orders;
   } catch (error) {
