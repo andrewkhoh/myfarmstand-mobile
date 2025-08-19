@@ -43,6 +43,15 @@ const validateSupabaseAuthUser = (authUser: any): any => {
   try {
     return SupabaseAuthUserSchema.parse(authUser);
   } catch (error) {
+    // Log detailed validation error for debugging
+    if (error instanceof ZodError) {
+      console.error('🔴 Supabase auth user validation failed:', {
+        issues: error.issues,
+        receivedData: authUser,
+        message: error.message
+      });
+    }
+    
     // Add production validation monitoring
     ValidationMonitor.recordValidationError({
       context: 'AuthService.validateSupabaseAuthUser',
@@ -236,6 +245,10 @@ export class AuthService {
         throw new Error('Authentication failed');
       }
 
+      // Log the actual data structure for debugging
+      console.log('🔍 Supabase auth response user data:', JSON.stringify(data.user, null, 2));
+      console.log('🔍 Supabase auth response session data:', JSON.stringify(data.session, null, 2));
+      
       // Validate Supabase auth response data
       const validatedAuthUser = validateSupabaseAuthUser(data.user);
       const validatedSession = validateSupabaseSession(data.session);

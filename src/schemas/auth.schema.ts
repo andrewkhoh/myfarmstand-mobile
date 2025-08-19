@@ -123,11 +123,12 @@ export const RefreshTokenResponseSchema = z.object({
 });
 
 // Supabase Auth User schema (from Supabase Auth API)
+// Made more flexible to handle different Supabase response formats
 export const SupabaseAuthUserSchema = z.object({
   id: z.string(),
-  email: z.string().email(),
-  created_at: z.string(),
-  updated_at: z.string(),
+  email: z.string().email(), // Email is required for authenticated users
+  created_at: z.string().optional(), // Made optional for flexibility
+  updated_at: z.string().optional(), // Made optional for flexibility
   email_confirmed_at: z.string().nullable().optional(),
   phone: z.string().nullable().optional(),
   confirmed_at: z.string().nullable().optional(),
@@ -135,17 +136,19 @@ export const SupabaseAuthUserSchema = z.object({
   app_metadata: z.record(z.unknown()).optional(),
   user_metadata: z.record(z.unknown()).optional(),
   identities: z.array(z.unknown()).optional(),
-});
+  aud: z.string().optional(), // Added aud field that Supabase might return
+  role: z.string().optional(), // Added role field
+}).passthrough(); // Allow additional fields that Supabase might include
 
 // Supabase Session schema
 export const SupabaseSessionSchema = z.object({
   access_token: z.string(),
-  refresh_token: z.string(),
+  refresh_token: z.string().optional(), // Made optional as it might not always be present
   expires_in: z.number(),
   expires_at: z.number().optional(),
   token_type: z.string(),
   user: SupabaseAuthUserSchema,
-});
+}).passthrough(); // Allow additional fields that Supabase might include
 
 // Export types inferred from schemas
 export type ValidatedUser = z.infer<typeof UserSchema>;
