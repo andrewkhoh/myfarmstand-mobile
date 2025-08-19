@@ -19,6 +19,7 @@ import { useCart } from '../hooks/useCart';
 import { useCurrentUser } from '../hooks/useAuth';
 import { useStockValidation } from '../hooks/useStockValidation';
 import { useCheckoutForm } from '../hooks/useCheckoutForm';
+import { useKioskSessionInfo } from '../contexts';
 import { getStockDisplayInfo } from '../utils/stockDisplay';
 import { submitOrder } from '../services/orderService';
 import { CreateOrderRequest, CustomerInfo, FulfillmentType, PaymentMethod, OrderItem, RootStackParamList } from '../types';
@@ -31,6 +32,9 @@ export const CheckoutScreen: React.FC = () => {
   const { validateStock, getStockInfo } = useStockValidation(); // Real-time stock validation
   const navigation = useNavigation<CheckoutScreenNavigationProp>();
   const queryClient = useQueryClient();
+  
+  // ✅ PATTERN: Kiosk session tracking integration
+  const kioskSessionInfo = useKioskSessionInfo();
   
   // Use isolated form hook to prevent race conditions with cart state
   const {
@@ -101,7 +105,8 @@ export const CheckoutScreen: React.FC = () => {
 
   // React Query mutation for order submission with inventory conflict handling
   const orderMutation = useMutation({
-    mutationFn: submitOrder,
+    mutationFn: (orderRequest: CreateOrderRequest) => 
+      submitOrder(orderRequest, kioskSessionInfo.sessionId),
     onSuccess: async (result) => {
       if (result.success && result.order) {
         // Clear cart first
@@ -579,7 +584,7 @@ export const CheckoutScreen: React.FC = () => {
           <ActivityIndicator color="#fff" />
         ) : (
           <Text style={styles.submitButtonText}>
-            Submit Order - ${orderTotal.toFixed(2)}
+            {kioskSessionInfo.isActive && '🏪 '}Submit Order - ${orderTotal.toFixed(2)}
           </Text>
         )}
       </TouchableOpacity>

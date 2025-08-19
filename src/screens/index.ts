@@ -28,6 +28,8 @@ export { SecurityBroadcastTestScreen } from './testScreens/SecurityBroadcastTest
 export { default as AdminOrderTestScreen } from './testScreens/AdminOrderTestScreen';
 export { default as ProductDebugTestScreen } from './testScreens/ProductDebugTestScreen';
 export { StaffQRScannerScreen } from './StaffQRScannerScreen';
+export { KioskAuthScreen } from './KioskAuthScreen';
+export { KioskDashboardScreen } from './KioskDashboardScreen';
 
 // Export test utilities
 export { AutomatedTestRunner } from '../test/AutomatedTestRunner';

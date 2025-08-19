@@ -10,7 +10,7 @@ import { ChannelManager } from './src/utils/channelManager';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { crashReporting } from './src/services/crashReportingService';
 import { secretsInitializer } from './src/services/secretsInitializer';
-
+import { KioskProvider } from './src/contexts';
 // Component to initialize real-time subscriptions
 const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Initialize shared channels for broadcast events
@@ -26,6 +26,7 @@ const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ children })
 };
 
 export default function App() {
+  
   // Initialize secrets and crash reporting on app start
   React.useEffect(() => {
     const initializeApp = async () => {
@@ -54,12 +55,14 @@ export default function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <RealtimeProvider>
-        {/* <CartProvider> */}
-          <AppNavigator />
-          <StatusBar style="auto" />
-        {/* </CartProvider> */}
-      </RealtimeProvider>
+      <KioskProvider>
+        <RealtimeProvider>
+          {/* <CartProvider> */}
+            <AppNavigator />
+            <StatusBar style="auto" />
+          {/* </CartProvider> */}
+        </RealtimeProvider>
+      </KioskProvider>
     </QueryClientProvider>
   );
 }

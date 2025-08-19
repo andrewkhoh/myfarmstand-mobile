@@ -7,3 +7,4 @@ export { Loading } from './Loading';
 export { Screen } from './Screen';
 export { Toast } from './Toast';
 export { ProductCard } from './ProductCard';
+export { KioskStaffAuth } from './KioskStaffAuth';

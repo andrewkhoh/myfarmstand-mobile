@@ -66,16 +66,63 @@ npm run typecheck
 - ✅ Race condition testing infrastructure complete
 - ✅ Real React Query testing working reliably
 - ✅ Service and hook test separation established
+- ✅ Kiosk feature implementation with schema and types synchronized
 - 🔄 Ready for expansion to other hooks (useAuth, useOrders, useRealtime)
+
+## 🏪 **Kiosk Setup**
+
+### **Development Testing**
+- **Setup Script**: `database/kiosk-dev-setup.sql`
+- **Test PINs**: 1234 (staff), 5678 (manager), 9999 (admin)
+- **Apply Schema**: `npm run sync-schema` after applying kiosk schema to database
+- **Run Setup**: `psql $DATABASE_URL -f database/kiosk-dev-setup.sql`
+
+### **Production Setup**  
+- Real staff PINs must be created in `staff_pins` table
+- Ensure proper user authentication with role-based access
 
 ## 📁 **Important Files**
 - `src/test/serviceSetup.ts` - Mock-based setup for services
 - `src/test/race-condition-setup.ts` - Real React Query setup for race conditions
 - `src/scratchpad*/` - Session analysis and documentation
 - `jest.config.*.js` - Test configurations for different test types
+- **`docs/architectural-patterns-and-best-practices.md`** - **CANONICAL REFERENCE** for all development patterns
+
+## 📚 **Architectural Patterns & Standards**
+
+### **Core Development Philosophy**
+- **Quality-first architecture**: Data integrity > raw performance
+- **Graceful degradation**: Never break user workflows
+- **Resilient validation**: Individual item processing with skip-on-error
+- **User experience priority**: Meaningful error messages and fallback states
+
+### **Key Architectural Patterns**
+- **Zod Validation**: Single validation pass, database-first validation, transformation schemas
+- **React Query**: User-isolated cache keys, smart invalidation, comprehensive error handling
+- **Database Queries**: Direct Supabase with validation pipelines, atomic operations
+- **Security**: User data isolation, cryptographic channel security (HMAC-SHA256)
+- **Monitoring**: ValidationMonitor for both successes and failures
+
+### **Pattern Compliance Rules**
+- ✅ **Follow established patterns** - Don't create new ones without strong justification
+- ✅ **Optimize within patterns** - Enhance existing architecture, don't replace it
+- ❌ **Never break validation pipelines** - Individual validation enables resilience
+- ❌ **No micro-optimizations** - That create maintenance nightmares
+- ❌ **No performance shortcuts** - That compromise data integrity or user experience
+
+### **Required Reading**
+**ALL agents implementing features MUST review:**
+`docs/architectural-patterns-and-best-practices.md`
+
+This document contains:
+- Complete pattern examples with ✅ correct and ❌ incorrect implementations
+- Implementation checklists for services, schemas, hooks, and security
+- Rationale behind "inefficient" patterns (they're actually resilience features)
+- Performance optimization strategies that maintain architectural integrity
 
 ## ⚡ **Quick Reference**
 - **Fake timers**: Avoid in React Query tests (causes hanging)
 - **Real short delays**: Use 50-100ms for race condition timing
 - **Product-specific mocking**: Better than sequential mocking for concurrent tests
 - **waitFor + act**: Required pattern for async state assertions
+- **Pattern compliance**: Always check docs/architectural-patterns-and-best-practices.md before implementing

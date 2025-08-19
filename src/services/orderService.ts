@@ -315,7 +315,10 @@ const updateProductStock = async (orderItems: CreateOrderRequest['items']): Prom
 };
 
 // Real Supabase function to submit an order - ATOMIC VERSION
-export const submitOrder = async (orderRequest: CreateOrderRequest): Promise<OrderSubmissionResult> => {
+export const submitOrder = async (
+  orderRequest: CreateOrderRequest, 
+  kioskSessionId?: string | null
+): Promise<OrderSubmissionResult> => {
   try {
     // Basic input validation (following cartService pattern - no complex ValidationUtils)
     if (!orderRequest.customerInfo || !orderRequest.customerInfo.name || !orderRequest.customerInfo.email) {
@@ -350,6 +353,16 @@ export const submitOrder = async (orderRequest: CreateOrderRequest): Promise<Ord
     
     // Get current user for order association
     const { data: { user } } = await supabase.auth.getUser();
+    
+    // ✅ PATTERN: Kiosk session tracking integration
+    if (kioskSessionId) {
+      console.info('🏪 Creating order in kiosk mode:', {
+        sessionId: kioskSessionId,
+        orderTotal: total,
+        customerName: orderRequest.customerInfo.name,
+        timestamp: new Date().toISOString()
+      });
+    }
     
     // Prepare order items for RPC function
     const orderItemsData = orderRequest.items.map(item => ({
@@ -537,6 +550,51 @@ export const submitOrder = async (orderRequest: CreateOrderRequest): Promise<Ord
     } catch (notificationError) {
       console.warn('Failed to send order confirmation notification:', notificationError);
       // Don't fail the order creation if notification fails
+    }
+
+    // ✅ PATTERN: Kiosk transaction creation and session stats update
+    if (kioskSessionId) {
+      try {
+        // Create kiosk transaction record
+        const { error: transactionError } = await supabase
+          .from('kiosk_transactions')
+          .insert({
+            session_id: kioskSessionId,
+            customer_id: user?.id || null,
+            customer_email: orderRequest.customerInfo.email,
+            customer_phone: orderRequest.customerInfo.phone,
+            customer_name: orderRequest.customerInfo.name,
+            subtotal: subtotal,
+            tax_amount: tax,
+            total_amount: total,
+            payment_method: orderRequest.paymentMethod === 'online' ? 'digital' : 
+                          orderRequest.paymentMethod === 'cash_on_pickup' ? 'cash' : 'card',
+            payment_status: paymentStatus === 'paid' ? 'completed' : 'pending',
+            completed_at: paymentStatus === 'paid' ? new Date().toISOString() : null
+          });
+
+        if (transactionError) {
+          console.warn('Failed to create kiosk transaction:', transactionError);
+        } else {
+          console.log('✅ Kiosk transaction created for session:', kioskSessionId);
+        }
+
+        // Update kiosk session statistics
+        const { error: updateError } = await supabase.rpc('update_kiosk_session_stats', {
+          session_id: kioskSessionId,
+          sale_amount: total
+        });
+
+        if (updateError) {
+          console.warn('Failed to update kiosk session stats:', updateError);
+        } else {
+          console.log('✅ Kiosk session stats updated:', { sessionId: kioskSessionId, amount: total });
+        }
+
+      } catch (kioskError) {
+        console.warn('Error in kiosk transaction tracking:', kioskError);
+        // Don't fail the order creation if kiosk tracking fails
+      }
     }
 
     return {

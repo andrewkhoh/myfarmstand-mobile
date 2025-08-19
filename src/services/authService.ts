@@ -413,43 +413,19 @@ export class AuthService {
    */
   static async logout(): Promise<{ success: boolean; message?: string }> {
     try {
-      console.log('🚪 Starting logout process...');
+      console.log('🚪 Starting simplified logout process...');
       
-      // Device-specific aggressive session cleanup
-      console.log('📱 Performing device-specific session cleanup...');
-      
-      // First, try global scope signout for devices
-      const { error: globalError } = await supabase.auth.signOut({ scope: 'global' });
-      if (globalError) {
-        console.warn('⚠️ Global signout failed:', globalError.message);
+      // Simple Supabase signout
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.warn('⚠️ Supabase signout failed:', error.message);
       } else {
-        console.log('✅ Global Supabase session cleared');
-      }
-      
-      // Then local scope as backup
-      const { error: localError } = await supabase.auth.signOut({ scope: 'local' });
-      if (localError) {
-        console.warn('⚠️ Local signout failed:', localError.message);
-      } else {
-        console.log('✅ Local Supabase session cleared');
+        console.log('✅ Supabase session cleared');
       }
 
-      // Clear all stored tokens and user data with device-specific cleanup
+      // Clear local tokens
       await TokenService.clearAllTokens();
       console.log('🧹 Local tokens cleared');
-
-      // Verify session is actually cleared
-      const { data: sessionCheck } = await supabase.auth.getSession();
-      if (sessionCheck.session) {
-        console.warn('⚠️ Session still exists after cleanup, forcing additional cleanup...');
-        // Force additional cleanup
-        await supabase.auth.signOut({ scope: 'others' });
-      } else {
-        console.log('✅ Session verification: no active session');
-      }
-
-      // Longer delay for devices to ensure native cleanup
-      await new Promise(resolve => setTimeout(resolve, 300));
 
       return {
         success: true,

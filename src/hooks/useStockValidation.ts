@@ -89,50 +89,10 @@ export const useStockValidation = () => {
   const { getCartQuantity } = useCart();
   const queryClient = useQueryClient();
   
-  // Enhanced authentication guard (following cart pattern)
-  if (!user?.id) {
-    const authError = createStockError(
-      'AUTHENTICATION_REQUIRED',
-      'User not authenticated',
-      'Please sign in to access stock validation'
-    );
-    
-    return {
-      stockData: [],
-      isLoading: false,
-      error: authError,
-      
-      isRefreshing: false,
-      
-      // Safe no-op functions
-      validateStock: () => ({
-        isValid: false,
-        availableStock: 0,
-        currentCartQuantity: 0,
-        maxAllowedQuantity: 0,
-        message: 'Please sign in to validate stock',
-        canAddMore: false,
-        remainingStock: 0
-      } as StockValidationResult),
-      getStockInfo: () => ({ availableStock: 0, currentCartQuantity: 0, remainingStock: 0, isPreOrder: false }),
-      canAddOneMore: () => false,
-      canAddQuantity: () => false,
-      getRemainingStock: () => 0,
-      getStockStatusMessage: () => 'Please sign in',
-      canAddMore: () => false,
-      refetchStock: () => Promise.resolve(),
-      refreshStockAsync: async (): Promise<StockOperationResult<StockData[]>> => ({ 
-        success: false, 
-        error: authError 
-      }),
-      getStockQueryKey: () => ['stock-validation', 'unauthenticated'],
-    };
-  }
-  
   // Use separate query key to avoid conflicts with main products cache
-  const stockQueryKey = ['products', 'stock', user.id];
+  const stockQueryKey = ['products', 'stock', user?.id || 'anonymous'];
   
-  // Enhanced query with proper enabled guard and error handling (following cart pattern)
+  // ✅ ARCHITECTURAL PATTERN: Use React Query's enabled guard
   const {
     data: stockData = [],
     isLoading,
@@ -173,13 +133,14 @@ export const useStockValidation = () => {
         );
       }
     },
-    staleTime: 30 * 1000, // 30 seconds - frequent updates for real-time validation (following cart pattern)
-    gcTime: 2 * 60 * 1000, // 2 minutes (following cart pattern)
+    // ✅ ARCHITECTURAL PATTERN: Context-appropriate cache for stock (most volatile data)
+    staleTime: 15 * 1000, // 15 seconds - stock changes very frequently
+    gcTime: 1 * 60 * 1000, // 1 minute - shortest retention for real-time data
     refetchOnMount: true, // (following cart pattern)
-    refetchOnWindowFocus: true, // (following cart pattern)
+    refetchOnWindowFocus: true, // Important for stock - refresh when user returns
     refetchOnReconnect: true, // (following cart pattern)
-    refetchInterval: 30 * 1000, // Auto-refresh every 30 seconds
-    enabled: !!user?.id, // Enhanced enabled guard (following cart pattern)
+    refetchInterval: 30 * 1000, // Auto-refresh every 30 seconds for real-time validation
+    enabled: !!user?.id, // ✅ ARCHITECTURAL PATTERN: React Query handles conditional execution
     retry: (failureCount, error) => {
       // Smart retry logic (following cart pattern)
       if (failureCount < 2) return true;
@@ -399,13 +360,53 @@ export const useStockValidation = () => {
   });
   
   // Enhanced utility functions with useCallback (following cart pattern)
-  const getStockQueryKey = useCallback(() => stockQueryKey, [user.id]);
+  const getStockQueryKey = useCallback(() => stockQueryKey, [user?.id]);
   
   // DEPRECATED: Keep for backward compatibility but mark as deprecated
   const canAddMore = (productId: string): boolean => {
     console.warn('canAddMore is deprecated, use canAddOneMore instead');
     return canAddOneMore(productId);
   };
+
+  // ✅ ARCHITECTURAL PATTERN: Simple conditional return based on auth state
+  if (!user?.id) {
+    const authError = createStockError(
+      'AUTHENTICATION_REQUIRED',
+      'User not authenticated',
+      'Please sign in to access stock validation'
+    );
+    
+    return {
+      stockData: [],
+      isLoading: false,
+      error: authError,
+      isRefreshing: false,
+      
+      // Safe no-op functions
+      validateStock: () => ({
+        isValid: false,
+        availableStock: 0,
+        currentCartQuantity: 0,
+        maxAllowedQuantity: 0,
+        message: 'Please sign in to validate stock',
+        canAddMore: false,
+        remainingStock: 0
+      } as StockValidationResult),
+      getStockInfo: () => ({ availableStock: 0, currentCartQuantity: 0, remainingStock: 0, isPreOrder: false }),
+      canAddOneMore: () => false,
+      canAddQuantity: () => false,
+      getRemainingStock: () => 0,
+      getStockStatusMessage: () => 'Please sign in',
+      canAddMore: () => false,
+      refetchStock: () => Promise.resolve(),
+      refreshStockAsync: async (): Promise<StockOperationResult<StockData[]>> => ({ 
+        success: false, 
+        error: authError 
+      }),
+      getStockQueryKey: () => ['stock-validation', 'unauthenticated'],
+      getCartQuantity: () => 0,
+    };
+  }
 
   return {
     stockData,

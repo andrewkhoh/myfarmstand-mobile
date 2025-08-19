@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { AuthService } from '../services/authService';
 import { User } from '../types';
 import { createBroadcastHelper } from '../utils/broadcastFactory';
@@ -123,16 +123,10 @@ export const useLoginMutation = () => {
     },
     onSuccess: async (result: AuthOperationResult<{ user: User; token?: string }>, _variables: { email: string; password: string }) => {
       if (result.success && result.data) {
-        console.log('✅ Login mutation successful:', result.data.user.email);
+        console.log('✅ Login successful:', result.data.user.email);
         
-        // Set user data in React Query cache
+        // Set user data in cache
         queryClient.setQueryData(authKeys.user(), result.data.user);
-        
-        // Smart invalidation strategy (following cart pattern)
-        await Promise.all([
-          queryClient.invalidateQueries({ queryKey: authKeys.user() }),
-          queryClient.invalidateQueries({ queryKey: authKeys.status() })
-        ]);
         
         // Broadcast success (following cart pattern)
         await authBroadcast.send('user-logged-in', {
@@ -261,18 +255,29 @@ export const useRegisterMutation = () => {
 export const useLogoutMutation = () => {
   const queryClient = useQueryClient();
 
-  return useMutation<AuthOperationResult<void>, Error, void, AuthMutationContext>({
+  return useMutation<AuthOperationResult<void>, Error, undefined, AuthMutationContext>({
     mutationFn: async (): Promise<AuthOperationResult<void>> => {
+      console.log('🚪 Simple logout starting...');
+      
       try {
-        console.log('🚪 Logout mutation starting...');
-        await AuthService.logout();
+        // Force global signout to clear all sessions
+        const { supabase } = await import('../config/supabase');
+        const { error } = await supabase.auth.signOut({ scope: 'global' });
+        
+        if (error) {
+          console.warn('⚠️ Signout error:', error.message);
+        }
+        
+        // Verify session is cleared
+        const { data: { session } } = await supabase.auth.getSession();
+        console.log('🔍 After logout - session still exists?', !!session?.user);
+        
+        console.log('✅ Supabase global signout complete');
         return { success: true };
-      } catch (error: any) {
-        throw createAuthError(
-          'UNKNOWN_ERROR',
-          error.message || 'Logout failed',
-          'Unable to sign out. Please try again.'
-        );
+      } catch (error) {
+        console.error('❌ Logout error:', error);
+        // Even if signout fails, we'll continue with React Query cleanup
+        return { success: true };
       }
     },
     onMutate: async (): Promise<AuthMutationContext> => {
@@ -288,39 +293,43 @@ export const useLogoutMutation = () => {
         metadata: {}
       };
     },
-    onError: (error: AuthError, _variables: void, _context?: AuthMutationContext) => {
+    onError: (error: AuthError, _variables: undefined, _context?: AuthMutationContext) => {
       // Enhanced error logging (following cart pattern)
       console.error('❌ Logout mutation failed:', {
         error: error.message,
         userMessage: (error as AuthError).userMessage
       });
       
-      // Even if logout fails, clear states for security
+      // Even if logout fails, clear states for security (targeted approach)
       queryClient.setQueryData(authKeys.user(), null);
       queryClient.invalidateQueries({ queryKey: authKeys.user() });
-      queryClient.removeQueries();
-    },
-    onSuccess: async (_result: AuthOperationResult<void>) => {
-      console.log('✅ Logout successful, clearing React Query cache...');
       
-      // Clear user data and cache (following cart pattern)
+      // Clear sensitive data only
+      Promise.all([
+        queryClient.removeQueries({ queryKey: ['cart'] }),
+        queryClient.removeQueries({ queryKey: ['orders'] }),
+        queryClient.removeQueries({ queryKey: ['auth'] }),
+      ]).catch(error => console.warn('Cache cleanup error:', error));
+    },
+    onSuccess: (_result: AuthOperationResult<void>, _variables: undefined, context?: AuthMutationContext) => {
+      console.log('✅ Logout successful - clearing sensitive data...');
+      
+      // React Query logout pattern: Preserve observers, clear data
+      // 🚨 NEVER: queryClient.clear() - destroys observers, breaks subsequent reactivity
+      // ✅ ALWAYS: queryClient.setQueryData(key, value) - preserves observers, maintains reactivity
       queryClient.setQueryData(authKeys.user(), null);
       
-      // Smart invalidation strategy (following cart pattern)
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: authKeys.user() }),
-        queryClient.invalidateQueries({ queryKey: authKeys.status() })
-      ]);
+      // Security: Clear all sensitive user data while preserving observers where possible
+      queryClient.removeQueries({ queryKey: ['cart'] });
+      queryClient.removeQueries({ queryKey: ['orders'] }); 
       
-      // Clear all cached data for security
-      queryClient.removeQueries();
+      // Clear any other user-specific data (profile, settings, etc.)
+      queryClient.removeQueries({ queryKey: ['profile'] });
+      queryClient.removeQueries({ queryKey: ['settings'] });
       
-      // Broadcast success (following cart pattern)
-      await authBroadcast.send('user-logged-out', {
-        timestamp: new Date().toISOString()
-      });
+      // Note: Keep general product cache - it's not user-specific
       
-      console.log('🧹 React Query cache cleared');
+      console.log('🔒 Sensitive data cleared, auth observers preserved');
     },
     // Enhanced retry logic (following cart pattern)
     retry: (failureCount, _error: any) => {
@@ -521,7 +530,7 @@ export const useChangePasswordMutation = () => {
  * Enhanced Hook for getting current user with React Query (following cart pattern)
  */
 export const useCurrentUser = () => {
-  return useQuery({
+  const query = useQuery({
     queryKey: authKeys.user(),
     queryFn: async (): Promise<User | null> => {
       try {
@@ -550,21 +559,22 @@ export const useCurrentUser = () => {
         );
       }
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes (following cart pattern)
-    gcTime: 10 * 60 * 1000, // 10 minutes (following cart pattern)
-    refetchOnMount: true, // (following cart pattern)
-    refetchOnWindowFocus: true, // Revalidate when app becomes active (following cart pattern)
-    refetchOnReconnect: true, // (following cart pattern)
+    staleTime: 30 * 1000, // 30 seconds
+    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
     retry: (failureCount, error) => {
-      // Smart retry logic (following cart pattern)
       // Don't retry on auth errors
       if (error.message?.includes('token') || error.message?.includes('unauthorized')) {
         return false;
       }
       return failureCount < 2;
     },
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff (following cart pattern)
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
+  
+  return query;
 };
 
 /**
@@ -587,7 +597,7 @@ export const useAuthStatus = () => {
 export const useRefreshTokenMutation = () => {
   const queryClient = useQueryClient();
 
-  return useMutation<AuthOperationResult<{ token: string }>, Error, void, AuthMutationContext>({
+  return useMutation<AuthOperationResult<{ token: string }>, Error, undefined, AuthMutationContext>({
     mutationFn: async (): Promise<AuthOperationResult<{ token: string }>> => {
       try {
         const result = await AuthService.refreshToken();
@@ -628,7 +638,7 @@ export const useRefreshTokenMutation = () => {
         metadata: {}
       };
     },
-    onError: (error: AuthError, _variables: void, _context?: AuthMutationContext) => {
+    onError: (error: AuthError, _variables: undefined, _context?: AuthMutationContext) => {
       // Enhanced error logging (following cart pattern)
       console.error('❌ Token refresh failed:', {
         error: error.message,

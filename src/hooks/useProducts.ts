@@ -76,41 +76,9 @@ export const useProducts = () => {
   const { data: user } = useCurrentUser();
   const queryClient = useQueryClient();
   
-  // Enhanced authentication guard (following cart pattern)
-  if (!user?.id) {
-    const authError = createProductError(
-      'AUTHENTICATION_REQUIRED',
-      'User not authenticated',
-      'Please sign in to view products'
-    );
-    
-    return {
-      data: [],
-      isLoading: false,
-      error: authError,
-      isError: true,
-      isSuccess: false,
-      isPending: false,
-      isLoadingError: false,
-      isRefetchError: false,
-      status: 'error' as const,
-      fetchStatus: 'idle' as const,
-      refetch: () => Promise.resolve({ data: [], isLoading: false, error: authError } as any),
-      
-      // Enhanced mutation states
-      isRefreshing: false,
-      refreshProducts: () => console.warn('⚠️ Product operation blocked: User not authenticated'),
-      refreshProductsAsync: async (): Promise<ProductOperationResult<Product[]>> => ({ 
-        success: false, 
-        error: authError 
-      }),
-      getProductsQueryKey: () => ['products', 'unauthenticated'],
-    } as any;
-  }
-  
   const productsQueryKey = productKeys.lists();
   
-  // Enhanced query with proper enabled guard and error handling (following cart pattern)
+  // ✅ ARCHITECTURAL PATTERN: Use React Query's enabled guard instead of manual auth guard
   const query = useQuery({
     queryKey: productsQueryKey,
     queryFn: async (): Promise<Product[]> => {
@@ -155,12 +123,13 @@ export const useProducts = () => {
         );
       }
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes (following cart pattern)
-    gcTime: 10 * 60 * 1000, // 10 minutes (following cart pattern)
+    // ✅ ARCHITECTURAL PATTERN: Context-appropriate cache settings for products (less volatile than cart)
+    staleTime: 3 * 60 * 1000, // 3 minutes - products change less frequently than cart
+    gcTime: 15 * 60 * 1000, // 15 minutes - longer cache retention for products
     refetchOnMount: true, // (following cart pattern)
     refetchOnWindowFocus: false, // (following cart pattern)
     refetchOnReconnect: true, // (following cart pattern)
-    enabled: !!user?.id, // Enhanced enabled guard (following cart pattern)
+    enabled: !!user?.id, // ✅ ARCHITECTURAL PATTERN: React Query handles conditional execution
     retry: (failureCount, error) => {
       // Smart retry logic (following cart pattern)
       if (failureCount < 2) return true;
@@ -232,7 +201,28 @@ export const useProducts = () => {
   });
   
   // Enhanced utility functions with useCallback (following cart pattern)
-  const getProductsQueryKey = useCallback(() => productsQueryKey, [user.id]);
+  const getProductsQueryKey = useCallback(() => productsQueryKey, [user?.id]);
+
+  // ✅ ARCHITECTURAL PATTERN: Simple conditional return based on auth state
+  if (!user?.id) {
+    return {
+      ...query,
+      data: [],
+      error: createProductError(
+        'AUTHENTICATION_REQUIRED',
+        'User not authenticated',
+        'Please sign in to view products'
+      ),
+      isError: true,
+      isRefreshing: false,
+      refreshProducts: () => console.warn('⚠️ Authentication required'),
+      refreshProductsAsync: async () => ({ 
+        success: false, 
+        error: createProductError('AUTHENTICATION_REQUIRED', 'Not authenticated', 'Please sign in') 
+      }),
+      getProductsQueryKey: () => ['products', 'unauthenticated'],
+    };
+  }
 
   return {
     ...query,
@@ -255,30 +245,7 @@ export const useProducts = () => {
 export const useProduct = (productId: string) => {
   const { data: user } = useCurrentUser();
   
-  // Enhanced authentication guard (following cart pattern)
-  if (!user?.id) {
-    const authError = createProductError(
-      'AUTHENTICATION_REQUIRED',
-      'User not authenticated',
-      'Please sign in to view product details'
-    );
-    
-    return {
-      data: null,
-      isLoading: false,
-      error: authError,
-      isError: true,
-      isSuccess: false,
-      isPending: false,
-      isLoadingError: false,
-      isRefetchError: false,
-      status: 'error' as const,
-      fetchStatus: 'idle' as const,
-      refetch: () => Promise.resolve({ data: null, isLoading: false, error: authError } as any),
-    } as any;
-  }
-  
-  return useQuery({
+  const query = useQuery({
     queryKey: productKeys.detail(productId),
     queryFn: async (): Promise<Product | null> => {
       try {
@@ -304,9 +271,11 @@ export const useProduct = (productId: string) => {
         );
       }
     },
-    enabled: !!productId && !!user?.id, // Enhanced enabled guard (following cart pattern)
-    staleTime: 5 * 60 * 1000, // (following cart pattern)
-    gcTime: 10 * 60 * 1000, // (following cart pattern)
+    // ✅ ARCHITECTURAL PATTERN: Combined enabled guard for product ID and user auth
+    enabled: !!productId && !!user?.id,
+    // ✅ ARCHITECTURAL PATTERN: Context-appropriate cache for individual products
+    staleTime: 5 * 60 * 1000, // 5 minutes - individual products may change
+    gcTime: 15 * 60 * 1000, // 15 minutes - longer retention for product details
     refetchOnMount: true, // (following cart pattern)
     refetchOnWindowFocus: false, // (following cart pattern)
     refetchOnReconnect: true, // (following cart pattern)
@@ -321,46 +290,39 @@ export const useProduct = (productId: string) => {
     },
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff (following cart pattern)
   });
+
+  // ✅ ARCHITECTURAL PATTERN: Simple conditional return for auth state
+  if (!user?.id) {
+    return {
+      ...query,
+      data: null,
+      error: createProductError(
+        'AUTHENTICATION_REQUIRED',
+        'User not authenticated',
+        'Please sign in to view product details'
+      ),
+      isError: true,
+    };
+  }
+
+  return query;
 };
 
 // Enhanced Hook for searching products (following cart pattern)
-export const useProductSearch = (query: string) => {
+export const useProductSearch = (searchQuery: string) => {
   const { data: user } = useCurrentUser();
   
-  // Enhanced authentication guard (following cart pattern)
-  if (!user?.id) {
-    const authError = createProductError(
-      'AUTHENTICATION_REQUIRED',
-      'User not authenticated',
-      'Please sign in to search products'
-    );
-    
-    return {
-      data: [],
-      isLoading: false,
-      error: authError,
-      isError: true,
-      isSuccess: false,
-      isPending: false,
-      isLoadingError: false,
-      isRefetchError: false,
-      status: 'error' as const,
-      fetchStatus: 'idle' as const,
-      refetch: () => Promise.resolve({ data: [], isLoading: false, error: authError } as any),
-    } as any;
-  }
-  
-  return useQuery({
-    queryKey: productQueryKeys.search(query),
+  const query = useQuery({
+    queryKey: productQueryKeys.search(searchQuery),
     queryFn: async (): Promise<Product[]> => {
       try {
-        const response = await searchProducts(query);
+        const response = await searchProducts(searchQuery);
         if (!response.success) {
           throw createProductError(
             'SEARCH_FAILED',
             response.error || 'Failed to search products',
             'Search failed. Please try again.',
-            { searchQuery: query }
+            { searchQuery }
           );
         }
         return response.products || [];
@@ -372,13 +334,15 @@ export const useProductSearch = (query: string) => {
           'UNKNOWN_ERROR',
           error.message || 'Failed to search products',
           'Unable to search products. Please try again.',
-          { searchQuery: query }
+          { searchQuery }
         );
       }
     },
-    enabled: !!query && query.length > 0 && !!user?.id, // Enhanced enabled guard (following cart pattern)
-    staleTime: 2 * 60 * 1000, // 2 minutes for search results (following cart pattern)
-    gcTime: 5 * 60 * 1000, // (following cart pattern)
+    // ✅ ARCHITECTURAL PATTERN: Combined enabled guard for query and user auth
+    enabled: !!searchQuery && searchQuery.length > 0 && !!user?.id,
+    // ✅ ARCHITECTURAL PATTERN: Context-appropriate cache for search results (more volatile)
+    staleTime: 1 * 60 * 1000, // 1 minute - search results change more frequently
+    gcTime: 5 * 60 * 1000, // 5 minutes - shorter retention for search
     refetchOnMount: true, // (following cart pattern)
     refetchOnWindowFocus: false, // (following cart pattern)
     refetchOnReconnect: true, // (following cart pattern)
@@ -393,6 +357,22 @@ export const useProductSearch = (query: string) => {
     },
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff (following cart pattern)
   });
+
+  // ✅ ARCHITECTURAL PATTERN: Simple conditional return for auth state
+  if (!user?.id) {
+    return {
+      ...query,
+      data: [],
+      error: createProductError(
+        'AUTHENTICATION_REQUIRED',
+        'User not authenticated',
+        'Please sign in to search products'
+      ),
+      isError: true,
+    };
+  }
+
+  return query;
 };
 
 // Enhanced Hook for fetching a single product by ID (following cart pattern)
@@ -471,42 +451,9 @@ export const useProductById = (productId: string) => {
 export const useCategories = () => {
   const { data: user } = useCurrentUser();
   const queryClient = useQueryClient();
-  
-  // Enhanced authentication guard (following cart pattern)
-  if (!user?.id) {
-    const authError = createProductError(
-      'AUTHENTICATION_REQUIRED',
-      'User not authenticated',
-      'Please sign in to view categories'
-    );
-    
-    return {
-      data: [],
-      isLoading: false,
-      error: authError,
-      isError: true,
-      isSuccess: false,
-      isPending: false,
-      isLoadingError: false,
-      isRefetchError: false,
-      status: 'error' as const,
-      fetchStatus: 'idle' as const,
-      refetch: () => Promise.resolve({ data: [], isLoading: false, error: authError } as any),
-      
-      // Enhanced mutation states
-      isRefreshing: false,
-      refreshCategories: () => console.warn('⚠️ Category operation blocked: User not authenticated'),
-      refreshCategoriesAsync: async (): Promise<ProductOperationResult<Category[]>> => ({ 
-        success: false, 
-        error: authError 
-      }),
-      getCategoriesQueryKey: () => ['categories', 'unauthenticated'],
-    } as any;
-  }
-  
   const categoriesQueryKey = productQueryKeys.categories;
   
-  // Enhanced query with proper enabled guard and error handling (following cart pattern)
+  // ✅ ARCHITECTURAL PATTERN: Use React Query's enabled guard
   const query = useQuery({
     queryKey: categoriesQueryKey,
     queryFn: async (): Promise<Category[]> => {
@@ -531,12 +478,13 @@ export const useCategories = () => {
         );
       }
     },
-    staleTime: 10 * 60 * 1000, // 10 minutes (categories change less frequently) (following cart pattern)
-    gcTime: 30 * 60 * 1000, // 30 minutes (following cart pattern)
+    // ✅ ARCHITECTURAL PATTERN: Context-appropriate cache for categories (most stable data)
+    staleTime: 10 * 60 * 1000, // 10 minutes - categories change infrequently
+    gcTime: 30 * 60 * 1000, // 30 minutes - longest cache retention
     refetchOnMount: true, // (following cart pattern)
     refetchOnWindowFocus: false, // (following cart pattern)
     refetchOnReconnect: true, // (following cart pattern)
-    enabled: !!user?.id, // Enhanced enabled guard (following cart pattern)
+    enabled: !!user?.id, // ✅ ARCHITECTURAL PATTERN: React Query handles conditional execution
     retry: (failureCount, error) => {
       // Smart retry logic (following cart pattern)
       if (failureCount < 2) return true;
@@ -608,7 +556,28 @@ export const useCategories = () => {
   });
   
   // Enhanced utility functions with useCallback (following cart pattern)
-  const getCategoriesQueryKey = useCallback(() => categoriesQueryKey, [user.id]);
+  const getCategoriesQueryKey = useCallback(() => categoriesQueryKey, [user?.id]);
+
+  // ✅ ARCHITECTURAL PATTERN: Simple conditional return based on auth state
+  if (!user?.id) {
+    return {
+      ...query,
+      data: [],
+      error: createProductError(
+        'AUTHENTICATION_REQUIRED',
+        'User not authenticated',
+        'Please sign in to view categories'
+      ),
+      isError: true,
+      isRefreshing: false,
+      refreshCategories: () => console.warn('⚠️ Authentication required'),
+      refreshCategoriesAsync: async () => ({ 
+        success: false, 
+        error: createProductError('AUTHENTICATION_REQUIRED', 'Not authenticated', 'Please sign in') 
+      }),
+      getCategoriesQueryKey: () => ['categories', 'unauthenticated'],
+    };
+  }
 
   return {
     ...query,
@@ -631,30 +600,7 @@ export const useCategories = () => {
 export const useProductsByCategory = (categoryId: string | null) => {
   const { data: user } = useCurrentUser();
   
-  // Enhanced authentication guard (following cart pattern)
-  if (!user?.id) {
-    const authError = createProductError(
-      'AUTHENTICATION_REQUIRED',
-      'User not authenticated',
-      'Please sign in to view products by category'
-    );
-    
-    return {
-      data: [],
-      isLoading: false,
-      error: authError,
-      isError: true,
-      isSuccess: false,
-      isPending: false,
-      isLoadingError: false,
-      isRefetchError: false,
-      status: 'error' as const,
-      fetchStatus: 'idle' as const,
-      refetch: () => Promise.resolve({ data: [], isLoading: false, error: authError } as any),
-    } as any;
-  }
-  
-  return useQuery({
+  const query = useQuery({
     queryKey: productQueryKeys.byCategory(categoryId),
     queryFn: async (): Promise<Product[]> => {
       try {
@@ -688,9 +634,11 @@ export const useProductsByCategory = (categoryId: string | null) => {
         );
       }
     },
-    enabled: !!categoryId && !!user?.id, // Enhanced enabled guard (following cart pattern)
-    staleTime: 5 * 60 * 1000, // (following cart pattern)
-    gcTime: 10 * 60 * 1000, // (following cart pattern)
+    // ✅ ARCHITECTURAL PATTERN: Combined enabled guard for category and user auth
+    enabled: !!categoryId && !!user?.id,
+    // ✅ ARCHITECTURAL PATTERN: Context-appropriate cache for category filtering
+    staleTime: 4 * 60 * 1000, // 4 minutes - category products change moderately
+    gcTime: 12 * 60 * 1000, // 12 minutes - moderate retention
     refetchOnMount: true, // (following cart pattern)
     refetchOnWindowFocus: false, // (following cart pattern)
     refetchOnReconnect: true, // (following cart pattern)
@@ -705,6 +653,22 @@ export const useProductsByCategory = (categoryId: string | null) => {
     },
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff (following cart pattern)
   });
+
+  // ✅ ARCHITECTURAL PATTERN: Simple conditional return for auth state
+  if (!user?.id) {
+    return {
+      ...query,
+      data: [],
+      error: createProductError(
+        'AUTHENTICATION_REQUIRED',
+        'User not authenticated',
+        'Please sign in to view products by category'
+      ),
+      isError: true,
+    };
+  }
+
+  return query;
 };
 
 // Note: Enhanced mutation hooks for product management (create/update/delete) can be added

@@ -222,6 +222,8 @@ export const createBroadcastHelper = (config: BroadcastConfig) => {
         return ['userId', 'orderId', 'status', 'fulfillmentType', 'timestamp', 'action'];
       case 'products':
         return ['productId', 'action', 'timestamp']; // No userId for global products
+      case 'auth':
+        return ['userId', 'email', 'timestamp', 'action']; // Auth events need userId for user-specific channels
       default:
         return ['timestamp', 'action']; // Minimal safe fields
     }

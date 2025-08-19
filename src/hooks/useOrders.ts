@@ -69,37 +69,11 @@ export const useCustomerOrders = (userEmail?: string): UseQueryResult<Order[], E
   const { data: user } = useCurrentUser();
   const effectiveUserEmail = userEmail || user?.email;
   
-  // Enhanced authentication guard (following cart pattern)
-  if (!effectiveUserEmail) {
-    return {
-      data: [] as Order[],
-      isLoading: false,
-      isError: false,
-      error: null,
-      isSuccess: true,
-      isPending: false,
-      isLoadingError: false,
-      isRefetchError: false,
-      status: 'success' as const,
-      fetchStatus: 'idle' as const,
-      refetch: () => Promise.resolve({ data: [] as Order[], isLoading: false, error: null } as any),
-    } as UseQueryResult<Order[], Error>;
-  }
-
-  return useQuery<Order[], Error>({
+  const query = useQuery<Order[], Error>({
     queryKey: ['orders', 'user', effectiveUserEmail] as const,
     queryFn: async (): Promise<Order[]> => {
-      // Authentication guard (following cart pattern)
-      if (!effectiveUserEmail) {
-        throw createOrderError(
-          'UNAUTHORIZED',
-          'No authenticated user',
-          'Please sign in to view your orders.'
-        );
-      }
-
       try {
-        const orders = await OrderService.getCustomerOrders(effectiveUserEmail);
+        const orders = await OrderService.getCustomerOrders(effectiveUserEmail!);
         return orders || [];
       } catch (error: any) {
         // Enhanced error classification (following cart pattern)
@@ -127,9 +101,38 @@ export const useCustomerOrders = (userEmail?: string): UseQueryResult<Order[], E
         );
       }
     },
-    ...defaultQueryConfig,
+    // ✅ ARCHITECTURAL PATTERN: Context-appropriate cache for customer orders
+    staleTime: 1 * 60 * 1000, // 1 minute - orders change frequently
+    gcTime: 5 * 60 * 1000, // 5 minutes - moderate retention for user orders
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
+    // ✅ ARCHITECTURAL PATTERN: React Query handles conditional execution
     enabled: !!effectiveUserEmail,
+    retry: (failureCount: number, error: any) => {
+      // Don't retry on unauthorized errors (following cart pattern)
+      if ((error as OrderError).code === 'UNAUTHORIZED') {
+        return false;
+      }
+      return failureCount < 2;
+    },
+    retryDelay: 1000,
   });
+
+  // ✅ ARCHITECTURAL PATTERN: Simple conditional return based on auth state
+  if (!effectiveUserEmail) {
+    return {
+      ...query,
+      data: [],
+      error: createOrderError(
+        'UNAUTHORIZED',
+        'No authenticated user',
+        'Please sign in to view your orders.'
+      ),
+      isError: true,
+    } as UseQueryResult<Order[], Error>;
+  }
+
+  return query;
 };
 
 /**
@@ -138,7 +141,7 @@ export const useCustomerOrders = (userEmail?: string): UseQueryResult<Order[], E
 export const useOrders = (filters: OrderFilters = {}): UseQueryResult<Order[], Error> => {
   const { data: user } = useCurrentUser();
   
-  return useQuery<Order[], Error>({
+  const query = useQuery<Order[], Error>({
     queryKey: orderKeys.list(filters),
     queryFn: async (): Promise<Order[]> => {
       try {
@@ -170,8 +173,24 @@ export const useOrders = (filters: OrderFilters = {}): UseQueryResult<Order[], E
         );
       }
     },
-    ...defaultQueryConfig,
+    // ✅ ARCHITECTURAL PATTERN: Context-appropriate cache for admin orders
+    staleTime: 30 * 1000, // 30 seconds - admin orders change very frequently
+    gcTime: 2 * 60 * 1000, // 2 minutes - shorter retention for admin views
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
+    // ✅ ARCHITECTURAL PATTERN: Admin queries don't need user auth (service handles it)
+    enabled: true,
+    retry: (failureCount: number, error: any) => {
+      // Don't retry on unauthorized errors (following cart pattern)
+      if ((error as OrderError).code === 'UNAUTHORIZED') {
+        return false;
+      }
+      return failureCount < 2;
+    },
+    retryDelay: 1000,
   });
+
+  return query;
 };
 
 /**
@@ -180,18 +199,9 @@ export const useOrders = (filters: OrderFilters = {}): UseQueryResult<Order[], E
 export const useOrder = (orderId: string): UseQueryResult<Order | null, Error> => {
   const { data: user } = useCurrentUser();
   
-  return useQuery<Order | null, Error>({
+  const query = useQuery<Order | null, Error>({
     queryKey: orderKeys.detail(orderId),
     queryFn: async (): Promise<Order | null> => {
-      // Authentication guard (following cart pattern)
-      if (!orderId) {
-        throw createOrderError(
-          'INVALID_ORDER',
-          'No order ID provided',
-          'Order ID is required to fetch order details.'
-        );
-      }
-
       try {
         const order = await OrderService.getOrder(orderId);
         return order || null;
@@ -229,9 +239,38 @@ export const useOrder = (orderId: string): UseQueryResult<Order | null, Error> =
         );
       }
     },
-    ...defaultQueryConfig,
-    enabled: !!orderId, // Only run if orderId is provided
+    // ✅ ARCHITECTURAL PATTERN: Context-appropriate cache for individual orders
+    staleTime: 2 * 60 * 1000, // 2 minutes - individual orders change moderately
+    gcTime: 10 * 60 * 1000, // 10 minutes - longer retention for order details
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
+    // ✅ ARCHITECTURAL PATTERN: Combined enabled guard for orderId
+    enabled: !!orderId,
+    retry: (failureCount: number, error: any) => {
+      // Don't retry on unauthorized errors (following cart pattern)
+      if ((error as OrderError).code === 'UNAUTHORIZED') {
+        return false;
+      }
+      return failureCount < 2;
+    },
+    retryDelay: 1000,
   });
+
+  // ✅ ARCHITECTURAL PATTERN: Simple conditional return for validation
+  if (!orderId) {
+    return {
+      ...query,
+      data: null,
+      error: createOrderError(
+        'INVALID_ORDER',
+        'No order ID provided',
+        'Order ID is required to fetch order details.'
+      ),
+      isError: true,
+    } as UseQueryResult<Order | null, Error>;
+  }
+
+  return query;
 };
 
 /**
@@ -270,8 +309,21 @@ export const useOrderStats = () => {
         );
       }
     },
-    ...defaultQueryConfig,
-    staleTime: 1 * 60 * 1000, // Stats can be slightly more stale
+    // ✅ ARCHITECTURAL PATTERN: Context-appropriate cache for statistics (can be more stale)
+    staleTime: 2 * 60 * 1000, // 2 minutes - stats change less frequently
+    gcTime: 10 * 60 * 1000, // 10 minutes - longer retention for stats
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
+    // ✅ ARCHITECTURAL PATTERN: Admin stats don't need user auth (service handles it)
+    enabled: true,
+    retry: (failureCount: number, error: any) => {
+      // Don't retry on unauthorized errors (following cart pattern)
+      if ((error as OrderError).code === 'UNAUTHORIZED') {
+        return false;
+      }
+      return failureCount < 2;
+    },
+    retryDelay: 1000,
   });
 };
 
@@ -281,18 +333,9 @@ export const useOrderStats = () => {
 export const useUserOrders = (userId: string): UseQueryResult<Order[], Error> => {
   const { data: currentUser } = useCurrentUser();
   
-  return useQuery<Order[], Error>({
+  const query = useQuery<Order[], Error>({
     queryKey: ['orders', 'user', userId] as const,
     queryFn: async (): Promise<Order[]> => {
-      // Authentication guard (following cart pattern)
-      if (!userId) {
-        throw createOrderError(
-          'INVALID_ORDER',
-          'No user ID provided',
-          'User ID is required to fetch orders.'
-        );
-      }
-
       try {
         const orders = await OrderService.getCustomerOrders(userId);
         return orders || [];
@@ -322,9 +365,38 @@ export const useUserOrders = (userId: string): UseQueryResult<Order[], Error> =>
         );
       }
     },
-    ...defaultQueryConfig,
+    // ✅ ARCHITECTURAL PATTERN: Context-appropriate cache for user-specific orders
+    staleTime: 1 * 60 * 1000, // 1 minute - user orders change frequently
+    gcTime: 5 * 60 * 1000, // 5 minutes - moderate retention
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
+    // ✅ ARCHITECTURAL PATTERN: Combined enabled guard for userId
     enabled: !!userId,
+    retry: (failureCount: number, error: any) => {
+      // Don't retry on unauthorized errors (following cart pattern)
+      if ((error as OrderError).code === 'UNAUTHORIZED') {
+        return false;
+      }
+      return failureCount < 2;
+    },
+    retryDelay: 1000,
   });
+
+  // ✅ ARCHITECTURAL PATTERN: Simple conditional return for validation
+  if (!userId) {
+    return {
+      ...query,
+      data: [],
+      error: createOrderError(
+        'INVALID_ORDER',
+        'No user ID provided',
+        'User ID is required to fetch orders.'
+      ),
+      isError: true,
+    } as UseQueryResult<Order[], Error>;
+  }
+
+  return query;
 };
 
 /**

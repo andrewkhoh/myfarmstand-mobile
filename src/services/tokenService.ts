@@ -101,44 +101,16 @@ export class TokenService {
 
   static async clearAllTokens(): Promise<void> {
     try {
-      console.log('🧹 Starting aggressive token cleanup...');
+      console.log('🧹 Starting simple token cleanup...');
       
       if (this.isSecureStoreAvailable()) {
-        console.log('📱 Device detected - using SecureStore cleanup');
-        
-        // Aggressive SecureStore cleanup for devices
-        const cleanupPromises = [
-          SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY).catch((e) => {
-            console.log('⚠️ Access token cleanup:', e.message);
-          }),
-          SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY).catch((e) => {
-            console.log('⚠️ Refresh token cleanup:', e.message);
-          }),
-          SecureStore.deleteItemAsync(USER_KEY).catch((e) => {
-            console.log('⚠️ User data cleanup:', e.message);
-          }),
-        ];
-        
-        await Promise.all(cleanupPromises);
-        
-        // Double-check cleanup by trying to read values
-        const accessToken = await this.getAccessToken();
-        const refreshToken = await this.getRefreshToken();
-        const user = await this.getUser();
-        
-        if (accessToken || refreshToken || user) {
-          console.warn('⚠️ Some tokens still present after cleanup, forcing removal...');
-          // Force cleanup with additional attempts
-          await Promise.all([
-            SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY).catch(() => {}),
-            SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY).catch(() => {}),
-            SecureStore.deleteItemAsync(USER_KEY).catch(() => {}),
-          ]);
-        }
-        
+        await Promise.all([
+          SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY).catch(() => {}),
+          SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY).catch(() => {}),
+          SecureStore.deleteItemAsync(USER_KEY).catch(() => {}),
+        ]);
         console.log('✅ SecureStore cleanup completed');
       } else {
-        console.log('💻 Web/Simulator detected - using AsyncStorage cleanup');
         await Promise.all([
           AsyncStorage.removeItem(ACCESS_TOKEN_KEY),
           AsyncStorage.removeItem(REFRESH_TOKEN_KEY),

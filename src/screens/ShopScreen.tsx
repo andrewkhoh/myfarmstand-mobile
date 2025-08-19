@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef } from 'react';
 import { View, StyleSheet, FlatList, TextInput, RefreshControl, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -7,6 +7,7 @@ import { Screen, Text, Card, Button } from '../components';
 import { ProductCard } from '../components/ProductCard';
 import { useProducts, useCategories } from '../hooks/useProducts';
 import { useCart } from '../hooks/useCart';
+import { useKioskContext } from '../contexts';
 import { spacing, colors, borderRadius } from '../utils/theme';
 import { Product, RootStackParamList } from '../types';
 import { getProductCategoryId } from '../utils/typeMappers';
@@ -18,11 +19,16 @@ type SortOption = 'name' | 'price-low' | 'price-high' | 'category';
 export const ShopScreen: React.FC = () => {
   const navigation = useNavigation<ShopScreenNavigationProp>();
   const { addItem, getCartQuantity } = useCart(); // Use centralized getCartQuantity from useCart
+  const { startAuthentication, isKioskMode, sessionId, staffName } = useKioskContext();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [sortBy, setSortBy] = useState<SortOption>('name');
   const [refreshing, setRefreshing] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  
+  // Hidden kiosk activation
+  const [tapCount, setTapCount] = useState(0);
+  const tapTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Get real data from Supabase
   const { data: products = [], isLoading: productsLoading, error: productsError, refetch: refetchProducts } = useProducts();
@@ -164,6 +170,27 @@ export const ShopScreen: React.FC = () => {
     }
   };
 
+  // Hidden kiosk activation - 5 quick taps on title
+  const handleTitlePress = () => {
+    if (tapTimeoutRef.current) {
+      clearTimeout(tapTimeoutRef.current);
+    }
+    
+    const newTapCount = tapCount + 1;
+    setTapCount(newTapCount);
+    
+    if (newTapCount >= 5) {
+      // 5 taps reached - show kiosk authentication
+      setTapCount(0);
+      startAuthentication();
+    } else {
+      // Reset tap count after 2 seconds
+      tapTimeoutRef.current = setTimeout(() => {
+        setTapCount(0);
+      }, 2000);
+    }
+  };
+
   const renderProduct = ({ item }: { item: Product }) => (
     <ProductCard
       product={item}
@@ -229,9 +256,16 @@ export const ShopScreen: React.FC = () => {
 
   const renderHeader = () => (
     <View style={styles.header}>
-      <Text variant="heading1" style={styles.title}>
-        🌱 Farm Stand
-      </Text>
+      <TouchableOpacity onPress={handleTitlePress} activeOpacity={0.9}>
+        <Text variant="heading1" style={styles.title}>
+          🌱 Farm Stand
+        </Text>
+        {isKioskMode && (
+          <Text variant="caption" style={styles.kioskIndicator}>
+            Kiosk Mode • {staffName}
+          </Text>
+        )}
+      </TouchableOpacity>
       
       <Card variant="elevated" style={styles.searchCard}>
         <View style={styles.searchRow}>
@@ -319,21 +353,14 @@ export const ShopScreen: React.FC = () => {
     </View>
   );
 
-  // Show loading state
-  if (productsLoading || categoriesLoading) {
-    return (
-      <Screen>
+  // ✅ PATTERN: Single return with conditional rendering to avoid React Hooks violations
+  return (
+    <Screen>
+      {(productsLoading || categoriesLoading) ? (
         <View style={styles.loadingContainer}>
           <Text variant="heading3" align="center">Loading products...</Text>
         </View>
-      </Screen>
-    );
-  }
-
-  // Show error state
-  if (productsError) {
-    return (
-      <Screen>
+      ) : productsError ? (
         <View style={styles.errorContainer}>
           <Text variant="heading3" align="center" color="error">Error loading products</Text>
           <Text variant="body" align="center" color="secondary" style={{ marginTop: 8 }}>
@@ -345,29 +372,25 @@ export const ShopScreen: React.FC = () => {
             style={{ marginTop: 16 }}
           />
         </View>
-      </Screen>
-    );
-  }
-
-  return (
-    <Screen>
-      <FlatList
-        data={filteredAndSortedProducts}
-        renderItem={renderProduct}
-        keyExtractor={(item) => item.id}
-        ListHeaderComponent={renderHeader}
-        ListEmptyComponent={renderEmptyState}
-        contentContainerStyle={styles.container}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            colors={[colors.primary[600]]}
-            tintColor={colors.primary[600]}
-          />
-        }
-      />
+      ) : (
+        <FlatList
+          data={filteredAndSortedProducts}
+          renderItem={renderProduct}
+          keyExtractor={(item) => item.id}
+          ListHeaderComponent={renderHeader}
+          ListEmptyComponent={renderEmptyState}
+          contentContainerStyle={styles.container}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={[colors.primary[600]]}
+              tintColor={colors.primary[600]}
+            />
+          }
+        />
+      )}
     </Screen>
   );
 };
@@ -383,6 +406,12 @@ const styles = StyleSheet.create({
   title: {
     marginBottom: spacing.md,
     textAlign: 'center',
+  },
+  kioskIndicator: {
+    textAlign: 'center',
+    color: colors.primary[600],
+    marginTop: spacing.xs,
+    fontWeight: '500',
   },
   searchCard: {
     marginBottom: spacing.md,

@@ -2,7 +2,7 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { useCurrentUser } from '../hooks/useAuth';
-import { Loading } from '../components';
+import { Loading, KioskStaffAuth } from '../components';
 import { MainTabNavigator } from '../navigation/MainTabNavigator';
 import { LoginScreen, RegisterScreen, ProductDetailScreen, CheckoutScreen, OrderConfirmationScreen } from '../screens';
 import { RootStackParamList } from '../types';
@@ -12,6 +12,8 @@ const Stack = createStackNavigator<RootStackParamList>();
 export const AppNavigator: React.FC = () => {
   const { data: user, isLoading, error } = useCurrentUser();
   const isAuthenticated = !!user && !error;
+
+  console.log('🔍 AppNavigator - user:', user?.email, 'authenticated:', isAuthenticated);
 
   if (isLoading) {
     return <Loading message="Loading..." />;
@@ -46,6 +48,9 @@ export const AppNavigator: React.FC = () => {
           </>
         )}
       </Stack.Navigator>
+      
+      {/* Kiosk Staff Authentication Modal - Available everywhere */}
+      <KioskStaffAuth />
     </NavigationContainer>
   );
 };

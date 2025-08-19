@@ -72,54 +72,7 @@ export const useCart = () => {
   const queryClient = useQueryClient();
   const { data: user } = useCurrentUser();
   
-  // Enhanced authentication guard with proper error handling
-  if (!user?.id) {
-    const authError = createCartError(
-      'AUTHENTICATION_REQUIRED',
-      'User not authenticated',
-      'Please sign in to use the cart',
-    );
-    
-    return {
-      items: [],
-      total: 0,
-      isLoading: false,
-      error: authError,
-      
-      isAddingItem: false,
-      isRemovingItem: false,
-      isUpdatingQuantity: false,
-      isClearingCart: false,
-      
-      addItem: () => console.warn('⚠️ Cart operation blocked: User not authenticated'),
-      removeItem: () => console.warn('⚠️ Cart operation blocked: User not authenticated'),
-      updateQuantity: () => console.warn('⚠️ Cart operation blocked: User not authenticated'),
-      clearCart: () => console.warn('⚠️ Cart operation blocked: User not authenticated'),
-      
-      addItemAsync: async (): Promise<CartOperationResult> => ({ 
-        success: false, 
-        error: authError 
-      }),
-      removeItemAsync: async (): Promise<CartOperationResult> => ({ 
-        success: false, 
-        error: authError 
-      }),
-      updateQuantityAsync: async (): Promise<CartOperationResult> => ({ 
-        success: false, 
-        error: authError 
-      }),
-      clearCartAsync: async (): Promise<CartOperationResult> => ({ 
-        success: false, 
-        error: authError 
-      }),
-      
-      getCartQuantity: () => 0,
-      refetch: () => Promise.resolve(),
-      getCartQueryKey: () => ['cart', 'unauthenticated'],
-    };
-  }
-  
-  const cartQueryKey = cartKeys.all(user.id);
+  const cartQueryKey = cartKeys.all(user?.id || 'anonymous');
 
   // Enhanced query with proper enabled guard and error handling
   const {
@@ -528,7 +481,54 @@ export const useCart = () => {
     return cartItem?.quantity || 0;
   };
 
-  const getCartQueryKey = useCallback(() => cartKeys.all(user.id), [user.id]);
+  const getCartQueryKey = useCallback(() => cartKeys.all(user?.id || 'anonymous'), [user?.id]);
+
+  // 🔒 Authentication guard - applied after all hooks are called
+  if (!user?.id) {
+    const authError = createCartError(
+      'AUTHENTICATION_REQUIRED',
+      'User not authenticated',
+      'Please sign in to use the cart',
+    );
+    
+    return {
+      items: [],
+      total: 0,
+      isLoading: false,
+      error: authError,
+      
+      isAddingItem: false,
+      isRemovingItem: false,
+      isUpdatingQuantity: false,
+      isClearingCart: false,
+      
+      addItem: () => console.warn('⚠️ Cart operation blocked: User not authenticated'),
+      removeItem: () => console.warn('⚠️ Cart operation blocked: User not authenticated'),
+      updateQuantity: () => console.warn('⚠️ Cart operation blocked: User not authenticated'),
+      clearCart: () => console.warn('⚠️ Cart operation blocked: User not authenticated'),
+      
+      addItemAsync: async (): Promise<CartOperationResult> => ({ 
+        success: false, 
+        error: authError 
+      }),
+      removeItemAsync: async (): Promise<CartOperationResult> => ({ 
+        success: false, 
+        error: authError 
+      }),
+      updateQuantityAsync: async (): Promise<CartOperationResult> => ({ 
+        success: false, 
+        error: authError 
+      }),
+      clearCartAsync: async (): Promise<CartOperationResult> => ({ 
+        success: false, 
+        error: authError 
+      }),
+      
+      getCartQuantity: () => 0,
+      refetch: () => Promise.resolve(),
+      getCartQueryKey: () => ['cart', 'unauthenticated'],
+    };
+  }
 
   return {
     items: cart.items,

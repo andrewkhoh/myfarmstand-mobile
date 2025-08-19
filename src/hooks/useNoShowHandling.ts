@@ -58,18 +58,9 @@ export const useNoShowHandling = () => {
   const queryClient = useQueryClient();
   const { data: user } = useCurrentUser();
 
-  // Enhanced process no-show orders mutation (following cart pattern)
+  // ✅ ARCHITECTURAL PATTERN: Mutation doesn't need enabled, auth is handled in service
   const processNoShowMutation = useMutation<NoShowOperationResult<any>, Error, any, NoShowMutationContext>({
     mutationFn: async (config?: any): Promise<NoShowOperationResult<any>> => {
-      // Authentication guard (following cart pattern)
-      if (!user?.id) {
-        throw createNoShowError(
-          'UNAUTHORIZED',
-          'No authenticated user',
-          'Please sign in to process no-show orders.'
-        );
-      }
-
       try {
         const result = await NoShowHandlingService.processNoShowOrders(config);
         return { success: true, data: result };
@@ -80,7 +71,7 @@ export const useNoShowHandling = () => {
             'UNAUTHORIZED',
             error.message,
             'Access denied. Admin privileges required.',
-            { config, userId: user.id }
+            { config, userId: user?.id }
           );
         }
         if (error.message?.includes('invalid') || error.message?.includes('config')) {
@@ -184,18 +175,9 @@ export const useNoShowHandling = () => {
     // ✅ NO onSettled - invalidation happens in onSuccess only (following cart pattern)
   });
 
-  // Enhanced check for overdue orders mutation (following cart pattern)
+  // ✅ ARCHITECTURAL PATTERN: Mutation handles auth through service layer
   const checkOverdueOrdersMutation = useMutation<NoShowOperationResult<any>, Error, void, NoShowMutationContext>({
     mutationFn: async (): Promise<NoShowOperationResult<any>> => {
-      // Authentication guard (following cart pattern)
-      if (!user?.id) {
-        throw createNoShowError(
-          'UNAUTHORIZED',
-          'No authenticated user',
-          'Please sign in to check overdue orders.'
-        );
-      }
-
       try {
         // Enhanced overdue check with actual service call (can be implemented later)
         console.log('Checking for overdue orders...');
@@ -212,7 +194,7 @@ export const useNoShowHandling = () => {
             'UNAUTHORIZED',
             error.message,
             'Access denied. Admin privileges required.',
-            { userId: user.id }
+            { userId: user?.id }
           );
         }
         if (error.message?.includes('network')) {
@@ -280,18 +262,9 @@ export const useNoShowHandling = () => {
     retryDelay: 1000,
   });
 
-  // Enhanced check if order qualifies as no-show (following cart pattern)
+  // ✅ ARCHITECTURAL PATTERN: Client-side utility function handles auth gracefully
   const checkNoShowEligibility = useCallback(async (orderId: string) => {
     try {
-      // Authentication guard (following cart pattern)
-      if (!user?.id) {
-        throw createNoShowError(
-          'UNAUTHORIZED',
-          'No authenticated user',
-          'Please sign in to check eligibility.'
-        );
-      }
-
       if (!orderId) {
         throw createNoShowError(
           'ORDER_NOT_FOUND',
@@ -340,6 +313,37 @@ export const useNoShowHandling = () => {
     (orderId: string) => noShowKeys.checks(orderId),
     []
   );
+
+  // ✅ ARCHITECTURAL PATTERN: Simple conditional return for auth state
+  if (!user?.id) {
+    const authError = createNoShowError(
+      'UNAUTHORIZED',
+      'No authenticated user',
+      'Please sign in to access no-show handling.'
+    );
+    
+    return {
+      isProcessingNoShow: false,
+      isCheckingOverdue: false,
+      isLoading: false,
+      processError: authError,
+      checkError: authError,
+      
+      // Safe no-op functions
+      processNoShowOrders: () => console.warn('⚠️ Authentication required'),
+      processNoShowOrdersAsync: async () => ({ success: false, error: authError }),
+      checkOverdueOrders: () => console.warn('⚠️ Authentication required'),
+      checkOverdueOrdersAsync: async () => ({ success: false, error: authError }),
+      checkNoShowEligibility: async () => ({ isEligible: false, reason: 'Please sign in' }),
+      
+      getNoShowQueryKey: () => ['noshow', 'unauthenticated'],
+      getOverdueQueryKey: () => ['noshow', 'overdue', 'unauthenticated'],
+      getProcessingQueryKey: () => ['noshow', 'processing', 'unauthenticated'],
+      
+      resetProcessError: () => {},
+      resetCheckError: () => {},
+    };
+  }
 
   return {
     // Enhanced mutation states (following cart pattern)
