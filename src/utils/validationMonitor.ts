@@ -32,6 +32,7 @@ export interface ValidationErrorDetails {
   fieldPath?: string;
   receivedValue?: unknown;
   expectedType?: string;
+  validationPattern?: 'direct_schema' | 'simple_validation' | 'transformation_schema';
 }
 
 export interface DataQualityIssueDetails {
@@ -137,6 +138,67 @@ export class ValidationMonitor {
         console.info(`${this.LOG_PREFIX} Minor data quality issue`, logData);
         break;
     }
+  }
+
+  /**
+   * Record validation pattern compliance issues
+   * Helps monitor adherence to established validation patterns (Phase 3 enhancement)
+   */
+  static recordPatternComplianceIssue(details: {
+    service: string;
+    pattern: 'cartService' | 'direct_supabase' | 'simple_validation' | 'transformation_schema';
+    issue: string;
+    severity: 'info' | 'warning' | 'error';
+    recommendation?: string;
+  }): void {
+    this.metrics.dataQualityIssues++;
+    this.updateTimestamp();
+
+    const logData = {
+      timestamp: new Date().toISOString(),
+      type: 'PATTERN_COMPLIANCE_ISSUE',
+      details: {
+        ...details,
+        category: 'validation_pattern_adherence'
+      }
+    };
+
+    switch (details.severity) {
+      case 'error':
+        console.error(`${this.LOG_PREFIX} Pattern compliance error in ${details.service}`, logData);
+        break;
+      case 'warning':
+        console.warn(`${this.LOG_PREFIX} Pattern compliance warning in ${details.service}`, logData);
+        break;
+      case 'info':
+        console.info(`${this.LOG_PREFIX} Pattern compliance info for ${details.service}`, logData);
+        break;
+    }
+  }
+
+  /**
+   * Record successful pattern usage (positive monitoring)
+   * Helps track adoption of best practices
+   */
+  static recordPatternSuccess(details: {
+    service: string;
+    pattern: 'direct_schema_validation' | 'transformation_schema' | 'simple_input_validation' | 'direct_supabase_query';
+    operation: string;
+    performanceMs?: number;
+  }): void {
+    // Don't increment error counters for success events
+    this.updateTimestamp();
+
+    const logData = {
+      timestamp: new Date().toISOString(),
+      type: 'PATTERN_SUCCESS',
+      details: {
+        ...details,
+        category: 'validation_pattern_success'
+      }
+    };
+
+    console.info(`${this.LOG_PREFIX} Successful pattern usage in ${details.service}.${details.operation}`, logData);
   }
 
   /**

@@ -16,7 +16,7 @@ describe('ProductService', () => {
       description: 'A test product for testing',
       price: 10.00,
       stock_quantity: 5,
-      category_id: 'cat-1',
+      category: 'Test Category',
       is_available: true,
       created_at: '2023-01-01T00:00:00Z',
       updated_at: '2023-01-01T00:00:00Z'
@@ -27,7 +27,7 @@ describe('ProductService', () => {
       description: 'Another test product',
       price: 15.00,
       stock_quantity: 0,
-      category_id: 'cat-2',
+      category: 'Test Category',
       is_available: false,
       created_at: '2023-01-01T00:00:00Z',
       updated_at: '2023-01-01T00:00:00Z'
@@ -45,23 +45,13 @@ describe('ProductService', () => {
     mockSupabase.from.mockReturnValue({
       select: jest.fn().mockReturnValue({
         eq: jest.fn().mockReturnValue({
-          eq: jest.fn().mockReturnValue({
-            order: jest.fn().mockResolvedValue({
-              data: availableProducts.map(p => ({
-                ...p,
-                categories: {
-                  id: p.category_id,
-                  name: 'Test Category',
-                  description: 'Test Description',
-                  image_url: null,
-                  sort_order: 1,
-                  is_available: true,
-                  created_at: new Date().toISOString(),
-                  updated_at: new Date().toISOString()
-                }
-              })),
-              error: null
-            })
+          order: jest.fn().mockResolvedValue({
+            data: availableProducts.map(p => ({
+              ...p,
+              // Simplified structure - no categories join
+              category: 'Test Category' // Simple category name
+            })),
+            error: null
           })
         })
       })

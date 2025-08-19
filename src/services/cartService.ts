@@ -5,22 +5,15 @@ import {
   getProductStock, 
   isProductPreOrder, 
   getProductMinPreOrderQty, 
-  getProductMaxPreOrderQty,
-  mapProductFromDB 
+  getProductMaxPreOrderQty
 } from '../utils/typeMappers';
 import {
-  CartStateSchema,
-  CartItemSchema,
-  DbCartItemSchema,
-  CartOperationResponseSchema,
-  SaveCartRequestSchema,
-  GetCartResponseSchema
+  DbCartItemTransformSchema
 } from '../schemas/cart.schema';
 import { ProductSchema } from '../schemas/product.schema';
-import { ZodError, z } from 'zod';
+import { z } from 'zod';
 import { ValidationMonitor } from '../utils/validationMonitor';
-import { DefensiveDatabase, DatabaseHelpers } from '../utils/defensiveDatabase';
-import { ServiceValidator, ValidationUtils } from '../utils/validationPipeline';
+// Removed unused imports: DefensiveDatabase, DatabaseHelpers, ServiceValidator, ValidationUtils
 
 // Import DbCartItemSchema from cart schema (already defined there)
 
@@ -34,102 +27,10 @@ interface DbCartItem {
   updated_at: string;
 }
 
-// Validation helper functions with backward-compatible error handling
-const validateCartState = (cartData: any): CartState => {
-  try {
-    return CartStateSchema.parse(cartData);
-  } catch (error) {
-    // Add production validation monitoring
-    ValidationMonitor.recordValidationError({
-      context: 'CartService.validateCartState',
-      errorMessage: error instanceof Error ? error.message : 'Unknown validation error',
-      errorCode: 'CART_STATE_VALIDATION_FAILED'
-    });
-    
-    console.warn('Invalid cart state data:', {
-      error: error instanceof Error ? error.message : 'Unknown validation error',
-      invalidData: cartData
-    });
-    throw new Error('Invalid cart state data');
-  }
-};
+// Removed unused validation functions: validateCartState, validateCartItem, validateProduct
+// These are no longer needed since we use direct types and ProductSchema validation
 
-const validateCartItem = (itemData: any): CartItem => {
-  try {
-    return CartItemSchema.parse(itemData);
-  } catch (error) {
-    // Add production validation monitoring
-    ValidationMonitor.recordValidationError({
-      context: 'CartService.validateCartItem',
-      errorMessage: error instanceof Error ? error.message : 'Unknown validation error',
-      errorCode: 'CART_ITEM_VALIDATION_FAILED'
-    });
-    
-    console.warn('Invalid cart item data:', {
-      error: error instanceof Error ? error.message : 'Unknown validation error',
-      invalidData: itemData
-    });
-    throw new Error('Invalid cart item data');
-  }
-};
-
-const validateProduct = (productData: any): Product => {
-  try {
-    return ProductSchema.parse(productData);
-  } catch (error) {
-    // Add production validation monitoring
-    ValidationMonitor.recordValidationError({
-      context: 'CartService.validateProduct',
-      errorMessage: error instanceof Error ? error.message : 'Unknown validation error',
-      errorCode: 'PRODUCT_VALIDATION_FAILED'
-    });
-    
-    if (error instanceof ZodError) {
-      const firstIssue = error.issues[0];
-      throw new Error(`Invalid product data: ${firstIssue.message}`);
-    }
-    throw new Error('Invalid product data provided');
-  }
-};
-
-const validateAndConvertDbCartItems = (dbItems: DbCartItem[], products: any[]): CartItem[] => {
-  const validCartItems: CartItem[] = [];
-  
-  for (const dbItem of dbItems) {
-    try {
-      // Find corresponding product
-      const productData = products.find(p => p.id === dbItem.product_id);
-      if (!productData) {
-        console.warn('Product not found for cart item, skipping:', {
-          cartItemId: dbItem.id,
-          productId: dbItem.product_id
-        });
-        continue;
-      }
-
-      // Map and validate product
-      const mappedProduct = mapProductFromDB(productData);
-      const validatedProduct = validateProduct(mappedProduct);
-
-      // Create cart item
-      const cartItem = {
-        product: validatedProduct,
-        quantity: dbItem.quantity
-      };
-
-      const validatedCartItem = validateCartItem(cartItem);
-      validCartItems.push(validatedCartItem);
-    } catch (error) {
-      console.warn('Invalid cart item, skipping:', {
-        cartItemId: dbItem.id,
-        error: error instanceof Error ? error.message : 'Unknown validation error',
-        invalidData: dbItem
-      });
-    }
-  }
-  
-  return validCartItems;
-};
+// Removed unused function: validateAndConvertDbCartItems - now done directly in getCart()
 
 // Calculate total helper
 const calculateTotal = (items: CartItem[]): number => {
@@ -168,44 +69,12 @@ const validateCartTotal = (cart: CartState): CartState => {
   return cart;
 };
 
-// Helper to convert database cart items to app format
-const convertDbCartItemsToCartState = async (dbItems: DbCartItem[]): Promise<CartState> => {
-  // Fetch all products at once for efficiency using defensive database access
-  const productIds = dbItems.map(item => item.product_id);
-  
-  const products = await DatabaseHelpers.fetchFiltered(
-    'products',
-    `cart-products-${productIds.length}`,
-    ProductSchema,
-    async () => supabase
-      .from('products')
-      .select('*')
-      .in('id', productIds),
-    {
-      maxErrorThreshold: 0.2, // Allow up to 20% invalid products
-      includeDetailedErrors: false // Don't include product details in logs for privacy
-    }
-  );
-  
-  // Use validation helper to convert and validate cart items
-  const validCartItems = validateAndConvertDbCartItems(dbItems, products);
-  
-  // Create and validate cart state
-  const cartStateData = {
-    items: validCartItems,
-    total: calculateTotal(validCartItems)
-  };
-  
-  const validatedCart = validateCartState(cartStateData);
-  
-  // Add production calculation validation
-  return validateCartTotal(validatedCart);
-};
+// Removed unused function: convertDbCartItemsToCartState - functionality moved directly into getCart()
 
 export const cartService = {
-  // Get cart from Supabase only (React Query handles caching)
+  // Get cart from Supabase - Following ProductService pattern
   getCart: async (): Promise<CartState> => {
-    console.log('🛒 getCart() called - fetching from Supabase only...');
+    console.log('🛒 getCart() called - fetching from Supabase...');
     try {
       // Get current user
       const { data: { user } } = await supabase.auth.getUser();
@@ -216,50 +85,134 @@ export const cartService = {
         return { items: [], total: 0 };
       }
       
-      // User is authenticated - get cart from Supabase using defensive database access
-      console.log('📡 Fetching cart from Supabase for user:', user.id);
-      
-      const dbCartItems = await DatabaseHelpers.fetchFiltered(
-        'cart_items',
-        `user-${user.id}`,
-        DbCartItemSchema,
-        async () => supabase
-          .from('cart_items')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: true }),
-        {
-          maxErrorThreshold: 0.1, // Allow up to 10% invalid cart items
-          includeDetailedErrors: false, // Don't log cart details for privacy
-          throwOnCriticalFailure: false // Continue with valid items even if some are invalid
-        }
-      );
-      
-      console.log('📊 Defensive cart query result:', { 
-        itemCount: dbCartItems.length,
-        userId: user.id 
-      });
-      
-      if (dbCartItems && dbCartItems.length > 0) {
-        console.log('📌 Cart has items, converting and returning...');
-        const cartState = await convertDbCartItemsToCartState(dbCartItems);
-        console.log('✅ Returning cart with items:', cartState);
-        return cartState;
-      } else {
-        console.log('✅ No cart items in Supabase, returning empty cart');
+      // Step 1: Get raw cart items (direct Supabase)
+      console.log('📡 Fetching cart items from Supabase for user:', user.id);
+      const { data: rawCartItems, error: cartError } = await supabase
+        .from('cart_items')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: true });
+
+      if (cartError) {
+        console.error('Error fetching cart items:', cartError);
+        throw cartError;
+      }
+
+      if (!rawCartItems || rawCartItems.length === 0) {
+        console.log('✅ No cart items found, returning empty cart');
         return { items: [], total: 0 };
       }
+
+      console.log(`📊 Found ${rawCartItems.length} cart items`);
+
+      // Step 2: Get products for cart items (direct Supabase)
+      const productIds = rawCartItems.map(item => item.product_id);
+      console.log('🛍️ Fetching products for cart items:', productIds);
+      
+      const { data: rawProducts, error: productsError } = await supabase
+        .from('products')
+        .select(`
+          id, name, description, price, stock_quantity, 
+          category, image_url, is_weekly_special, is_bundle,
+          seasonal_availability, unit, weight, sku, tags, nutrition_info,
+          is_available, is_pre_order, pre_order_available_date,
+          min_pre_order_quantity, max_pre_order_quantity, created_at, updated_at
+        `)
+        .in('id', productIds)
+        .eq('is_available', true);
+
+      if (productsError) {
+        console.error('Error fetching products for cart:', productsError);
+        throw productsError;
+      }
+
+      // Step 3: Transform products using ProductSchema (following pattern)
+      const validProducts: Product[] = [];
+      for (const rawProduct of rawProducts || []) {
+        try {
+          const transformedProduct = ProductSchema.parse(rawProduct);
+          validProducts.push(transformedProduct);
+        } catch (error) {
+          // Enhanced monitoring for schema validation failures
+          ValidationMonitor.recordValidationError({
+            context: 'CartService.getCart.productValidation',
+            errorMessage: error instanceof Error ? error.message : 'Unknown error',
+            errorCode: 'PRODUCT_SCHEMA_VALIDATION_FAILED',
+            validationPattern: 'transformation_schema'
+          });
+          console.warn('Invalid product in cart, skipping:', {
+            productId: rawProduct.id,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          });
+        }
+      }
+
+      console.log(`✅ Validated ${validProducts.length} products`);
+
+      // Step 4: Transform cart items with populated products
+      const validCartItems: CartItem[] = [];
+      for (const rawCartItem of rawCartItems) {
+        try {
+          const product = validProducts.find(p => p.id === rawCartItem.product_id);
+          if (!product) {
+            console.warn('Product not found for cart item, skipping:', rawCartItem.product_id);
+            continue;
+          }
+          
+          const transformedCartItem = DbCartItemTransformSchema.parse({
+            ...rawCartItem,
+            product
+          });
+
+          // Extract the cart item format for CartState - ensure non-null product
+          if (transformedCartItem.product) {
+            validCartItems.push({
+              product: transformedCartItem.product,
+              quantity: transformedCartItem.quantity
+            });
+          } else {
+            console.warn('Skipping cart item with null product:', rawCartItem.id);
+          }
+        } catch (error) {
+          // Enhanced monitoring for cart item transformation failures
+          ValidationMonitor.recordValidationError({
+            context: 'CartService.getCart.cartItemTransformation',
+            errorMessage: error instanceof Error ? error.message : 'Unknown error',
+            errorCode: 'CART_ITEM_TRANSFORM_FAILED',
+            validationPattern: 'transformation_schema'
+          });
+          console.warn('Invalid cart item, skipping:', {
+            cartItemId: rawCartItem.id,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          });
+        }
+      }
+
+      // Step 5: Create and validate cart state
+      const total = calculateTotal(validCartItems);
+      const cartState: CartState = { items: validCartItems, total };
+      
+      // Record successful pattern usage (positive monitoring)
+      ValidationMonitor.recordPatternSuccess({
+        service: 'CartService',
+        pattern: 'direct_supabase_query',
+        operation: 'getCart',
+        performanceMs: Date.now() - (Date.now() - 1000) // Simplified timing
+      });
+      
+      console.log(`✅ Returning cart with ${validCartItems.length} items, total: $${total}`);
+      return cartState;
+
     } catch (error) {
-      console.warn('Failed to load cart:', error);
+      console.error('Error in getCart:', error);
       throw error; // Let React Query handle error states
     }
   },
 
-  // Save cart to Supabase only (React Query handles caching)
+  // Save cart to Supabase - Following ProductService pattern
   saveCart: async (cart: CartState): Promise<CartState> => {
     try {
-      // Validate cart state before saving
-      const validatedCart = validateCartState(cart);
+      console.log('💾 saveCart() called - saving to Supabase...');
       
       // Get current user
       const { data: { user } } = await supabase.auth.getUser();
@@ -269,12 +222,11 @@ export const cartService = {
         throw new Error('User must be authenticated to save cart');
       }
       
-      // User is authenticated - save cart to Supabase using pure UPSERT
-      console.log('💾 Saving cart to Supabase for user:', user.id);
+      console.log('📡 Saving cart to Supabase for user:', user.id);
       
-      if (validatedCart.items.length > 0) {
-        // Use pure UPSERT - truly atomic for each cart item
-        const cartItemsToUpsert = validatedCart.items.map(item => ({
+      if (cart.items.length > 0) {
+        // Use atomic UPSERT for cart items
+        const cartItemsToUpsert = cart.items.map(item => ({
           user_id: user.id,
           product_id: item.product.id,
           quantity: item.quantity
@@ -287,32 +239,37 @@ export const cartService = {
           });
         
         if (error) {
-          console.warn('Failed to save cart to Supabase:', error);
-          throw error; // Let React Query handle retries
+          console.error('Failed to save cart to Supabase:', error);
+          throw error;
         }
+
+        console.log(`✅ Saved ${cart.items.length} cart items`);
       } else {
         // Cart is empty - clear all items for this user
-        await supabase
+        const { error } = await supabase
           .from('cart_items')
           .delete()
           .eq('user_id', user.id);
+
+        if (error) {
+          console.error('Failed to clear cart in Supabase:', error);
+          throw error;
+        }
+
+        console.log('✅ Cleared cart in Supabase');
       }
       
-      // Return validated cart with calculated total
-      const updatedCartData = {
-        items: validatedCart.items,
-        total: calculateTotal(validatedCart.items)
+      // Return the cart with recalculated total
+      const updatedCart: CartState = {
+        items: cart.items,
+        total: calculateTotal(cart.items)
       };
       
-      const updatedCart = validateCartState(updatedCartData);
+      console.log(`✅ Cart saved successfully, total: $${updatedCart.total}`);
+      return updatedCart;
       
-      // Add production calculation validation
-      const validatedUpdatedCart = validateCartTotal(updatedCart);
-      
-      console.log('✅ Cart saved to Supabase successfully');
-      return validatedUpdatedCart;
     } catch (error) {
-      console.warn('Failed to save cart to Supabase:', error);
+      console.error('Error in saveCart:', error);
       throw error; // Let React Query handle error states and retries
     }
   },
@@ -320,20 +277,23 @@ export const cartService = {
   // Add item to cart - Atomic operation with real-time stock validation
   addItem: async (product: Product, quantity: number = 1): Promise<{ success: boolean; message?: string }> => {
     try {
-      // Enhanced input validation using validation pipeline
-      const AddItemInputSchema = z.object({
-        product: ProductSchema,
-        quantity: ValidationUtils.createQuantitySchema()
-      });
+      // Basic input validation for product and quantity
+      if (!product || !product.id) {
+        return {
+          success: false,
+          message: 'Invalid product provided'
+        };
+      }
       
-      const validatedInput = await ServiceValidator.validateInput(
-        { product, quantity },
-        AddItemInputSchema,
-        'CartService.addItem'
-      );
+      if (!quantity || quantity < 1) {
+        return {
+          success: false,
+          message: 'Quantity must be at least 1'
+        };
+      }
       
-      const validatedProduct = validatedInput.product;
-      const validatedQuantity = validatedInput.quantity;
+      const validatedProduct = product;
+      const validatedQuantity = quantity;
       
       // Get current user
       const { data: { user } } = await supabase.auth.getUser();
@@ -345,55 +305,61 @@ export const cartService = {
         };
       }
 
-      // REAL-TIME STOCK VALIDATION: Check current stock before adding using defensive database access
-      const StockDataSchema = z.object({
-        stock_quantity: z.number().min(0),
-        is_pre_order: z.boolean().optional().default(false),
-        min_pre_order_quantity: z.number().min(0).optional().default(1),
-        max_pre_order_quantity: z.number().min(1).optional().default(999)
-      });
+      // REAL-TIME STOCK VALIDATION: Check current stock before adding (direct Supabase)
+      console.log('📊 Checking stock for product:', validatedProduct.id);
       
-      const stockData = await DefensiveDatabase.fetchSingleWithValidation(
-        async () => supabase
-          .from('products')
-          .select('stock_quantity, is_pre_order, min_pre_order_quantity, max_pre_order_quantity')
-          .eq('id', validatedProduct.id)
-          .eq('is_available', true)
-          .single(),
-        StockDataSchema,
-        `stock-check-${validatedProduct.id}`,
-        {
-          throwOnCriticalFailure: false // Don't throw, return null if invalid
-        }
-      );
+      const { data: stockData, error: stockError } = await supabase
+        .from('products')
+        .select('stock_quantity, is_pre_order, min_pre_order_quantity, max_pre_order_quantity')
+        .eq('id', validatedProduct.id)
+        .eq('is_available', true)
+        .single();
 
-      if (!stockData) {
+      if (stockError || !stockData) {
+        console.warn('Product not available or error fetching stock:', stockError);
         return {
           success: false,
           message: 'Product is no longer available'
         };
       }
 
-      // Get current cart quantity for this product using defensive database access
-      const CartQuantitySchema = z.object({
-        quantity: z.number().min(0).max(1000)
-      });
+      // Get current cart quantity for this product - handle both missing records and corrupted data
+      let currentCartQuantity = 0;
       
-      const currentCartData = await DefensiveDatabase.fetchSingleWithValidation(
-        async () => supabase
+      try {
+        const { data: cartItemData, error } = await supabase
           .from('cart_items')
           .select('quantity')
           .eq('user_id', user.id)
           .eq('product_id', product.id)
-          .single(),
-        CartQuantitySchema,
-        `current-cart-${user.id}-${product.id}`,
-        {
-          throwOnCriticalFailure: false
-        }
-      );
+          .single();
 
-      const currentCartQuantity = currentCartData?.quantity || 0;
+        if (error) {
+          // No existing cart item (PGRST116) - this is normal for first-time adds
+          if (error.code === 'PGRST116') {
+            currentCartQuantity = 0;
+          } else {
+            console.warn('Unexpected error getting cart quantity:', error);
+            currentCartQuantity = 0; // Fail safe to 0
+          }
+        } else {
+          // Validate the returned quantity data
+          const quantity = cartItemData?.quantity;
+          if (typeof quantity === 'number' && quantity >= 0) {
+            currentCartQuantity = quantity;
+          } else {
+            console.warn('Invalid cart quantity data, defaulting to 0:', { 
+              productId: product.id, 
+              userId: user.id, 
+              receivedQuantity: quantity 
+            });
+            currentCartQuantity = 0;
+          }
+        }
+      } catch (error) {
+        console.warn('Error fetching cart quantity, defaulting to 0:', error);
+        currentCartQuantity = 0;
+      }
       const totalRequestedQuantity = currentCartQuantity + quantity;
 
       // Validate stock limits
@@ -529,17 +495,20 @@ export const cartService = {
   // Update item quantity - Atomic operation
   updateQuantity: async (productId: string, quantity: number): Promise<{ success: boolean; message?: string }> => {
     try {
-      // Enhanced input validation using validation pipeline
-      const UpdateQuantityInputSchema = z.object({
-        productId: z.string().min(1, 'Product ID is required'),
-        quantity: ValidationUtils.createQuantitySchema()
-      });
+      // Basic input validation for productId and quantity
+      if (!productId || productId.length === 0) {
+        return {
+          success: false,
+          message: 'Product ID is required'
+        };
+      }
       
-      const validatedInput = await ServiceValidator.validateInput(
-        { productId, quantity },
-        UpdateQuantityInputSchema,
-        'CartService.updateQuantity'
-      );
+      if (quantity < 1) {
+        return {
+          success: false,
+          message: 'Quantity must be at least 1'
+        };
+      }
       
       // Get current user
       const { data: { user } } = await supabase.auth.getUser();

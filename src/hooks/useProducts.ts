@@ -115,7 +115,14 @@ export const useProducts = () => {
     queryKey: productsQueryKey,
     queryFn: async (): Promise<Product[]> => {
       try {
+        console.log('🔍 useProducts - Starting fetch...');
         const response = await getProducts();
+        console.log('🔍 useProducts - Service response:', {
+          success: response.success,
+          productCount: response.products?.length,
+          error: response.error
+        });
+        
         if (!response.success) {
           throw createProductError(
             'NETWORK_ERROR',
@@ -123,8 +130,21 @@ export const useProducts = () => {
             'Unable to load products. Please try again.'
           );
         }
-        return response.products || [];
+        
+        const products = response.products || [];
+        console.log('🔍 useProducts - Final products for React Query:', {
+          count: products.length,
+          productsWithoutNames: products.filter(p => !p.name).length,
+          sampleProduct: products[0] ? {
+            id: products[0].id,
+            name: products[0].name,
+            nameType: typeof products[0].name
+          } : null
+        });
+        
+        return products;
       } catch (error: any) {
+        console.error('❌ useProducts - Query function error:', error);
         if (error.code) {
           throw error; // Re-throw ProductError
         }

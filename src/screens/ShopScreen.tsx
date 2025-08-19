@@ -26,6 +26,35 @@ export const ShopScreen: React.FC = () => {
 
   // Get real data from Supabase
   const { data: products = [], isLoading: productsLoading, error: productsError, refetch: refetchProducts } = useProducts();
+  
+  // Debug: Log product data to understand the undefined name issue
+  React.useEffect(() => {
+    if (products.length > 0) {
+      console.log('🔍 ShopScreen received products:', products.length);
+      
+      // Check for products with missing names
+      const productsWithoutNames = products.filter(p => !p.name);
+      if (productsWithoutNames.length > 0) {
+        console.error('❌ Found products with undefined names:', productsWithoutNames.map(p => ({
+          id: p.id,
+          name: p.name,
+          nameType: typeof p.name,
+          keys: Object.keys(p)
+        })));
+      }
+      
+      // Show first few products for debugging
+      console.log('📊 First 3 products:', products.slice(0, 3).map(p => ({
+        id: p.id,
+        name: p.name,
+        nameType: typeof p.name,
+        price: p.price,
+        available: p.is_available,
+        allKeys: Object.keys(p),
+        fullProduct: p
+      })));
+    }
+  }, [products]);
   const { data: categoriesData = [], isLoading: categoriesLoading } = useCategories();
 
   // Get unique categories
@@ -38,15 +67,26 @@ export const ShopScreen: React.FC = () => {
 
   // Filter and sort products
   const filteredAndSortedProducts = useMemo(() => {
-    let filtered = products;
+    // First filter out products with missing essential data
+    let filtered = products.filter((product: Product) => {
+      const isValid = product && product.id && product.name && typeof product.name === 'string' && product.name.trim().length > 0;
+      if (!isValid) {
+        console.warn('⚠️ Filtering out invalid product:', {
+          id: product?.id,
+          name: product?.name,
+          nameType: typeof product?.name
+        });
+      }
+      return isValid;
+    });
 
     // Apply category filter
     if (selectedCategory !== 'all') {
-      // Filter by category name (database stores category as string name, not ID)
+      // Filter by category name - category is now a simple string
       filtered = filtered.filter((product: Product) => {
-        // Handle both possible data structures for compatibility
-        const productCategory = (product as any).category || getProductCategoryId(product);
-        return productCategory === selectedCategory;
+        // After schema fixes, product.category is a simple string
+        const productCategoryName = product.category || 'Unknown';
+        return productCategoryName === selectedCategory;
       });
     }
 
@@ -54,8 +94,8 @@ export const ShopScreen: React.FC = () => {
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter((product: Product) => 
-        product.name.toLowerCase().includes(query) ||
-        product.description.toLowerCase().includes(query) ||
+        (product.name || '').toLowerCase().includes(query) ||
+        (product.description || '').toLowerCase().includes(query) ||
         (product.tags && product.tags.some((tag: string) => tag.toLowerCase().includes(query)))
       );
     }
@@ -64,15 +104,18 @@ export const ShopScreen: React.FC = () => {
     const sorted = [...filtered].sort((a, b) => {
       switch (sortBy) {
         case 'name':
-          return a.name.localeCompare(b.name);
+          // Defensive handling for undefined/null names
+          const aName = a.name || '';
+          const bName = b.name || '';
+          return aName.localeCompare(bName);
         case 'price-low':
-          return a.price - b.price;
+          return (a.price || 0) - (b.price || 0);
         case 'price-high':
-          return b.price - a.price;
+          return (b.price || 0) - (a.price || 0);
         case 'category':
-          // Sort by category name (database stores category as string name)
-          const aCategoryName = (a as any).category || a.categoryId || '';
-          const bCategoryName = (b as any).category || b.categoryId || '';
+          // Sort by category name - category is now a simple string
+          const aCategoryName = a.category || 'Unknown';
+          const bCategoryName = b.category || 'Unknown';
           return aCategoryName.localeCompare(bCategoryName);
         default:
           return 0;

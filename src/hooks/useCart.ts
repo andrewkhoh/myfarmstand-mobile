@@ -64,9 +64,8 @@ const createCartError = (
 // Enhanced invalidation strategy
 const getRelatedQueryKeys = (userId: string) => [
   cartKeys.all(userId),
-  ['products'], // Invalidate product stock data
+  ['stock'], // Invalidate stock validation cache (not full products)
   ['orders'], // Invalidate order history that might be affected
-  ['stock-validation'], // Invalidate stock validation cache
 ];
 
 export const useCart = () => {

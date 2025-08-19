@@ -122,20 +122,20 @@ Old: ${JSON.stringify(payload.old, null, 2)}`);
     setLoading(true);
     try {
       // Test 1: Check for orphaned products (products without valid categories)
-      const { data: products } = await supabase.from('products').select('id, name, category');
+      const { data: products } = await supabase.from('products').select('id, name, category_id');
       const { data: categories } = await supabase.from('categories').select('id, name');
       
       const categoryIds = new Set(categories?.map(cat => cat.id) || []);
-      const orphanedProducts = products?.filter(product => !categoryIds.has(product.category)) || [];
+      const orphanedProducts = products?.filter(product => !categoryIds.has(product.category_id)) || [];
       
       // Test 2: Check for missing required fields
       const productsWithMissingFields = products?.filter(product => 
-        !product.name || !product.category
+        !product.name || !product.category_id
       ) || [];
       
       // Test 3: Check category-product relationships
       const categoryStats = categories?.map(category => {
-        const productCount = products?.filter(product => product.category === category.id).length || 0;
+        const productCount = products?.filter(product => product.category_id === category.id).length || 0;
         return { categoryName: category.name, productCount };
       }) || [];
       

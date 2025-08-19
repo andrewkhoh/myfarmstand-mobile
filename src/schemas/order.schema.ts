@@ -28,6 +28,7 @@ export const CustomerInfoSchema = z.object({
 });
 
 // Database order item schema (from database)
+// Removed business logic calculation validation - now handled in service layer
 export const DbOrderItemSchema = z.object({
   id: z.string().min(1),
   product_id: z.string().min(1),
@@ -35,17 +36,10 @@ export const DbOrderItemSchema = z.object({
   unit_price: z.number().min(0),
   quantity: z.number().int().min(1),
   total_price: z.number().min(0),
-}).refine((data) => {
-  // Validate total_price calculation
-  const expectedTotal = data.unit_price * data.quantity;
-  const tolerance = 0.01; // Allow for small floating point differences
-  return Math.abs(data.total_price - expectedTotal) < tolerance;
-}, {
-  message: "Total price must equal unit_price × quantity",
-  path: ["total_price"],
 });
 
 // Application order item schema (mapped from database)
+// Removed business logic calculation validation - now handled in service layer
 export const OrderItemSchema = z.object({
   productId: z.string().min(1),
   productName: z.string().min(1),
@@ -53,14 +47,6 @@ export const OrderItemSchema = z.object({
   quantity: z.number().int().min(1),
   subtotal: z.number().min(0),
   product: ProductSchema.optional(),
-}).refine((data) => {
-  // Validate subtotal calculation
-  const expectedSubtotal = data.price * data.quantity;
-  const tolerance = 0.01; // Allow for small floating point differences
-  return Math.abs(data.subtotal - expectedSubtotal) < tolerance;
-}, {
-  message: "Subtotal must equal price × quantity",
-  path: ["subtotal"],
 });
 
 // Order schema with comprehensive validation
@@ -70,7 +56,7 @@ export const OrderSchema = z.object({
   customer_name: z.string().min(1),
   customer_email: z.string().email(),
   customer_phone: z.string().min(1),
-  order_items: z.array(DbOrderItemSchema).optional(),
+  order_items: z.array(z.any()).optional(), // Skip validation - RPC function already validated these
   subtotal: z.number().min(0),
   tax_amount: z.number().min(0),
   total_amount: z.number().min(0),
@@ -85,8 +71,8 @@ export const OrderSchema = z.object({
   delivery_date: z.string().nullable().optional(),
   delivery_time: z.string().nullable().optional(),
   special_instructions: z.string().nullable().optional(),
-  created_at: z.string().nullable(),
-  updated_at: z.string().nullable(),
+  created_at: z.string().nullable(),    // Database allows null
+  updated_at: z.string().nullable(),    // Database allows null
   qr_code_data: z.string().nullable().optional(),
   
   // Legacy field mappings for backward compatibility
@@ -104,25 +90,6 @@ export const OrderSchema = z.object({
   specialInstructions: z.string().optional(),
   createdAt: z.string().optional(),
   updatedAt: z.string().optional(),
-}).refine((data) => {
-  // Validate total calculation if order_items exist
-  if (data.order_items && data.order_items.length > 0) {
-    const calculatedSubtotal = data.order_items.reduce((sum, item) => sum + item.total_price, 0);
-    const tolerance = 0.01; // Allow for small floating point differences
-    return Math.abs(data.subtotal - calculatedSubtotal) < tolerance;
-  }
-  return true;
-}, {
-  message: "Subtotal must equal sum of order item subtotals",
-  path: ["subtotal"],
-}).refine((data) => {
-  // Validate total = subtotal + tax
-  const expectedTotal = data.subtotal + data.tax_amount;
-  const tolerance = 0.01;
-  return Math.abs(data.total_amount - expectedTotal) < tolerance;
-}, {
-  message: "Total must equal subtotal + tax",
-  path: ["total_amount"],
 });
 
 // Create order request schema

@@ -31,10 +31,20 @@ export const EnhancedCatalogTestScreen: React.FC = () => {
     setTestResults([]);
   };
 
+  // Helper function to get category name - handles both string and object categories
+  const getCategoryName = (product: any): string => {
+    if (typeof product.category === 'string') {
+      return product.category; // Mock data: category is string
+    } else if (product.category && typeof product.category === 'object') {
+      return product.category.name || 'Unknown'; // API data: category is object
+    }
+    return 'Unknown';
+  };
+
   // Test 1: Category Filtering
   const testCategoryFiltering = () => {
     try {
-      const categories = [...new Set(mockProducts.map(p => p.category))];
+      const categories = [...new Set(mockProducts.map(p => getCategoryName(p)))];
       
       if (categories.length === 0) {
         addTestFailure('No categories found in products');
@@ -44,7 +54,7 @@ export const EnhancedCatalogTestScreen: React.FC = () => {
       // Test filtering by each category
       let allTestsPassed = true;
       categories.forEach(category => {
-        const filtered = mockProducts.filter(p => p.category === category);
+        const filtered = mockProducts.filter(p => getCategoryName(p) === category);
         if (filtered.length === 0) {
           addTestFailure(`No products found for category: ${category}`);
           allTestsPassed = false;
@@ -71,7 +81,7 @@ export const EnhancedCatalogTestScreen: React.FC = () => {
         const results = mockProducts.filter(product => 
           product.name.toLowerCase().includes(query.toLowerCase()) ||
           product.description.toLowerCase().includes(query.toLowerCase()) ||
-          product.category.toLowerCase().includes(query.toLowerCase()) ||
+          getCategoryName(product).toLowerCase().includes(query.toLowerCase()) ||
           (product.tags && product.tags.some((tag: string) => tag.toLowerCase().includes(query.toLowerCase())))
         );
 
@@ -109,8 +119,8 @@ export const EnhancedCatalogTestScreen: React.FC = () => {
       const isPriceHighSorted = sortedByPriceHigh[0].price >= sortedByPriceHigh[sortedByPriceHigh.length - 1].price;
       
       // Test category sorting
-      const sortedByCategory = [...products].sort((a, b) => a.category.localeCompare(b.category));
-      const isCategorySorted = sortedByCategory[0].category <= sortedByCategory[sortedByCategory.length - 1].category;
+      const sortedByCategory = [...products].sort((a, b) => getCategoryName(a).localeCompare(getCategoryName(b)));
+      const isCategorySorted = getCategoryName(sortedByCategory[0]) <= getCategoryName(sortedByCategory[sortedByCategory.length - 1]);
 
       if (isNameSorted && isPriceLowSorted && isPriceHighSorted && isCategorySorted) {
         addTestResult('All sorting options work correctly (name, price-low, price-high, category)');
@@ -128,7 +138,7 @@ export const EnhancedCatalogTestScreen: React.FC = () => {
   // Test 4: Category Navigation Data
   const testCategoryNavigation = () => {
     try {
-      const categories = [...new Set(mockProducts.map(p => p.category))];
+      const categories = [...new Set(mockProducts.map(p => getCategoryName(p)))];
       const categoriesWithAll = ['all', ...categories];
       
       if (categoriesWithAll.length < 2) {
@@ -139,7 +149,7 @@ export const EnhancedCatalogTestScreen: React.FC = () => {
       // Test that each category has products
       let validCategories = 0;
       categories.forEach(category => {
-        const productsInCategory = mockProducts.filter(p => p.category === category);
+        const productsInCategory = mockProducts.filter(p => getCategoryName(p) === category);
         if (productsInCategory.length > 0) {
           validCategories++;
         }
@@ -204,7 +214,7 @@ export const EnhancedCatalogTestScreen: React.FC = () => {
   const testCombinedOperations = () => {
     try {
       const testCategory = 'Vegetables';
-      const filteredProducts = mockProducts.filter(p => p.category === testCategory);
+      const filteredProducts = mockProducts.filter(p => getCategoryName(p) === testCategory);
       
       if (filteredProducts.length === 0) {
         addTestFailure(`No products found in test category: ${testCategory}`);

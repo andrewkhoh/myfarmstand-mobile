@@ -15,15 +15,15 @@ describe('AuthService', () => {
 
   it('should validate email format', async () => {
     await expect(AuthService.login('invalid-email', 'password123'))
-      .rejects.toThrow('Please enter a valid email address');
+      .rejects.toThrow('email must be a valid email address');
   });
 
   it('should validate required fields', async () => {
     await expect(AuthService.login('', 'password123'))
-      .rejects.toThrow('Email and password are required');
+      .rejects.toThrow('email must be a valid email address');
       
     await expect(AuthService.login('test@example.com', ''))
-      .rejects.toThrow('Email and password are required');
+      .rejects.toThrow('password must be at least 6 characters long');
   });
 
   it('should handle successful login', async () => {

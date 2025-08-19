@@ -67,7 +67,7 @@ const createStockError = (
 
 // Query key factory for stock operations (following cart pattern)
 const stockKeys = createQueryKeyFactory({
-  entity: 'products',
+  entity: 'stock', // Use separate entity to avoid conflicts with main products
   isolation: 'global'
 });
 
@@ -129,7 +129,8 @@ export const useStockValidation = () => {
     };
   }
   
-  const stockQueryKey = stockKeys.lists('global');
+  // Use separate query key to avoid conflicts with main products cache
+  const stockQueryKey = ['products', 'stock', user.id];
   
   // Enhanced query with proper enabled guard and error handling (following cart pattern)
   const {

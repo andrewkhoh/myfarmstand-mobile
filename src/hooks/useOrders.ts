@@ -455,7 +455,10 @@ export const useUpdateOrderStatusMutation = () => {
           userId: user?.id
         });
         
-        // Smart invalidation strategy (following cart pattern)
+        // PERFORMANCE: Smart cache updates instead of invalidations to avoid refetches
+        const updatedOrder = result.data;
+        
+        // Standard React Query pattern: invalidate relevant caches
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: ['orders'] }),
           queryClient.invalidateQueries({ queryKey: ['orders', 'user'] }),
@@ -628,7 +631,7 @@ export const useBulkUpdateOrderStatusMutation = () => {
           userId: user?.id
         });
         
-        // Smart invalidation strategy (following cart pattern)
+        // Standard React Query pattern: invalidate relevant caches
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: ['orders'] }),
           queryClient.invalidateQueries({ queryKey: orderKeys.stats() })

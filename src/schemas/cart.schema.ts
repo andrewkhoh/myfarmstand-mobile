@@ -42,15 +42,40 @@ export const CartStateSchema = z.object({
   path: ["total"],
 });
 
-// Database cart item schema (from Supabase)
-export const DbCartItemSchema = z.object({
+// Raw database cart item schema (validation only, no transformation)
+const RawDbCartItemSchema = z.object({
   id: z.string().min(1),
   user_id: z.string().min(1),
   product_id: z.string().min(1),
   quantity: z.number().int().min(1),
-  created_at: z.string(),
-  updated_at: z.string(),
+  created_at: z.string().nullable().optional(),    // Database allows null/undefined
+  updated_at: z.string().nullable().optional(),    // Database allows null/undefined
 });
+
+// Legacy schema for backward compatibility (deprecated - use transformation schemas instead)
+export const DbCartItemSchema = RawDbCartItemSchema;
+
+// Cart item transformation schema (DB → App format)
+// This is the main schema that should be used by cartService
+export const DbCartItemTransformSchema = RawDbCartItemSchema.extend({
+  product: z.any().optional() // Will be populated by cartService after product lookup
+}).transform((data) => ({
+  // App format (CartItem interface)
+  product: data.product, // Set by cart service after product lookup
+  quantity: data.quantity,
+  
+  // Internal metadata for cart operations
+  _dbData: {
+    id: data.id,
+    user_id: data.user_id,
+    product_id: data.product_id,
+    created_at: data.created_at,
+    updated_at: data.updated_at
+  }
+}));
+
+// Cart state transformation helper for bulk operations
+export const DbCartItemArrayTransformSchema = z.array(RawDbCartItemSchema);
 
 // Cart operation request schemas
 export const AddToCartRequestSchema = z.object({
@@ -182,6 +207,7 @@ export const DbCartItemArraySchema = z.array(DbCartItemSchema);
 export type ValidatedCartItem = z.infer<typeof CartItemSchema>;
 export type ValidatedCartState = z.infer<typeof CartStateSchema>;
 export type ValidatedDbCartItem = z.infer<typeof DbCartItemSchema>;
+export type ValidatedDbCartItemTransformed = z.infer<typeof DbCartItemTransformSchema>;
 export type ValidatedAddToCartRequest = z.infer<typeof AddToCartRequestSchema>;
 export type ValidatedUpdateCartItemRequest = z.infer<typeof UpdateCartItemRequestSchema>;
 export type ValidatedRemoveFromCartRequest = z.infer<typeof RemoveFromCartRequestSchema>;

@@ -141,7 +141,7 @@ export const ProductDetailScreen: React.FC = () => {
           <Card variant="default" style={styles.infoCard}>
             <View style={styles.infoRow}>
               <Text variant="body" weight="medium">Category:</Text>
-              <Text variant="body" color="secondary">{product.categoryId}</Text>
+              <Text variant="body" color="secondary">{(product as any).category?.name || product.categoryId || 'Unknown'}</Text>
             </View>
             <View style={styles.infoRow}>
               <Text variant="body" weight="medium">Stock:</Text>

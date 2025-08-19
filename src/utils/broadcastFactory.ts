@@ -58,12 +58,23 @@ export class SecureChannelNameGenerator {
   })();
   private static readonly SALT_PREFIX = 'myfarmstand-secure-channel';
   
+  // PERFORMANCE: Cache channel names to avoid repeated HMAC calculations
+  private static channelNameCache = new Map<string, string>();
+  
   /**
    * Generate cryptographically secure channel name
    * Uses HMAC-SHA256 to prevent channel name enumeration attacks
    */
   static generateSecureChannelName(entity: EntityType, target: BroadcastTarget, userId?: string): string {
+    const cacheKey = `${entity}-${target}-${userId || 'none'}`;
+    
+    // PERFORMANCE: Return cached result if available
+    if (this.channelNameCache.has(cacheKey)) {
+      return this.channelNameCache.get(cacheKey)!;
+    }
+    
     const baseData = `${this.SALT_PREFIX}-${entity}-${target}`;
+    let channelName: string;
     
     switch (target) {
       case 'user-specific':
@@ -72,28 +83,43 @@ export class SecureChannelNameGenerator {
         }
         // SECURITY: HMAC-SHA256 hash of user ID + entity + salt
         const userHash = CryptoJS.HmacSHA256(`${baseData}-${userId}`, this.CHANNEL_SECRET).toString();
-        return `sec-${entity}-${userHash.substring(0, 16)}`; // First 16 chars for readability
+        channelName = `sec-${entity}-${userHash.substring(0, 16)}`; // First 16 chars for readability
+        break;
         
       case 'admin-only':
         // SECURITY: Admin channels use entity-specific hash
         const adminHash = CryptoJS.HmacSHA256(`${baseData}-admin`, this.CHANNEL_SECRET).toString();
-        return `sec-${entity}-admin-${adminHash.substring(0, 12)}`;
+        channelName = `sec-${entity}-admin-${adminHash.substring(0, 12)}`;
+        break;
         
       case 'global':
         // SECURITY: Global channels use entity hash (same for all users)
         const globalHash = CryptoJS.HmacSHA256(`${baseData}-global`, this.CHANNEL_SECRET).toString();
-        return `sec-${entity}-global-${globalHash.substring(0, 12)}`;
+        channelName = `sec-${entity}-global-${globalHash.substring(0, 12)}`;
+        break;
         
       default:
         throw new Error(`Unknown broadcast target: ${target}`);
     }
+    
+    // PERFORMANCE: Cache the result for future use
+    this.channelNameCache.set(cacheKey, channelName);
+    return channelName;
   }
   
   /**
    * Generate backup/fallback channel name
    */
   static generateBackupChannelName(entity: EntityType, target: BroadcastTarget, userId?: string): string {
+    const cacheKey = `backup-${entity}-${target}-${userId || 'none'}`;
+    
+    // PERFORMANCE: Return cached result if available
+    if (this.channelNameCache.has(cacheKey)) {
+      return this.channelNameCache.get(cacheKey)!;
+    }
+    
     const baseData = `${this.SALT_PREFIX}-${entity}-${target}-backup`;
+    let channelName: string;
     
     switch (target) {
       case 'user-specific':
@@ -101,19 +127,26 @@ export class SecureChannelNameGenerator {
           throw new Error('userId required for user-specific backup channel');
         }
         const userBackupHash = CryptoJS.HmacSHA256(`${baseData}-${userId}`, this.CHANNEL_SECRET).toString();
-        return `sec-${entity}-bkp-${userBackupHash.substring(0, 16)}`;
+        channelName = `sec-${entity}-bkp-${userBackupHash.substring(0, 16)}`;
+        break;
         
       case 'admin-only':
         const adminBackupHash = CryptoJS.HmacSHA256(`${baseData}-admin`, this.CHANNEL_SECRET).toString();
-        return `sec-${entity}-admin-bkp-${adminBackupHash.substring(0, 12)}`;
+        channelName = `sec-${entity}-admin-bkp-${adminBackupHash.substring(0, 12)}`;
+        break;
         
       case 'global':
         const globalBackupHash = CryptoJS.HmacSHA256(`${baseData}-global`, this.CHANNEL_SECRET).toString();
-        return `sec-${entity}-global-bkp-${globalBackupHash.substring(0, 12)}`;
+        channelName = `sec-${entity}-global-bkp-${globalBackupHash.substring(0, 12)}`;
+        break;
         
       default:
         throw new Error(`Unknown broadcast target: ${target}`);
     }
+    
+    // PERFORMANCE: Cache the result for future use
+    this.channelNameCache.set(cacheKey, channelName);
+    return channelName;
   }
   
   /**
@@ -402,13 +435,19 @@ export const sendMultiTargetBroadcast = async (
   payload: BroadcastPayload,
   targets: BroadcastTarget[]
 ): Promise<BroadcastResult[]> => {
-  const results: BroadcastResult[] = [];
+  const startTime = performance.now();
   
-  for (const target of targets) {
+  // PERFORMANCE FIX: Send broadcasts in parallel instead of sequential
+  const broadcastPromises = targets.map(target => {
     const helper = createBroadcastHelper({ entity, target });
-    const result = await helper.send(event, payload);
-    results.push(result);
-  }
+    return helper.send(event, payload);
+  });
+  
+  // Wait for all broadcasts to complete
+  const results = await Promise.all(broadcastPromises);
+  
+  const duration = performance.now() - startTime;
+  console.log(`📡 Multi-target broadcast for ${entity}.${event} completed in ${duration.toFixed(2)}ms (${targets.length} targets)`);
   
   return results;
 };
