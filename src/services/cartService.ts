@@ -296,9 +296,12 @@ export const cartService = {
       const validatedQuantity = quantity;
       
       // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      
+      // Auth verification passed
       
       if (!user) {
+        console.error('🚨 User not authenticated for cart operation');
         return {
           success: false,
           message: 'User must be authenticated to add items to cart'
@@ -332,21 +335,29 @@ export const cartService = {
           .select('quantity')
           .eq('user_id', user.id)
           .eq('product_id', product.id)
-          .single();
+          .maybeSingle(); // Use maybeSingle() instead of single() to avoid 406 for 0 rows
 
         if (error) {
-          // No existing cart item (PGRST116) - this is normal for first-time adds
-          if (error.code === 'PGRST116') {
-            currentCartQuantity = 0;
-          } else {
-            console.warn('Unexpected error getting cart quantity:', error);
-            currentCartQuantity = 0; // Fail safe to 0
-          }
+          console.error('🚨 Cart query error details:', {
+            code: error.code,
+            message: error.message,
+            details: error.details,
+            hint: error.hint,
+            userId: user.id,
+            productId: product.id
+          });
+          console.warn('🚨 Unexpected error getting cart quantity:', error);
+          currentCartQuantity = 0; // Fail safe to 0
+        } else if (cartItemData === null) {
+          // maybeSingle() returns null when no rows found - this is normal for first-time adds
+          console.log('✅ No existing cart item found (expected for first add)');
+          currentCartQuantity = 0;
         } else {
           // Validate the returned quantity data
-          const quantity = cartItemData?.quantity;
+          const quantity = cartItemData.quantity;
           if (typeof quantity === 'number' && quantity >= 0) {
             currentCartQuantity = quantity;
+            console.log(`📦 Found existing cart quantity: ${quantity}`);
           } else {
             console.warn('Invalid cart quantity data, defaulting to 0:', { 
               productId: product.id, 
