@@ -458,11 +458,11 @@ export const useUpdateOrderStatusMutation = () => {
         // PERFORMANCE: Smart cache updates instead of invalidations to avoid refetches
         const updatedOrder = result.data;
         
-        // Standard React Query pattern: invalidate relevant caches
+        // Standard React Query pattern: invalidate all order-related caches
         await Promise.all([
-          queryClient.invalidateQueries({ queryKey: ['orders'] }),
-          queryClient.invalidateQueries({ queryKey: ['orders', 'user'] }),
-          queryClient.invalidateQueries({ queryKey: orderKeys.detail(orderId) }),
+          queryClient.invalidateQueries({ queryKey: ['orders'] }), // Should match all orders queries
+          queryClient.invalidateQueries({ queryKey: ['orders', 'list'] }), // More specific for lists
+          queryClient.invalidateQueries({ queryKey: ['orders', 'detail'] }), // More specific for details
           queryClient.invalidateQueries({ queryKey: orderKeys.stats() })
         ]);
         
@@ -631,9 +631,11 @@ export const useBulkUpdateOrderStatusMutation = () => {
           userId: user?.id
         });
         
-        // Standard React Query pattern: invalidate relevant caches
+        // Standard React Query pattern: invalidate all order-related caches
         await Promise.all([
-          queryClient.invalidateQueries({ queryKey: ['orders'] }),
+          queryClient.invalidateQueries({ queryKey: ['orders'] }), // Should match all orders queries
+          queryClient.invalidateQueries({ queryKey: ['orders', 'list'] }), // More specific for lists
+          queryClient.invalidateQueries({ queryKey: ['orders', 'detail'] }), // More specific for details
           queryClient.invalidateQueries({ queryKey: orderKeys.stats() })
         ]);
         

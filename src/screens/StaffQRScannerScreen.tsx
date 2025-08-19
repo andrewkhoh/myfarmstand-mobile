@@ -80,7 +80,7 @@ export const StaffQRScannerScreen: React.FC = () => {
     
     try {
       // Update order status using the real service
-      const result = await updateOrderStatus(scannedData.orderId, 'picked_up');
+      const result = await updateOrderStatus(scannedData.orderId, 'completed');
       
       if (result.success) {
         Alert.alert(
@@ -295,8 +295,6 @@ const getStatusColor = (status: string): string => {
       return '#4caf50';
     case 'completed':
       return '#2e7d32';
-    case 'picked_up':
-      return '#388e3c';
     default:
       return '#757575';
   }

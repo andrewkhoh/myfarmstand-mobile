@@ -49,7 +49,7 @@ const getStatusColor = (status: string): string => {
     case 'pending': return '#f59e0b';
     case 'confirmed': return '#3b82f6';
     case 'ready': return '#10b981';
-    case 'picked_up': return '#6b7280';
+    case 'completed': return '#6b7280';
     case 'cancelled': return '#ef4444';
     default: return '#6b7280';
   }
@@ -60,7 +60,7 @@ const getStatusIcon = (status: string): string => {
     case 'pending': return 'time-outline';
     case 'confirmed': return 'checkmark-circle-outline';
     case 'ready': return 'bag-check-outline';
-    case 'picked_up': return 'checkmark-done-outline';
+    case 'completed': return 'checkmark-done-outline';
     case 'cancelled': return 'close-circle-outline';
     default: return 'help-circle-outline';
   }
@@ -328,7 +328,7 @@ export const MyOrdersScreen: React.FC = () => {
             {renderStatusFilter('pending', 'Pending')}
             {renderStatusFilter('confirmed', 'Confirmed')}
             {renderStatusFilter('ready', 'Ready')}
-            {renderStatusFilter('picked_up', 'Completed')}
+            {renderStatusFilter('completed', 'Completed')}
             {renderStatusFilter('cancelled', 'Cancelled')}
           </ScrollView>
         </View>
