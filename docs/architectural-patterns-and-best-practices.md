@@ -130,7 +130,42 @@ const entity = DbEntityTransformSchema.parse(rawDbData);
 
 ## ⚡ **React Query Patterns**
 
-### **Pattern 1: User-Isolated Query Keys**
+### **Pattern 1: Centralized Query Key Factory Usage** ⚠️ CRITICAL
+**Rule**: Always use the centralized query key factory. Never create local duplicate systems.
+
+```typescript
+// ✅ CORRECT: Use centralized factory consistently
+import { cartKeys, productKeys, orderKeys } from '../utils/queryKeyFactory';
+
+const useCart = () => {
+  return useQuery({
+    queryKey: cartKeys.all(userId),
+    queryFn: cartService.getCart,
+    // ...
+  });
+};
+
+const useProducts = () => {
+  return useQuery({
+    queryKey: productKeys.lists(),
+    queryFn: productService.getProducts,
+    // ...
+  });
+};
+
+// ❌ ANTI-PATTERN: Local duplicate factory
+export const localProductKeys = {
+  all: ['products'] as const,
+  lists: () => [...localProductKeys.all, 'list'] as const,
+  search: (query: string) => ['products', 'search', query] as const,
+};
+
+// This creates dual systems and cache inconsistencies!
+```
+
+**Critical Discovery**: The audit revealed **dual query key systems** running in parallel across hooks, causing cache invalidation inconsistencies and developer confusion.
+
+### **Pattern 2: User-Isolated Query Keys**
 **Rule**: Always isolate user data with proper query key strategies.
 
 ```typescript
@@ -165,6 +200,31 @@ const badKeys = {
   all: ['cart'] // All users share the same cache key!
 };
 ```
+
+### **Pattern 3: Entity-Specific Factory Methods**
+**Rule**: Extend factories with entity-specific methods rather than manual key spreading.
+
+```typescript
+// ✅ CORRECT: Entity-specific factory methods
+export const kioskKeys = {
+  ...createQueryKeyFactory({ entity: 'kiosk', isolation: 'user-specific' }),
+  // Entity-specific extensions
+  session: (sessionId: string, userId?: string) => 
+    [...kioskKeys.details(userId), 'session', sessionId],
+  sessionTransactions: (sessionId: string, userId?: string) => 
+    [...kioskKeys.details(userId), 'session', sessionId, 'transactions'],
+  staffSessions: (staffId: string, userId?: string) => 
+    [...kioskKeys.lists(userId), 'staff', staffId, 'sessions'],
+};
+
+// Usage:
+queryKey: kioskKeys.sessionTransactions(sessionId, user?.id)
+
+// ❌ WRONG: Manual key spreading
+queryKey: [...kioskKeys.details(user?.id), 'session', sessionId, 'transactions']
+```
+
+**Benefits**: Reduces error surface, improves readability, enables better TypeScript support.
 
 ### **Pattern 2: Optimized Cache Configuration**
 **Rule**: Tune cache settings based on data volatility and user expectations.
@@ -258,6 +318,125 @@ const useCart = () => {
   });
 };
 ```
+
+---
+
+## 🔑 **Query Key Factory Patterns**
+
+### **Critical Discovery: Dual Systems Problem** ⚠️ URGENT
+**Audit Finding**: Multiple hooks are creating **local duplicate query key systems** instead of using the centralized factory, causing cache invalidation inconsistencies and developer confusion.
+
+### **Pattern 1: Consistent Factory Usage**
+**Rule**: Always use centralized query key factories. Never create local duplicates.
+
+```typescript
+// ✅ CORRECT: Centralized factory usage
+import { cartKeys, productKeys, orderKeys, authKeys } from '../utils/queryKeyFactory';
+
+// In hooks:
+const useCart = (userId: string) => {
+  return useQuery({
+    queryKey: cartKeys.all(userId),
+    queryFn: cartService.getCart,
+  });
+};
+
+const useProducts = () => {
+  return useQuery({
+    queryKey: productKeys.lists(),
+    queryFn: productService.getProducts,
+  });
+};
+
+// ❌ CRITICAL ANTI-PATTERN: Local duplicate factory
+export const localProductKeys = {
+  all: ['products'] as const,
+  lists: () => [...localProductKeys.all, 'list'] as const,
+  search: (query: string) => ['products', 'search', query] as const,
+};
+
+// This creates dual systems! Found in:
+// - useProducts.ts (products hook)
+// - useAuth.ts (auth hook) 
+// - Multiple service files
+```
+
+### **Pattern 2: Service Layer Factory Integration**
+**Rule**: Services should use factories for cache invalidation, not manual key construction.
+
+```typescript
+// ✅ CORRECT: Service using factory for invalidation
+import { cartKeys, productKeys, orderKeys } from '../utils/queryKeyFactory';
+
+export const realtimeService = {
+  handleCartUpdate: async (userId: string) => {
+    // Use centralized factories
+    await queryClient.invalidateQueries({ queryKey: cartKeys.all(userId) });
+    await queryClient.invalidateQueries({ queryKey: productKeys.all() });
+    await queryClient.invalidateQueries({ queryKey: orderKeys.lists(userId) });
+  }
+};
+
+// ❌ WRONG: Manual key construction in services
+const badInvalidation = async () => {
+  await queryClient.invalidateQueries({ queryKey: ['userOrders'] });
+  await queryClient.invalidateQueries({ queryKey: ['orders', 'user', userId] });
+  await queryClient.invalidateQueries({ queryKey: ['products'] });
+};
+```
+
+### **Pattern 3: Entity-Specific Factory Extensions**
+**Rule**: Extend base factories with entity-specific methods for complex queries.
+
+```typescript
+// ✅ CORRECT: Extended factory for complex entity patterns
+export const kioskKeys = {
+  ...createQueryKeyFactory({ entity: 'kiosk', isolation: 'user-specific' }),
+  
+  // Entity-specific methods to replace manual spreading
+  session: (sessionId: string, userId?: string) => 
+    [...kioskKeys.details(userId), 'session', sessionId],
+  
+  sessionTransactions: (sessionId: string, userId?: string) => 
+    [...kioskKeys.details(userId), 'session', sessionId, 'transactions'],
+  
+  sessionCustomer: (sessionId: string, userId?: string) => 
+    [...kioskKeys.details(userId), 'session', sessionId, 'customer'],
+  
+  staffSessions: (staffId: string, userId?: string) => 
+    [...kioskKeys.lists(userId), 'staff', staffId, 'sessions'],
+  
+  staffPins: (staffId: string, userId?: string) => 
+    [...kioskKeys.lists(userId), 'staff', staffId, 'pins'],
+  
+  sessionsFiltered: (filters: any, userId?: string) => 
+    [...kioskKeys.lists(userId), 'sessions', filters],
+};
+
+// Usage:
+queryKey: kioskKeys.sessionTransactions(sessionId, user?.id)
+
+// ❌ WRONG: Manual key spreading everywhere
+queryKey: [...kioskKeys.details(user?.id), 'session', sessionId, 'transactions']
+```
+
+### **Pattern 4: Factory Adoption Scorecard**
+Based on audit findings, current adoption rates:
+
+| Entity | Factory Usage | Issues Found |
+|--------|---------------|--------------|
+| **Cart** | ✅ 95% | Excellent adoption |
+| **Orders** | ✅ 90% | Good usage |
+| **Products** | ⚠️ 50% | **Dual systems problem** |
+| **Auth** | ❌ 10% | **Complete bypass** |
+| **Kiosk** | ⚠️ 70% | Manual spreading |
+| **Stock** | ✅ 85% | Mostly consistent |
+
+### **Best Practice Guidelines**
+1. **Eliminate Dual Systems**: Always use centralized factories instead of creating local duplicates
+2. **Service Layer Consistency**: Services should use factories for cache invalidation operations
+3. **Entity-Specific Extensions**: Prefer extending factories with entity-specific methods over manual key construction
+4. **Factory Adoption**: Maintain consistent factory usage patterns across all entities
 
 ---
 
@@ -814,6 +993,7 @@ When implementing new features, ensure you follow these patterns:
 - [ ] Transform schemas for DB → App format conversion
 
 ### **✅ Hook Layer Checklist**
+- [ ] **CRITICAL**: Use centralized query key factory (never create local duplicates)
 - [ ] User-isolated query keys with fallback strategies
 - [ ] Context-appropriate cache settings (staleTime, gcTime)
 - [ ] Comprehensive error handling with graceful degradation

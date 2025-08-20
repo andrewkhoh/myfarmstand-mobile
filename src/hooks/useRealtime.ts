@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { RealtimeService } from '../services/realtimeService';
 import { useCurrentUser } from './useAuth';
-import { createQueryKeyFactory } from '../utils/queryKeyFactory';
+import { cartKeys, orderKeys, productKeys } from '../utils/queryKeyFactory';
 import { createBroadcastHelper } from '../utils/broadcastFactory';
 
 // Enhanced interfaces following cart pattern
@@ -474,9 +474,9 @@ export const useRealtimeNotifications = () => {
       setUpdateCount(prev => prev + 1);
       
       // Invalidate relevant queries when realtime updates occur (following cart pattern)
-      queryClient.invalidateQueries({ queryKey: ['cart'] });
-      queryClient.invalidateQueries({ queryKey: ['orders'] });
-      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: cartKeys.all(user?.id) });
+      queryClient.invalidateQueries({ queryKey: orderKeys.all() });
+      queryClient.invalidateQueries({ queryKey: productKeys.all() });
       
       // Clear the message after 3 seconds
       setTimeout(() => {

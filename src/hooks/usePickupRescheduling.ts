@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { PickupReschedulingService, RescheduleRequest, RescheduleResult } from '../services/pickupReschedulingService';
+import { orderKeys } from '../utils/queryKeyFactory';
 import { orderBroadcast } from '../utils/broadcastFactory';
 import { useCurrentUser } from './useAuth';
 import { Order } from '../types';
@@ -126,15 +127,15 @@ export const usePickupRescheduling = () => {
     
     onMutate: async (request: RescheduleRequest): Promise<ReschedulingMutationContext> => {
       // Cancel outgoing queries to prevent race conditions (following cart pattern)
-      await queryClient.cancelQueries({ queryKey: ['orders'] });
-      await queryClient.cancelQueries({ queryKey: ['orders', 'user', user?.id] });
+      await queryClient.cancelQueries({ queryKey: orderKeys.all() });
+      await queryClient.cancelQueries({ queryKey: orderKeys.lists(user?.id) });
       
       // Snapshot previous values for rollback (following cart pattern)
-      const previousOrders = queryClient.getQueryData<Order[]>(['orders']);
-      const previousUserOrders = queryClient.getQueryData<Order[]>(['orders', 'user', user?.id]);
+      const previousOrders = queryClient.getQueryData<Order[]>(orderKeys.all());
+      const previousUserOrders = queryClient.getQueryData<Order[]>(orderKeys.lists(user?.id));
       
       // Optimistically update all relevant caches (following cart pattern)
-      queryClient.setQueryData(['orders'], (old: Order[] | undefined) =>
+      queryClient.setQueryData(orderKeys.all(), (old: Order[] | undefined) =>
         old?.map(order =>
           order.id === request.orderId
             ? { ...order, pickupDate: request.newPickupDate, updatedAt: new Date().toISOString() }
@@ -142,7 +143,7 @@ export const usePickupRescheduling = () => {
         )
       );
       
-      queryClient.setQueryData(['orders', 'user', user?.id], (old: Order[] | undefined) =>
+      queryClient.setQueryData(orderKeys.lists(user?.id), (old: Order[] | undefined) =>
         old?.map(order =>
           order.id === request.orderId
             ? { ...order, pickupDate: request.newPickupDate, updatedAt: new Date().toISOString() }
@@ -170,10 +171,10 @@ export const usePickupRescheduling = () => {
       
       // Rollback optimistic updates (following cart pattern)
       if (context?.previousOrders) {
-        queryClient.setQueryData(['orders'], context.previousOrders);
+        queryClient.setQueryData(orderKeys.all(), context.previousOrders);
       }
       if (context?.previousUserOrders) {
-        queryClient.setQueryData(['orders', 'user', user?.id], context.previousUserOrders);
+        queryClient.setQueryData(orderKeys.lists(user?.id), context.previousUserOrders);
       }
     },
     
@@ -187,8 +188,8 @@ export const usePickupRescheduling = () => {
         
         // Smart invalidation strategy (following cart pattern)
         await Promise.all([
-          queryClient.invalidateQueries({ queryKey: ['orders'] }),
-          queryClient.invalidateQueries({ queryKey: ['orders', 'user', user?.id] }),
+          queryClient.invalidateQueries({ queryKey: orderKeys.all() }),
+          queryClient.invalidateQueries({ queryKey: orderKeys.lists(user?.id) }),
           queryClient.invalidateQueries({ queryKey: reschedulingKeys.reschedules(request.orderId) })
         ]);
         

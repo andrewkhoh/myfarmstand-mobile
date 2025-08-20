@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { NoShowHandlingService } from '../services/noShowHandlingService';
+import { orderKeys } from '../utils/queryKeyFactory';
 import { orderBroadcast } from '../utils/broadcastFactory';
 import { useCurrentUser } from './useAuth';
 
@@ -101,11 +102,11 @@ export const useNoShowHandling = () => {
     
     onMutate: async (config?: any): Promise<NoShowMutationContext> => {
       // Cancel outgoing queries to prevent race conditions (following cart pattern)
-      await queryClient.cancelQueries({ queryKey: ['orders'] });
+      await queryClient.cancelQueries({ queryKey: orderKeys.all() });
       await queryClient.cancelQueries({ queryKey: noShowKeys.all });
       
       // Snapshot previous order data for rollback (following cart pattern)
-      const previousOrders = queryClient.getQueryData(['orders']);
+      const previousOrders = queryClient.getQueryData(orderKeys.all());
       const previousNoShowData = queryClient.getQueryData(noShowKeys.all);
       
       return { 
@@ -127,7 +128,7 @@ export const useNoShowHandling = () => {
       
       // Rollback optimistic updates on error (following cart pattern)
       if (context?.previousOrders) {
-        queryClient.setQueryData(['orders'], context.previousOrders);
+        queryClient.setQueryData(orderKeys.all(), context.previousOrders);
       }
       if (context?.previousNoShowData) {
         queryClient.setQueryData(noShowKeys.all, context.previousNoShowData);
@@ -155,7 +156,7 @@ export const useNoShowHandling = () => {
         
         // Smart invalidation strategy (following cart pattern)
         await Promise.all([
-          queryClient.invalidateQueries({ queryKey: ['orders'] }),
+          queryClient.invalidateQueries({ queryKey: orderKeys.all() }),
           queryClient.invalidateQueries({ queryKey: noShowKeys.all }),
           queryClient.invalidateQueries({ queryKey: noShowKeys.processing() })
         ]);
@@ -214,10 +215,10 @@ export const useNoShowHandling = () => {
     
     onMutate: async (): Promise<NoShowMutationContext> => {
       // Cancel outgoing queries (following cart pattern)
-      await queryClient.cancelQueries({ queryKey: ['orders'] });
+      await queryClient.cancelQueries({ queryKey: orderKeys.all() });
       await queryClient.cancelQueries({ queryKey: noShowKeys.overdue() });
       
-      const previousOrders = queryClient.getQueryData(['orders']);
+      const previousOrders = queryClient.getQueryData(orderKeys.all());
       
       return {
         previousOrders,
@@ -245,7 +246,7 @@ export const useNoShowHandling = () => {
         
         // Smart invalidation strategy (following cart pattern)
         await Promise.all([
-          queryClient.invalidateQueries({ queryKey: ['orders'] }),
+          queryClient.invalidateQueries({ queryKey: orderKeys.all() }),
           queryClient.invalidateQueries({ queryKey: noShowKeys.overdue() })
         ]);
       }

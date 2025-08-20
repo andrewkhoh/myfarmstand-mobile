@@ -70,7 +70,7 @@ export const useCustomerOrders = (userEmail?: string): UseQueryResult<Order[], E
   const effectiveUserEmail = userEmail || user?.email;
   
   const query = useQuery<Order[], Error>({
-    queryKey: ['orders', 'user', effectiveUserEmail] as const,
+    queryKey: orderKeys.lists(user?.id),
     queryFn: async (): Promise<Order[]> => {
       try {
         const orders = await OrderService.getCustomerOrders(effectiveUserEmail!);
@@ -334,7 +334,7 @@ export const useUserOrders = (userId: string): UseQueryResult<Order[], Error> =>
   const { data: currentUser } = useCurrentUser();
   
   const query = useQuery<Order[], Error>({
-    queryKey: ['orders', 'user', userId] as const,
+    queryKey: orderKeys.lists(userId),
     queryFn: async (): Promise<Order[]> => {
       try {
         const orders = await OrderService.getCustomerOrders(userId);
@@ -459,16 +459,16 @@ export const useUpdateOrderStatusMutation = () => {
 
     onMutate: async ({ orderId, status }): Promise<OrderMutationContext> => {
       // Cancel outgoing queries to prevent race conditions (following cart pattern)
-      await queryClient.cancelQueries({ queryKey: ['orders'] });
-      await queryClient.cancelQueries({ queryKey: ['orders', 'user'] });
+      await queryClient.cancelQueries({ queryKey: orderKeys.all() });
+      await queryClient.cancelQueries({ queryKey: orderKeys.lists() });
       
       // Snapshot previous values for rollback (following cart pattern)
-      const previousOrders = queryClient.getQueryData<Order[]>(['orders']);
-      const previousUserOrders = queryClient.getQueryData<Order[]>(['orders', 'user']);
-      const previousOrder = queryClient.getQueryData<Order>(['orders', 'detail', orderId]);
+      const previousOrders = queryClient.getQueryData<Order[]>(orderKeys.all());
+      const previousUserOrders = queryClient.getQueryData<Order[]>(orderKeys.lists());
+      const previousOrder = queryClient.getQueryData<Order>(orderKeys.detail(orderId));
       
       // Optimistically update all relevant caches (following cart pattern)
-      queryClient.setQueryData(['orders'], (old: Order[] | undefined) =>
+      queryClient.setQueryData(orderKeys.all(), (old: Order[] | undefined) =>
         old?.map(order =>
           order.id === orderId
             ? { ...order, status: status as any, updatedAt: new Date().toISOString() }
@@ -476,7 +476,7 @@ export const useUpdateOrderStatusMutation = () => {
         )
       );
       
-      queryClient.setQueryData(['orders', 'user'], (old: Order[] | undefined) =>
+      queryClient.setQueryData(orderKeys.lists(), (old: Order[] | undefined) =>
         old?.map(order =>
           order.id === orderId
             ? { ...order, status: status as any, updatedAt: new Date().toISOString() }
@@ -484,7 +484,7 @@ export const useUpdateOrderStatusMutation = () => {
         )
       );
       
-      queryClient.setQueryData(['orders', 'detail', orderId], (old: Order | undefined) =>
+      queryClient.setQueryData(orderKeys.detail(orderId), (old: Order | undefined) =>
         old ? { ...old, status: status as any, updatedAt: new Date().toISOString() } : old
       );
       
@@ -509,13 +509,13 @@ export const useUpdateOrderStatusMutation = () => {
       
       // Rollback optimistic updates (following cart pattern)
       if (context?.previousOrders) {
-        queryClient.setQueryData(['orders'], context.previousOrders);
+        queryClient.setQueryData(orderKeys.all(), context.previousOrders);
       }
       if (context?.previousUserOrders) {
-        queryClient.setQueryData(['orders', 'user'], context.previousUserOrders);
+        queryClient.setQueryData(orderKeys.lists(), context.previousUserOrders);
       }
       if (context?.previousOrder) {
-        queryClient.setQueryData(['orders', 'detail', orderId], context.previousOrder);
+        queryClient.setQueryData(orderKeys.detail(orderId), context.previousOrder);
       }
     },
 
@@ -532,9 +532,9 @@ export const useUpdateOrderStatusMutation = () => {
         
         // Standard React Query pattern: invalidate all order-related caches
         await Promise.all([
-          queryClient.invalidateQueries({ queryKey: ['orders'] }), // Should match all orders queries
-          queryClient.invalidateQueries({ queryKey: ['orders', 'list'] }), // More specific for lists
-          queryClient.invalidateQueries({ queryKey: ['orders', 'detail'] }), // More specific for details
+          queryClient.invalidateQueries({ queryKey: orderKeys.all() }), // Should match all orders queries
+          queryClient.invalidateQueries({ queryKey: orderKeys.lists() }), // More specific for lists
+          queryClient.invalidateQueries({ queryKey: orderKeys.details() }), // More specific for details
           queryClient.invalidateQueries({ queryKey: orderKeys.stats() })
         ]);
         
@@ -609,8 +609,8 @@ export const useBulkUpdateOrderStatusMutation = () => {
 
     onMutate: async ({ orderIds, status }): Promise<OrderMutationContext> => {
       // Cancel outgoing queries to prevent race conditions (following cart pattern)
-      await queryClient.cancelQueries({ queryKey: ['orders'] });
-      await queryClient.cancelQueries({ queryKey: ['orders', 'user', user?.id] });
+      await queryClient.cancelQueries({ queryKey: orderKeys.all() });
+      await queryClient.cancelQueries({ queryKey: orderKeys.lists(user?.id) });
 
       // Snapshot previous values for rollback (following cart pattern)
       const previousOrders = queryClient.getQueryData<Order[]>(orderKeys.list({}));
@@ -705,9 +705,9 @@ export const useBulkUpdateOrderStatusMutation = () => {
         
         // Standard React Query pattern: invalidate all order-related caches
         await Promise.all([
-          queryClient.invalidateQueries({ queryKey: ['orders'] }), // Should match all orders queries
-          queryClient.invalidateQueries({ queryKey: ['orders', 'list'] }), // More specific for lists
-          queryClient.invalidateQueries({ queryKey: ['orders', 'detail'] }), // More specific for details
+          queryClient.invalidateQueries({ queryKey: orderKeys.all() }), // Should match all orders queries
+          queryClient.invalidateQueries({ queryKey: orderKeys.lists() }), // More specific for lists
+          queryClient.invalidateQueries({ queryKey: orderKeys.details() }), // More specific for details
           queryClient.invalidateQueries({ queryKey: orderKeys.stats() })
         ]);
         

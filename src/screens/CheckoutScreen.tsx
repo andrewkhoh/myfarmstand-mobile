@@ -15,6 +15,7 @@ import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { orderKeys } from '../utils/queryKeyFactory';
 import { useCart } from '../hooks/useCart';
 import { useCurrentUser } from '../hooks/useAuth';
 import { useStockValidation } from '../hooks/useStockValidation';
@@ -113,7 +114,7 @@ export const CheckoutScreen: React.FC = () => {
         await clearCart(undefined);
         
         // Invalidate order history cache so new order appears in profile
-        queryClient.invalidateQueries({ queryKey: ['userOrders'] });
+        queryClient.invalidateQueries({ queryKey: orderKeys.all(user?.id) });
         
         // Navigate to order confirmation screen
         navigation.navigate('OrderConfirmation', {

@@ -1,5 +1,5 @@
 // Centralized Query Key Factory with User Isolation Support and Fallback Strategies
-export type EntityType = 'cart' | 'orders' | 'products' | 'auth' | 'stock' | 'kiosk';
+export type EntityType = 'cart' | 'orders' | 'products' | 'auth' | 'stock' | 'kiosk' | 'notifications';
 export type UserIsolationLevel = 'user-specific' | 'admin-global' | 'global';
 
 interface QueryKeyConfig {
@@ -99,6 +99,7 @@ export const productKeys = createQueryKeyFactory({ entity: 'products', isolation
 export const authKeys = createQueryKeyFactory({ entity: 'auth', isolation: 'user-specific' });
 export const stockKeys = createQueryKeyFactory({ entity: 'stock', isolation: 'global' });
 export const kioskKeys = createQueryKeyFactory({ entity: 'kiosk', isolation: 'user-specific' }); // Kiosk sessions are user-specific for security
+export const notificationKeys = createQueryKeyFactory({ entity: 'notifications', isolation: 'user-specific' }); // Notifications are user-specific
 
 // Utility function to get user-specific query key with fallback
 export const getUserSpecificKey = (entity: EntityType, userId?: string, ...additionalKeys: string[]) => {

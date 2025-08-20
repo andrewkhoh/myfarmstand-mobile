@@ -97,12 +97,22 @@ module.exports = {
       supabaseAnonKey: process.env.BUILD_SUPABASE_ANON_KEY || process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
       channelSecret: process.env.BUILD_CHANNEL_SECRET || process.env.EXPO_PUBLIC_CHANNEL_SECRET,
       debugChannels: process.env.BUILD_DEBUG_CHANNELS || process.env.DEBUG_CHANNELS,
+      
+      // Environment configuration
       nodeEnv: process.env.NODE_ENV || 'development',
+      environment: process.env.EXPO_PUBLIC_ENV || process.env.NODE_ENV || 'development',
+      
+      // Security flags - prevent dangerous features in production
+      allowDevScripts: process.env.EXPO_PUBLIC_ALLOW_DEV_SCRIPTS === 'true',
+      showTests: process.env.EXPO_PUBLIC_SHOW_TESTS === 'true',
       
       // Production optimization flags
-      showTests: process.env.EXPO_PUBLIC_SHOW_TESTS === 'true',
       enableCrashReporting: process.env.NODE_ENV === 'production',
       enableAnalytics: process.env.NODE_ENV === 'production',
+      
+      // Build metadata
+      buildTime: new Date().toISOString(),
+      buildProfile: process.env.EAS_BUILD_PROFILE || 'development',
     }
   }
 };

@@ -3,7 +3,7 @@ import { useCallback } from 'react';
 import { ErrorRecoveryService, ErrorContext, ErrorRecoveryResult, ErrorRecoveryConfig, ErrorType } from '../services/errorRecoveryService';
 import { orderBroadcast } from '../utils/broadcastFactory';
 import { useCurrentUser } from './useAuth';
-import { createQueryKeyFactory } from '../utils/queryKeyFactory';
+import { orderKeys } from '../utils/queryKeyFactory';
 import { createBroadcastHelper } from '../utils/broadcastFactory';
 
 // Enhanced interfaces following cart pattern
@@ -202,13 +202,13 @@ export const useErrorRecovery = () => {
     
     onMutate: async (context: ErrorContext): Promise<ErrorRecoveryMutationContext> => {
       // Cancel outgoing queries to prevent race conditions (following cart pattern)
-      await queryClient.cancelQueries({ queryKey: ['orders'] });
-      await queryClient.cancelQueries({ queryKey: ['orders', 'user', user?.id] });
+      await queryClient.cancelQueries({ queryKey: orderKeys.all() });
+      await queryClient.cancelQueries({ queryKey: orderKeys.lists(user?.id) });
       await queryClient.cancelQueries({ queryKey: errorRecoveryQueryKey });
       
       // Snapshot previous values for rollback (following cart pattern)
-      const previousOrders = queryClient.getQueryData(['orders']);
-      const previousUserOrders = queryClient.getQueryData(['orders', 'user', user?.id]);
+      const previousOrders = queryClient.getQueryData(orderKeys.all());
+      const previousUserOrders = queryClient.getQueryData(orderKeys.lists(user?.id));
       const previousErrorRecovery = queryClient.getQueryData(errorRecoveryQueryKey);
       
       // Optimistically update error recovery state (following cart pattern)
@@ -232,10 +232,10 @@ export const useErrorRecovery = () => {
     onError: (error: any, context: ErrorContext, contextData?: ErrorRecoveryMutationContext) => {
       // Rollback optimistic updates (following cart pattern)
       if (contextData?.previousOrders) {
-        queryClient.setQueryData(['orders'], contextData.previousOrders);
+        queryClient.setQueryData(orderKeys.all(), contextData.previousOrders);
       }
       if (contextData?.previousUserOrders) {
-        queryClient.setQueryData(['orders', 'user', user?.id], contextData.previousUserOrders);
+        queryClient.setQueryData(orderKeys.lists(user?.id), contextData.previousUserOrders);
       }
       if (contextData?.previousErrorRecovery) {
         queryClient.setQueryData(errorRecoveryQueryKey, contextData.previousErrorRecovery);
@@ -256,7 +256,7 @@ export const useErrorRecovery = () => {
       
       // Smart invalidation strategy (following cart pattern)
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['orders'] }),
+        queryClient.invalidateQueries({ queryKey: orderKeys.all() }),
         queryClient.invalidateQueries({ queryKey: errorRecoveryQueryKey })
       ]);
       

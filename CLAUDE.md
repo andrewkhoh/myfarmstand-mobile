@@ -57,10 +57,10 @@ npm run typecheck
 - **Integration**: End-to-end behavior testing
 
 ### **Key Patterns**
-- Query key factories for consistent caching
-- Broadcast factories for real-time updates
-- Error recovery with exponential backoff
-- TypeScript interfaces for robust typing
+- **Query key factories** for consistent caching ⚠️ **AUDIT FINDINGS**: Dual systems problem requiring immediate fix
+- **Broadcast factories** for real-time updates
+- **Error recovery** with exponential backoff
+- **TypeScript interfaces** for robust typing
 
 ## 🎯 **Current Status**
 - ✅ Race condition testing infrastructure complete
@@ -120,9 +120,38 @@ This document contains:
 - Rationale behind "inefficient" patterns (they're actually resilience features)
 - Performance optimization strategies that maintain architectural integrity
 
+## 🔑 **Query Key Factory Audit Findings** ⚠️ CRITICAL
+
+### **Discovery**: Dual Systems Problem
+- **Status**: URGENT - Inconsistent query key factory adoption across codebase
+- **Impact**: Cache invalidation inconsistencies, developer confusion, maintenance burden
+- **Audit Location**: `src/scratchpad-querykey-refactor/`
+
+### **Key Issues Found**
+1. **Products Hook**: `useProducts.ts` has local `productQueryKeys` + centralized `productKeys` (dual systems)
+2. **Auth Hook**: `useAuth.ts` completely bypasses centralized `authKeys` factory
+3. **Service Layer**: `realtimeService.ts` mixes manual key construction with factory usage
+4. **Kiosk Manual Spreading**: Complex manual key spreading instead of factory methods
+
+### **Adoption Scorecard**
+| Entity | Factory Usage | Issues |
+|--------|---------------|--------|
+| Cart | ✅ 95% | Excellent |
+| Orders | ✅ 90% | Good |
+| Products | ⚠️ 50% | **Dual systems** |
+| Auth | ❌ 10% | **Complete bypass** |
+| Kiosk | ⚠️ 70% | Manual spreading |
+
+### **Key Pattern Guidelines**
+1. **Consistency First**: Always use centralized query key factories across all entities
+2. **Eliminate Dual Systems**: Avoid creating local duplicate factories alongside centralized ones
+3. **Service Integration**: Services should leverage factories for cache invalidation operations
+4. **Entity Extensions**: Extend base factories with entity-specific methods rather than manual key construction
+
 ## ⚡ **Quick Reference**
 - **Fake timers**: Avoid in React Query tests (causes hanging)
 - **Real short delays**: Use 50-100ms for race condition timing
 - **Product-specific mocking**: Better than sequential mocking for concurrent tests
 - **waitFor + act**: Required pattern for async state assertions
 - **Pattern compliance**: Always check docs/architectural-patterns-and-best-practices.md before implementing
+- **Query key factory**: ALWAYS use centralized factory, never create local duplicates

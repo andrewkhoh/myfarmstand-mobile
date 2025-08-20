@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect } from 'react';
 import { AuthService } from '../services/authService';
 import { User } from '../types';
-import { authKeys } from '../utils/queryKeyFactory';
+import { authKeys, cartKeys, orderKeys } from '../utils/queryKeyFactory';
 import { createBroadcastHelper } from '../utils/broadcastFactory';
 
 // Enhanced interfaces following cart pattern
@@ -301,9 +301,9 @@ export const useLogoutMutation = () => {
       
       // Clear sensitive data only
       Promise.all([
-        queryClient.removeQueries({ queryKey: ['cart'] }),
-        queryClient.removeQueries({ queryKey: ['orders'] }),
-        queryClient.removeQueries({ queryKey: ['auth'] }),
+        queryClient.removeQueries({ queryKey: cartKeys.all() }),
+        queryClient.removeQueries({ queryKey: orderKeys.all() }),
+        queryClient.removeQueries({ queryKey: authKeys.all() }),
       ]).catch(error => console.warn('Cache cleanup error:', error));
     },
     onSuccess: (_result: AuthOperationResult<void>, _variables: undefined, context?: AuthMutationContext) => {
@@ -315,12 +315,12 @@ export const useLogoutMutation = () => {
       queryClient.setQueryData(authKeys.details(), null);
       
       // Security: Clear all sensitive user data while preserving observers where possible
-      queryClient.removeQueries({ queryKey: ['cart'] });
-      queryClient.removeQueries({ queryKey: ['orders'] }); 
+      queryClient.removeQueries({ queryKey: cartKeys.all() });
+      queryClient.removeQueries({ queryKey: orderKeys.all() }); 
       
       // Clear any other user-specific data (profile, settings, etc.)
-      queryClient.removeQueries({ queryKey: ['profile'] });
-      queryClient.removeQueries({ queryKey: ['settings'] });
+      queryClient.removeQueries({ queryKey: [...authKeys.all(), 'profile'] });
+      queryClient.removeQueries({ queryKey: [...authKeys.all(), 'settings'] });
       
       // Note: Keep general product cache - it's not user-specific
       

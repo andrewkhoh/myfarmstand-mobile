@@ -6,7 +6,7 @@ import { Product } from '../types';
 import { useCart } from './useCart';
 import { useCurrentUser } from './useAuth';
 import { Database } from '../types/database.generated';
-import { createQueryKeyFactory } from '../utils/queryKeyFactory';
+import { productKeys } from '../utils/queryKeyFactory';
 import { createBroadcastHelper } from '../utils/broadcastFactory';
 
 type DBProduct = Database['public']['Tables']['products']['Row'];
@@ -344,7 +344,7 @@ export const useStockValidation = () => {
     onSuccess: async (_result: StockOperationResult<StockData[]>) => {
       // Smart invalidation strategy (following cart pattern)
       await queryClient.invalidateQueries({ queryKey: stockQueryKey });
-      await queryClient.invalidateQueries({ queryKey: ['products'] });
+      await queryClient.invalidateQueries({ queryKey: productKeys.all() });
       
       // Broadcast success (following cart pattern)
       await stockBroadcast.send('stock-refreshed', {

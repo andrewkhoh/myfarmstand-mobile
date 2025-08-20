@@ -149,7 +149,7 @@ export const KioskProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       
       // ✅ PATTERN: Smart invalidation (targeted, not over-invalidating)
       queryClient.invalidateQueries({ 
-        queryKey: ['kiosk', 'sessions'],
+        queryKey: [...kioskKeys.lists(user?.id), 'sessions'],
         exact: false 
       });
       
@@ -177,7 +177,7 @@ export const KioskProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       
       // ✅ PATTERN: Smart invalidation
       queryClient.invalidateQueries({ 
-        queryKey: ['kiosk'],
+        queryKey: kioskKeys.all(user?.id),
         exact: false 
       });
       

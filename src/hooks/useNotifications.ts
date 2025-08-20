@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { NotificationService, NotificationRequest, NotificationResult } from '../services/notificationService';
+import { notificationKeys } from '../utils/queryKeyFactory';
 import { useCurrentUser } from './useAuth';
 import { createBroadcastHelper } from '../utils/broadcastFactory';
 
@@ -182,7 +183,7 @@ export const useNotifications = () => {
 
   // Enhanced notification preferences query (following cart pattern)
   const preferencesQuery = useQuery<NotificationPreferences | null, Error>({
-    queryKey: notificationKeys.preferences(user.id),
+    queryKey: [...notificationKeys.details(user.id), 'preferences'],
     queryFn: async (): Promise<NotificationPreferences | null> => {
       // Authentication guard (following cart pattern)
       if (!user?.id) {
@@ -355,7 +356,7 @@ export const useNotifications = () => {
         // Smart invalidation strategy (following cart pattern)
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: notificationKeys.lists(user.id) }),
-          queryClient.invalidateQueries({ queryKey: notificationKeys.detail(user.id, request.type) })
+          queryClient.invalidateQueries({ queryKey: [...notificationKeys.details(user.id), request.type] })
         ]);
         
         // Broadcast notification event for real-time sync (following cart pattern)
@@ -430,13 +431,13 @@ export const useNotifications = () => {
     
     onMutate: async (newPreferences: Partial<NotificationPreferences>): Promise<NotificationMutationContext> => {
       // Cancel outgoing queries to prevent race conditions (following cart pattern)
-      await queryClient.cancelQueries({ queryKey: notificationKeys.preferences(user.id) });
+      await queryClient.cancelQueries({ queryKey: [...notificationKeys.details(user.id), 'preferences'] });
       
       // Snapshot previous values for rollback (following cart pattern)
-      const previousPreferences = queryClient.getQueryData<NotificationPreferences | null>(notificationKeys.preferences(user.id));
+      const previousPreferences = queryClient.getQueryData<NotificationPreferences | null>([...notificationKeys.details(user.id), 'preferences']);
       
       // Optimistically update preferences (following cart pattern)
-      queryClient.setQueryData(notificationKeys.preferences(user.id), (old: NotificationPreferences | null) => 
+      queryClient.setQueryData([...notificationKeys.details(user.id), 'preferences'], (old: NotificationPreferences | null) => 
         old ? { ...old, ...newPreferences, updatedAt: new Date().toISOString() } : null
       );
       
@@ -458,7 +459,7 @@ export const useNotifications = () => {
       
       // Rollback optimistic updates (following cart pattern)
       if (context?.previousPreferences !== undefined) {
-        queryClient.setQueryData(notificationKeys.preferences(user.id), context.previousPreferences);
+        queryClient.setQueryData([...notificationKeys.details(user.id), 'preferences'], context.previousPreferences);
       }
     },
     
@@ -470,7 +471,7 @@ export const useNotifications = () => {
         });
         
         // Smart invalidation strategy (following cart pattern)
-        await queryClient.invalidateQueries({ queryKey: notificationKeys.preferences(user.id) });
+        await queryClient.invalidateQueries({ queryKey: [...notificationKeys.details(user.id), 'preferences'] });
         
         // Broadcast preferences update (following cart pattern)
         await notificationBroadcast.send('preferences-updated', {
