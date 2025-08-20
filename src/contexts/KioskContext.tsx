@@ -131,7 +131,7 @@ export const KioskProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   });
 
   // Get current session data from server if we have a persisted session AND user has kiosk permissions
-  const userRole = user?.raw_user_meta_data?.role;
+  const userRole = user?.role;
   const hasKioskPermissions = userRole && ['staff', 'manager', 'admin'].includes(userRole);
   const shouldFetchSession = persistedSessionQuery.data?.sessionId && hasKioskPermissions;
   

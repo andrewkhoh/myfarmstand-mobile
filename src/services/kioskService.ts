@@ -75,7 +75,7 @@ export const kioskService = {
       const validatedInput = KioskAuthRequestSchema.parse({ pin });
 
 
-      // ✅ PATTERN: Direct Supabase query (fast, indexed)
+      // ✅ PATTERN: Direct Supabase query (requires proper database setup)
       const { data: staffPinData, error } = await supabase
         .from('staff_pins')
         .select(`
@@ -85,7 +85,22 @@ export const kioskService = {
         .eq('is_active', true)
         .single();
 
-      if (error || !staffPinData) {
+      if (error) {
+        console.error('Database error accessing staff_pins:', error);
+        ValidationMonitor.recordValidationError({
+          context: 'KioskService.authenticateStaff.databaseError',
+          errorMessage: `Database error: ${error.message}`,
+          errorCode: 'DATABASE_ACCESS_FAILED',
+          validationPattern: 'direct_supabase_query'
+        });
+        
+        return {
+          success: false,
+          message: 'Authentication system unavailable'
+        };
+      }
+
+      if (!staffPinData) {
         ValidationMonitor.recordValidationError({
           context: 'KioskService.authenticateStaff.pinValidation',
           errorMessage: 'Invalid PIN provided',
@@ -103,11 +118,11 @@ export const kioskService = {
       // Fetch user details to validate role permissions
       const { data: userData, error: userError } = await supabase
         .from('users')
-        .select('name, raw_user_meta_data')
+        .select('name, role')
         .eq('id', staffPinData.user_id)
         .single();
       
-      const userRole = userData?.raw_user_meta_data?.role;
+      const userRole = userData?.role;
       if (!userRole || !['staff', 'manager', 'admin'].includes(userRole)) {
         ValidationMonitor.recordValidationError({
           context: 'KioskService.authenticateStaff.roleValidation',
@@ -122,31 +137,50 @@ export const kioskService = {
         };
       }
 
-      // ✅ PATTERN: Session creation with role validation complete
-      const sessionId = crypto.randomUUID();
-      const staffName = userData?.name || 'Unknown Staff';
-      const { error: sessionError } = await supabase
+      // ✅ PATTERN: Check for existing active session first
+      const { data: existingSession } = await supabase
         .from('kiosk_sessions')
-        .insert({
-          id: sessionId,
-          staff_id: staffPinData.user_id,
-          session_start: new Date().toISOString(),
-          is_active: true
-        });
+        .select('session_id')
+        .eq('staff_user_id', staffPinData.user_id)
+        .eq('is_active', true)
+        .single();
 
-      if (sessionError) {
-        ValidationMonitor.recordValidationError({
-          context: 'KioskService.authenticateStaff.sessionCreation',
-          errorMessage: sessionError.message,
-          errorCode: 'SESSION_CREATION_FAILED',
-          validationPattern: 'direct_supabase_query_with_validation'
-        });
+      let sessionId: string;
+      const staffName = userData?.name || 'Unknown Staff';
+      
+      if (existingSession) {
+        // Return existing active session
+        sessionId = existingSession.session_id;
+        console.log('🔄 Returning existing active session:', sessionId);
+      } else {
+        // Create new session
+        sessionId = crypto.randomUUID();
+        const { error: sessionError } = await supabase
+          .from('kiosk_sessions')
+          .insert({
+            session_id: sessionId,
+            staff_user_id: staffPinData.user_id,
+            staff_name: userData.name || 'Unknown Staff',
+            start_time: new Date().toISOString(),
+            is_active: true
+          });
+
+        if (sessionError) {
+          ValidationMonitor.recordValidationError({
+            context: 'KioskService.authenticateStaff.sessionCreation',
+            errorMessage: sessionError.message,
+            errorCode: 'SESSION_CREATION_FAILED',
+            validationPattern: 'direct_supabase_query_with_validation'
+          });
+          
+          console.error('Failed to create kiosk session:', sessionError);
+          return {
+            success: false,
+            message: 'Failed to start kiosk session'
+          };
+        }
         
-        console.error('Failed to create kiosk session:', sessionError);
-        return {
-          success: false,
-          message: 'Failed to start kiosk session'
-        };
+        console.log('🆕 Created new kiosk session:', sessionId);
       }
 
       // ✅ PATTERN: Update last used timestamp (separate operation for resilience)
@@ -218,10 +252,10 @@ export const kioskService = {
       const { data: sessionData, error } = await supabase
         .from('kiosk_sessions')
         .select(`
-          id, staff_id, session_start, session_end, total_sales, 
-          transaction_count, is_active, device_id, created_at, updated_at
+          id, session_id, staff_user_id, staff_name, start_time, end_time, 
+          total_sales, transaction_count, is_active, created_at, updated_at
         `)
-        .eq('id', sessionId)
+        .eq('session_id', sessionId)
         .single();
 
       if (error || !sessionData) {
@@ -240,11 +274,11 @@ export const kioskService = {
 
       // ✅ PATTERN: Fetch user data separately (no FK relationship exists)
       let userData: any = null;
-      if (sessionData.staff_id) {
+      if (sessionData.staff_user_id) {
         const { data: userRecord, error: userError } = await supabase
           .from('users')
-          .select('name, raw_user_meta_data')
-          .eq('id', sessionData.staff_id)
+          .select('name, role')
+          .eq('id', sessionData.staff_user_id)
           .single();
         
         if (userRecord && !userError) {
@@ -255,12 +289,22 @@ export const kioskService = {
       // ✅ PATTERN: Individual validation with proper error context
       let transformedSession: KioskSession;
       try {
-        const dataForTransform = {
+        // Map database column names to what the transform schema expects
+        const mappedSessionData = {
           ...sessionData,
+          // Map new column names to old ones for schema compatibility
+          staff_id: sessionData.staff_user_id,
+          session_start: sessionData.start_time,
+          session_end: sessionData.end_time,
+          // Keep the new names too in case they're needed
+        };
+
+        const dataForTransform = {
+          ...mappedSessionData,
           users: userData, // For compatibility with existing transform logic
           staff: userData ? {
             name: userData.name,
-            role: userData.raw_user_meta_data?.role || 'staff'
+            role: userData.role
           } : null
         };
         
