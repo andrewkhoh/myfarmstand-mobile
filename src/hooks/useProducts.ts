@@ -59,17 +59,7 @@ type ProductsByCategoryQueryFn = (categoryId: string) => Promise<Product[]>;
 type RefreshProductsMutationFn = () => Promise<ProductOperationResult<Product[]>>;
 type RefreshCategoriesMutationFn = () => Promise<ProductOperationResult<Category[]>>;
 
-// Query keys for React Query (enhanced following cart pattern)
-export const productQueryKeys = {
-  all: ['products'] as const,
-  lists: () => [...productQueryKeys.all, 'list'] as const,
-  list: (filters: string) => [...productQueryKeys.lists(), { filters }] as const,
-  details: () => [...productQueryKeys.all, 'detail'] as const,
-  detail: (id: string) => [...productQueryKeys.details(), id] as const,
-  categories: ['categories'] as const,
-  search: (query: string) => ['products', 'search', query] as const,
-  byCategory: (categoryId: string | null) => ['products', 'category', categoryId] as const,
-};
+// ✅ PHASE 1.1: Eliminated local productQueryKeys - using centralized productKeys factory
 
 // Enhanced Hook for fetching all products with real-time updates (following cart pattern)
 export const useProducts = () => {
@@ -313,7 +303,7 @@ export const useProductSearch = (searchQuery: string) => {
   const { data: user } = useCurrentUser();
   
   const query = useQuery({
-    queryKey: productQueryKeys.search(searchQuery),
+    queryKey: [...productKeys.lists(), 'search', searchQuery],
     queryFn: async (): Promise<Product[]> => {
       try {
         const response = await searchProducts(searchQuery);
@@ -403,7 +393,7 @@ export const useProductById = (productId: string) => {
   }
   
   return useQuery({
-    queryKey: productQueryKeys.detail(productId),
+    queryKey: productKeys.detail(productId),
     queryFn: async (): Promise<Product | null> => {
       try {
         const response = await getProductById(productId);
@@ -451,7 +441,7 @@ export const useProductById = (productId: string) => {
 export const useCategories = () => {
   const { data: user } = useCurrentUser();
   const queryClient = useQueryClient();
-  const categoriesQueryKey = productQueryKeys.categories;
+  const categoriesQueryKey = [...productKeys.lists(), 'categories'];
   
   // ✅ ARCHITECTURAL PATTERN: Use React Query's enabled guard
   const query = useQuery({
@@ -601,7 +591,7 @@ export const useProductsByCategory = (categoryId: string | null) => {
   const { data: user } = useCurrentUser();
   
   const query = useQuery({
-    queryKey: productQueryKeys.byCategory(categoryId),
+    queryKey: [...productKeys.lists(), 'category', categoryId],
     queryFn: async (): Promise<Product[]> => {
       try {
         if (!categoryId) {

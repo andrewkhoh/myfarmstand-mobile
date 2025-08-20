@@ -1,6 +1,6 @@
 import { supabase } from '../config/supabase';
 import { queryClient } from '../config/queryClient';
-import { cartKeys } from '../utils/queryKeyFactory';
+import { cartKeys, orderKeys, productKeys } from '../utils/queryKeyFactory';
 import { SecureChannelNameGenerator, createBroadcastHelper } from '../utils/broadcastFactory';
 
 /**
@@ -68,8 +68,8 @@ export class RealtimeService {
               console.log('🔄 Order status changed (secure user channel):', payload);
               
               // Invalidate user-specific order queries
-              queryClient.invalidateQueries({ queryKey: ['userOrders'] });
-              queryClient.invalidateQueries({ queryKey: ['orders', 'user', userId] });
+              queryClient.invalidateQueries({ queryKey: orderKeys.all(userId) });
+              queryClient.invalidateQueries({ queryKey: orderKeys.lists(userId) });
               
               this.notifyDataUpdate(`Your order ${payload.payload.orderId} status updated to ${payload.payload.newStatus}`);
             }
@@ -82,8 +82,8 @@ export class RealtimeService {
             if (payload.payload?.userId === userId) {
               console.log('🔄 New order confirmation (secure user channel):', payload);
               
-              queryClient.invalidateQueries({ queryKey: ['userOrders'] });
-              queryClient.invalidateQueries({ queryKey: ['orders', 'user', userId] });
+              queryClient.invalidateQueries({ queryKey: orderKeys.all(userId) });
+              queryClient.invalidateQueries({ queryKey: orderKeys.lists(userId) });
               
               this.notifyDataUpdate('Order confirmation received!');
             }
@@ -129,8 +129,8 @@ export class RealtimeService {
             console.log('🔄 Order status changed (secure admin channel):', payload);
             
             // Invalidate admin order queries
-            queryClient.invalidateQueries({ queryKey: ['orders'] }); // Admin orders list
-            queryClient.invalidateQueries({ queryKey: ['orders', 'admin'] });
+            queryClient.invalidateQueries({ queryKey: orderKeys.all() }); // Admin orders list
+            queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
             
             this.notifyDataUpdate(`Order ${payload.payload.orderId} status updated (Admin)`);
           }
@@ -141,8 +141,8 @@ export class RealtimeService {
           (payload) => {
             console.log('🔄 New order received (secure admin channel):', payload);
             
-            queryClient.invalidateQueries({ queryKey: ['orders'] });
-            queryClient.invalidateQueries({ queryKey: ['orders', 'admin'] });
+            queryClient.invalidateQueries({ queryKey: orderKeys.all() });
+            queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
             
             this.notifyDataUpdate('New order received (Admin)!');
           }
@@ -188,8 +188,8 @@ export class RealtimeService {
             console.log('🔄 Product updated (secure global channel):', payload);
             
             // Invalidate product queries to trigger refetch
-            queryClient.invalidateQueries({ queryKey: ['products'] });
-            queryClient.invalidateQueries({ queryKey: ['products', 'detail', payload.payload.productId] });
+            queryClient.invalidateQueries({ queryKey: productKeys.all() });
+            queryClient.invalidateQueries({ queryKey: productKeys.detail(payload.payload.productId) });
             
             this.notifyDataUpdate(`Product ${payload.payload.productName} updated`);
           }
@@ -201,8 +201,8 @@ export class RealtimeService {
             console.log('🔄 Stock updated (secure global channel):', payload);
             
             // Invalidate product queries to trigger refetch
-            queryClient.invalidateQueries({ queryKey: ['products'] });
-            queryClient.invalidateQueries({ queryKey: ['products', 'detail', payload.payload.productId] });
+            queryClient.invalidateQueries({ queryKey: productKeys.all() });
+            queryClient.invalidateQueries({ queryKey: productKeys.detail(payload.payload.productId) });
             
             this.notifyDataUpdate(`Stock updated for ${payload.payload.productName}`);
           }
@@ -409,11 +409,11 @@ export class RealtimeService {
   static forceRefreshAllData() {
     console.log('🔄 Force refreshing all cached data...');
     
-    queryClient.invalidateQueries({ queryKey: ['products'] });
-    queryClient.invalidateQueries({ queryKey: ['categories'] });
-    queryClient.invalidateQueries({ queryKey: ['orders'] });
-    queryClient.invalidateQueries({ queryKey: ['userOrders'] }); // ProfileScreen format
-    queryClient.invalidateQueries({ queryKey: ['cart'] }); // Legacy global cart key for backward compatibility 
+    queryClient.invalidateQueries({ queryKey: productKeys.all() });
+    queryClient.invalidateQueries({ queryKey: [...productKeys.lists(), 'categories'] }); // Categories use product factory with composition
+    queryClient.invalidateQueries({ queryKey: orderKeys.all() });
+    queryClient.invalidateQueries({ queryKey: orderKeys.all(this.currentUserId || undefined) }); // User-specific orders
+    queryClient.invalidateQueries({ queryKey: cartKeys.all(this.currentUserId || undefined) }); // User-specific cart 
     
     console.log('✅ All cached data refreshed');
   }

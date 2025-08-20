@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect } from 'react';
 import { AuthService } from '../services/authService';
 import { User } from '../types';
+import { authKeys } from '../utils/queryKeyFactory';
 import { createBroadcastHelper } from '../utils/broadcastFactory';
 
 // Enhanced interfaces following cart pattern
@@ -51,13 +52,7 @@ const authBroadcast = createBroadcastHelper({
 
 // Enhanced typed mutation functions (following cart pattern) - removed unused types for cleanup
 
-// Query keys for auth-related queries (enhanced following cart pattern)
-export const authKeys = {
-  all: ['auth'] as const,
-  user: () => [...authKeys.all, 'user'] as const,
-  profile: (userId: string) => [...authKeys.all, 'profile', userId] as const,
-  status: () => [...authKeys.all, 'status'] as const,
-};
+// ✅ PHASE 1.3: Using centralized authKeys factory from queryKeyFactory
 
 /**
  * Enhanced Hook for login mutation with React Query (following cart pattern)
@@ -97,10 +92,10 @@ export const useLoginMutation = () => {
     },
     onMutate: async ({ email }): Promise<AuthMutationContext> => {
       // Cancel outgoing refetches (following cart pattern)
-      await queryClient.cancelQueries({ queryKey: authKeys.user() });
+      await queryClient.cancelQueries({ queryKey: authKeys.details() });
       
       // Snapshot previous value (following cart pattern)
-      const previousUser = queryClient.getQueryData<User | null>(authKeys.user());
+      const previousUser = queryClient.getQueryData<User | null>(authKeys.details());
       
       return { 
         previousUser, 
@@ -111,7 +106,7 @@ export const useLoginMutation = () => {
     onError: (error: AuthError, variables: { email: string; password: string }, context?: AuthMutationContext) => {
       // Rollback on error (following cart pattern)
       if (context?.previousUser !== undefined) {
-        queryClient.setQueryData(authKeys.user(), context.previousUser);
+        queryClient.setQueryData(authKeys.details(), context.previousUser);
       }
       
       // Enhanced error logging (following cart pattern)
@@ -126,7 +121,7 @@ export const useLoginMutation = () => {
         console.log('✅ Login successful:', result.data.user.email);
         
         // Set user data in cache
-        queryClient.setQueryData(authKeys.user(), result.data.user);
+        queryClient.setQueryData(authKeys.details(), result.data.user);
         
         // Broadcast success (following cart pattern)
         await authBroadcast.send('user-logged-in', {
@@ -191,10 +186,10 @@ export const useRegisterMutation = () => {
     },
     onMutate: async ({ email }): Promise<AuthMutationContext> => {
       // Cancel outgoing refetches (following cart pattern)
-      await queryClient.cancelQueries({ queryKey: authKeys.user() });
+      await queryClient.cancelQueries({ queryKey: authKeys.details() });
       
       // Snapshot previous value (following cart pattern)
-      const previousUser = queryClient.getQueryData<User | null>(authKeys.user());
+      const previousUser = queryClient.getQueryData<User | null>(authKeys.details());
       
       return { 
         previousUser, 
@@ -205,7 +200,7 @@ export const useRegisterMutation = () => {
     onError: (error: AuthError, variables, context?: AuthMutationContext) => {
       // Rollback on error (following cart pattern)
       if (context?.previousUser !== undefined) {
-        queryClient.setQueryData(authKeys.user(), context.previousUser);
+        queryClient.setQueryData(authKeys.details(), context.previousUser);
       }
       
       // Enhanced error logging (following cart pattern)
@@ -216,17 +211,17 @@ export const useRegisterMutation = () => {
       });
       
       // Clear any stale auth data on registration failure
-      queryClient.removeQueries({ queryKey: authKeys.all });
+      queryClient.removeQueries({ queryKey: authKeys.all() });
     },
     onSuccess: async (result: AuthOperationResult<{ user: User }>, _variables) => {
       if (result.success && result.data) {
         // Update React Query cache only
-        queryClient.setQueryData(authKeys.user(), result.data.user);
+        queryClient.setQueryData(authKeys.details(), result.data.user);
         
         // Smart invalidation strategy (following cart pattern)
         await Promise.all([
-          queryClient.invalidateQueries({ queryKey: authKeys.all }),
-          queryClient.invalidateQueries({ queryKey: authKeys.status() })
+          queryClient.invalidateQueries({ queryKey: authKeys.all() }),
+          queryClient.invalidateQueries({ queryKey: [...authKeys.all(), 'status'] })
         ]);
         
         // Broadcast success (following cart pattern)
@@ -282,10 +277,10 @@ export const useLogoutMutation = () => {
     },
     onMutate: async (): Promise<AuthMutationContext> => {
       // Cancel outgoing refetches (following cart pattern)
-      await queryClient.cancelQueries({ queryKey: authKeys.user() });
+      await queryClient.cancelQueries({ queryKey: authKeys.details() });
       
       // Snapshot previous value (following cart pattern)
-      const previousUser = queryClient.getQueryData<User | null>(authKeys.user());
+      const previousUser = queryClient.getQueryData<User | null>(authKeys.details());
       
       return { 
         previousUser, 
@@ -301,8 +296,8 @@ export const useLogoutMutation = () => {
       });
       
       // Even if logout fails, clear states for security (targeted approach)
-      queryClient.setQueryData(authKeys.user(), null);
-      queryClient.invalidateQueries({ queryKey: authKeys.user() });
+      queryClient.setQueryData(authKeys.details(), null);
+      queryClient.invalidateQueries({ queryKey: authKeys.details() });
       
       // Clear sensitive data only
       Promise.all([
@@ -317,7 +312,7 @@ export const useLogoutMutation = () => {
       // React Query logout pattern: Preserve observers, clear data
       // 🚨 NEVER: queryClient.clear() - destroys observers, breaks subsequent reactivity
       // ✅ ALWAYS: queryClient.setQueryData(key, value) - preserves observers, maintains reactivity
-      queryClient.setQueryData(authKeys.user(), null);
+      queryClient.setQueryData(authKeys.details(), null);
       
       // Security: Clear all sensitive user data while preserving observers where possible
       queryClient.removeQueries({ queryKey: ['cart'] });
@@ -379,15 +374,15 @@ export const useUpdateProfileMutation = () => {
     },
     onMutate: async ({ updates, userId }): Promise<AuthMutationContext> => {
       // Cancel any outgoing refetches (following cart pattern)
-      await queryClient.cancelQueries({ queryKey: authKeys.user() });
+      await queryClient.cancelQueries({ queryKey: authKeys.details() });
 
       // Snapshot the previous value (following cart pattern)
-      const previousUser = queryClient.getQueryData<User | null>(authKeys.user());
+      const previousUser = queryClient.getQueryData<User | null>(authKeys.details());
 
       // Optimistically update to the new value (following cart pattern)
       if (previousUser) {
         const optimisticUser = { ...previousUser, ...updates };
-        queryClient.setQueryData(authKeys.user(), optimisticUser);
+        queryClient.setQueryData(authKeys.details(), optimisticUser);
       }
 
       return { 
@@ -399,7 +394,7 @@ export const useUpdateProfileMutation = () => {
     onError: (error: AuthError, variables: { userId: string; updates: Partial<User> }, context?: AuthMutationContext) => {
       // Enhanced rollback on error (following cart pattern)
       if (context?.previousUser !== undefined) {
-        queryClient.setQueryData(authKeys.user(), context.previousUser);
+        queryClient.setQueryData(authKeys.details(), context.previousUser);
       }
       
       // Enhanced error logging (following cart pattern)
@@ -414,12 +409,12 @@ export const useUpdateProfileMutation = () => {
         console.log('✅ Profile update successful:', result.data.user.id);
         
         // Update React Query cache with server response (following cart pattern)
-        queryClient.setQueryData(authKeys.user(), result.data.user);
+        queryClient.setQueryData(authKeys.details(), result.data.user);
         
         // Smart invalidation strategy (following cart pattern)
         await Promise.all([
-          queryClient.invalidateQueries({ queryKey: authKeys.user() }),
-          queryClient.invalidateQueries({ queryKey: authKeys.profile(variables.userId) })
+          queryClient.invalidateQueries({ queryKey: authKeys.details() }),
+          queryClient.invalidateQueries({ queryKey: [...authKeys.details(variables.userId), 'profile'] })
         ]);
         
         // Broadcast success (following cart pattern)
@@ -485,10 +480,10 @@ export const useChangePasswordMutation = () => {
     },
     onMutate: async (): Promise<AuthMutationContext> => {
       // Cancel outgoing refetches (following cart pattern)
-      await queryClient.cancelQueries({ queryKey: authKeys.user() });
+      await queryClient.cancelQueries({ queryKey: authKeys.details() });
       
       // Snapshot previous value (following cart pattern)
-      const previousUser = queryClient.getQueryData<User | null>(authKeys.user());
+      const previousUser = queryClient.getQueryData<User | null>(authKeys.details());
       
       return { 
         previousUser, 
@@ -507,7 +502,7 @@ export const useChangePasswordMutation = () => {
       console.log('✅ Password changed successfully');
       
       // No cache updates needed for password change, but refresh user session
-      await queryClient.invalidateQueries({ queryKey: authKeys.user() });
+      await queryClient.invalidateQueries({ queryKey: authKeys.details() });
       
       // Broadcast success (following cart pattern)
       await authBroadcast.send('user-password-changed', {
@@ -531,7 +526,7 @@ export const useChangePasswordMutation = () => {
  */
 export const useCurrentUser = () => {
   const query = useQuery({
-    queryKey: authKeys.user(),
+    queryKey: authKeys.details(),
     queryFn: async (): Promise<User | null> => {
       try {
         const result = await AuthService.getCurrentUser();
@@ -582,7 +577,7 @@ export const useCurrentUser = () => {
  */
 export const useAuthStatus = () => {
   return useQuery({
-    queryKey: [...authKeys.all, 'status'],
+    queryKey: [...authKeys.all(), 'status'],
     queryFn: () => AuthService.isAuthenticated(),
     staleTime: 0, // Always check auth status
     gcTime: 0, // Don't cache auth status
@@ -627,10 +622,10 @@ export const useRefreshTokenMutation = () => {
     },
     onMutate: async (): Promise<AuthMutationContext> => {
       // Cancel outgoing refetches (following cart pattern)
-      await queryClient.cancelQueries({ queryKey: authKeys.user() });
+      await queryClient.cancelQueries({ queryKey: authKeys.details() });
       
       // Snapshot previous value (following cart pattern)
-      const previousUser = queryClient.getQueryData<User | null>(authKeys.user());
+      const previousUser = queryClient.getQueryData<User | null>(authKeys.details());
       
       return { 
         previousUser, 
@@ -646,7 +641,7 @@ export const useRefreshTokenMutation = () => {
       });
       
       // If refresh fails, clear user data for security (following cart pattern)
-      queryClient.setQueryData(authKeys.user(), null);
+      queryClient.setQueryData(authKeys.details(), null);
       queryClient.clear();
     },
     onSuccess: async (result: AuthOperationResult<{ token: string }>) => {
@@ -687,8 +682,8 @@ export const useAuthOperations = () => {
   const authStatusQuery = useAuthStatus();
 
   // Enhanced utility functions with useCallback (following cart pattern)
-  const getAuthQueryKey = useCallback(() => authKeys.user(), []);
-  const getAuthStatusQueryKey = useCallback(() => authKeys.status(), []);
+  const getAuthQueryKey = useCallback(() => authKeys.details(), []);
+  const getAuthStatusQueryKey = useCallback(() => [...authKeys.all(), 'status'], []);
 
   return {
     // Direct mutation functions (following cart pattern - single source of truth)

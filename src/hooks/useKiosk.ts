@@ -15,32 +15,9 @@ import type {
 
 // ✅ PATTERN: Using centralized query key factory
 
-// Extended key factory for kiosk-specific operations
-export const kioskKeyFactory = {
-  all: (userId?: string) => kioskKeys.all(userId), // Kiosk sessions are user-specific for security
-  sessions: (userId?: string) => [...kioskKeyFactory.all(userId), 'sessions'] as const,
-  session: (sessionId: string, userId?: string) => [...kioskKeyFactory.all(userId), 'sessions', sessionId] as const,
-  sessionTransactions: (sessionId: string, userId?: string) => [...kioskKeyFactory.all(userId), 'sessions', sessionId, 'transactions'] as const,
-  auth: (userId?: string) => [...kioskKeyFactory.all(userId), 'auth'] as const,
-  transaction: (transactionId: string, userId?: string) => [...kioskKeyFactory.all(userId), 'transaction', transactionId] as const,
-  
-  // Staff-specific keys (user-isolated)
-  staffSessions: (staffId: string, userId?: string) => [...kioskKeyFactory.all(userId), 'staff', staffId, 'sessions'] as const,
-  staffPins: (staffId: string, userId?: string) => [...kioskKeyFactory.all(userId), 'staff', staffId, 'pins'] as const,
-};
+// ✅ REFACTORED: Use centralized kioskKeys directly (removed redundant factory)
 
-// ✅ PATTERN: Comprehensive error handling with graceful degradation
-const createKioskError = (
-  code: string,
-  technicalMessage: string,
-  userMessage: string,
-  metadata?: Record<string, unknown>
-) => ({
-  code,
-  message: technicalMessage,      // For developers/logs
-  userMessage,                    // For users
-  ...metadata,
-});
+// ✅ REFACTORED: Use centralized error patterns (simplified)
 
 // ✅ PATTERN: Kiosk Authentication Hook with ValidationMonitor
 export const useKioskAuth = () => {
@@ -93,8 +70,8 @@ export const useKioskAuth = () => {
     onSuccess: (data: KioskAuthResponse) => {
       if (data.success && data.sessionId) {
         // ✅ PATTERN: Smart invalidation with user isolation
-        queryClient.invalidateQueries({ queryKey: kioskKeyFactory.sessions(user?.id), exact: false });
-        queryClient.invalidateQueries({ queryKey: kioskKeyFactory.auth(user?.id), exact: false });
+        queryClient.invalidateQueries({ queryKey: [...kioskKeys.lists(user?.id), 'sessions'], exact: false });
+        queryClient.invalidateQueries({ queryKey: [...kioskKeys.lists(user?.id), 'auth'], exact: false });
         
         // Don't invalidate all queries - be specific
         ValidationMonitor.recordPatternSuccess({
@@ -120,7 +97,7 @@ export const useKioskSession = (sessionId: string | null) => {
   const { data: user } = useCurrentUser();
   
   return useQuery({
-    queryKey: kioskKeyFactory.session(sessionId || '', user?.id),
+    queryKey: [...kioskKeys.details(user?.id), 'session', sessionId || ''],
     queryFn: async (): Promise<KioskSessionResponse | null> => {
       if (!sessionId) {
         ValidationMonitor.recordValidationError({
@@ -176,7 +153,7 @@ export const useKioskSessions = (
   const { data: user } = useCurrentUser();
   
   return useQuery({
-    queryKey: [...kioskKeyFactory.sessions(user?.id), filters],
+    queryKey: [...kioskKeys.lists(user?.id), 'sessions', filters],
     queryFn: async (): Promise<KioskSessionsListResponse> => {
       try {
         const result = await kioskService.getSessions(filters);
@@ -252,8 +229,8 @@ export const useKioskSessionOperations = () => {
     },
     onSuccess: (_, sessionId) => {
       // ✅ PATTERN: Smart invalidation with user isolation
-      queryClient.invalidateQueries({ queryKey: kioskKeyFactory.session(sessionId, user?.id) });
-      queryClient.invalidateQueries({ queryKey: kioskKeyFactory.sessions(user?.id) });
+      queryClient.invalidateQueries({ queryKey: [...kioskKeys.details(user?.id), 'session', sessionId] });
+      queryClient.invalidateQueries({ queryKey: [...kioskKeys.lists(user?.id), 'sessions'] });
       
       ValidationMonitor.recordPatternSuccess({
         service: 'useKioskSessionOperations',
@@ -299,7 +276,7 @@ export const useKioskSessionOperations = () => {
       if (data.success) {
         // ✅ PATTERN: Optimistic update
         queryClient.setQueryData(
-          kioskKeyFactory.session(sessionId, user?.id), 
+          [...kioskKeys.details(user?.id), 'session', sessionId], 
           (old: KioskSessionResponse | undefined) => {
             if (old && old.session) {
               return {
@@ -328,7 +305,7 @@ export const useKioskTransactions = (sessionId: string | null) => {
   const { data: user } = useCurrentUser();
   
   return useQuery({
-    queryKey: kioskKeyFactory.sessionTransactions(sessionId || '', user?.id),
+    queryKey: [...kioskKeys.details(user?.id), 'session', sessionId || '', 'transactions'],
     queryFn: async (): Promise<KioskTransactionsListResponse | null> => {
       if (!sessionId) return null;
 
@@ -404,4 +381,4 @@ export const useKiosk = (sessionId: string | null) => {
 };
 
 // Export key factory for use in other modules
-export { kioskKeyFactory };
+// ✅ REFACTORED: Now using centralized kioskKeys directly
