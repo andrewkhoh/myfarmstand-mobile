@@ -19,6 +19,24 @@ jest.mock('../../utils/queryKeyFactory', () => ({
     detail: (userId: string, type: string) => ['realtime', 'detail', userId, type],
     lists: (userId: string) => ['realtime', 'list', userId],
   }),
+  authKeys: {
+    all: (userId?: string) => userId ? ['auth', userId] : ['auth'],
+    lists: (userId?: string) => userId ? ['auth', userId, 'list'] : ['auth', 'list'],
+    details: (userId?: string) => userId ? ['auth', userId, 'detail'] : ['auth', 'detail'],
+    detail: (id: string, userId?: string) => userId ? ['auth', userId, 'detail', id] : ['auth', 'detail', id],
+  },
+  cartKeys: {
+    all: (userId?: string) => userId ? ['cart', userId] : ['cart'],
+    details: (userId?: string) => userId ? ['cart', userId, 'detail'] : ['cart', 'detail'],
+  },
+  orderKeys: {
+    all: (userId?: string) => userId ? ['orders', userId] : ['orders'],
+    lists: (userId?: string) => userId ? ['orders', userId, 'list'] : ['orders', 'list'],
+  },
+  productKeys: {
+    all: () => ['products'],
+    lists: () => ['products', 'list'],
+  },
 }));
 
 jest.mock('../../utils/broadcastFactory', () => ({
@@ -223,7 +241,7 @@ describe('useRealtime hooks', () => {
         });
 
         const queryKey = result.current.getRealtimeQueryKey();
-        expect(queryKey).toEqual(['realtime', 'detail', 'user123', 'status']);
+        expect(queryKey).toEqual(['auth', 'user123', 'detail', 'realtime', 'status']);
       });
     });
 
@@ -282,7 +300,7 @@ describe('useRealtime hooks', () => {
         });
 
         const queryKey = result.current.getNotificationQueryKey?.();
-        expect(queryKey).toEqual(['realtime', 'list', 'user123']);
+        expect(queryKey).toEqual(['auth', 'user123', 'list', 'notifications']);
       });
     });
   });

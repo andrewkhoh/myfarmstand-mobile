@@ -22,10 +22,12 @@ const mockUseCurrentUser = useCurrentUser as jest.MockedFunction<typeof useCurre
 
 jest.mock('../../utils/queryKeyFactory', () => ({
   orderKeys: {
-    list: (filters: any) => ['orders', 'list', filters],
-    detail: (id: string) => ['orders', 'detail', id],
-    stats: () => ['orders', 'stats'],
-    all: (userId: string) => ['orders', userId],
+    all: (userId?: string) => userId ? ['orders', userId] : ['orders'],
+    lists: (userId?: string) => userId ? ['orders', userId, 'list'] : ['orders', 'list'],
+    list: (filters: any, userId?: string) => userId ? ['orders', userId, 'list', filters] : ['orders', 'list', filters],
+    details: (userId?: string) => userId ? ['orders', userId, 'detail'] : ['orders', 'detail'],
+    detail: (id: string, userId?: string) => userId ? ['orders', userId, 'detail', id] : ['orders', 'detail', id],
+    stats: (userId?: string) => userId ? ['orders', userId, 'stats'] : ['orders', 'stats'],
   },
 }));
 

@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { RealtimeService } from '../services/realtimeService';
 import { useCurrentUser } from './useAuth';
-import { cartKeys, orderKeys, productKeys } from '../utils/queryKeyFactory';
+import { cartKeys, orderKeys, productKeys, authKeys } from '../utils/queryKeyFactory';
 import { createBroadcastHelper } from '../utils/broadcastFactory';
 
 // Enhanced interfaces following cart pattern
@@ -50,11 +50,7 @@ const createRealtimeError = (
   channel,
 });
 
-// Query key factory for realtime operations (following cart pattern)
-const realtimeKeys = createQueryKeyFactory({
-  entity: 'auth', // Using 'auth' as closest match for realtime
-  isolation: 'user-specific'
-});
+// ✅ REFACTORED: Using centralized authKeys factory for realtime operations
 
 // Broadcast helper for realtime events (following cart pattern)
 const realtimeBroadcast = createBroadcastHelper({
@@ -86,7 +82,7 @@ export const useRealtime = () => {
     'Please sign in to use real-time features'
   ) : null;
   
-  const realtimeQueryKey = user?.id ? realtimeKeys.detail(user.id, 'status') : ['realtime', 'unauthenticated'];
+  const realtimeQueryKey = user?.id ? [...authKeys.details(user.id), 'realtime', 'status'] : ['realtime', 'unauthenticated'];
   
   // Enhanced query with proper enabled guard and error handling (following cart pattern)
   const {
@@ -351,7 +347,7 @@ export const useRealtime = () => {
   }, [refetch]);
   
   const getRealtimeQueryKey = useCallback(() => 
-    user?.id ? realtimeKeys.detail(user.id, 'status') : ['realtime', 'unauthenticated'], 
+    user?.id ? [...authKeys.details(user.id), 'realtime', 'status'] : ['realtime', 'unauthenticated'], 
     [user?.id]
   );
 
@@ -446,7 +442,7 @@ export const useRealtimeNotifications = () => {
   ) : null;
   
   // Query for notification history (following cart pattern)
-  const notificationKeys = user?.id ? realtimeKeys.lists(user.id) : ['notifications', 'unauthenticated'];
+  const notificationKeys = user?.id ? [...authKeys.lists(user.id), 'notifications'] : ['notifications', 'unauthenticated'];
   
   const {
     data: notificationHistory = [],

@@ -3,7 +3,7 @@ import { useCallback } from 'react';
 import { ErrorRecoveryService, ErrorContext, ErrorRecoveryResult, ErrorRecoveryConfig, ErrorType } from '../services/errorRecoveryService';
 import { orderBroadcast } from '../utils/broadcastFactory';
 import { useCurrentUser } from './useAuth';
-import { orderKeys } from '../utils/queryKeyFactory';
+import { orderKeys, authKeys } from '../utils/queryKeyFactory';
 import { createBroadcastHelper } from '../utils/broadcastFactory';
 
 // Enhanced interfaces following cart pattern
@@ -50,11 +50,7 @@ const createErrorRecoveryError = (
   ...metadata,
 });
 
-// Query key factory for error recovery operations (following cart pattern)
-const errorRecoveryKeys = createQueryKeyFactory({
-  entity: 'auth', // Using 'auth' as closest match for error recovery
-  isolation: 'user-specific'
-});
+// ✅ REFACTORED: Using centralized authKeys factory
 
 // Broadcast helper for error recovery events (following cart pattern)
 const errorRecoveryBroadcast = createBroadcastHelper({
@@ -117,7 +113,7 @@ export const useErrorRecovery = () => {
     };
   }
   
-  const errorRecoveryQueryKey = errorRecoveryKeys.detail(user.id, 'state');
+  const errorRecoveryQueryKey = authKeys.detail(user.id, 'error-recovery');
   
   // Enhanced query with proper enabled guard and error handling (following cart pattern)
   const {
@@ -376,4 +372,4 @@ export const useErrorRecovery = () => {
   };
 };
 
-// Export enhanced error recovery keys for external use (following cart pattern)\nexport { errorRecoveryKeys };
+// ✅ REFACTORED: No local factory to export, use centralized authKeys

@@ -6,7 +6,7 @@ import { Product } from '../types';
 import { useCart } from './useCart';
 import { useCurrentUser } from './useAuth';
 import { Database } from '../types/database.generated';
-import { productKeys } from '../utils/queryKeyFactory';
+import { productKeys, stockKeys } from '../utils/queryKeyFactory';
 import { createBroadcastHelper } from '../utils/broadcastFactory';
 
 type DBProduct = Database['public']['Tables']['products']['Row'];
@@ -65,11 +65,7 @@ const createStockError = (
   productId,
 });
 
-// Query key factory for stock operations (following cart pattern)
-const stockKeys = createQueryKeyFactory({
-  entity: 'stock', // Use separate entity to avoid conflicts with main products
-  isolation: 'global'
-});
+// ✅ REFACTORED: Using centralized stockKeys factory
 
 // Broadcast helper for stock events (following cart pattern)
 const stockBroadcast = createBroadcastHelper({
@@ -325,7 +321,7 @@ export const useStockValidation = () => {
       return { 
         previousStockData, 
         operationType: 'refresh',
-        metadata: { userId: user.id }
+        metadata: { userId: user?.id || 'anonymous' }
       };
     },
     onError: (error: any, _variables: void, context?: StockMutationContext) => {
@@ -338,7 +334,7 @@ export const useStockValidation = () => {
       console.error('❌ Refresh stock failed:', {
         error: error.message,
         userMessage: (error as StockError).userMessage,
-        userId: user.id
+        userId: user?.id || 'anonymous'
       });
     },
     onSuccess: async (_result: StockOperationResult<StockData[]>) => {
@@ -348,7 +344,7 @@ export const useStockValidation = () => {
       
       // Broadcast success (following cart pattern)
       await stockBroadcast.send('stock-refreshed', {
-        userId: user.id,
+        userId: user?.id || 'anonymous',
         timestamp: new Date().toISOString()
       });
     },

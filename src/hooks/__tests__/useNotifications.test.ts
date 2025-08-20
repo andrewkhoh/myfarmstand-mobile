@@ -256,8 +256,8 @@ describe('useNotifications', () => {
       const notificationKey = result.current.getNotificationQueryKey?.('user123');
       const preferencesKey = result.current.getPreferencesQueryKey?.('user123');
 
-      expect(notificationKey).toEqual(['notifications', 'list', 'user123']);
-      expect(preferencesKey).toEqual(['notifications', 'preferences', 'user123']);
+      expect(notificationKey).toEqual(['notifications', 'user123', 'list']);
+      expect(preferencesKey).toEqual(['notifications', 'user123', 'detail', 'preferences']);
     });
 
     it('should provide loading states', () => {

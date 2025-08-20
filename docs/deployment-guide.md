@@ -16,18 +16,23 @@ eas login
 eas build:configure
 ```
 
-### **Required Environment Variables**
+### **🔐 Required Secrets Configuration**
 
-Set these in your Expo project settings or via EAS CLI:
+**SECURITY**: Use EAS Secrets for production (never EXPO_PUBLIC_* for secrets):
 
 ```bash
-# Required for all environments
-EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+# 🔐 SECURE: Set EAS secrets (production)
+eas secret:create --scope project --name SUPABASE_URL --value "https://your-project.supabase.co"
+eas secret:create --scope project --name SUPABASE_ANON_KEY --value "your-anon-key"
+eas secret:create --scope project --name CHANNEL_SECRET --value "$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")"
 
-# Optional: Channel security (recommended for production)
-EXPO_PUBLIC_CHANNEL_SECRET=your-secret-key
+# Development only (fallback environment variables)
+EXPO_PUBLIC_SUPABASE_URL=https://your-dev-project.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=your-dev-anon-key
+EXPO_PUBLIC_CHANNEL_SECRET=your-dev-secret  # 32+ characters
 ```
+
+**⚠️ CRITICAL**: `EXPO_PUBLIC_*` variables are **bundled into your app** and visible to attackers. Only use them for development!
 
 ## 🏗 **Build Profiles**
 
@@ -76,10 +81,11 @@ npm run build:production
 Every build runs pre-build validation that checks:
 
 1. **🛡 Database Safety**: Prevents test PINs and dev scripts in production
-2. **🔑 Environment Variables**: Ensures required config is present  
-3. **🚨 Security Flags**: Blocks debug features in production builds
+2. **🔐 EAS Secrets Security**: Validates secure secret configuration  
+3. **🚨 Bundle Security**: Blocks EXPO_PUBLIC_* secrets in production
 4. **📱 Kiosk PIN Security**: Validates no hardcoded test PINs in code
-5. **📦 Dependencies**: Confirms all packages are properly installed
+5. **🔑 Environment Variables**: Ensures required config is present
+6. **📦 Dependencies**: Confirms all packages are properly installed
 
 ### **Manual Safety Commands**
 
@@ -95,6 +101,15 @@ npm run db:scan
 
 # Run full pre-build validation
 npm run prebuild:validate
+
+# Validate secrets security
+npm run secrets:validate
+
+# Comprehensive secrets audit
+npm run secrets:audit
+
+# Check for secrets in app bundle
+npm run secrets:bundle-scan
 ```
 
 ## 🚨 **Kiosk PIN Security**

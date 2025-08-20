@@ -58,33 +58,108 @@ const validationChecks = [
   },
   
   {
-    name: 'Required Environment Variables',
+    name: 'EAS Secrets Configuration',
     check: () => {
-      const required = [
-        'EXPO_PUBLIC_SUPABASE_URL',
-        'EXPO_PUBLIC_SUPABASE_ANON_KEY'
-      ];
+      const environment = process.env.EXPO_PUBLIC_ENV || process.env.NODE_ENV || 'development';
       
-      const missing = [];
-      const present = [];
-      
-      required.forEach(envVar => {
-        const value = process.env[envVar] || 
-                     (global.expo?.extra?.[envVar.replace('EXPO_PUBLIC_', '').toLowerCase()]);
+      // For production builds, require EAS secrets (not EXPO_PUBLIC_*)
+      if (environment === 'production') {
+        const requiredSecrets = [
+          'SUPABASE_URL',        // EAS secret (not EXPO_PUBLIC_*)
+          'SUPABASE_ANON_KEY'    // EAS secret (not EXPO_PUBLIC_*)
+        ];
         
-        if (!value) {
-          missing.push(envVar);
-        } else {
-          present.push(envVar);
+        const missing = [];
+        const present = [];
+        
+        requiredSecrets.forEach(secret => {
+          // Check for EAS-injected secrets (not EXPO_PUBLIC_*)
+          if (process.env[secret]) {
+            present.push(secret);
+          } else {
+            missing.push(secret);
+          }
+        });
+        
+        if (missing.length > 0) {
+          throw new Error(
+            `Missing EAS secrets for production: ${missing.join(', ')}\n\n` +
+            'Set them using:\n' +
+            missing.map(secret => `eas secret:create --scope project --name ${secret} --value "your-value"`).join('\n')
+          );
         }
-      });
+        
+        log(`✅ EAS secrets configured: ${present.length}`, colors.green);
+        return { easSecrets: present.length, environment: 'production' };
+      } else {
+        // For development, allow EXPO_PUBLIC_* fallbacks
+        const required = [
+          'EXPO_PUBLIC_SUPABASE_URL',
+          'EXPO_PUBLIC_SUPABASE_ANON_KEY'
+        ];
+        
+        const missing = [];
+        const present = [];
+        
+        required.forEach(envVar => {
+          const value = process.env[envVar] || 
+                       (global.expo?.extra?.[envVar.replace('EXPO_PUBLIC_', '').toLowerCase()]);
+          
+          if (!value) {
+            missing.push(envVar);
+          } else {
+            present.push(envVar);
+          }
+        });
+        
+        if (missing.length > 0) {
+          throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
+        }
+        
+        log(`✅ Development environment variables present: ${present.length}`, colors.green);
+        return { required: present.length, missing: 0, environment };
+      }
+    }
+  },
+
+  {
+    name: 'Secrets Bundle Security',
+    check: () => {
+      const environment = process.env.EXPO_PUBLIC_ENV || process.env.NODE_ENV || 'development';
       
-      if (missing.length > 0) {
-        throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
+      if (environment === 'production') {
+        // Check that no secrets are exposed via EXPO_PUBLIC_*
+        const exposedSecrets = [];
+        const dangerousEnvVars = [
+          'EXPO_PUBLIC_SUPABASE_URL',
+          'EXPO_PUBLIC_SUPABASE_ANON_KEY', 
+          'EXPO_PUBLIC_CHANNEL_SECRET',
+          'EXPO_PUBLIC_DATABASE_URL'
+        ];
+        
+        dangerousEnvVars.forEach(envVar => {
+          if (process.env[envVar]) {
+            exposedSecrets.push(envVar);
+          }
+        });
+        
+        if (exposedSecrets.length > 0) {
+          throw new Error(
+            `SECURITY VIOLATION: Secrets exposed via EXPO_PUBLIC_* in production: ${exposedSecrets.join(', ')}\n\n` +
+            'Production builds must use EAS secrets only. Remove these environment variables:\n' +
+            exposedSecrets.map(secret => `unset ${secret}`).join('\n') + '\n\n' +
+            'Use EAS secrets instead:\n' +
+            exposedSecrets.map(secret => 
+              `eas secret:create --scope project --name ${secret.replace('EXPO_PUBLIC_', '')} --value "your-value"`
+            ).join('\n')
+          );
+        }
+        
+        log('✅ No secrets exposed in app bundle', colors.green);
+        return { bundleSecure: true, environment: 'production' };
       }
       
-      log(`✅ All required environment variables present: ${present.length}`, colors.green);
-      return { required: present.length, missing: 0 };
+      return { environment, skipped: true };
     }
   },
   

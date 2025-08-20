@@ -43,19 +43,11 @@ function createNotificationError(
   } as NotificationError & Error;
 }
 
-// Enhanced query keys for notification-related queries (following cart pattern)
-const notificationKeys = {
-  all: ['notifications'] as const,
-  lists: (userId: string) => [...notificationKeys.all, 'list', userId] as const,
-  list: (userId: string, filters?: Record<string, any>) => [...notificationKeys.lists(userId), filters] as const,
-  details: () => [...notificationKeys.all, 'detail'] as const,
-  detail: (userId: string, type: string) => [...notificationKeys.details(), userId, type] as const,
-  preferences: (userId: string) => [...notificationKeys.all, 'preferences', userId] as const,
-};
+// ✅ REFACTORED: Using centralized notificationKeys factory from queryKeyFactory
 
 // Broadcast helper for notification events (following cart pattern)
 const notificationBroadcast = createBroadcastHelper({
-  entity: 'auth', // Using existing entity type
+  entity: 'notifications', // Using correct entity type
   target: 'user-specific'
 });
 
@@ -497,7 +489,7 @@ export const useNotifications = () => {
 
   // Enhanced useCallback functions for stable references (following cart pattern)
   const getNotificationQueryKey = useCallback((userId: string) => notificationKeys.lists(userId), []);
-  const getPreferencesQueryKey = useCallback((userId: string) => notificationKeys.preferences(userId), []);
+  const getPreferencesQueryKey = useCallback((userId: string) => [...notificationKeys.details(userId), 'preferences'], []);
   
   // Wrapped mutation functions with useCallback for stable references (following cart pattern)
   const sendNotification = useCallback(

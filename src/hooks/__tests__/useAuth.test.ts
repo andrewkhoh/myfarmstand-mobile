@@ -10,8 +10,8 @@ import {
   useAuthStatus,
   useRefreshTokenMutation,
   useAuthOperations,
-  authKeys,
 } from '../useAuth';
+import { authKeys } from '../../utils/queryKeyFactory';
 import { createWrapper } from '../../test/test-utils';
 import { createMockUser, createMockLoginResponse, createMockRegisterResponse, createMockLogoutResponse } from '../../test/mockData';
 
@@ -97,8 +97,6 @@ describe('useAuth hooks', () => {
 
   describe('useLogoutMutation', () => {
     it('should successfully logout a user', async () => {
-      mockAuthService.logout.mockResolvedValue(createMockLogoutResponse());
-
       const { result } = renderHook(() => useLogoutMutation(), {
         wrapper: createWrapper(),
       });
@@ -109,7 +107,8 @@ describe('useAuth hooks', () => {
         expect(result.current.isSuccess).toBe(true);
       });
 
-      expect(mockAuthService.logout).toHaveBeenCalled();
+      // Logout now uses supabase.auth.signOut() directly, not AuthService.logout
+      expect(result.current.data?.success).toBe(true);
     });
   });
 
@@ -189,10 +188,10 @@ describe('useAuth hooks', () => {
 
   describe('authKeys', () => {
     it('should generate correct query keys', () => {
-      expect(authKeys.all).toEqual(['auth']);
-      expect(authKeys.user()).toEqual(['auth', 'user']);
-      expect(authKeys.profile('user123')).toEqual(['auth', 'profile', 'user123']);
-      expect(authKeys.status()).toEqual(['auth', 'status']);
+      expect(authKeys.all()).toEqual(['auth']);
+      expect(authKeys.all('user123')).toEqual(['auth', 'user123']);
+      expect(authKeys.details('user123')).toEqual(['auth', 'user123', 'detail']);
+      expect(authKeys.detail('profile', 'user123')).toEqual(['auth', 'user123', 'detail', 'profile']);
     });
   });
 });
