@@ -43,9 +43,9 @@ export const OrderConfirmationScreen: React.FC = () => {
   const generatePickupQRData = (order: Order): string => {
     const qrData = {
       orderId: order.id,
-      customerName: order.customerInfo.name,
-      customerEmail: order.customerInfo.email,
-      customerPhone: order.customerInfo.phone,
+      customerName: order.customerInfo?.name || order.customer_name,
+      customerEmail: order.customerInfo?.email || order.customer_email,
+      customerPhone: order.customerInfo?.phone || order.customer_phone,
       pickupDate: order.pickupDate,
       pickupTime: order.pickupTime,
       total: order.total,
@@ -132,7 +132,7 @@ export const OrderConfirmationScreen: React.FC = () => {
         {/* Order Items */}
         <View style={styles.itemsContainer}>
           <Text style={styles.itemsSubtitle}>Items Ordered:</Text>
-          {order.items.map((item, index) => (
+          {(order.items || order.order_items || []).map((item, index) => (
             <View key={index} style={styles.orderItem}>
               <Text style={styles.itemName}>{item.productName}</Text>
               <Text style={styles.itemDetails}>
@@ -154,17 +154,17 @@ export const OrderConfirmationScreen: React.FC = () => {
         
         <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>Name:</Text>
-          <Text style={styles.detailValue}>{order.customerInfo.name}</Text>
+          <Text style={styles.detailValue}>{order.customerInfo?.name || order.customer_name}</Text>
         </View>
         
         <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>Email:</Text>
-          <Text style={styles.detailValue}>{order.customerInfo.email}</Text>
+          <Text style={styles.detailValue}>{order.customerInfo?.email || order.customer_email}</Text>
         </View>
         
         <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>Phone:</Text>
-          <Text style={styles.detailValue}>{order.customerInfo.phone}</Text>
+          <Text style={styles.detailValue}>{order.customerInfo?.phone || order.customer_phone}</Text>
         </View>
       </View>
 

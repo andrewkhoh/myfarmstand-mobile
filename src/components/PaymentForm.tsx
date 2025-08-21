@@ -152,7 +152,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
   submitButtonText = 'Save Payment Method',
   requiresBillingAddress = true,
 }) => {
-  const { mutate: createPaymentMethod, isLoading } = useCreatePaymentMethod();
+  const { mutate: createPaymentMethod, isPending: isLoading } = useCreatePaymentMethod();
   
   const [formData, setFormData] = useState<FormData>({
     cardNumber: '',
@@ -277,14 +277,16 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
       // Following Pattern: Secure tokenization (no raw card data storage)
       createPaymentMethod(paymentMethodRequest, {
         onSuccess: (result) => {
-          if (result.success && result.paymentMethod) {
+          // Type assertion since mutation returns unknown
+          const paymentResult = result as any;
+          if (paymentResult?.success && paymentResult?.paymentMethod) {
             ValidationMonitor.recordPatternSuccess({
               service: 'PaymentForm',
               pattern: 'transformation_schema',
               operation: 'createPaymentMethod'
             });
             
-            onSuccess?.(result.paymentMethod);
+            onSuccess?.(paymentResult.paymentMethod);
           } else {
             const error: PaymentError = {
               code: 'PROCESSING_ERROR',
@@ -468,7 +470,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
               placeholder="New York"
               error={errors.billingAddress?.city}
               containerStyle={styles.cityInput}
-              autoComplete="address-level2"
+              autoComplete="address-line2"
             />
             
             <Input
@@ -478,7 +480,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
               placeholder="NY"
               error={errors.billingAddress?.state}
               containerStyle={styles.stateInput}
-              autoComplete="address-level1"
+              autoComplete="address-line1"
               autoCapitalize="characters"
               maxLength={2}
             />
@@ -501,7 +503,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
         <Button
           title="Cancel"
           variant="outline"
-          onPress={onCancel}
+          onPress={onCancel || (() => {})}
           disabled={isLoading}
           style={styles.cancelButton}
         />

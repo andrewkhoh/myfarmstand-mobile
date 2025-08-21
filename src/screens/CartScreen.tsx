@@ -57,13 +57,14 @@ export const CartScreen: React.FC = () => {
 
   const handleDisabledIncrementTap = (item: CartItem) => {
     // Static stock calculation for messaging
-    const availableStock = Math.max(0, item.product.stock - item.quantity);
+    const productStock = item.product.stock || 0;
+    const availableStock = Math.max(0, productStock - item.quantity);
     
-    if (availableStock === 0 && item.product.stock > 0) {
+    if (availableStock === 0 && productStock > 0) {
       // All stock is in the cart
       Alert.alert(
         'Maximum Quantity Reached',
-        `You have all available stock for ${item.product.name} in your cart.\n\nTotal stock: ${item.product.stock}\nIn your cart: ${item.quantity}`,
+        `You have all available stock for ${item.product.name} in your cart.\n\nTotal stock: ${productStock}\nIn your cart: ${item.quantity}`,
         [{ text: 'OK' }]
       );
     } else if (item.quantity >= 999) {
@@ -90,7 +91,7 @@ export const CartScreen: React.FC = () => {
     const { availableStock, isOutOfStock, lowStockWarning, stockColor, stockMessage } = 
       getStockDisplayInfo(item.product, item.quantity, 'full');
     
-    const maxQuantity = Math.min(item.product.stock, 999); // Max possible quantity for this item
+    const maxQuantity = Math.min(item.product.stock || 0, 999); // Max possible quantity for this item
     const canIncrease = item.quantity < maxQuantity && availableStock > 0;
 
     return (
@@ -131,7 +132,7 @@ export const CartScreen: React.FC = () => {
                   {lowStockWarning}
                 </Text>
               )}
-              {Boolean(item.quantity >= item.product.stock && item.product.stock > 0 ) && (
+              {Boolean(item.quantity >= (item.product.stock || 0) && (item.product.stock || 0) > 0 ) && (
                 <Text variant="caption" style={styles.stockLimitText}>
                   ⚠️ All available stock in cart
                 </Text>

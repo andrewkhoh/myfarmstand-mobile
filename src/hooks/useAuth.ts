@@ -104,20 +104,19 @@ export const useLoginMutation = () => {
         metadata: { email }
       };
     },
-    onError: (error: AuthError, variables: { email: string; password: string }, context?: AuthMutationContext) => {
+    onError: (error: Error, variables: { email: string; password: string }, context?: AuthMutationContext) => {
       // Rollback on error (following cart pattern)
       if (context?.previousUser !== undefined) {
         queryClient.setQueryData(authKeys.details(), context.previousUser);
       }
       
       // Record pattern error
-      ValidationMonitor.recordPatternError({
-        service: 'useAuth',
-        pattern: 'authentication_flow',
-        operation: 'login',
-        errorMessage: error.message,
-        errorCode: error.code,
-        category: 'authentication_pattern_error'
+      ValidationMonitor.recordValidationError({
+        source: 'useAuth.login',
+        message: error.message,
+        severity: 'medium',
+        affectedEntity: 'auth',
+        entityId: variables.email
       });
       
       // Enhanced error logging (following cart pattern)
@@ -134,7 +133,7 @@ export const useLoginMutation = () => {
         // Record pattern success
         ValidationMonitor.recordPatternSuccess({
           service: 'useAuth',
-          pattern: 'authentication_flow',
+          pattern: 'transformation_schema',
           operation: 'login',
           category: 'authentication_pattern_success'
         });
@@ -216,7 +215,7 @@ export const useRegisterMutation = () => {
         metadata: { email }
       };
     },
-    onError: (error: AuthError, variables, context?: AuthMutationContext) => {
+    onError: (error: Error, variables, context?: AuthMutationContext) => {
       // Rollback on error (following cart pattern)
       if (context?.previousUser !== undefined) {
         queryClient.setQueryData(authKeys.details(), context.previousUser);
@@ -237,7 +236,7 @@ export const useRegisterMutation = () => {
         // Record pattern success
         ValidationMonitor.recordPatternSuccess({
           service: 'useAuth',
-          pattern: 'authentication_flow',
+          pattern: 'transformation_schema',
           operation: 'register',
           category: 'authentication_pattern_success'
         });
@@ -315,7 +314,7 @@ export const useLogoutMutation = () => {
         metadata: {}
       };
     },
-    onError: (error: AuthError, _variables: undefined, _context?: AuthMutationContext) => {
+    onError: (error: Error, _variables: undefined, _context?: AuthMutationContext) => {
       // Enhanced error logging (following cart pattern)
       console.error('❌ Logout mutation failed:', {
         error: error.message,
@@ -418,7 +417,7 @@ export const useUpdateProfileMutation = () => {
         metadata: { updates, userId }
       };
     },
-    onError: (error: AuthError, variables: { userId: string; updates: Partial<User> }, context?: AuthMutationContext) => {
+    onError: (error: Error, variables: { userId: string; updates: Partial<User> }, context?: AuthMutationContext) => {
       // Enhanced rollback on error (following cart pattern)
       if (context?.previousUser !== undefined) {
         queryClient.setQueryData(authKeys.details(), context.previousUser);
@@ -518,7 +517,7 @@ export const useChangePasswordMutation = () => {
         metadata: {}
       };
     },
-    onError: (error: AuthError, _variables: { currentPassword: string; newPassword: string }, _context?: AuthMutationContext) => {
+    onError: (error: Error, _variables: { currentPassword: string; newPassword: string }, _context?: AuthMutationContext) => {
       // Enhanced error logging (following cart pattern)
       console.error('❌ Password change failed:', {
         error: error.message,
@@ -562,7 +561,7 @@ export const useCurrentUser = () => {
         if (result) {
           ValidationMonitor.recordPatternSuccess({
             service: 'useAuth',
-            pattern: 'user_session_retrieval',
+            pattern: 'direct_supabase_query',
             operation: 'getCurrentUser',
             category: 'authentication_pattern_success'
           });
@@ -671,7 +670,7 @@ export const useRefreshTokenMutation = () => {
         metadata: {}
       };
     },
-    onError: (error: AuthError, _variables: undefined, _context?: AuthMutationContext) => {
+    onError: (error: Error, _variables: undefined, _context?: AuthMutationContext) => {
       // Enhanced error logging (following cart pattern)
       console.error('❌ Token refresh failed:', {
         error: error.message,

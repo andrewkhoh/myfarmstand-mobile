@@ -49,11 +49,11 @@ export const KioskAuthScreen: React.FC = () => {
       
       if (result.success) {
         // Navigate to kiosk dashboard with session info
-        navigation.navigate('KioskDashboard' as never, {
+        (navigation as any).navigate('KioskDashboard', {
           sessionId: result.sessionId,
           staffId: result.staffId,
           staffName: result.staffName
-        } as never);
+        });
       } else {
         setError(result.message || 'Authentication failed');
         setPin(['', '', '', '']);
@@ -93,7 +93,7 @@ export const KioskAuthScreen: React.FC = () => {
             {pin.map((digit, index) => (
               <TextInput
                 key={index}
-                ref={(ref) => (pinRefs.current[index] = ref)}
+                ref={(ref) => { pinRefs.current[index] = ref; }}
                 style={[
                   styles.pinInput,
                   digit ? styles.pinInputFilled : styles.pinInputEmpty,

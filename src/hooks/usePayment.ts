@@ -221,15 +221,14 @@ export const useCreatePaymentMethod = () => {
   const queryClient = useQueryClient();
   const { data: user } = useCurrentUser();
 
-  return useMutation({
-    mutationFn: ((params: CreatePaymentMethodRequest) => 
+  return useMutation<PaymentMethodOperationResult, PaymentError, CreatePaymentMethodRequest, PaymentMutationContext>({
+    mutationFn: (params: CreatePaymentMethodRequest) => 
       paymentService.tokenizeCard({
         cardNumber: params.card?.number || '',
         expiryMonth: params.card?.expMonth || 0,
         expiryYear: params.card?.expYear || 0,
         cvc: params.card?.cvc || '',
-      })
-    ) as any, // Mock function for tokenization
+      }),
 
     onMutate: async (variables) => {
       // Optimistic update preparation

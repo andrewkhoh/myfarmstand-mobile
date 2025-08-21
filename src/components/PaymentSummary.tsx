@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSizes.base,
     fontWeight: typography.fontWeights.medium,
     color: colors.text.primary,
-    marginBottom: spacing.xxs,
+    marginBottom: spacing.xs,
   },
   itemQuantity: {
     fontSize: typography.fontSizes.sm,
@@ -325,7 +325,7 @@ const styles = StyleSheet.create({
   itemPrice: {
     fontSize: typography.fontSizes.sm,
     color: colors.text.secondary,
-    marginBottom: spacing.xxs,
+    marginBottom: spacing.xs,
   },
   itemSubtotal: {
     fontSize: typography.fontSizes.base,

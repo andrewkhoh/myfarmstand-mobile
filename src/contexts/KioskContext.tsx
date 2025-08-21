@@ -135,7 +135,7 @@ export const KioskProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const hasKioskPermissions = userRole && ['staff', 'manager', 'admin'].includes(userRole);
   const shouldFetchSession = persistedSessionQuery.data?.sessionId && hasKioskPermissions;
   
-  const sessionQuery = useKioskSession(shouldFetchSession ? persistedSessionQuery.data?.sessionId : null);
+  const sessionQuery = useKioskSession(shouldFetchSession ? (persistedSessionQuery.data?.sessionId || null) : null);
   
   // Hooks for kiosk operations
   const kioskAuth = useKioskAuth();

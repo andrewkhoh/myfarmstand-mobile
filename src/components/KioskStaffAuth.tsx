@@ -92,7 +92,7 @@ export const KioskStaffAuth: React.FC = () => {
               {pin.map((digit, index) => (
                 <TextInput
                   key={index}
-                  ref={(ref) => (pinRefs.current[index] = ref)}
+                  ref={(ref) => { pinRefs.current[index] = ref; }}
                   style={[
                     styles.pinInput,
                     digit ? styles.pinInputFilled : styles.pinInputEmpty,

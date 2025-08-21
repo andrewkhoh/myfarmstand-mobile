@@ -83,7 +83,7 @@ export const RegisterScreen: React.FC = () => {
       const result = await registerMutation.mutateAsync({ email, password, name, phone, address });
       
       if (result.success) {
-        if (result.user) {
+        if (result.data?.user) {
           // Email confirmation disabled - user is logged in immediately
           Alert.alert(
             'Welcome to Farm Stand!', 

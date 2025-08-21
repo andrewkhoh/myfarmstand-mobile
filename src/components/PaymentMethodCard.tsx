@@ -237,7 +237,7 @@ const styles = StyleSheet.create({
     right: spacing.sm,
     backgroundColor: colors.success[500],
     paddingHorizontal: spacing.xs,
-    paddingVertical: spacing.xxs,
+    paddingVertical: spacing.xs,
     borderRadius: borderRadius.sm,
   },
   defaultBadgeText: {

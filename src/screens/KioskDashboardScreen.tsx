@@ -46,7 +46,7 @@ export const KioskDashboardScreen: React.FC = () => {
               const result = await sessionOps.endSession.mutateAsync(sessionId);
               if (result.success) {
                 Alert.alert('Session Ended', 'Kiosk session has been ended successfully', [
-                  { text: 'OK', onPress: () => navigation.navigate('Login' as never) }
+                  { text: 'OK', onPress: () => (navigation as any).navigate('Login') }
                 ]);
               } else {
                 Alert.alert('Error', result.message || 'Failed to end session');
@@ -61,11 +61,11 @@ export const KioskDashboardScreen: React.FC = () => {
   };
 
   const navigateToShopping = () => {
-    navigation.navigate('KioskShopping' as never, { 
+    (navigation as any).navigate('KioskShopping', { 
       sessionId,
       staffId,
       staffName 
-    } as never);
+    });
   };
 
   const session = sessionQuery.data?.session;
@@ -140,7 +140,7 @@ export const KioskDashboardScreen: React.FC = () => {
             title="View Transactions"
             variant="outline"
             onPress={() => {
-              navigation.navigate('KioskTransactions' as never, { sessionId } as never);
+              (navigation as any).navigate('KioskTransactions', { sessionId });
             }}
             style={styles.secondaryButton}
           />
