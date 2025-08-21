@@ -3,11 +3,13 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { AdminScreen } from '../screens/AdminScreen';
 import AdminOrderScreen from '../screens/AdminOrderScreen';
 import MetricsAnalyticsScreen from '../screens/MetricsAnalyticsScreen';
+import { ProductManagementScreen } from '../screens/ProductManagementScreen';
 
 export type AdminStackParamList = {
   AdminDashboard: undefined;
   AdminOrders: undefined;
   MetricsAnalytics: undefined;
+  ProductManagement: undefined;
 };
 
 const Stack = createStackNavigator<AdminStackParamList>();
@@ -44,6 +46,13 @@ export const AdminStackNavigator: React.FC = () => {
         component={MetricsAnalyticsScreen}
         options={{
           title: 'Metrics & Analytics',
+        }}
+      />
+      <Stack.Screen
+        name="ProductManagement"
+        component={ProductManagementScreen}
+        options={{
+          title: 'Product Management',
         }}
       />
     </Stack.Navigator>

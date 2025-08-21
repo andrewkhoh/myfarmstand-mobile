@@ -30,9 +30,8 @@ export const AdminScreen: React.FC = () => {
           
           <Button
             title="Inventory Management"
-            variant="outline"
-            onPress={() => {}}
-            disabled
+            variant="primary"
+            onPress={() => navigation.navigate('ProductManagement')}
             style={styles.featureButton}
           />
           
