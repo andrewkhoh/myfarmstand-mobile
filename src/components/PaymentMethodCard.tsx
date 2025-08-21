@@ -151,11 +151,11 @@ export const PaymentMethodCard: React.FC<PaymentMethodCardProps> = ({
       <Card
         variant={isSelected ? 'elevated' : error ? 'outlined' : 'default'}
         padding="md"
-        style={[
+        style={StyleSheet.flatten([
           isSelected && styles.selectedCard,
           error && styles.errorCard,
           disabled && styles.disabledCard,
-        ]}
+        ])}
       >
         {/* Default Badge */}
         {isDefault && (
@@ -200,7 +200,7 @@ export const PaymentMethodCard: React.FC<PaymentMethodCardProps> = ({
                 size="sm"
                 onPress={handleDeletePress}
                 disabled={disabled}
-                style={[styles.actionButton, styles.deleteButton]}
+                style={StyleSheet.flatten([styles.actionButton, styles.deleteButton])}
                 textStyle={styles.deleteButtonText}
               />
             )}

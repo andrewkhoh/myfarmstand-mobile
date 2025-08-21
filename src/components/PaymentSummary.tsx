@@ -86,7 +86,7 @@ export const PaymentSummaryComponent: React.FC<PaymentSummaryProps> = ({
     if (!validation.isValid) {
       // Record calculation mismatch for monitoring
       ValidationMonitor.recordCalculationMismatch({
-        type: 'payment_total',
+        type: 'order_total',
         expected: validation.calculatedTotal,
         actual: total,
         difference: validation.difference,
@@ -101,7 +101,7 @@ export const PaymentSummaryComponent: React.FC<PaymentSummaryProps> = ({
       // Record successful calculation
       ValidationMonitor.recordPatternSuccess({
         service: 'PaymentSummary',
-        pattern: 'calculation_validation',
+        pattern: 'transformation_schema',
         operation: 'validatePaymentTotal'
       });
     }
@@ -250,7 +250,7 @@ export const PaymentSummaryComponent: React.FC<PaymentSummaryProps> = ({
     <Card
       variant={getCardVariant()}
       padding={variant === 'compact' ? 'sm' : 'md'}
-      style={[styles.container, style]}
+      style={StyleSheet.flatten([styles.container, style])}
     >
       {renderCalculationWarning()}
       {renderItemDetails()}

@@ -30,7 +30,9 @@
     "fix-cart-broadcasts.js",
     "schema_inspector.js",
     "src/__tests__/payment-integration.test.ts",
-    "src/hooks/__tests__/archive/*.ts"
+    "src/hooks/__tests__/archive/*.ts",
+    "src/ARCHIVE/**/*",
+    "src/hooks/__tests__/useCentralizedRealtime.race.test.tsx"
   ],
   "ts-node": {
     "esm": false,

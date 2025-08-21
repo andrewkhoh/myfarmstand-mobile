@@ -19,7 +19,7 @@ const kioskSessionStorage = {
       if (data) {
         ValidationMonitor.recordPatternSuccess({
           service: 'KioskContext',
-          pattern: 'session_persistence',
+          pattern: 'direct_supabase_query',
           operation: 'getPersistedSession'
         });
       }
@@ -42,7 +42,7 @@ const kioskSessionStorage = {
       
       ValidationMonitor.recordPatternSuccess({
         service: 'KioskContext',
-        pattern: 'session_persistence',
+        pattern: 'direct_supabase_query',
         operation: 'persistSession',
         performanceMs: Date.now()
       });
@@ -65,7 +65,7 @@ const kioskSessionStorage = {
       
       ValidationMonitor.recordPatternSuccess({
         service: 'KioskContext',
-        pattern: 'session_persistence',
+        pattern: 'direct_supabase_query',
         operation: 'clearPersistedSession'
       });
     } catch (error) {

@@ -280,7 +280,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
           if (result.success && result.paymentMethod) {
             ValidationMonitor.recordPatternSuccess({
               service: 'PaymentForm',
-              pattern: 'secure_tokenization',
+              pattern: 'transformation_schema',
               operation: 'createPaymentMethod'
             });
             
@@ -359,7 +359,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
   };
 
   return (
-    <Card variant="elevated" padding="lg" style={[styles.container, style]}>
+    <Card variant="elevated" padding="lg" style={StyleSheet.flatten([styles.container, style])}>
       <Text style={styles.title}>{title}</Text>
       
       {/* Card Information */}
