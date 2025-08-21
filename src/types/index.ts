@@ -166,8 +166,8 @@ export interface CartState {
 // Order Types
 export type OrderStatus = 'pending' | 'confirmed' | 'ready' | 'completed' | 'cancelled';
 export type FulfillmentType = 'pickup' | 'delivery';
-export type PaymentMethod = 'online' | 'cash_on_pickup';
-export type PaymentStatus = 'paid' | 'pending' | 'failed';
+export type OrderPaymentMethod = 'online' | 'cash_on_pickup';
+export type OrderPaymentStatus = 'paid' | 'pending' | 'failed';
 
 export interface CustomerInfo {
   name: string;
@@ -217,8 +217,8 @@ export interface Order {
   tax?: number; // Maps to tax_amount
   total?: number; // Maps to total_amount
   fulfillmentType?: FulfillmentType; // Maps to fulfillment_type
-  paymentMethod?: PaymentMethod; // Maps to payment_method
-  paymentStatus?: PaymentStatus; // Maps to payment_status
+  paymentMethod?: OrderPaymentMethod; // Maps to payment_method
+  paymentStatus?: OrderPaymentStatus; // Maps to payment_status
   pickupDate?: string; // Maps to pickup_date
   pickupTime?: string; // Maps to pickup_time
   deliveryAddress?: string; // Maps to delivery_address
@@ -231,7 +231,7 @@ export interface CreateOrderRequest {
   customerInfo: CustomerInfo;
   items: OrderItem[];
   fulfillmentType: FulfillmentType;
-  paymentMethod: PaymentMethod; // Payment method selection
+  paymentMethod: OrderPaymentMethod; // Payment method selection
   notes?: string;
   pickupDate?: string;
   pickupTime?: string;
@@ -268,4 +268,289 @@ export interface AuthError extends BaseError {
 export interface MutationError extends BaseError {
   operationType?: string;
   metadata?: Record<string, unknown>;
+}
+
+// ================================
+// Payment System Types
+// Following MyFarmstand Mobile Architectural Patterns & Best Practices
+// ================================
+
+// Payment Status Types
+export type PaymentIntentStatus = 
+  | 'requires_payment_method'
+  | 'requires_confirmation'
+  | 'requires_action'
+  | 'processing'
+  | 'succeeded'
+  | 'canceled';
+
+export type PaymentStatus = 
+  | 'pending'
+  | 'processing'
+  | 'succeeded'
+  | 'failed'
+  | 'canceled'
+  | 'requires_payment_method'
+  | 'requires_confirmation'
+  | 'requires_action';
+
+// Currency and Method Types
+export type CurrencyCode = 'usd' | 'eur' | 'gbp' | 'cad' | 'aud';
+export type PaymentMethodType = 'card' | 'us_bank_account' | 'sepa_debit' | 'ideal' | 'paypal';
+export type CardBrand = 'visa' | 'mastercard' | 'amex' | 'discover' | 'diners' | 'jcb' | 'unionpay' | 'unknown';
+export type BankAccountType = 'checking' | 'savings';
+
+// Core Payment Interfaces
+export interface Payment {
+  id: string;
+  paymentIntentId: string;
+  paymentMethodId: string;
+  amount: number; // Amount in cents
+  currency: CurrencyCode;
+  status: PaymentStatus;
+  userId: string;
+  orderId?: string;
+  clientSecret?: string;
+  confirmationMethod: string;
+  createdAt: string;
+  updatedAt: string;
+  metadata: Record<string, any>;
+}
+
+export interface PaymentMethod {
+  id: string;
+  type: PaymentMethodType;
+  customerId: string;
+  userId: string;
+  isDefault: boolean;
+  createdAt: string;
+  
+  // Card-specific fields
+  card?: {
+    brand: CardBrand;
+    last4: string;
+    expMonth: number;
+    expYear: number;
+  };
+  
+  // Bank account-specific fields
+  bankAccount?: {
+    last4: string;
+    routingNumber: string;
+    accountType: BankAccountType;
+  };
+}
+
+export interface PaymentIntent {
+  id: string;
+  amount: number;
+  currency: CurrencyCode;
+  status: PaymentIntentStatus;
+  clientSecret: string;
+  paymentMethodId?: string;
+  confirmationMethod: string;
+  createdAt: string;
+  metadata: Record<string, any>;
+}
+
+// Payment Request/Response Types
+export interface CreatePaymentRequest {
+  amount: number;
+  currency: CurrencyCode;
+  paymentMethodId: string;
+  confirmationMethod?: string;
+  returnUrl?: string;
+  metadata?: Record<string, string>;
+}
+
+export interface CreatePaymentMethodRequest {
+  type: PaymentMethodType;
+  customerId: string;
+  
+  // Card-specific data
+  card?: {
+    number: string;
+    expMonth: number;
+    expYear: number;
+    cvc: string;
+  };
+  
+  // Bank account-specific data
+  bankAccount?: {
+    routingNumber: string;
+    accountNumber: string;
+    accountType: BankAccountType;
+    accountHolderType: 'individual' | 'company';
+  };
+}
+
+export interface PaymentOperationResult {
+  success: boolean;
+  payment?: Payment;
+  paymentIntent?: PaymentIntent;
+  error?: PaymentError;
+  message?: string;
+  fallbackOptions?: string[];
+}
+
+export interface PaymentMethodOperationResult {
+  success: boolean;
+  paymentMethod?: PaymentMethod;
+  error?: PaymentError;
+  message?: string;
+}
+
+// Payment Error Types
+export interface PaymentError extends BaseError {
+  code: PaymentErrorCode;
+  type?: 'card_error' | 'invalid_request_error' | 'api_error' | 'authentication_error';
+  details?: Record<string, any>;
+  userMessage?: string;
+  technicalMessage?: string;
+  retryable?: boolean;
+}
+
+export type PaymentErrorCode = 
+  | 'CARD_DECLINED'
+  | 'INSUFFICIENT_FUNDS'
+  | 'INVALID_CARD_NUMBER'
+  | 'INVALID_EXPIRY_DATE'
+  | 'INVALID_CVC'
+  | 'EXPIRED_CARD'
+  | 'PROCESSING_ERROR'
+  | 'AUTHENTICATION_REQUIRED'
+  | 'PAYMENT_INTENT_AUTHENTICATION_FAILURE'
+  | 'PAYMENT_METHOD_UNACTIVATED'
+  | 'PAYMENT_METHOD_UNEXPECTED_STATE'
+  | 'STRIPE_API_ERROR'
+  | 'NETWORK_ERROR'
+  | 'INVALID_REQUEST'
+  | 'RATE_LIMITED'
+  | 'PAYMENT_VALIDATION_FAILED';
+
+// Payment Calculation Types
+export interface PaymentCalculation {
+  subtotal: number;
+  tax: number;
+  tip?: number;
+  discount?: number;
+  total: number;
+}
+
+export interface PaymentSummary {
+  subtotal: number;
+  tax: number;
+  tip: number;
+  discount: number;
+  total: number;
+  currency: CurrencyCode;
+  items: Array<{
+    name: string;
+    quantity: number;
+    price: number;
+    subtotal: number;
+  }>;
+}
+
+// Checkout Integration Types
+export interface CheckoutPaymentData {
+  paymentMethod: PaymentMethod;
+  billingAddress?: BillingAddress;
+  savePaymentMethod?: boolean;
+  tip?: number;
+}
+
+export interface BillingAddress {
+  name: string;
+  line1: string;
+  line2?: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+}
+
+// Security and Compliance Types
+export interface PaymentTokenizationRequest {
+  cardNumber: string;
+  expiryMonth: number;
+  expiryYear: number;
+  cvc: string;
+  billingAddress?: BillingAddress;
+}
+
+export interface PaymentTokenizationResult {
+  token: string;
+  last4: string;
+  brand: CardBrand;
+  expiryMonth: number;
+  expiryYear: number;
+  error?: PaymentError;
+}
+
+// Real-time Payment Updates
+export interface PaymentUpdateEvent {
+  type: 'payment_intent_updated' | 'payment_method_attached' | 'payment_succeeded' | 'payment_failed';
+  paymentIntentId?: string;
+  paymentMethodId?: string;
+  status?: PaymentStatus;
+  timestamp: string;
+  userId: string;
+  metadata?: Record<string, any>;
+}
+
+// Payment Settings and Preferences
+export interface PaymentSettings {
+  defaultPaymentMethodId?: string;
+  savePaymentMethods: boolean;
+  autoSaveBillingAddress: boolean;
+  enableTips: boolean;
+  defaultTipPercentage?: number;
+  currency: CurrencyCode;
+}
+
+// Webhook and Event Types
+export interface PaymentWebhookEvent {
+  id: string;
+  type: string;
+  data: {
+    object: PaymentIntent | Payment | PaymentMethod;
+  };
+  created: number;
+  livemode: boolean;
+}
+
+// Query and Mutation Types for React Query Integration
+export interface PaymentQueryKey {
+  entity: 'payment';
+  userId?: string;
+  operation: 'methods' | 'intents' | 'history' | 'settings';
+  id?: string;
+  filters?: Record<string, any>;
+}
+
+export interface PaymentMutationVariables {
+  createPayment?: CreatePaymentRequest;
+  createPaymentMethod?: CreatePaymentMethodRequest;
+  updatePaymentMethod?: {
+    id: string;
+    isDefault?: boolean;
+  };
+  deletePaymentMethod?: {
+    id: string;
+  };
+  confirmPayment?: {
+    paymentIntentId: string;
+    paymentMethodId: string;
+  };
+}
+
+// Legacy Payment Types (for backward compatibility with existing order system)
+export interface LegacyPaymentData {
+  method: OrderPaymentMethod; // 'online' or 'cash_on_pickup'
+  status: OrderPaymentStatus; // 'pending', 'paid', 'failed', 'refunded'
+  transactionId?: string;
+  amount?: number;
+  currency?: CurrencyCode;
+  processedAt?: string;
 }
