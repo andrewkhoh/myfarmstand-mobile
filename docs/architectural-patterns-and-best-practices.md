@@ -297,6 +297,251 @@ describe('ProductSchema transformation completeness', () => {
 
 ---
 
+## 🔒 **Schema Contract Management**
+
+### **Philosophy: No Schema Violations in UI Layer**
+**Rule**: Schema violations must be impossible to reach production through automated enforcement, not developer discipline.
+
+The contract management system provides multiple layers of protection ensuring the UI layer receives only validated, type-safe data:
+
+```
+DATABASE → SERVICE → HOOK → COMPONENT → UI
+    ↑         ↑        ↑        ↑
+   [1]       [2]      [3]     [4]
+```
+
+1. **Database Layer**: Zod schemas validate at data source
+2. **Service Layer**: Pattern validation catches field selection bugs  
+3. **Hook Layer**: React Query with validated data
+4. **Component Layer**: TypeScript ensures correct prop types
+
+### **Pattern 1: Compile-Time Contract Enforcement**
+**Rule**: TypeScript compilation must fail when schemas don't match interfaces exactly.
+
+```typescript
+// ✅ CORRECT: Schema contract that enforces interface alignment
+import { z } from 'zod';
+import type { Product } from '../types';
+
+export const ProductSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string(), // Must match interface exactly
+  price: z.number(),
+  category_id: z.string(),
+  stock_quantity: z.number().nullable(),
+  is_available: z.boolean(),
+  created_at: z.string(),
+  updated_at: z.string(),
+}).transform((data): Product => {
+  return {
+    id: data.id,
+    name: data.name,
+    description: data.description,
+    price: data.price,
+    category_id: data.category_id,
+    stock_quantity: data.stock_quantity,
+    is_available: data.is_available,
+    created_at: data.created_at,
+    updated_at: data.updated_at,
+  };
+});
+
+// Contract enforcement test (required for every schema)
+type ProductContract = AssertExact<z.infer<typeof ProductSchema>, Product>;
+
+// ❌ VIOLATION: Missing required field - compilation fails
+export const BrokenSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  // Missing description field
+}).transform((data): Product => {
+  return {
+    id: data.id,
+    name: data.name,
+    // Missing description - TS2741 error
+  };
+});
+```
+
+**Contract Test Result:**
+```bash
+$ npx tsc --noEmit schema-file.ts
+error TS2741: Property 'description' is missing in type
+```
+
+### **Pattern 2: Service Field Selection Validation**
+**Rule**: Service layer must use exact database column names and validate all responses.
+
+```typescript
+// ✅ CORRECT: Validated service pattern
+export const getProduct = async (id: string): Promise<Product> => {
+  const { data, error } = await supabase
+    .from('products')
+    .select('id, name, description, price, category_id, stock_quantity, is_available, created_at, updated_at')
+    //     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    //     Exact database field names (validated by lint:schemas)
+    .eq('id', id)
+    .single();
+
+  if (error) throw new Error(`Failed to fetch product: ${error.message}`);
+  
+  // Always validate through schema
+  return ProductSchema.parse(data);
+};
+
+// ❌ VIOLATION: Wrong field selection - caught by pattern validator
+export const getBrokenProduct = async (id: string): Promise<Product> => {
+  const { data, error } = await supabase
+    .from('products')
+    .select('id, name, description, price, category, stock_quantity') // Wrong: 'category' should be 'category_id'
+    .eq('id', id)
+    .single();
+    
+  // Manual construction - bypasses validation
+  return {
+    id: data.id,
+    name: data.name,
+    // Easy to miss fields or get types wrong
+  } as Product; // Dangerous type assertion
+};
+```
+
+**Pattern Validation Result:**
+```bash
+$ npm run lint:schemas
+⚠️ Field selection violation: using 'category' - should be 'category_id'
+```
+
+### **Pattern 3: Pre-Commit Contract Validation**
+**Rule**: Violations cannot be committed to the repository.
+
+```bash
+# .husky/pre-commit
+#!/usr/bin/env sh
+echo "🔍 Running schema contract validation..."
+
+# Check TypeScript compilation for schema contracts
+npx tsc --noEmit src/schemas/__contracts__/schema-contracts.test.ts
+if [ $? -ne 0 ]; then
+  echo "❌ Schema contracts failed - TypeScript compilation error"
+  exit 1
+fi
+
+# Run schema pattern validation  
+npm run lint:schemas
+if [ $? -ne 0 ]; then
+  echo "❌ Schema pattern validation failed"
+  exit 1
+fi
+
+echo "✅ All schema validations passed"
+```
+
+**Pre-Commit Protection:**
+- ❌ Code with contract violations cannot be committed
+- ❌ Wrong field selections cannot be committed
+- ❌ Missing schema validations cannot be committed
+
+### **Pattern 4: Failure Simulation Testing**
+**Rule**: Contract system effectiveness must be proven with intentional violations.
+
+```typescript
+// Failure simulation test - demonstrates violations are caught
+const TestMissingField = (): Product => {
+  return {
+    id: "test",
+    name: "test product",
+    // Missing required 'description' field
+    price: 10.99,
+    stock_quantity: 5,
+    category_id: "cat1",
+    is_available: true,
+    created_at: "2023-01-01",
+    updated_at: "2023-01-01"
+  }; // TypeScript error: Property 'description' is missing
+};
+
+const TestWrongType = (): Product => {
+  return {
+    id: "test",
+    name: "test product", 
+    description: "test description",
+    price: "wrong type", // Should be number, not string
+    // ... rest of fields
+  }; // TypeScript error: Type 'string' is not assignable to type 'number'
+};
+```
+
+**Simulation Results:**
+- ✅ Missing fields caught: `TS2741: Property 'description' is missing`
+- ✅ Wrong types caught: `TS2322: Type 'string' is not assignable to type 'number'`
+
+### **Contract Management Best Practices**
+
+#### **✅ Required for Every Schema:**
+```typescript
+// 1. Interface definition
+export interface EntityName { ... }
+
+// 2. Zod schema with exact transform
+export const EntitySchema = z.object({ ... }).transform((data): EntityName => { ... });
+
+// 3. Contract test
+type EntityContract = AssertExact<z.infer<typeof EntitySchema>, EntityName>;
+
+// 4. Service validation
+export const getEntity = async () => {
+  const data = await fetchFromDatabase();
+  return EntitySchema.parse(data); // Always validate
+};
+```
+
+#### **❌ Contract Violations:**
+```typescript
+// Never bypass validation
+const entity = data as EntityName; // Dangerous type assertion
+
+// Never manually construct return objects
+return { id: data.id, name: data.name }; // Easy to miss fields
+
+// Never skip contract tests
+export const NewSchema = z.object({ ... }); // Missing contract test
+
+// Never guess field names
+.select('category') // Should be 'category_id' from database.generated.ts
+```
+
+### **Automated Enforcement Pipeline**
+
+```mermaid
+graph TD
+    A[Developer writes code] --> B[Pre-commit hook]
+    B --> C{Contract validation}
+    C -->|Pass| D[Code committed]
+    C -->|Fail| E[Commit blocked]
+    D --> F[GitHub Actions CI]
+    F --> G{Full validation}
+    G -->|Pass| H[PR approved]
+    G -->|Fail| I[PR blocked]
+    H --> J[Production deployment]
+    J --> K[UI receives clean data]
+    
+    E --> L[Fix violations locally]
+    I --> L
+    L --> A
+```
+
+### **Success Metrics**
+- ✅ **Zero schema violations** reach production
+- ✅ **All new schemas** pass contract validation
+- ✅ **Field selection bugs** caught pre-commit  
+- ✅ **UI layer protection** - only validated data reaches components
+
+**Result**: UI components receive type-safe, complete, validated data with zero possibility of schema violations.
+
+---
+
 ## ⚡ **React Query Patterns**
 
 ### **Pattern 1: Centralized Query Key Factory Usage** ⚠️ CRITICAL

@@ -34,7 +34,7 @@ const processKioskSessions = (rawSessions: unknown[]): KioskSession[] => {
     try {
       // ✅ PATTERN: Individual validation with proper error context (no user data from DB)
       const sessionWithStaff = {
-        ...rawSession,
+        ...(rawSession as Record<string, any>),
         users: null, // No JOIN data available
         staff: null  // No user data available in list view for performance
       };
@@ -44,7 +44,7 @@ const processKioskSessions = (rawSessions: unknown[]): KioskSession[] => {
       
       ValidationMonitor.recordPatternSuccess({
         service: 'KioskService',
-        pattern: 'direct_supabase_query_with_validation',
+        pattern: 'direct_supabase_query',
         operation: 'processKioskSessions'
       });
     } catch (error) {
@@ -79,10 +79,10 @@ export const kioskService = {
       const { data: staffPinData, error } = await supabase
         .from('staff_pins')
         .select(`
-          id, user_id, pin, is_active, last_used, created_at, updated_at
+          id, user_id, pin, is_available, last_used, created_at, updated_at
         `)
         .eq('pin', validatedInput.pin)
-        .eq('is_active', true)
+        .eq('is_available', true)
         .single();
 
       if (error) {
@@ -91,7 +91,7 @@ export const kioskService = {
           context: 'KioskService.authenticateStaff.databaseError',
           errorMessage: `Database error: ${error.message}`,
           errorCode: 'DATABASE_ACCESS_FAILED',
-          validationPattern: 'direct_supabase_query'
+          validationPattern: 'transformation_schema'
         });
         
         return {
@@ -105,7 +105,7 @@ export const kioskService = {
           context: 'KioskService.authenticateStaff.pinValidation',
           errorMessage: 'Invalid PIN provided',
           errorCode: 'INVALID_STAFF_PIN',
-          validationPattern: 'direct_supabase_query'
+          validationPattern: 'transformation_schema'
         });
         
         return {
@@ -128,7 +128,7 @@ export const kioskService = {
           context: 'KioskService.authenticateStaff.roleValidation',
           errorMessage: `User role '${userRole}' insufficient for kiosk access`,
           errorCode: 'INSUFFICIENT_PERMISSIONS',
-          validationPattern: 'direct_supabase_query_with_validation'
+          validationPattern: 'transformation_schema'
         });
         
         return {
@@ -170,7 +170,7 @@ export const kioskService = {
             context: 'KioskService.authenticateStaff.sessionCreation',
             errorMessage: sessionError.message,
             errorCode: 'SESSION_CREATION_FAILED',
-            validationPattern: 'direct_supabase_query_with_validation'
+            validationPattern: 'transformation_schema'
           });
           
           console.error('Failed to create kiosk session:', sessionError);
@@ -198,7 +198,7 @@ export const kioskService = {
       const performanceMs = Date.now() - startTime;
       ValidationMonitor.recordPatternSuccess({
         service: 'KioskService',
-        pattern: 'direct_supabase_query_with_validation',
+        pattern: 'direct_supabase_query',
         operation: 'authenticateStaff',
         performanceMs
       });
@@ -263,7 +263,7 @@ export const kioskService = {
           context: 'KioskService.getSession.databaseQuery',
           errorMessage: error?.message || 'Session not found',
           errorCode: 'SESSION_NOT_FOUND',
-          validationPattern: 'direct_supabase_query_with_validation'
+          validationPattern: 'transformation_schema'
         });
         
         return {
@@ -327,7 +327,7 @@ export const kioskService = {
       const performanceMs = Date.now() - startTime;
       ValidationMonitor.recordPatternSuccess({
         service: 'KioskService', 
-        pattern: 'direct_supabase_query_with_validation',
+        pattern: 'direct_supabase_query',
         operation: 'getSession',
         performanceMs
       });
@@ -395,7 +395,7 @@ export const kioskService = {
           context: 'KioskService.getSessions.databaseQuery',
           errorMessage: error.message,
           errorCode: 'SESSIONS_QUERY_FAILED',
-          validationPattern: 'direct_supabase_query'
+          validationPattern: 'transformation_schema'
         });
         
         console.error('Error fetching kiosk sessions:', error);
@@ -475,7 +475,7 @@ export const kioskService = {
           context: 'KioskService.endSession.databaseUpdate',
           errorMessage: error.message,
           errorCode: 'SESSION_END_UPDATE_FAILED',
-          validationPattern: 'direct_supabase_query'
+          validationPattern: 'transformation_schema'
         });
         
         console.error('Error ending kiosk session:', error);
@@ -489,7 +489,7 @@ export const kioskService = {
       const performanceMs = Date.now() - startTime;
       ValidationMonitor.recordPatternSuccess({
         service: 'KioskService',
-        pattern: 'direct_supabase_query_with_validation',
+        pattern: 'direct_supabase_query',
         operation: 'endSession',
         performanceMs
       });
@@ -539,10 +539,10 @@ export const kioskService = {
         };
       }
 
-      // ✅ PATTERN: Return updated session (customer info is runtime data, not persisted)
+      // ✅ PATTERN: Return updated session (customer info is runtime data, not persisted)  
       const updatedSession: KioskSession = {
         ...sessionResponse.session,
-        currentCustomer: customerInfo
+        currentCustomer: customerInfo as any // Runtime customer info, not from DB schema
       };
 
       ValidationMonitor.recordPatternSuccess({
@@ -621,7 +621,7 @@ export const kioskService = {
           context: 'KioskService.updateSessionStats.databaseUpdate',
           errorMessage: error.message,
           errorCode: 'SESSION_STATS_UPDATE_FAILED',
-          validationPattern: 'direct_supabase_query'
+          validationPattern: 'transformation_schema'
         });
         
         console.error('Error updating session stats:', error);
@@ -638,7 +638,7 @@ export const kioskService = {
       const performanceMs = Date.now() - startTime;
       ValidationMonitor.recordPatternSuccess({
         service: 'KioskService',
-        pattern: 'direct_supabase_query_with_validation',
+        pattern: 'direct_supabase_query',
         operation: 'updateSessionStats',
         performanceMs
       });

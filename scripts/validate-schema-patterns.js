@@ -11,11 +11,12 @@ const glob = require('glob');
 const ERRORS = [];
 const WARNINGS = [];
 
-// Find all schema files
+// Find all schema files and service files
 const schemaFiles = glob.sync('src/schemas/*.ts', { cwd: process.cwd() });
+const serviceFiles = glob.sync('src/services/*.ts', { cwd: process.cwd() });
 
-console.log('🔍 Validating schema patterns...');
-console.log(`Found ${schemaFiles.length} schema files to check\n`);
+console.log('🔍 Validating schema and service patterns...');
+console.log(`Found ${schemaFiles.length} schema files and ${serviceFiles.length} service files to check\n`);
 
 schemaFiles.forEach(file => {
   const filePath = path.resolve(file);
@@ -65,8 +66,8 @@ schemaFiles.forEach(file => {
   
   // ✅ Safety Net 4.3: Check for hardcoded column name issues
   const columnIssues = [
-    { pattern: /is_active.*true|is_active.*false/g, warning: 'Using is_active - verify this column exists (might be is_available)' },
-    { pattern: /\.eq\(['"]\s*is_active/g, warning: 'Filtering by is_active - verify column name' },
+    { pattern: /is_available.*true|is_available.*false/g, warning: 'Using is_available - verify this column exists (some tables use is_active)' },
+    { pattern: /\.eq\(['"]\s*is_available/g, warning: 'Filtering by is_available - verify column name' },
   ];
   
   columnIssues.forEach(({ pattern, warning }) => {
@@ -85,6 +86,50 @@ schemaFiles.forEach(file => {
   });
   
   console.log(`  ✅ Completed\n`);
+});
+
+// ✅ NEW: Validate service files for field selection issues
+serviceFiles.forEach(file => {
+  const filePath = path.resolve(file);
+  const content = fs.readFileSync(filePath, 'utf8');
+  
+  console.log(`Checking service: ${file}`);
+  
+  // ✅ Critical field selection validation
+  const criticalFieldIssues = [
+    { 
+      pattern: /\.select\([^)]*\bcategory,/g, 
+      error: 'CRITICAL: Selecting "category" instead of "category_id" - breaks UI filtering',
+      fix: 'Change "category," to "category_id," in the select statement'
+    },
+    { 
+      pattern: /delivery_date|delivery_time/g, 
+      error: 'CRITICAL: Using non-existent delivery_date/delivery_time fields',
+      fix: 'Use pickup_date/pickup_time for both pickup and delivery scheduling'
+    },
+    {
+      pattern: /\.select\([^)]*\buser,/g,
+      error: 'WARNING: Selecting "user" instead of "user_id" - potential ID field mismatch',
+      fix: 'Verify if you need user_id (foreign key) or full user object'
+    }
+  ];
+  
+  criticalFieldIssues.forEach(({ pattern, error, fix }) => {
+    const matches = content.match(pattern);
+    if (matches) {
+      matches.forEach(match => {
+        ERRORS.push({
+          file,
+          type: 'SERVICE_FIELD_SELECTION_ERROR',
+          message: error,
+          code: match,
+          fix: fix
+        });
+      });
+    }
+  });
+  
+  console.log(`  ✅ Service completed\n`);
 });
 
 // Report results

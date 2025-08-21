@@ -75,7 +75,7 @@ const RawDbStaffPinSchema = z.object({
   id: z.string().min(1),
   user_id: z.string().min(1),
   pin: z.string().length(4),
-  is_active: z.boolean().nullable().optional(),
+  is_available: z.boolean().nullable().optional(),
   last_used: z.string().nullable().optional(),
   created_at: z.string().nullable().optional(),
   updated_at: z.string().nullable().optional(),
@@ -139,7 +139,7 @@ export const DbStaffPinTransformSchema = RawDbStaffPinSchema
     id: data.id,
     userId: data.user_id,
     pin: data.pin,
-    isActive: data.is_active ?? true,
+    isActive: data.is_available ?? true,
     lastUsed: data.last_used ? new Date(data.last_used) : null,
     user: data.users ? {
       id: data.users.id,
@@ -151,7 +151,7 @@ export const DbStaffPinTransformSchema = RawDbStaffPinSchema
     // ✅ PATTERN: Internal metadata
     _dbData: {
       user_id: data.user_id,
-      raw_is_active: data.is_active,
+      raw_is_available: data.is_available,
       last_used: data.last_used,
       created_at: data.created_at,
       updated_at: data.updated_at

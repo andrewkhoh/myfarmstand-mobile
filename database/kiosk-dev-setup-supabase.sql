@@ -47,7 +47,7 @@ ON CONFLICT (id) DO UPDATE SET
 INSERT INTO staff_pins (
   user_id,
   pin,
-  is_active,
+  is_available,
   created_at,
   updated_at
 ) VALUES 
@@ -74,7 +74,7 @@ INSERT INTO staff_pins (
 )
 ON CONFLICT (user_id) DO UPDATE SET
   pin = EXCLUDED.pin,
-  is_active = EXCLUDED.is_active,
+  is_available = EXCLUDED.is_available,
   updated_at = NOW();
 
 -- Display created test accounts
@@ -83,7 +83,7 @@ SELECT
   sp.pin,
   u.name,
   u.role,
-  sp.is_active
+  sp.is_available
 FROM staff_pins sp
 JOIN users u ON u.id = sp.user_id
 WHERE sp.pin IN ('1234', '5678', '9999')

@@ -262,18 +262,27 @@ const createPaymentError = (
 });
 
 // Helper function for payment calculation validation
-const validatePaymentCalculation = (calculation: PaymentCalculation): PaymentCalculation => {
+const validatePaymentCalculation = (calculation: Partial<PaymentCalculation> & { total: number }): PaymentCalculation => {
+  // Create complete calculation object
+  const completeCalculation: PaymentCalculation = {
+    subtotal: calculation.subtotal || 0,
+    tax: calculation.tax || 0,
+    tip: calculation.tip,
+    discount: calculation.discount,
+    total: calculation.total
+  };
+  
   try {
-    return PaymentCalculationSchema.parse(calculation);
+    return PaymentCalculationSchema.parse(completeCalculation) as PaymentCalculation;
   } catch (error) {
-    const calculatedTotal = calculation.subtotal + calculation.tax + (calculation.tip || 0) - (calculation.discount || 0);
+    const calculatedTotal = (calculation.subtotal || 0) + (calculation.tax || 0) + (calculation.tip || 0) - (calculation.discount || 0);
     const tolerance = 0.01;
     const difference = Math.abs(calculation.total - calculatedTotal);
 
     if (difference > tolerance) {
       // Record calculation mismatch for monitoring
       ValidationMonitor.recordCalculationMismatch({
-        type: 'payment_total',
+        type: 'order_total',
         expected: calculatedTotal,
         actual: calculation.total,
         difference,
@@ -281,11 +290,15 @@ const validatePaymentCalculation = (calculation: PaymentCalculation): PaymentCal
       });
 
       // Auto-correct the total
-      return {
-        ...calculation,
+      const corrected: PaymentCalculation & { correctedTotal?: number } = {
+        subtotal: calculation.subtotal || 0,
+        tax: calculation.tax || 0,
+        tip: calculation.tip,
+        discount: calculation.discount,
         total: calculatedTotal,
         correctedTotal: calculatedTotal,
-      } as PaymentCalculation;
+      };
+      return corrected;
     }
 
     throw error;
@@ -533,12 +546,21 @@ export const paymentService = {
   validatePaymentAmount: async (paymentData: PaymentCalculation): Promise<PaymentCalculation & { correctedTotal?: number }> => {
     console.log('🧮 validatePaymentAmount() called');
     
+    // Ensure all required fields are present
+    const completePaymentData: PaymentCalculation = {
+      subtotal: paymentData.subtotal || 0,
+      tax: paymentData.tax || 0,
+      tip: paymentData.tip,
+      discount: paymentData.discount,
+      total: paymentData.total || 0
+    };
+    
     try {
-      return validatePaymentCalculation(paymentData);
+      return validatePaymentCalculation(completePaymentData);
     } catch (error) {
       // This will have auto-correction applied by validatePaymentCalculation
       const correctedCalculation = validatePaymentCalculation({
-        ...paymentData,
+        ...completePaymentData,
         total: paymentData.subtotal + paymentData.tax + (paymentData.tip || 0) - (paymentData.discount || 0)
       });
       

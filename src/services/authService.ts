@@ -91,7 +91,8 @@ const validateLoginInput = (email: string, password: string): { email: string; p
   }
   
   try {
-    return LoginRequestSchema.parse({ email, password });
+    const validated = LoginRequestSchema.parse({ email: email, password: password });
+    return { email: validated.email, password: validated.password };
   } catch (error) {
     if (error instanceof ZodError) {
       const firstIssue = error.issues[0];

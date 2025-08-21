@@ -57,6 +57,16 @@
     "build": "expo build",
     "lint": "eslint . --ext .ts,.tsx,.js,.jsx || echo 'ESLint not configured - install @typescript-eslint/eslint-plugin for linting'",
     "lint:schemas": "node scripts/validate-schema-patterns.js",
+    "lint:schemas:verbose": "node scripts/validate-schema-patterns.js --verbose",
+    "test:contracts": "tsc --noEmit src/schemas/__contracts__/schema-contracts.test.ts",
+    "test:contracts:watch": "tsc --noEmit --watch src/schemas/__contracts__/schema-contracts.test.ts",
+    "test:contracts:all": "tsc --noEmit src/schemas/__contracts__/*.ts",
+    "validate:all": "npm run test:contracts && npm run lint:schemas",
+    "validate:all:verbose": "npm run test:contracts && npm run lint:schemas:verbose",
+    "validate:pre-commit": "npm run test:contracts && npm run lint:schemas && echo '✅ Pre-commit validation passed'",
+    "validate:debug": "npm run test:contracts:all && npm run lint:schemas:verbose",
+    "schema:check": "npm run validate:all",
+    "schema:fix": "echo 'Run schema:check first to identify issues, then fix manually'",
     "typecheck": "tsc --noEmit"
 
   },

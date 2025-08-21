@@ -1,17 +1,16 @@
 import {
-  KioskSessionSchema,
-  DbKioskSessionSchema,
   DbKioskSessionTransformSchema,
   KioskAuthRequestSchema,
-  DbStaffPinSchema,
   DbStaffPinTransformSchema,
-  KioskTransactionSchema,
   KioskAuthResponseSchema,
-  KioskSessionResponseSchema
+  KioskSessionResponseSchema,
+  RawDbKioskSessionSchema,
+  RawDbStaffPinSchema,
+  RawDbKioskTransactionSchema
 } from '../kiosk.schema';
 
 describe('Kiosk Schemas', () => {
-  describe('KioskSessionSchema', () => {
+  describe('DbKioskSessionTransformSchema', () => {
     const validSessionData = {
       id: 'session_123',
       staffId: 'staff_456',
@@ -226,7 +225,7 @@ describe('Kiosk Schemas', () => {
       id: 'pin_123',
       user_id: 'user_456',
       pin: '1234',
-      is_active: true,
+      is_available: true,
       last_used: '2025-08-19T09:00:00Z',
       created_at: '2025-08-18T10:00:00Z',
       updated_at: '2025-08-19T09:00:00Z',
@@ -259,7 +258,7 @@ describe('Kiosk Schemas', () => {
     it('should handle nullable fields correctly', () => {
       const dataWithNulls = {
         ...validStaffPinData,
-        is_active: null,
+        is_available: null,
         last_used: null,
         users: null
       };
@@ -409,7 +408,7 @@ describe('Kiosk Schemas', () => {
         session_start: '2025-08-19T10:00:00Z', // snake_case preserved
         total_sales: 100,       // snake_case preserved
         transaction_count: 1,   // snake_case preserved
-        is_active: true,        // snake_case preserved
+        is_available: true,        // snake_case preserved
         created_at: '2025-08-19T09:00:00Z' // snake_case preserved
       };
 
@@ -425,7 +424,7 @@ describe('Kiosk Schemas', () => {
         session_start: '2025-08-19T10:00:00Z',
         total_sales: 100,
         transaction_count: 1,
-        is_active: true,
+        is_available: true,
         staff: { name: 'John Staff', role: 'staff' }
       };
 

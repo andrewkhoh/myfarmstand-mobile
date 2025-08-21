@@ -1,4 +1,4 @@
-import { CreateOrderRequest, Order, OrderSubmissionResult, PaymentStatus } from '../types';
+import { CreateOrderRequest, Order, OrderSubmissionResult, OrderPaymentStatus } from '../types';
 import { supabase } from '../config/supabase';
 import { sendOrderBroadcast } from '../utils/broadcastFactory';
 import { sendPickupReadyNotification, sendOrderConfirmationNotification } from './notificationService';
@@ -349,7 +349,7 @@ export const submitOrder = async (
     
     // Determine payment status based on payment method
     // Option A: Payment at checkout - online payments are processed immediately
-    const paymentStatus: PaymentStatus = orderRequest.paymentMethod === 'online' ? 'paid' : 'pending';
+    const paymentStatus: OrderPaymentStatus = orderRequest.paymentMethod === 'online' ? 'paid' : 'pending';
     
     // Get current user for order association
     const { data: { user } } = await supabase.auth.getUser();
@@ -490,8 +490,7 @@ export const submitOrder = async (
       pickupDate: createdOrder.pickupDate || createdOrder.pickup_date,
       pickupTime: createdOrder.pickupTime || createdOrder.pickup_time,
       deliveryAddress: createdOrder.deliveryAddress || createdOrder.delivery_address,
-      delivery_date: createdOrder.deliveryDate || createdOrder.delivery_date,
-      delivery_time: createdOrder.deliveryTime || createdOrder.delivery_time,
+      // Note: Database uses pickup_date/pickup_time for both pickup and delivery scheduling
       specialInstructions: createdOrder.specialInstructions || createdOrder.special_instructions,
       createdAt: createdOrder.createdAt || createdOrder.created_at,
       updatedAt: createdOrder.updatedAt || createdOrder.updated_at

@@ -40,9 +40,10 @@ class CrashReportingService {
   
   private setupGlobalErrorHandlers() {
     // React Native global error handler
-    const originalHandler = global.ErrorUtils?.getGlobalHandler();
+    const ErrorUtils = (global as any).ErrorUtils;
+    const originalHandler = ErrorUtils?.getGlobalHandler();
     
-    global.ErrorUtils?.setGlobalHandler((error: Error, isFatal?: boolean) => {
+    ErrorUtils?.setGlobalHandler((error: Error, isFatal?: boolean) => {
       this.logCrash(error, {
         isFatal,
         context: { action: 'global_error' }
@@ -96,7 +97,7 @@ class CrashReportingService {
         },
         device: {
           platform: Constants.platform?.ios ? 'ios' : 'android',
-          version: Constants.platform?.ios?.platformVersion || Constants.platform?.android?.versionCode?.toString() || 'unknown',
+          version: Constants.platform?.ios?.platformVersion || Constants.platform?.android?.platformVersion || 'unknown',
           appVersion: Constants.expoConfig?.version || 'unknown',
         },
       };

@@ -1,6 +1,6 @@
 import { supabase } from '../config/supabase';
 import type { EntityType } from './queryKeyFactory';
-import CryptoJS from 'crypto-js';
+import * as CryptoJS from 'crypto-js';
 import Constants from 'expo-constants';
 
 // CRYPTOGRAPHIC SECURITY: Enhanced Channel Security with Hash-Based Names

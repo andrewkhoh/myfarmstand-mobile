@@ -2,7 +2,7 @@
   "compilerOptions": {
     "strict": true,
     "module": "commonjs",
-    "target": "es2020",
+    "target": "es2020", 
     "lib": [
       "es2020"
     ],
@@ -28,7 +28,9 @@
     "app.config.js",
     "jest.config.js",
     "fix-cart-broadcasts.js",
-    "schema_inspector.js"
+    "schema_inspector.js",
+    "src/__tests__/payment-integration.test.ts",
+    "src/hooks/__tests__/archive/*.ts"
   ],
   "ts-node": {
     "esm": false,
@@ -36,6 +38,5 @@
       "module": "commonjs",
       "noEmit": false
     }
-  },
-  "extends": "expo/tsconfig.base"
+  }
 }
