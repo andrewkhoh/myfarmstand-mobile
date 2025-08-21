@@ -1,5 +1,5 @@
 // Centralized Query Key Factory with User Isolation Support and Fallback Strategies
-export type EntityType = 'cart' | 'orders' | 'products' | 'auth' | 'stock' | 'kiosk' | 'notifications' | 'payment';
+export type EntityType = 'cart' | 'orders' | 'products' | 'auth' | 'stock' | 'kiosk' | 'notifications' | 'payment' | 'roles';
 export type UserIsolationLevel = 'user-specific' | 'admin-global' | 'global';
 
 interface QueryKeyConfig {
@@ -98,6 +98,29 @@ export const orderKeys = createQueryKeyFactory({ entity: 'orders', isolation: 'u
 export const productKeys = createQueryKeyFactory({ entity: 'products', isolation: 'global' });
 export const authKeys = createQueryKeyFactory({ entity: 'auth', isolation: 'user-specific' });
 export const stockKeys = createQueryKeyFactory({ entity: 'stock', isolation: 'global' });
+
+// Role-specific query key factory with entity-specific methods
+const baseRoleKeys = createQueryKeyFactory({ entity: 'roles', isolation: 'user-specific' });
+
+export const roleKeys = {
+  ...baseRoleKeys,
+  
+  // User role queries
+  user: (userId: string) => 
+    [...baseRoleKeys.all(), 'user', userId] as const,
+  
+  // Role permission queries  
+  permissions: (userId: string) => 
+    [...baseRoleKeys.all(), 'user', userId, 'permissions'] as const,
+  
+  // All roles list (for admin use)
+  allRoles: () => 
+    [...baseRoleKeys.all(), 'all'] as const,
+  
+  // Role type queries
+  roleType: (roleType: string) => 
+    [...baseRoleKeys.all(), 'type', roleType] as const
+};
 // Kiosk-specific query key factory with entity-specific methods
 const baseKioskKeys = createQueryKeyFactory({ entity: 'kiosk', isolation: 'user-specific' });
 
