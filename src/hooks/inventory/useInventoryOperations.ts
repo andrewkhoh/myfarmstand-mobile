@@ -1,11 +1,13 @@
 /**
- * Task 2.3.7: Inventory Operations Hooks (REFACTOR Phase)
- * Optimized mutations, cache strategies, and error recovery
+ * Task 2.4.5: Inventory Operations with Advanced Cache Integration
+ * Smart invalidation, real-time coordination, and performance optimization
  */
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { InventoryService } from '../../services/inventory/inventoryService';
 import { inventoryKeys } from '../../utils/queryKeyFactory';
+import { getInventoryCacheManager } from './cacheIntegration';
+import { getCachePerformanceMonitor, withCachePerformanceMonitoring } from './cachePerformanceMonitor';
 import type {
   InventoryItemTransform,
   CreateInventoryItemInput,
@@ -14,19 +16,28 @@ import type {
 } from '../../schemas/inventory';
 
 /**
- * Update stock levels with optimistic updates and rollback
+ * Update stock levels with advanced cache integration
+ * Includes smart invalidation, performance monitoring, and cross-entity coordination
  */
 export function useUpdateStock() {
   const queryClient = useQueryClient();
+  const cacheManager = getInventoryCacheManager(queryClient);
+  const performanceMonitor = getCachePerformanceMonitor();
 
   return useMutation({
-    mutationFn: ({ inventoryId, stockUpdate }: {
-      inventoryId: string;
-      stockUpdate: StockUpdateInput;
-    }) => InventoryService.updateStock(inventoryId, stockUpdate),
+    mutationFn: withCachePerformanceMonitoring(
+      'stock-update',
+      async ({ inventoryId, stockUpdate }: {
+        inventoryId: string;
+        stockUpdate: StockUpdateInput;
+      }) => InventoryService.updateStock(inventoryId, stockUpdate),
+      1
+    ),
 
-    // Optimistic update
+    // Advanced optimistic update with cache manager
     onMutate: async ({ inventoryId, stockUpdate }) => {
+      const startTime = performance.now();
+      
       // Cancel outgoing refetches
       await queryClient.cancelQueries({ queryKey: inventoryKeys.item(inventoryId) });
 
@@ -35,43 +46,60 @@ export function useUpdateStock() {
         inventoryKeys.item(inventoryId)
       );
 
-      // Optimistically update
-      if (previousInventory) {
-        const optimisticInventory: InventoryItemTransform = {
-          ...previousInventory,
-          currentStock: stockUpdate.currentStock,
-          availableStock: stockUpdate.currentStock - previousInventory.reservedStock,
-          lastStockUpdate: new Date().toISOString(),
-        };
-
-        queryClient.setQueryData(inventoryKeys.item(inventoryId), optimisticInventory);
-      }
+      // Use advanced cache manager for optimistic update
+      await cacheManager.optimisticStockUpdate(inventoryId, stockUpdate);
+      
+      const duration = performance.now() - startTime;
+      performanceMonitor.recordOptimisticUpdate('stock-update-optimistic', duration, 1);
 
       return { previousInventory };
     },
 
-    // Success: Invalidate related queries
-    onSuccess: (updatedInventory, { inventoryId }) => {
+    // Success: Smart invalidation with cross-entity coordination
+    onSuccess: async (updatedInventory, { inventoryId, stockUpdate }) => {
+      const startTime = performance.now();
+      
       if (updatedInventory) {
-        // Update the specific item
-        queryClient.setQueryData(inventoryKeys.item(inventoryId), updatedInventory);
+        // Create movement record for audit trail
+        const movement = {
+          inventoryItemId: inventoryId,
+          movementType: 'manual_adjustment' as const,
+          quantityChange: stockUpdate.currentStock - (updatedInventory.currentStock || 0),
+          newStock: stockUpdate.currentStock,
+          reason: stockUpdate.reason || 'Manual stock update',
+          performedBy: stockUpdate.performedBy
+        };
+
+        // Use smart invalidation strategy
+        await cacheManager.invalidateStockUpdate(inventoryId, movement);
         
-        // Invalidate related queries
-        queryClient.invalidateQueries({ queryKey: inventoryKeys.itemByProduct(updatedInventory.productId) });
-        queryClient.invalidateQueries({ queryKey: inventoryKeys.lowStock() });
+        const duration = performance.now() - startTime;
+        performanceMonitor.recordInvalidation('stock-update-success', duration, 5); // Multiple caches affected
       }
     },
 
-    // Error: Rollback optimistic update
+    // Error: Rollback with performance tracking
     onError: (error, { inventoryId }, context) => {
+      const startTime = performance.now();
+      
       if (context?.previousInventory) {
         queryClient.setQueryData(inventoryKeys.item(inventoryId), context.previousInventory);
       }
+      
+      const duration = performance.now() - startTime;
+      performanceMonitor.recordCacheError('stock-update-rollback', duration, error.message);
     },
 
-    // Always refetch after completion (success or error)
-    onSettled: (data, error, { inventoryId }) => {
-      queryClient.invalidateQueries({ queryKey: inventoryKeys.item(inventoryId) });
+    // Final settlement with cache warming for related items
+    onSettled: async (data, error, { inventoryId }) => {
+      // Ensure item cache is fresh
+      await queryClient.invalidateQueries({ queryKey: inventoryKeys.item(inventoryId) });
+      
+      // If successful, warm related caches for better performance
+      if (data && !error) {
+        const relatedItems = [inventoryId]; // Could expand to related products
+        await cacheManager.warmInventoryCaches(relatedItems);
+      }
     },
   });
 }
