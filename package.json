@@ -71,7 +71,21 @@
     "validate:admin:verbose": "node scripts/validate-admin-contracts.js --verbose",
     "schema:check": "npm run validate:all",
     "schema:fix": "echo 'Run schema:check first to identify issues, then fix manually'",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:performance": "jest --config=jest.config.performance.js --forceExit",
+    "test:performance:queries": "jest --config=jest.config.performance.js src/__tests__/performance/queryPerformance.test.ts --forceExit",
+    "test:performance:frontend": "jest --config=jest.config.performance.js src/__tests__/performance/frontendPerformance.test.ts --forceExit",
+    "test:security": "jest --config=jest.config.security.js --forceExit",
+    "test:security:audit": "jest --config=jest.config.security.js src/__tests__/security/securityAudit.test.ts --forceExit",
+    "test:security:permissions": "jest --config=jest.config.security.js src/__tests__/security/permissionBoundaries.test.ts --forceExit",
+    "test:integration:e2e": "jest --config=jest.config.e2e.js --forceExit",
+    "test:integration:analytics": "jest --config=jest.config.integration.js src/__tests__/integration/analyticsIntegration.test.ts --forceExit",
+    "test:production": "npm run test:performance && npm run test:security && npm run test:integration:e2e",
+    "migration:validate": "echo 'Database migration validation - implement based on your migration system'",
+    "performance:benchmark": "npm run test:performance",
+    "security:audit": "npm run test:security",
+    "deploy:production": "echo 'Production deployment - implement based on your deployment system'",
+    "health:check": "echo 'Health check - implement based on your health check system'"
 
   },
   "dependencies": {

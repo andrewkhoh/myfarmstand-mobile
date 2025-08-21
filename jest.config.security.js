@@ -1,0 +1,56 @@
+/**
+ * Jest Configuration for Security Tests
+ * Phase 5: Production Readiness - Security test configuration
+ * 
+ * Optimized for security testing with appropriate timeout and cleanup
+ */
+
+module.exports = {
+  preset: 'react-native',
+  testEnvironment: 'node',
+  roots: ['<rootDir>/src'],
+  testMatch: [
+    '<rootDir>/src/__tests__/security/**/*.test.{js,jsx,ts,tsx}',
+  ],
+  transform: {
+    '^.+\\.(ts|tsx)$': 'ts-jest',
+    '^.+\\.(js|jsx)$': 'babel-jest',
+  },
+  transformIgnorePatterns: [
+    'node_modules/(?!(react-native|@react-native|@supabase|@tanstack/react-query)/)',
+  ],
+  setupFilesAfterEnv: [
+    '<rootDir>/src/test/security-setup.ts',
+  ],
+  testTimeout: 30000, // 30 seconds for security tests
+  forceExit: true, // Force exit to prevent hanging
+  detectOpenHandles: true,
+  maxWorkers: 1, // Single worker for security tests
+  collectCoverageFrom: [
+    'src/**/*.{ts,tsx}',
+    '!src/**/*.d.ts',
+    '!src/**/*.test.{ts,tsx}',
+    '!src/test/**/*',
+  ],
+  coverageDirectory: 'coverage/security',
+  coverageReporters: ['text', 'lcov', 'html'],
+  globals: {
+    'ts-jest': {
+      useESM: true,
+    },
+  },
+  moduleNameMapping: {
+    '^@/(.*)$': '<rootDir>/src/$1',
+  },
+  testEnvironmentOptions: {
+    url: 'http://localhost',
+  },
+  // Security test specific settings
+  verbose: true,
+  bail: false, // Continue running tests even if some fail
+  cache: false, // Disable cache for security tests
+  // Ensure cleanup after security tests
+  clearMocks: true,
+  resetMocks: true,
+  restoreMocks: true,
+};
