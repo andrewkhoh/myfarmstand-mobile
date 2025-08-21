@@ -41,7 +41,7 @@ export class RolePermissionService {
       // Step 3: Monitor success (MANDATORY)
       ValidationMonitor.recordPatternSuccess({
         service: 'rolePermissionService',
-        pattern: 'direct_supabase_transformation',
+        pattern: 'transformation_schema',
         operation: 'getUserRole'
       });
       
@@ -50,9 +50,10 @@ export class RolePermissionService {
     } catch (error) {
       // Step 4: Monitor failure, graceful degradation
       ValidationMonitor.recordValidationError({
-        service: 'rolePermissionService',
-        operation: 'getUserRole',
-        error: error.message
+        context: 'RolePermissionService.getUserRole',
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        errorCode: 'ROLE_FETCH_FAILED',
+        validationPattern: 'transformation_schema'
       });
       
       return null; // Graceful degradation - UI can handle null
@@ -78,18 +79,18 @@ export class RolePermissionService {
       // Monitor permission checks for analytics/security
       ValidationMonitor.recordPatternSuccess({
         service: 'rolePermissionService',
-        pattern: 'permission_check',
-        operation: 'hasPermission',
-        details: { permission, hasPermission, roleType: userRole.roleType }
+        pattern: 'simple_input_validation',
+        operation: 'hasPermission'
       });
       
       return hasPermission;
       
     } catch (error) {
       ValidationMonitor.recordValidationError({
-        service: 'rolePermissionService',
-        operation: 'hasPermission',
-        error: error.message
+        context: 'RolePermissionService.hasPermission',
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        errorCode: 'PERMISSION_CHECK_FAILED',
+        validationPattern: 'simple_input_validation'
       });
       
       return false; // Fail closed for security
@@ -125,9 +126,10 @@ export class RolePermissionService {
       
     } catch (error) {
       ValidationMonitor.recordValidationError({
-        service: 'rolePermissionService',
-        operation: 'getAllUserRoles',
-        error: error.message
+        context: 'RolePermissionService.getAllUserRoles',
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        errorCode: 'BULK_ROLE_FETCH_FAILED',
+        validationPattern: 'transformation_schema'
       });
       
       return { success: [], errors: [error], totalProcessed: 0 };
@@ -164,7 +166,7 @@ export class RolePermissionService {
       
       ValidationMonitor.recordPatternSuccess({
         service: 'rolePermissionService',
-        pattern: 'create_with_validation',
+        pattern: 'transformation_schema',
         operation: 'createUserRole'
       });
       
@@ -172,9 +174,10 @@ export class RolePermissionService {
       
     } catch (error) {
       ValidationMonitor.recordValidationError({
-        service: 'rolePermissionService',
-        operation: 'createUserRole',
-        error: error.message
+        context: 'RolePermissionService.createUserRole',
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        errorCode: 'ROLE_CREATION_FAILED',
+        validationPattern: 'transformation_schema'
       });
       
       return null;
@@ -209,7 +212,7 @@ export class RolePermissionService {
       
       ValidationMonitor.recordPatternSuccess({
         service: 'rolePermissionService',
-        pattern: 'update_with_validation',
+        pattern: 'transformation_schema',
         operation: 'updateUserPermissions'
       });
       
@@ -217,9 +220,10 @@ export class RolePermissionService {
       
     } catch (error) {
       ValidationMonitor.recordValidationError({
-        service: 'rolePermissionService',
-        operation: 'updateUserPermissions',
-        error: error.message
+        context: 'RolePermissionService.updateUserPermissions',
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        errorCode: 'PERMISSION_UPDATE_FAILED',
+        validationPattern: 'transformation_schema'
       });
       
       return null;
@@ -245,15 +249,16 @@ export class RolePermissionService {
         
         ValidationMonitor.recordPatternSuccess({
           service: 'rolePermissionService',
-          pattern: 'resilient_item_processing',
+          pattern: 'transformation_schema',
           operation
         });
       } catch (error) {
         results.errors.push({ item, error });
         ValidationMonitor.recordValidationError({
-          service: 'rolePermissionService',
-          operation,
-          error: error.message
+          context: `RolePermissionService.${operation}.processItems`,
+          errorMessage: error instanceof Error ? error.message : 'Unknown error',
+          errorCode: 'ITEM_PROCESSING_FAILED',
+          validationPattern: 'transformation_schema'
         });
         // Continue processing other items - don't break entire operation
       }

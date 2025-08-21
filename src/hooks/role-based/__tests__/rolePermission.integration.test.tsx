@@ -111,7 +111,7 @@ describe('Role Permission Integration Tests - Phase 1', () => {
     // Step 6: Verify ValidationMonitor tracked the success
     expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith({
       service: 'rolePermissionService',
-      pattern: 'direct_supabase_transformation',
+      pattern: 'transformation_schema',
       operation: 'getUserRole'
     });
 
@@ -178,9 +178,10 @@ describe('Role Permission Integration Tests - Phase 1', () => {
 
     // Step 4: Verify error was recorded by ValidationMonitor
     expect(ValidationMonitor.recordValidationError).toHaveBeenCalledWith({
-      service: 'rolePermissionService',
-      operation: 'getUserRole',
-      error: 'Database connection failed'
+      context: 'RolePermissionService.getUserRole',
+      errorMessage: 'Database connection failed',
+      errorCode: 'ROLE_FETCH_FAILED',
+      validationPattern: 'transformation_schema'
     });
   });
 
@@ -246,7 +247,7 @@ describe('Role Permission Integration Tests - Phase 1', () => {
     // Step 5: Verify success was recorded
     expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith({
       service: 'rolePermissionService',
-      pattern: 'create_with_validation',
+      pattern: 'transformation_schema',
       operation: 'createUserRole'
     });
   });

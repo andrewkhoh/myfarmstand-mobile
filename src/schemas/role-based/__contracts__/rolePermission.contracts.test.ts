@@ -8,8 +8,27 @@ import {
   type RolePermissionDatabaseContract,
   type RolePermissionTransform
 } from '../rolePermission.schemas';
+import type { z } from 'zod';
+
+// CRITICAL: Compile-time contract enforcement (Pattern from architectural doc)
+// This MUST compile - if it doesn't, schema transformation is incomplete
+type RolePermissionContract = z.infer<typeof RolePermissionTransformSchema> extends RolePermissionTransform 
+  ? RolePermissionTransform extends z.infer<typeof RolePermissionTransformSchema> 
+    ? true 
+    : false 
+  : false;
 
 describe('Role Permission Schema Contracts - Phase 1', () => {
+  // Contract Test 0: Compile-time contract enforcement (CRITICAL PATTERN)
+  it('must pass compile-time contract validation', () => {
+    // This test validates that the contract type compiled successfully
+    const contractIsValid: RolePermissionContract = true;
+    expect(contractIsValid).toBe(true);
+    
+    // If this test compiles, the schema-interface alignment is enforced at compile time
+    // If the schema transformation doesn't match the interface exactly, TypeScript compilation will fail
+  });
+
   // Contract Test 1: Database interface alignment (MANDATORY)
   // This test will FAIL initially - we haven't written the schemas yet
   it('must align with generated database types', () => {

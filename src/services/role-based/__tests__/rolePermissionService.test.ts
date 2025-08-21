@@ -69,7 +69,7 @@ describe('RolePermissionService - Phase 1', () => {
       // Verify ValidationMonitor integration (MANDATORY pattern)
       expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith({
         service: 'rolePermissionService',
-        pattern: 'direct_supabase_transformation',
+        pattern: 'transformation_schema',
         operation: 'getUserRole'
       });
 
@@ -108,9 +108,10 @@ describe('RolePermissionService - Phase 1', () => {
       
       // Error monitoring (MANDATORY pattern)
       expect(ValidationMonitor.recordValidationError).toHaveBeenCalledWith({
-        service: 'rolePermissionService',
-        operation: 'getUserRole',
-        error: 'Database connection failed'
+        context: 'RolePermissionService.getUserRole',
+        errorMessage: 'Database connection failed',
+        errorCode: 'ROLE_FETCH_FAILED',
+        validationPattern: 'transformation_schema'
       });
     });
 
@@ -159,9 +160,8 @@ describe('RolePermissionService - Phase 1', () => {
       // Verify analytics tracking
       expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith({
         service: 'rolePermissionService',
-        pattern: 'permission_check',
-        operation: 'hasPermission',
-        details: { permission: 'view_inventory', hasPermission: true, roleType: 'inventory_staff' }
+        pattern: 'simple_input_validation',
+        operation: 'hasPermission'
       });
     });
 
@@ -281,9 +281,10 @@ describe('RolePermissionService - Phase 1', () => {
       expect(result.totalProcessed).toBe(0);
       
       expect(ValidationMonitor.recordValidationError).toHaveBeenCalledWith({
-        service: 'rolePermissionService',
-        operation: 'getAllUserRoles',
-        error: 'Database unavailable'
+        context: 'RolePermissionService.getAllUserRoles',
+        errorMessage: 'Database unavailable',
+        errorCode: 'BULK_ROLE_FETCH_FAILED',
+        validationPattern: 'transformation_schema'
       });
     });
   });
@@ -320,7 +321,7 @@ describe('RolePermissionService - Phase 1', () => {
       // Verify ValidationMonitor tracking
       expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith({
         service: 'rolePermissionService',
-        pattern: 'create_with_validation',
+        pattern: 'transformation_schema',
         operation: 'createUserRole'
       });
     });
@@ -383,7 +384,7 @@ describe('RolePermissionService - Phase 1', () => {
       expect(result?.permissions).toEqual(['view_inventory', 'update_stock', 'new_permission']);
       expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith({
         service: 'rolePermissionService',
-        pattern: 'update_with_validation',
+        pattern: 'transformation_schema',
         operation: 'updateUserPermissions'
       });
     });
