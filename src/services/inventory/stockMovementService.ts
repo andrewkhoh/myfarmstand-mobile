@@ -16,6 +16,7 @@ export class StockMovementService {
    */
   static async recordMovement(input: CreateStockMovementInput): Promise<StockMovementTransform | null> {
     try {
+      console.log('[DEBUG] Recording movement with input:', JSON.stringify(input, null, 2));
       const { data, error } = await supabase
         .from('test_stock_movements')
         .insert({
@@ -32,27 +33,34 @@ export class StockMovementService {
         .select()
         .single();
 
+      console.log('[DEBUG] DB Insert result:', { data, error });
+
       if (error || !data) {
+        console.log('[DEBUG] Insert failed - error:', error);
         ValidationMonitor.recordValidationError({
           context: 'StockMovementService.recordMovement',
           errorCode: 'MOVEMENT_RECORDING_FAILED',
           validationPattern: 'transformation_schema',
-          errorData: error
+          errorMessage: error?.message || 'Database operation failed'
         });
         return null;
       }
 
+      console.log('[DEBUG] Raw movement data from DB:', JSON.stringify(data, null, 2));
       const transformResult = StockMovementTransformSchema.safeParse(data);
       
       if (!transformResult.success) {
+        console.log('[DEBUG] Transformation failed:', transformResult.error.message);
         ValidationMonitor.recordValidationError({
           context: 'StockMovementService.recordMovement',
           errorCode: 'MOVEMENT_TRANSFORMATION_FAILED',
           validationPattern: 'transformation_schema',
-          errorData: transformResult.error
+          errorMessage: transformResult.error.message
         });
         return null;
       }
+      
+      console.log('[DEBUG] Transformed movement data:', JSON.stringify(transformResult.data, null, 2));
 
       ValidationMonitor.recordPatternSuccess({
         service: 'stockMovementService',
@@ -66,7 +74,7 @@ export class StockMovementService {
         context: 'StockMovementService.recordMovement',
         errorCode: 'MOVEMENT_RECORDING_FAILED',
         validationPattern: 'transformation_schema',
-        errorData: error
+        errorMessage: error instanceof Error ? error.message : 'Unknown error'
       });
       return null;
     }
@@ -102,7 +110,7 @@ export class StockMovementService {
           context: 'StockMovementService.getMovementHistory',
           errorCode: 'MOVEMENT_HISTORY_FETCH_FAILED',
           validationPattern: 'transformation_schema',
-          errorData: error
+          errorMessage: error?.message || 'Database operation failed'
         });
         return { success: [], totalProcessed: 0 };
       }
@@ -132,7 +140,7 @@ export class StockMovementService {
         context: 'StockMovementService.getMovementHistory',
         errorCode: 'MOVEMENT_HISTORY_FETCH_FAILED',
         validationPattern: 'transformation_schema',
-        errorData: error
+        errorMessage: error instanceof Error ? error.message : 'Unknown error'
       });
       return { success: [], totalProcessed: 0 };
     }
@@ -179,7 +187,7 @@ export class StockMovementService {
           context: 'StockMovementService.getMovementsByFilter',
           errorCode: 'MOVEMENT_FILTER_FAILED',
           validationPattern: 'transformation_schema',
-          errorData: error
+          errorMessage: error?.message || 'Database operation failed'
         });
         return { success: [], totalProcessed: 0 };
       }
@@ -208,7 +216,7 @@ export class StockMovementService {
         context: 'StockMovementService.getMovementsByFilter',
         errorCode: 'MOVEMENT_FILTER_FAILED',
         validationPattern: 'transformation_schema',
-        errorData: error
+        errorMessage: error instanceof Error ? error.message : 'Unknown error'
       });
       return { success: [], totalProcessed: 0 };
     }
@@ -230,7 +238,7 @@ export class StockMovementService {
           context: 'StockMovementService.getBatchMovements',
           errorCode: 'BATCH_MOVEMENTS_FETCH_FAILED',
           validationPattern: 'transformation_schema',
-          errorData: error
+          errorMessage: error?.message || 'Database operation failed'
         });
         return { success: [], totalProcessed: 0 };
       }
@@ -259,7 +267,7 @@ export class StockMovementService {
         context: 'StockMovementService.getBatchMovements',
         errorCode: 'BATCH_MOVEMENTS_FETCH_FAILED',
         validationPattern: 'transformation_schema',
-        errorData: error
+        errorMessage: error instanceof Error ? error.message : 'Unknown error'
       });
       return { success: [], totalProcessed: 0 };
     }
@@ -346,7 +354,7 @@ export class StockMovementService {
           context: 'StockMovementService.getMovementAnalytics',
           errorCode: 'ANALYTICS_FETCH_FAILED',
           validationPattern: 'transformation_schema',
-          errorData: error
+          errorMessage: error?.message || 'Database operation failed'
         });
         return { success: [], totalProcessed: 0 };
       }
@@ -389,7 +397,7 @@ export class StockMovementService {
         context: 'StockMovementService.getMovementAnalytics',
         errorCode: 'ANALYTICS_FETCH_FAILED',
         validationPattern: 'transformation_schema',
-        errorData: error
+        errorMessage: error instanceof Error ? error.message : 'Unknown error'
       });
       return { success: [], totalProcessed: 0 };
     }
@@ -441,7 +449,7 @@ export class StockMovementService {
         context: 'StockMovementService.recordMovementWithInventoryUpdate',
         errorCode: 'INTEGRATED_UPDATE_FAILED',
         validationPattern: 'transformation_schema',
-        errorData: error
+        errorMessage: error instanceof Error ? error.message : 'Unknown error'
       });
       return null;
     }
@@ -463,7 +471,7 @@ export class StockMovementService {
           context: 'StockMovementService.checkMovementPermission',
           errorCode: 'PERMISSION_CHECK_FAILED',
           validationPattern: 'simple_input_validation',
-          errorData: error
+          errorMessage: error?.message || 'Database operation failed'
         });
         return false;
       }
@@ -517,7 +525,7 @@ export class StockMovementService {
         context: 'StockMovementService.checkMovementPermission',
         errorCode: 'PERMISSION_CHECK_FAILED',
         validationPattern: 'simple_input_validation',
-        errorData: error
+        errorMessage: error instanceof Error ? error.message : 'Unknown error'
       });
       return false;
     }

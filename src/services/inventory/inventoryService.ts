@@ -42,7 +42,7 @@ export class InventoryService {
           context: 'InventoryService.getInventoryItem',
           errorCode: 'INVENTORY_FETCH_FAILED',
           validationPattern: 'transformation_schema',
-          errorData: error
+          errorMessage: error?.message || 'Database query failed'
         });
         return null;
       }
@@ -55,7 +55,7 @@ export class InventoryService {
           context: 'InventoryService.getInventoryItem',
           errorCode: 'INVENTORY_TRANSFORMATION_FAILED',
           validationPattern: 'transformation_schema',
-          errorData: transformResult.error
+          errorMessage: transformResult.error.message
         });
         return null;
       }
@@ -72,7 +72,7 @@ export class InventoryService {
         context: 'InventoryService.getInventoryItem',
         errorCode: 'INVENTORY_FETCH_FAILED',
         validationPattern: 'transformation_schema',
-        errorData: error
+        errorMessage: error instanceof Error ? error.message : 'Unknown error'
       });
       return null;
     }
@@ -103,7 +103,7 @@ export class InventoryService {
           context: 'InventoryService.getInventoryByProduct',
           errorCode: 'INVENTORY_FETCH_FAILED',
           validationPattern: 'transformation_schema',
-          errorData: error
+          errorMessage: error?.message || 'Database query failed'
         });
         return null;
       }
@@ -115,7 +115,7 @@ export class InventoryService {
           context: 'InventoryService.getInventoryByProduct',
           errorCode: 'INVENTORY_TRANSFORMATION_FAILED',
           validationPattern: 'transformation_schema',
-          errorData: transformResult.error
+          errorMessage: transformResult.error.message
         });
         return null;
       }
@@ -132,7 +132,7 @@ export class InventoryService {
         context: 'InventoryService.getInventoryByProduct',
         errorCode: 'INVENTORY_FETCH_FAILED',
         validationPattern: 'transformation_schema',
-        errorData: error
+        errorMessage: error instanceof Error ? error.message : 'Unknown error'
       });
       return null;
     }
@@ -150,7 +150,7 @@ export class InventoryService {
           context: 'InventoryService.updateStock',
           errorCode: 'STOCK_UPDATE_FAILED',
           validationPattern: 'transformation_schema',
-          errorData: 'Inventory item not found'
+          errorMessage: 'Inventory item not found'
         });
         return null;
       }
@@ -171,7 +171,7 @@ export class InventoryService {
           context: 'InventoryService.updateStock',
           errorCode: 'STOCK_UPDATE_FAILED',
           validationPattern: 'transformation_schema',
-          errorData: updateError
+          errorMessage: updateError?.message || 'Database update failed'
         });
         return null;
       }
@@ -200,7 +200,7 @@ export class InventoryService {
           context: 'InventoryService.updateStock',
           errorCode: 'INVENTORY_TRANSFORMATION_FAILED',
           validationPattern: 'transformation_schema',
-          errorData: transformResult.error
+          errorMessage: transformResult.error.message
         });
         return null;
       }
@@ -217,7 +217,7 @@ export class InventoryService {
         context: 'InventoryService.updateStock',
         errorCode: 'STOCK_UPDATE_FAILED',
         validationPattern: 'transformation_schema',
-        errorData: error
+        errorMessage: error instanceof Error ? error.message : 'Unknown error'
       });
       return null;
     }
@@ -244,7 +244,7 @@ export class InventoryService {
           context: 'InventoryService.toggleProductVisibility',
           errorCode: 'VISIBILITY_UPDATE_FAILED',
           validationPattern: 'transformation_schema',
-          errorData: error
+          errorMessage: error?.message || 'Database update failed'
         });
         return null;
       }
@@ -256,7 +256,7 @@ export class InventoryService {
           context: 'InventoryService.toggleProductVisibility',
           errorCode: 'INVENTORY_TRANSFORMATION_FAILED',
           validationPattern: 'transformation_schema',
-          errorData: transformResult.error
+          errorMessage: transformResult.error.message
         });
         return null;
       }
@@ -273,7 +273,7 @@ export class InventoryService {
         context: 'InventoryService.toggleProductVisibility',
         errorCode: 'VISIBILITY_UPDATE_FAILED',
         validationPattern: 'transformation_schema',
-        errorData: error
+        errorMessage: error instanceof Error ? error.message : 'Unknown error'
       });
       return null;
     }
@@ -295,7 +295,7 @@ export class InventoryService {
           context: 'InventoryService.getLowStockItems',
           errorCode: 'LOW_STOCK_FETCH_FAILED',
           validationPattern: 'transformation_schema',
-          errorData: error
+          errorMessage: error?.message || 'Database query failed'
         });
         return { success: [], errors: [error], totalProcessed: 0 };
       }
@@ -332,7 +332,7 @@ export class InventoryService {
         context: 'InventoryService.getLowStockItems',
         errorCode: 'LOW_STOCK_FETCH_FAILED',
         validationPattern: 'transformation_schema',
-        errorData: error
+        errorMessage: error instanceof Error ? error.message : 'Unknown error'
       });
       return { success: [], errors: [error], totalProcessed: 0 };
     }
@@ -405,7 +405,7 @@ export class InventoryService {
           context: 'InventoryService.createInventoryItem',
           errorCode: 'INVENTORY_CREATION_FAILED',
           validationPattern: 'transformation_schema',
-          errorData: error
+          errorMessage: error?.message || 'Database insert failed'
         });
         return null;
       }
@@ -417,7 +417,7 @@ export class InventoryService {
           context: 'InventoryService.createInventoryItem',
           errorCode: 'INVENTORY_TRANSFORMATION_FAILED',
           validationPattern: 'transformation_schema',
-          errorData: transformResult.error
+          errorMessage: transformResult.error.message
         });
         return null;
       }
@@ -434,7 +434,7 @@ export class InventoryService {
         context: 'InventoryService.createInventoryItem',
         errorCode: 'INVENTORY_CREATION_FAILED',
         validationPattern: 'transformation_schema',
-        errorData: error
+        errorMessage: error instanceof Error ? error.message : 'Unknown error'
       });
       return null;
     }
@@ -458,7 +458,7 @@ export class InventoryService {
           context: 'InventoryService.checkInventoryPermission',
           errorCode: 'PERMISSION_CHECK_FAILED',
           validationPattern: 'simple_input_validation',
-          errorData: error
+          errorMessage: error?.message || 'Permission check failed'
         });
         return false;
       }
@@ -480,7 +480,7 @@ export class InventoryService {
         context: 'InventoryService.checkInventoryPermission',
         errorCode: 'PERMISSION_CHECK_FAILED',
         validationPattern: 'simple_input_validation',
-        errorData: error
+        errorMessage: error instanceof Error ? error.message : 'Unknown error'
       });
       return false;
     }
