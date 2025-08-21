@@ -39,7 +39,7 @@
     "prebuild:validate": "node scripts/pre-build-validation.js",
     "prebuild:production": "node scripts/pre-build-validation.js --archive",
     "build:development": "npm run prebuild:validate && eas build --profile development",
-    "build:staging": "npm run prebuild:production && eas build --profile staging", 
+    "build:staging": "npm run prebuild:production && eas build --profile staging",
     "build:production": "npm run prebuild:production && eas build --profile production",
     "build:preview": "npm run prebuild:validate && eas build --profile preview",
     "secrets:validate": "node scripts/secrets-validator.js",
@@ -86,7 +86,6 @@
     "security:audit": "npm run test:security",
     "deploy:production": "echo 'Production deployment - implement based on your deployment system'",
     "health:check": "echo 'Health check - implement based on your health check system'"
-
   },
   "dependencies": {
     "@expo/metro-runtime": "~5.0.4",
@@ -124,6 +123,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
+    "@jest/environment": "^30.0.5",
     "@testing-library/jest-native": "^5.4.3",
     "@testing-library/react-native": "^13.2.2",
     "@types/crypto-js": "^4.2.2",

@@ -354,7 +354,7 @@ export class ProductBundleService {
     try {
       // Calculate required inventory
       const impact = BundleInventoryHelpers.calculateInventoryImpact(
-        bundleProducts,
+        bundleProducts.map(p => ({ productId: p.productId, quantity: p.quantity })),
         bundleQuantity
       );
 
@@ -365,7 +365,7 @@ export class ProductBundleService {
       // Check inventory for each product
       for (const productId of productIds) {
         try {
-          const inventoryResult = await InventoryService.getInventoryByProductId(productId);
+          const inventoryResult = await InventoryService.getInventoryByProduct(productId);
           if (inventoryResult && typeof inventoryResult === 'object' && 'availableStock' in inventoryResult) {
             inventoryLevels[productId] = inventoryResult.availableStock || 0;
           } else {
@@ -378,7 +378,7 @@ export class ProductBundleService {
 
       // Validate availability
       const availability = BundleInventoryHelpers.validateInventoryAvailability(
-        bundleProducts,
+        bundleProducts.map(p => ({ productId: p.productId, quantity: p.quantity })),
         bundleQuantity,
         inventoryLevels
       );
@@ -461,7 +461,7 @@ export class ProductBundleService {
       ValidationMonitor.recordValidationError({
         context: 'ProductBundleService.getBundlePerformance',
         errorCode: 'BUNDLE_PERFORMANCE_QUERY_FAILED',
-        validationPattern: 'direct_supabase_query',
+        validationPattern: 'direct_schema',
         errorMessage: errorMessage
       });
 
@@ -665,7 +665,7 @@ export class ProductBundleService {
         ValidationMonitor.recordValidationError({
           context: 'ProductBundleService.getBundlesByStatus',
           errorCode: 'BUNDLE_QUERY_FAILED',
-          validationPattern: 'direct_supabase_query',
+          validationPattern: 'direct_schema',
           errorMessage: error.message
         });
         return { success: false, error: error.message };
@@ -701,7 +701,7 @@ export class ProductBundleService {
       ValidationMonitor.recordValidationError({
         context: 'ProductBundleService.getBundlesByStatus',
         errorCode: 'BUNDLE_QUERY_FAILED',
-        validationPattern: 'direct_supabase_query',
+        validationPattern: 'direct_schema',
         errorMessage: errorMessage
       });
 

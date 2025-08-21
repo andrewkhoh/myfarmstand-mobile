@@ -457,7 +457,7 @@ export class InventoryService {
         ValidationMonitor.recordValidationError({
           context: 'InventoryService.checkInventoryPermission',
           errorCode: 'PERMISSION_CHECK_FAILED',
-          validationPattern: 'simple_input_validation',
+          validationPattern: 'simple_validation',
           errorMessage: error?.message || 'Permission check failed'
         });
         return false;
@@ -479,7 +479,7 @@ export class InventoryService {
       ValidationMonitor.recordValidationError({
         context: 'InventoryService.checkInventoryPermission',
         errorCode: 'PERMISSION_CHECK_FAILED',
-        validationPattern: 'simple_input_validation',
+        validationPattern: 'simple_validation',
         errorMessage: error instanceof Error ? error.message : 'Unknown error'
       });
       return false;
