@@ -65,6 +65,8 @@
     "validate:all:verbose": "npm run test:contracts && npm run lint:schemas:verbose",
     "validate:pre-commit": "npm run test:contracts && npm run lint:schemas && echo '✅ Pre-commit validation passed'",
     "validate:debug": "npm run test:contracts:all && npm run lint:schemas:verbose",
+    "validate:admin": "node scripts/validate-admin-contracts.js",
+    "validate:admin:verbose": "node scripts/validate-admin-contracts.js --verbose",
     "schema:check": "npm run validate:all",
     "schema:fix": "echo 'Run schema:check first to identify issues, then fix manually'",
     "typecheck": "tsc --noEmit"

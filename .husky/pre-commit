@@ -4,7 +4,7 @@ echo ""
 
 # Step 1: Schema Contract Validation
 echo "📋 Step 1: Checking schema contracts..."
-npx tsc --noEmit src/schemas/__contracts__/schema-contracts.test.ts
+npx tsc --noEmit src/schemas/__contracts__/schema-contracts.test.ts src/schemas/__contracts__/productAdmin.contracts.test.ts
 if [ $? -ne 0 ]; then
   echo ""
   echo "❌ SCHEMA CONTRACTS FAILED"
@@ -16,10 +16,11 @@ if [ $? -ne 0 ]; then
   echo "   2. Check schema transform functions"
   echo "   3. Ensure all interface fields are included"
   echo "   4. Match types exactly between schema and interface"
+  echo "   5. For ProductAdmin: Check database.generated.ts alignment"
   echo ""
   exit 1
 fi
-echo "   ✅ Schema contracts passed"
+echo "   ✅ Schema contracts passed (including ProductAdmin)"
 
 # Step 2: Schema Pattern Validation  
 echo ""
@@ -62,7 +63,7 @@ echo "   ✅ Services TypeScript check passed"
 # Step 4: Contract Test Coverage Check
 echo ""
 echo "📋 Step 4: Verifying contract test coverage..."
-npx tsc --noEmit src/schemas/__contracts__/schema-contracts.test.ts src/schemas/__contracts__/failure-simulation.test.ts
+npx tsc --noEmit src/schemas/__contracts__/schema-contracts.test.ts src/schemas/__contracts__/failure-simulation.test.ts src/schemas/__contracts__/productAdmin.contracts.test.ts
 if [ $? -ne 0 ]; then
   echo ""
   echo "❌ CONTRACT TEST COVERAGE FAILED"
@@ -72,19 +73,21 @@ if [ $? -ne 0 ]; then
   echo "   1. Run: npm run test:contracts"
   echo "   2. Fix any contract test violations"
   echo "   3. Ensure all schemas have corresponding contract tests"
+  echo "   4. For ProductAdmin: Verify database.generated.ts alignment"
   echo ""
   exit 1
 fi
-echo "   ✅ Contract test coverage passed"
+echo "   ✅ Contract test coverage passed (including ProductAdmin)"
 
 echo ""
 echo "🎉 ALL PRE-COMMIT VALIDATIONS PASSED"
 echo ""
-echo "✅ Schema contracts: All schemas match interfaces"
+echo "✅ Schema contracts: All schemas match interfaces (including ProductAdmin)"
 echo "✅ Service patterns: Field selections and validations correct"  
 echo "✅ Services TypeScript: No compilation errors in services"
-echo "✅ Contract coverage: All tests passing"
+echo "✅ Contract coverage: All tests passing (including ProductAdmin)"
 echo ""
 echo "🔒 UI layer protection: Guaranteed clean, validated data"
+echo "🛡️ Admin operations: Schema contract enforcement active"
 echo ""
 echo "Proceeding with commit..."

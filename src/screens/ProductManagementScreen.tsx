@@ -40,6 +40,7 @@ import {
   useAdminProductsWithFallback 
 } from '../hooks/useProductAdmin';
 import { spacing, colors } from '../utils/theme';
+import { AdminErrorHandler } from '../utils/adminErrorHandler';
 import type { ProductAdminTransform } from '../schemas/productAdmin.schema';
 
 // Navigation types (will be added to AdminStackParamList)
@@ -136,9 +137,14 @@ export const ProductManagementScreen: React.FC = () => {
                   }
                 },
                 onError: (error) => {
-                  Alert.alert(
-                    'Error',
-                    'Something went wrong. Please try again.'
+                  AdminErrorHandler.handleAndShow(
+                    error,
+                    { 
+                      operation: 'update', 
+                      entity: 'product',
+                      details: { productId: product.id, field: 'availability' }
+                    },
+                    [{ label: 'Retry', action: () => handleToggleAvailability(product), style: 'default' }]
                   );
                 }
               }
@@ -175,8 +181,16 @@ export const ProductManagementScreen: React.FC = () => {
                     Alert.alert('Error', data.userMessage);
                   }
                 },
-                onError: () => {
-                  Alert.alert('Error', 'Failed to update stock. Please try again.');
+                onError: (error) => {
+                  AdminErrorHandler.handleAndShow(
+                    error,
+                    { 
+                      operation: 'update', 
+                      entity: 'stock',
+                      details: { productId: product.id, newStock }
+                    },
+                    [{ label: 'Retry', action: () => handleQuickStockUpdate(product), style: 'default' }]
+                  );
                 }
               }
             );
