@@ -193,13 +193,9 @@ export const ProductManagementScreen: React.FC = () => {
     // Prefetch product details for smooth editing experience
     prefetchProduct(product.id);
     
-    // Navigate to edit screen (will be implemented in Task 7)
-    // navigation.navigate('ProductEdit', { id: product.id });
-    Alert.alert(
-      'Product Edit',
-      'Product editing screen will be implemented in Task 7.\n\nFor now, you can use the quick actions below.'
-    );
-  }, [prefetchProduct]);
+    // Navigate to edit screen
+    navigation.navigate('ProductCreateEdit' as any, { id: product.id });
+  }, [prefetchProduct, navigation]);
 
   // Render product item with error boundary
   const renderProductItem = useCallback(({ item: product }: { item: ProductAdminTransform }) => {
@@ -383,10 +379,7 @@ export const ProductManagementScreen: React.FC = () => {
       <Button
         title="Add Product"
         variant="primary"
-        onPress={() => {
-          // Navigate to create screen (will be implemented in Task 7)
-          Alert.alert('Add Product', 'Product creation screen will be implemented in Task 7.');
-        }}
+        onPress={() => navigation.navigate('ProductCreateEdit' as any, {})}
         style={styles.emptyStateButton}
       />
     </Card>

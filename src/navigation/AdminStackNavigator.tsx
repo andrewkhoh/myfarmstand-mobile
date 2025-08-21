@@ -5,6 +5,7 @@ import AdminOrderScreen from '../screens/AdminOrderScreen';
 import MetricsAnalyticsScreen from '../screens/MetricsAnalyticsScreen';
 import { ProductManagementScreen } from '../screens/ProductManagementScreen';
 import { StockManagementScreen } from '../screens/StockManagementScreen';
+import { ProductCreateEditScreen } from '../screens/ProductCreateEditScreen';
 
 export type AdminStackParamList = {
   AdminDashboard: undefined;
@@ -12,6 +13,7 @@ export type AdminStackParamList = {
   MetricsAnalytics: undefined;
   ProductManagement: undefined;
   StockManagement: undefined;
+  ProductCreateEdit: { id?: string };
 };
 
 const Stack = createStackNavigator<AdminStackParamList>();
@@ -63,6 +65,13 @@ export const AdminStackNavigator: React.FC = () => {
         options={{
           title: 'Stock Management',
         }}
+      />
+      <Stack.Screen
+        name="ProductCreateEdit"
+        component={ProductCreateEditScreen}
+        options={({ route }) => ({
+          title: route.params?.id ? 'Edit Product' : 'Create Product',
+        })}
       />
     </Stack.Navigator>
   );
