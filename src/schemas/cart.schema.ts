@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { ProductSchema } from './product.schema';
+import type { CartItem } from '../types';
 
 // Cart item schema with validation
 export const CartItemSchema = z.object({
@@ -59,7 +60,7 @@ export const DbCartItemSchema = RawDbCartItemSchema;
 // This is the main schema that should be used by cartService
 export const DbCartItemTransformSchema = RawDbCartItemSchema.extend({
   product: z.any().optional() // Will be populated by cartService after product lookup
-}).transform((data) => ({
+}).transform((data): CartItem & { _dbData?: any } => ({
   // App format (CartItem interface)
   product: data.product, // Set by cart service after product lookup
   quantity: data.quantity,

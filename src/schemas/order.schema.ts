@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { ProductSchema } from './product.schema';
+import type { CustomerInfo, OrderItem, Order } from '../types';
 
 // Order status validation
 export const OrderStatusSchema = z.enum(['pending', 'confirmed', 'ready', 'completed', 'cancelled']);
@@ -15,16 +16,21 @@ export const PaymentStatusSchema = z.enum(['paid', 'pending', 'failed']);
 
 // Customer info schema
 export const CustomerInfoSchema = z.object({
-  name: z.string().min(1).transform(name => name.trim()),
-  email: z.string().email().transform(email => email.toLowerCase().trim()),
+  name: z.string().min(1).transform((name): string => name.trim()),
+  email: z.string().email().transform((email): string => email.toLowerCase().trim()),
   phone: z.string().min(1),
   address: z.string().optional(),
-}).transform((data) => {
+}).transform((data): CustomerInfo => {
   // Ensure name is never empty after trimming
   if (!data.name || data.name.length === 0) {
     throw new Error('Customer name cannot be empty');
   }
-  return data;
+  return {
+    name: data.name,
+    email: data.email,
+    phone: data.phone,
+    address: data.address
+  };
 });
 
 // Database order item schema (from database)
@@ -68,8 +74,6 @@ export const OrderSchema = z.object({
   pickup_date: z.string().nullable().optional(),
   pickup_time: z.string().nullable().optional(),
   delivery_address: z.string().nullable().optional(),
-  delivery_date: z.string().nullable().optional(),
-  delivery_time: z.string().nullable().optional(),
   special_instructions: z.string().nullable().optional(),
   created_at: z.string().nullable(),    // Database allows null
   updated_at: z.string().nullable(),    // Database allows null
@@ -160,8 +164,6 @@ export const OrderUpdateRequestSchema = z.object({
   notes: z.string().optional(),
   pickup_date: z.string().optional(),
   pickup_time: z.string().optional(),
-  delivery_date: z.string().optional(),
-  delivery_time: z.string().optional(),
   special_instructions: z.string().optional(),
 });
 

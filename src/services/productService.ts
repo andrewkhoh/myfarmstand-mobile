@@ -2,7 +2,7 @@ import { Product, Category, PaginatedResponse } from '../types';
 import { supabase, TABLES } from '../config/supabase';
 import { BroadcastHelper } from '../utils/broadcastHelper';
 // typeMappers import removed - schemas handle field mapping now
-import { ProductSchema, CategorySchema } from '../schemas/product.schema';
+import { ProductSchema, CategorySchema, transformProduct } from '../schemas/product.schema';
 
 // Custom API response types for ProductService
 interface ProductApiResponse<T> {
@@ -41,8 +41,21 @@ class ProductService {
         };
       }
 
-      // Categories are already validated and transformed by the schema
-      const categories = categoriesData || [];
+      // Individual validation with skip-on-error (Pattern 3: Resilient Item Processing)
+      const categories: Category[] = [];
+      for (const rawCategory of categoriesData || []) {
+        try {
+          const category = CategorySchema.parse(rawCategory);
+          categories.push(category);
+        } catch (validationError) {
+          console.error('Invalid category data, skipping:', {
+            categoryId: rawCategory?.id,
+            name: rawCategory?.name,
+            error: validationError instanceof Error ? validationError.message : 'Unknown validation error'
+          });
+          // Continue with other categories even if one is invalid
+        }
+      }
 
       return {
         success: true,
@@ -110,7 +123,7 @@ class ProductService {
     try {
       // Use ProductSchema directly - it already expects 'categories' from DB and transforms to 'category'
       
-      // Get raw data from database - SIMPLIFIED to debug schema issues
+      // Step 1: Get products with direct query (following Pattern 1: Direct Supabase with Validation)
       const { data: rawProductsData, error } = await supabase
         .from(TABLES.PRODUCTS)
         .select(`
@@ -119,7 +132,7 @@ class ProductService {
           description,
           price,
           stock_quantity,
-          category,
+          category_id,
           image_url,
           is_available,
           is_pre_order,
@@ -144,45 +157,45 @@ class ProductService {
         };
       }
 
-      // Debug: Log raw database response to understand refetch issues
-      console.log('🔍 ProductService.getProducts() - Raw DB response:', {
-        count: rawProductsData?.length,
-        firstProduct: rawProductsData?.[0] ? {
-          id: rawProductsData[0].id,
-          name: rawProductsData[0].name,
-          nameType: typeof rawProductsData[0].name,
-          category: rawProductsData[0].category
-        } : null
-      });
+      // Raw products data received from database
 
-      // Transform and validate with ProductSchema (handles both validation and transformation)
+      // Step 2: Fetch related categories data (separate query for resilience)
+      const uniqueCategoryIds = Array.from(new Set(rawProductsData?.map(product => product.category_id)))
+        .filter(id => id && typeof id === 'string'); // Filter out null/undefined values
+      
+      let rawCategoriesData: any[] = [];
+      if (uniqueCategoryIds.length > 0) {
+        const { data, error } = await supabase
+          .from('categories')
+          .select('id, name, description, image_url, sort_order, is_available, created_at, updated_at')
+          .in('id', uniqueCategoryIds);
+        
+        if (error) {
+          console.error('Category fetch error, continuing without categories:', error);
+          // Continue without categories rather than failing completely (Pattern 1: Resilience)
+          rawCategoriesData = [];
+        } else {
+          // Filter for available categories after fetch
+          rawCategoriesData = (data || []).filter(cat => cat.is_available === true);
+        }
+      }
+
+      // Step 3: Individual validation with skip-on-error (following Pattern 3: Resilient Item Processing)
       const products: Product[] = [];
       for (const rawProduct of rawProductsData || []) {
         try {
-          const product = ProductSchema.parse(rawProduct);
+          // ✅ COMPREHENSIVE FIX: Use enhanced transformation with categories (following Pattern 1)
+          const product = transformProduct(rawProduct, rawCategoriesData || []);
           products.push(product);
         } catch (validationError) {
-          console.error('❌ Invalid product data, skipping:', {
+          console.error('Invalid product data, skipping:', {
             productId: rawProduct?.id,
             name: rawProduct?.name,
-            nameType: typeof rawProduct?.name,
-            error: validationError instanceof Error ? validationError.message : 'Unknown validation error',
-            rawData: rawProduct
+            error: validationError instanceof Error ? validationError.message : 'Unknown validation error'
           });
           // Continue with other products even if one is invalid
         }
       }
-      
-      // Debug: Log final transformed products to see if transformation is causing issues
-      console.log('🔍 ProductService.getProducts() - Final products:', {
-        count: products.length,
-        productsWithoutNames: products.filter(p => !p.name).length,
-        firstTransformedProduct: products[0] ? {
-          id: products[0].id,
-          name: products[0].name,
-          nameType: typeof products[0].name
-        } : null
-      });
 
       return {
         success: true,
@@ -225,7 +238,7 @@ class ProductService {
         .from(TABLES.PRODUCTS)
         .select(`
           id, name, description, price, stock_quantity, 
-          category, image_url, is_weekly_special, is_bundle,
+          category_id, image_url, is_weekly_special, is_bundle,
           seasonal_availability, unit, weight, sku, tags, nutrition_info,
           is_available, is_pre_order, pre_order_available_date,
           min_pre_order_quantity, max_pre_order_quantity, created_at, updated_at
@@ -267,7 +280,7 @@ class ProductService {
         .from(TABLES.PRODUCTS)
         .select(`
           id, name, description, price, stock_quantity, 
-          category, image_url, is_weekly_special, is_bundle,
+          category_id, image_url, is_weekly_special, is_bundle,
           seasonal_availability, unit, weight, sku, tags, nutrition_info,
           is_available, is_pre_order, pre_order_available_date,
           min_pre_order_quantity, max_pre_order_quantity, created_at, updated_at
@@ -284,25 +297,43 @@ class ProductService {
         };
       }
 
-      // No transformation needed - database already has category field
-      const transformedProduct = rawData;
-
-      // Transform and validate with ProductSchema
-      let product: Product;
+      // Transform product data following Pattern 1: separate category lookup for resilience
+      let transformedProduct: Product;
       try {
-        product = ProductSchema.parse(transformedProduct);
-      } catch (validationError) {
-        console.error('Invalid product data from database:', validationError);
+        // Get categories separately for resilience (following architectural patterns)
+        const uniqueCategoryIds = rawData.category_id ? [rawData.category_id] : [];
+        let rawCategoriesData: any[] = [];
+        
+        if (uniqueCategoryIds.length > 0) {
+          const { data: categoriesData, error: categoryError } = await supabase
+            .from('categories')
+            .select('id, name, description, image_url, sort_order, is_available, created_at, updated_at')
+            .in('id', uniqueCategoryIds);
+          
+          if (categoryError) {
+            console.error('Warning: Category fetch failed, continuing without categories:', categoryError);
+            // Continue without categories rather than failing completely (Pattern 1: Resilience)
+            rawCategoriesData = [];
+          } else {
+            // Filter for available categories after fetch
+            rawCategoriesData = (categoriesData || []).filter(cat => cat.is_available === true);
+          }
+        }
+
+        // Use enhanced transformation with category population
+        transformedProduct = transformProduct(rawData, rawCategoriesData);
+      } catch (transformationError) {
+        console.error('Error transforming product data:', transformationError);
         return {
           success: false,
-          error: 'Invalid product data received from server',
+          error: 'Failed to process product data',
           product: null as any
         };
       }
 
       return {
         success: true,
-        product
+        product: transformedProduct
       };
     } catch (error) {
       console.error('Error in getProductById:', error);
@@ -321,7 +352,7 @@ class ProductService {
         .from(TABLES.PRODUCTS)
         .select(`
           id, name, description, price, stock_quantity, 
-          category, image_url, is_weekly_special, is_bundle,
+          category_id, image_url, is_weekly_special, is_bundle,
           seasonal_availability, unit, weight, sku, tags, nutrition_info,
           is_available, is_pre_order, pre_order_available_date,
           min_pre_order_quantity, max_pre_order_quantity, created_at, updated_at
@@ -346,7 +377,8 @@ class ProductService {
     }
   }
 
-  // Helper function to execute simplified product query and transform results
+  // Helper function to execute product query with proper transformation and category population
+  // Following Pattern 1: Separate queries for resilience and Pattern 4: Transformation Schema Architecture
   private async executeSimplifiedProductQuery(queryBuilder: any): Promise<Product[]> {
     const { data: rawProductsData, error } = await queryBuilder;
     
@@ -354,25 +386,46 @@ class ProductService {
       throw error;
     }
 
-    // No transformation needed - database already has category field
-    const transformedProducts = rawProductsData || [];
+    // Step 1: Get unique category IDs from products (Pattern 1: Separate queries)
+    const uniqueCategoryIds = Array.from(new Set(rawProductsData?.map(product => product.category_id)))
+      .filter(id => id && typeof id === 'string');
+    
+    // Step 2: Fetch categories separately for resilience
+    let rawCategoriesData: any[] = [];
+    if (uniqueCategoryIds.length > 0) {
+      const { data: categoriesData, error: categoryError } = await supabase
+        .from('categories')
+        .select('id, name, description, image_url, sort_order, is_available, created_at, updated_at')
+        .in('id', uniqueCategoryIds);
+      
+      if (categoryError) {
+        console.error('Warning: Category fetch failed, continuing without categories:', categoryError);
+        // Continue without categories rather than failing completely (Pattern 1: Resilience)
+        rawCategoriesData = [];
+      } else {
+        // Filter for available categories after fetch
+        rawCategoriesData = (categoriesData || []).filter(cat => cat.is_available === true);
+      }
+    }
 
-    // Validate each product with ProductSchema
-    const validProducts = transformedProducts
-      .map((productData: any) => {
-        try {
-          return ProductSchema.parse(productData);
-        } catch (error) {
-          console.warn('Invalid product in query result, skipping:', {
-            productId: productData.id,
-            error: error instanceof Error ? error.message : 'Unknown validation error'
-          });
-          return null;
-        }
-      })
-      .filter((product: Product | null): product is Product => product !== null);
+    // Step 3: Individual validation with skip-on-error (Pattern 3: Resilient Item Processing)
+    const products: Product[] = [];
+    for (const rawProduct of rawProductsData || []) {
+      try {
+        // Use enhanced transformation with category population (Pattern 4)
+        const product = transformProduct(rawProduct, rawCategoriesData);
+        products.push(product);
+      } catch (validationError) {
+        console.error('Invalid product data, skipping:', {
+          productId: rawProduct?.id,
+          name: rawProduct?.name,
+          error: validationError instanceof Error ? validationError.message : 'Unknown validation error'
+        });
+        // Continue with other products even if one is invalid
+      }
+    }
 
-    return validProducts;
+    return products;
   }
 
   // Get products by category
@@ -382,7 +435,7 @@ class ProductService {
         .from(TABLES.PRODUCTS)
         .select(`
           id, name, description, price, stock_quantity, 
-          category, image_url, is_weekly_special, is_bundle,
+          category_id, image_url, is_weekly_special, is_bundle,
           seasonal_availability, unit, weight, sku, tags, nutrition_info,
           is_available, is_pre_order, pre_order_available_date,
           min_pre_order_quantity, max_pre_order_quantity, created_at, updated_at

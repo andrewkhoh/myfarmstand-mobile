@@ -19,7 +19,7 @@ type SortOption = 'name' | 'price-low' | 'price-high' | 'category';
 export const ShopScreen: React.FC = () => {
   const navigation = useNavigation<ShopScreenNavigationProp>();
   const { addItem, getCartQuantity } = useCart(); // Use centralized getCartQuantity from useCart
-  const { startAuthentication, isKioskMode, sessionId, staffName } = useKioskContext();
+  const { startAuthentication, endSession, isKioskMode, sessionId, staffName } = useKioskContext();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [sortBy, setSortBy] = useState<SortOption>('name');
@@ -56,6 +56,9 @@ export const ShopScreen: React.FC = () => {
         nameType: typeof p.name,
         price: p.price,
         available: p.is_available,
+        category: p.category,
+        categoryType: typeof p.category,
+        categoryName: p.category?.name,
         allKeys: Object.keys(p),
         fullProduct: p
       })));
@@ -88,10 +91,13 @@ export const ShopScreen: React.FC = () => {
 
     // Apply category filter
     if (selectedCategory !== 'all') {
-      // Filter by category name - category is now a simple string
+      // ✅ SAFETY NET 5: Graceful degradation for category filtering
       filtered = filtered.filter((product: Product) => {
-        // After schema fixes, product.category is a simple string
-        const productCategoryName = product.category || 'Unknown';
+        // Handle multiple fallback strategies for category data
+        const productCategoryName = 
+          product.category?.name ||           // Populated category object (preferred)
+          'Unknown';                          // Graceful fallback
+        
         return productCategoryName === selectedCategory;
       });
     }
@@ -119,9 +125,9 @@ export const ShopScreen: React.FC = () => {
         case 'price-high':
           return (b.price || 0) - (a.price || 0);
         case 'category':
-          // Sort by category name - category is now a simple string
-          const aCategoryName = a.category || 'Unknown';
-          const bCategoryName = b.category || 'Unknown';
+          // Sort by category name - category is a Category object
+          const aCategoryName = a.category?.name || 'Unknown';
+          const bCategoryName = b.category?.name || 'Unknown';
           return aCategoryName.localeCompare(bCategoryName);
         default:
           return 0;
@@ -261,9 +267,21 @@ export const ShopScreen: React.FC = () => {
           🌱 Farm Stand
         </Text>
         {isKioskMode && (
-          <Text variant="caption" style={styles.kioskIndicator}>
-            Kiosk Mode • {staffName}
-          </Text>
+          <View style={styles.kioskContainer}>
+            <Text variant="caption" style={styles.kioskIndicator}>
+              Kiosk Mode • {staffName}
+            </Text>
+            <TouchableOpacity
+              style={styles.exitButton}
+              onPress={() => endSession()}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons name="log-out-outline" size={16} color={colors.error} />
+              <Text variant="caption" style={styles.exitButtonText}>
+                Exit
+              </Text>
+            </TouchableOpacity>
+          </View>
         )}
       </TouchableOpacity>
       
@@ -407,10 +425,31 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     textAlign: 'center',
   },
-  kioskIndicator: {
-    textAlign: 'center',
-    color: colors.primary[600],
+  kioskContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
     marginTop: spacing.xs,
+    gap: spacing.sm,
+  },
+  kioskIndicator: {
+    color: colors.primary[600],
+    fontWeight: '500',
+  },
+  exitButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 2,
+    borderRadius: borderRadius.sm,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.error,
+    gap: 4,
+  },
+  exitButtonText: {
+    color: colors.error,
+    fontSize: 12,
     fontWeight: '500',
   },
   searchCard: {

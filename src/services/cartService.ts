@@ -113,7 +113,7 @@ export const cartService = {
         .from('products')
         .select(`
           id, name, description, price, stock_quantity, 
-          category, image_url, is_weekly_special, is_bundle,
+          category_id, image_url, is_weekly_special, is_bundle,
           seasonal_availability, unit, weight, sku, tags, nutrition_info,
           is_available, is_pre_order, pre_order_available_date,
           min_pre_order_quantity, max_pre_order_quantity, created_at, updated_at

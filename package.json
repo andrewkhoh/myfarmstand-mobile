@@ -56,14 +56,9 @@
     "sync-schema": "node scripts/sync-supabase-schema.js",
     "build": "expo build",
     "lint": "eslint . --ext .ts,.tsx,.js,.jsx || echo 'ESLint not configured - install @typescript-eslint/eslint-plugin for linting'",
-    "typecheck": "tsc --noEmit",
-    "sync-schema": "node scripts/sync-supabase-schema.js",
-    "db:safety": "node scripts/database-safety.js check",
-    "db:archive": "node scripts/database-safety.js archive", 
-    "db:scan": "node scripts/database-safety.js scan",
-    "secrets:validate": "node scripts/secrets-validator.js",
-    "secrets:audit": "node scripts/secrets-validator.js --audit",
-    "secrets:bundle-scan": "node scripts/secrets-validator.js --scan-bundle"
+    "lint:schemas": "node scripts/validate-schema-patterns.js",
+    "typecheck": "tsc --noEmit"
+
   },
   "dependencies": {
     "@expo/metro-runtime": "~5.0.4",

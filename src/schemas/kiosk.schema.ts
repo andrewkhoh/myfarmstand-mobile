@@ -1,5 +1,58 @@
 import { z } from 'zod';
 
+// Helper types for transform return values
+type KioskSessionTransformResult = {
+  id: string;
+  staffId: string;
+  staffName: string;
+  sessionStart: Date;
+  sessionEnd: Date | null;
+  totalSales: number;
+  transactionCount: number;
+  isActive: boolean;
+  deviceId: string | null;
+  currentCustomer: null;
+  _dbData: Record<string, any>;
+};
+
+type StaffPinTransformResult = {
+  id: string;
+  userId: string;
+  pin: string;
+  isActive: boolean;
+  lastUsed: Date | null;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    role: 'customer' | 'staff' | 'manager' | 'admin';
+  } | null;
+  _dbData: Record<string, any>;
+};
+
+type KioskTransactionTransformResult = {
+  id: string;
+  sessionId: string;
+  customerId: string | null;
+  customerEmail: string | null;
+  customerPhone: string | null;
+  customerName: string | null;
+  items: Array<{
+    productId: string;
+    productName: string;
+    price: number;
+    quantity: number;
+    subtotal: number;
+  }>;
+  subtotal: number;
+  taxAmount: number;
+  totalAmount: number;
+  paymentMethod: 'cash' | 'card' | 'digital';
+  paymentStatus: 'pending' | 'completed' | 'failed';
+  completedAt: Date | null;
+  _dbData: Record<string, any>;
+};
+
 // ✅ PATTERN: Database-First Validation - Raw schemas (input validation only)
 // Handle database reality, not application assumptions
 
@@ -49,7 +102,7 @@ export const DbKioskSessionTransformSchema = RawDbKioskSessionSchema
       role: z.string()
     }).nullable().optional()
   })
-  .transform((data) => ({
+  .transform((data): KioskSessionTransformResult => ({
     // ✅ PATTERN: App interface format with proper defaults
     id: data.id,
     staffId: data.staff_id,
@@ -81,7 +134,7 @@ export const DbStaffPinTransformSchema = RawDbStaffPinSchema
     // User relation data
     users: RawDbUserSchema.nullable().optional()
   })
-  .transform((data) => ({
+  .transform((data): StaffPinTransformResult => ({
     // ✅ PATTERN: App interface format
     id: data.id,
     userId: data.user_id,
@@ -170,7 +223,7 @@ export const DbKioskTransactionTransformSchema = RawDbKioskTransactionSchema
       total_price: z.number()
     })).optional()
   })
-  .transform((data) => ({
+  .transform((data): KioskTransactionTransformResult => ({
     // App interface format
     id: data.id,
     sessionId: data.session_id,

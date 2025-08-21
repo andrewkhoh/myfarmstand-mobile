@@ -7,6 +7,7 @@
  */
 
 import { z } from 'zod';
+import type { Payment, PaymentMethod, PaymentIntent, CreatePaymentRequest } from '../types';
 
 // ================================
 // Raw Database Schemas (Input Validation Only)
@@ -65,12 +66,15 @@ const RawDbPaymentMethodSchema = z.object({
   bank_account_account_type: BankAccountTypeEnum.nullable().optional(),
 });
 
+// Payment intent status enum (subset of payment status)
+const PaymentIntentStatusEnum = z.enum(['requires_payment_method', 'requires_confirmation', 'requires_action', 'processing', 'succeeded', 'canceled']);
+
 // Raw database payment intent schema
 const RawDbPaymentIntentSchema = z.object({
   id: z.string().min(1),
   amount: z.number().int().min(0),
   currency: CurrencyCodeEnum,
-  status: PaymentStatusEnum,
+  status: PaymentIntentStatusEnum,
   client_secret: z.string().nullable().optional(),
   payment_method_id: z.string().nullable().optional(),
   confirmation_method: z.string().nullable().optional(),
@@ -83,7 +87,7 @@ const RawDbPaymentIntentSchema = z.object({
 // ================================
 
 // Payment transformation schema - main schema for payment service
-export const PaymentTransformSchema = RawDbPaymentSchema.transform((data) => {
+export const PaymentTransformSchema = RawDbPaymentSchema.transform((data): Payment & { _dbData?: any } => {
   // Parse metadata safely
   let parsedMetadata = {};
   if (data.metadata) {
@@ -124,7 +128,7 @@ export const PaymentTransformSchema = RawDbPaymentSchema.transform((data) => {
 });
 
 // Payment method transformation schema
-export const PaymentMethodTransformSchema = RawDbPaymentMethodSchema.transform((data) => {
+export const PaymentMethodTransformSchema = RawDbPaymentMethodSchema.transform((data): PaymentMethod & { _dbData?: any } => {
   // Build card object if card fields are present
   const card = data.type === 'card' && data.card_brand ? {
     brand: data.card_brand,
@@ -164,7 +168,7 @@ export const PaymentMethodTransformSchema = RawDbPaymentMethodSchema.transform((
 });
 
 // Payment intent transformation schema
-export const PaymentIntentTransformSchema = RawDbPaymentIntentSchema.transform((data) => {
+export const PaymentIntentTransformSchema = RawDbPaymentIntentSchema.transform((data): PaymentIntent & { _dbData?: any } => {
   // Parse metadata safely
   let parsedMetadata = {};
   if (data.metadata) {
@@ -230,7 +234,7 @@ export const CreatePaymentRequestSchema = z.object({
   confirmation_method: z.string().optional().default('automatic'),
   return_url: z.string().url().optional(),
   metadata: z.record(z.string()).optional().default({}),
-}).transform((data) => ({
+}).transform((data): CreatePaymentRequest => ({
   // Transform to camelCase for app usage
   amount: data.amount,
   currency: data.currency,
@@ -245,7 +249,7 @@ export const UpdatePaymentStatusRequestSchema = z.object({
   payment_id: z.string().min(1),
   status: PaymentStatusEnum,
   metadata: z.record(z.string()).optional(),
-}).transform((data) => ({
+}).transform((data): { paymentId: string; status: PaymentStatus; metadata: Record<string, string> } => ({
   paymentId: data.payment_id,
   status: data.status,
   metadata: data.metadata || {},

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { User } from '../types';
 
 // User role validation
 export const UserRoleSchema = z.enum(['customer', 'staff', 'manager', 'admin']);
@@ -6,17 +7,24 @@ export const UserRoleSchema = z.enum(['customer', 'staff', 'manager', 'admin']);
 // User schema with comprehensive validation
 export const UserSchema = z.object({
   id: z.string().min(1),
-  email: z.string().email().transform(email => email.toLowerCase().trim()),
-  name: z.string().min(1).transform(name => name.trim()),
+  email: z.string().email().transform((email): string => email.toLowerCase().trim()),
+  name: z.string().min(1).transform((name): string => name.trim()),
   role: UserRoleSchema,
   phone: z.string().optional(),
   address: z.string().optional(),
-}).transform((data) => {
+}).transform((data): User => {
   // Ensure name is never empty after trimming
   if (!data.name || data.name.length === 0) {
     throw new Error('User name cannot be empty');
   }
-  return data;
+  return {
+    id: data.id,
+    email: data.email,
+    name: data.name,
+    role: data.role,
+    phone: data.phone,
+    address: data.address
+  };
 });
 
 // Authentication state schema
@@ -28,16 +36,16 @@ export const AuthStateSchema = z.object({
 
 // Login request validation
 export const LoginRequestSchema = z.object({
-  email: z.string().email().transform(email => email.toLowerCase().trim()),
+  email: z.string().email().transform((email): string => email.toLowerCase().trim()),
   password: z.string().min(6, 'Password must be at least 6 characters long'),
 });
 
 // Register request validation
 export const RegisterRequestSchema = z.object({
-  email: z.string().email().transform(email => email.toLowerCase().trim()),
+  email: z.string().email().transform((email): string => email.toLowerCase().trim()),
   password: z.string().min(6, 'Password must be at least 6 characters long'),
   confirmPassword: z.string(),
-  name: z.string().min(1).transform(name => name.trim()),
+  name: z.string().min(1).transform((name): string => name.trim()),
   phone: z.string().optional(),
   address: z.string().optional(),
 }).refine((data) => data.password === data.confirmPassword, {
@@ -89,7 +97,7 @@ export const RegisterResponseSchema = z.object({
 
 // Profile update request schema
 export const UpdateProfileRequestSchema = z.object({
-  name: z.string().min(1).transform(name => name.trim()).optional(),
+  name: z.string().min(1).transform((name): string => name.trim()).optional(),
   phone: z.string().optional(),
   address: z.string().optional(),
 });
