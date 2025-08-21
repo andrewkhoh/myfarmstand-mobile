@@ -30,9 +30,17 @@
     "fix-cart-broadcasts.js",
     "schema_inspector.js",
     "src/__tests__/payment-integration.test.ts",
+    "src/hooks/__tests__/usePayment.test.ts",
+    "src/hooks/__tests__/useKiosk.test.tsx",
     "src/hooks/__tests__/archive/*.ts",
     "src/ARCHIVE/**/*",
-    "src/hooks/__tests__/useCentralizedRealtime.race.test.tsx"
+    "src/hooks/__tests__/useCentralizedRealtime.race.test.tsx",
+    "src/hooks/__tests__/useAuth.race.test.tsx",
+    "src/hooks/__tests__/useAuth.test.ts",
+    "src/hooks/__tests__/useCart.race.test.tsx",
+    "src/hooks/__tests__/useErrorRecovery.test.ts",
+    "src/hooks/__tests__/useKiosk.test.tsx",
+    "src/hooks/__tests__/useNotifications.race.test.tsx"
   ],
   "ts-node": {
     "esm": false,

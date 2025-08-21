@@ -98,7 +98,27 @@ export const orderKeys = createQueryKeyFactory({ entity: 'orders', isolation: 'u
 export const productKeys = createQueryKeyFactory({ entity: 'products', isolation: 'global' });
 export const authKeys = createQueryKeyFactory({ entity: 'auth', isolation: 'user-specific' });
 export const stockKeys = createQueryKeyFactory({ entity: 'stock', isolation: 'global' });
-export const kioskKeys = createQueryKeyFactory({ entity: 'kiosk', isolation: 'user-specific' }); // Kiosk sessions are user-specific for security
+// Kiosk-specific query key factory with entity-specific methods
+const baseKioskKeys = createQueryKeyFactory({ entity: 'kiosk', isolation: 'user-specific' });
+
+export const kioskKeys = {
+  ...baseKioskKeys,
+  
+  // Kiosk Sessions
+  sessions: (userId?: string) => 
+    [...baseKioskKeys.lists(userId), 'sessions'] as const,
+  
+  session: (sessionId: string, userId?: string) => 
+    [...baseKioskKeys.details(userId), 'session', sessionId] as const,
+  
+  // Kiosk Authentication
+  auth: (userId?: string) => 
+    [...baseKioskKeys.all(userId), 'auth'] as const,
+  
+  // Kiosk Transactions
+  transactions: (sessionId: string, userId?: string) => 
+    [...baseKioskKeys.details(userId), 'session', sessionId, 'transactions'] as const,
+};
 export const notificationKeys = createQueryKeyFactory({ entity: 'notifications', isolation: 'user-specific' }); // Notifications are user-specific
 // Payment-specific query key factory with entity-specific methods
 const basePaymentKeys = createQueryKeyFactory({ entity: 'payment', isolation: 'user-specific' });

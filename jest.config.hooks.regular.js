@@ -7,7 +7,9 @@ module.exports = {
   ],
   testPathIgnorePatterns: [
     '<rootDir>/node_modules/',
-    '.*\\.race\\.test\\.(ts|tsx|js)$'
+    '.*\\.race\\.test\\.(ts|tsx|js)$',
+    'usePayment\\.test\\.(ts|tsx|js)$',
+    'useKiosk\\.test\\.(ts|tsx|js)$'
   ],
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',

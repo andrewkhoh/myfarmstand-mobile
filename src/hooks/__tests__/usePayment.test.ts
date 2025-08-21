@@ -6,12 +6,12 @@
  * and proper React Query patterns.
  */
 
+import React from 'react';
 import { renderHook, waitFor, act } from '@testing-library/react-native';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { paymentService } from '../../services/paymentService';
 import { usePaymentMethods, usePaymentIntents, useCreatePayment } from '../usePayment';
 import { useCurrentUser } from '../useAuth';
-import { createWrapper, createWrapperWithUser } from '../../test/test-utils';
 import { createMockUser, createMockPaymentMethod, createMockPaymentIntent } from '../../test/mockData';
 import { paymentKeys } from '../../utils/queryKeyFactory';
 
@@ -56,15 +56,35 @@ const mockPaymentMethod = createMockPaymentMethod();
 const mockPaymentIntent = createMockPaymentIntent();
 
 describe('Payment Hooks - Following Established Patterns', () => {
-  const mockQueryClient = {
-    invalidateQueries: jest.fn(),
-    setQueryData: jest.fn(),
-    getQueryData: jest.fn(),
+  let queryClient: QueryClient;
+
+  const createWrapper = () => {
+    const Wrapper = ({ children }: { children: React.ReactNode }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+    return Wrapper;
+  };
+
+  const createWrapperWithUser = (user: any) => {
+    // Mock useCurrentUser for this specific test
+    (useCurrentUser as jest.Mock).mockReturnValue({
+      data: user,
+      isLoading: false,
+      error: null,
+    });
+    return createWrapper();
   };
 
   beforeEach(() => {
+    // Create fresh QueryClient for each test
+    queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+    
     jest.clearAllMocks();
-    mockUseQueryClient.mockReturnValue(mockQueryClient as any);
   });
 
   describe('usePaymentMethods - Centralized Query Key Factory (Following Pattern)', () => {
