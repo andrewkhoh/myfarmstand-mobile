@@ -353,7 +353,7 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
 
   // Main render with conditional states
   return (
-    <View style={StyleSheet.flatten([styles.container, style])}>
+    <View style={[styles.container, style]}>
       {variant !== 'compact' && (
         <Text style={styles.title}>{title}</Text>
       )}

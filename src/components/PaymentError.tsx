@@ -379,14 +379,14 @@ export const PaymentError: React.FC<PaymentErrorProps> = ({
 
   return (
     <ScrollView 
-      style={StyleSheet.flatten([styles.container, style])}
+      style={[styles.container, style]}
       contentContainerStyle={styles.scrollContent}
       showsVerticalScrollIndicator={false}
     >
       <Card
         variant="outlined"
         padding="lg"
-        style={StyleSheet.flatten([styles.errorCard, getErrorStyles()])}
+        style={[styles.errorCard, getErrorStyles()]}
       >
         {/* Error Header */}
         <View style={styles.errorHeader}>

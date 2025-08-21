@@ -342,7 +342,7 @@ export const PaymentConfirmation: React.FC<PaymentConfirmationProps> = ({
 
   return (
     <ScrollView 
-      style={StyleSheet.flatten([styles.container, style])}
+      style={[styles.container, style]}
       contentContainerStyle={styles.scrollContent}
       showsVerticalScrollIndicator={false}
     >

@@ -250,7 +250,7 @@ export const PaymentSummaryComponent: React.FC<PaymentSummaryProps> = ({
     <Card
       variant={getCardVariant()}
       padding={variant === 'compact' ? 'sm' : 'md'}
-      style={StyleSheet.flatten([styles.container, style])}
+      style={[styles.container, style]}
     >
       {renderCalculationWarning()}
       {renderItemDetails()}
