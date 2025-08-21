@@ -5,6 +5,7 @@ import * as OrderService from '../services/orderService';
 import { OrderFilters } from '../services/orderService';
 import { orderKeys } from '../utils/queryKeyFactory';
 import { useCurrentUser } from './useAuth';
+import { ValidationMonitor } from '../utils/validationMonitor';
 
 // Enhanced interfaces following cart pattern
 interface OrderError {
@@ -521,6 +522,14 @@ export const useUpdateOrderStatusMutation = () => {
 
     onSuccess: async (result: OrderOperationResult<Order>, { orderId, status: _status }) => {
       if (result.success && result.data) {
+        // Record pattern success
+        ValidationMonitor.recordPatternSuccess({
+          service: 'useOrders',
+          pattern: 'order_status_update',
+          operation: 'updateOrderStatus',
+          category: 'order_management_pattern_success'
+        });
+        
         console.log('✅ Order status updated successfully:', {
           orderId: result.data.id,
           newStatus: result.data.status,

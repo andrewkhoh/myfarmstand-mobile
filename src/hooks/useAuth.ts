@@ -4,6 +4,7 @@ import { AuthService } from '../services/authService';
 import { User } from '../types';
 import { authKeys, cartKeys, orderKeys } from '../utils/queryKeyFactory';
 import { createBroadcastHelper } from '../utils/broadcastFactory';
+import { ValidationMonitor } from '../utils/validationMonitor';
 
 // Enhanced interfaces following cart pattern
 interface AuthError {
@@ -109,6 +110,16 @@ export const useLoginMutation = () => {
         queryClient.setQueryData(authKeys.details(), context.previousUser);
       }
       
+      // Record pattern error
+      ValidationMonitor.recordPatternError({
+        service: 'useAuth',
+        pattern: 'authentication_flow',
+        operation: 'login',
+        errorMessage: error.message,
+        errorCode: error.code,
+        category: 'authentication_pattern_error'
+      });
+      
       // Enhanced error logging (following cart pattern)
       console.error('❌ Login mutation failed:', {
         error: error.message,
@@ -119,6 +130,14 @@ export const useLoginMutation = () => {
     onSuccess: async (result: AuthOperationResult<{ user: User; token?: string }>, _variables: { email: string; password: string }) => {
       if (result.success && result.data) {
         console.log('✅ Login successful:', result.data.user.email);
+        
+        // Record pattern success
+        ValidationMonitor.recordPatternSuccess({
+          service: 'useAuth',
+          pattern: 'authentication_flow',
+          operation: 'login',
+          category: 'authentication_pattern_success'
+        });
         
         // Set user data in cache
         queryClient.setQueryData(authKeys.details(), result.data.user);
@@ -215,6 +234,14 @@ export const useRegisterMutation = () => {
     },
     onSuccess: async (result: AuthOperationResult<{ user: User }>, _variables) => {
       if (result.success && result.data) {
+        // Record pattern success
+        ValidationMonitor.recordPatternSuccess({
+          service: 'useAuth',
+          pattern: 'authentication_flow',
+          operation: 'register',
+          category: 'authentication_pattern_success'
+        });
+        
         // Update React Query cache only
         queryClient.setQueryData(authKeys.details(), result.data.user);
         
@@ -530,6 +557,17 @@ export const useCurrentUser = () => {
     queryFn: async (): Promise<User | null> => {
       try {
         const result = await AuthService.getCurrentUser();
+        
+        // Record pattern success when user is found
+        if (result) {
+          ValidationMonitor.recordPatternSuccess({
+            service: 'useAuth',
+            pattern: 'user_session_retrieval',
+            operation: 'getCurrentUser',
+            category: 'authentication_pattern_success'
+          });
+        }
+        
         return result || null;
       } catch (error: any) {
         // Enhanced error classification (following cart pattern)

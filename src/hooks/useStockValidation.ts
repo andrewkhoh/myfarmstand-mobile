@@ -8,6 +8,7 @@ import { useCurrentUser } from './useAuth';
 import { Database } from '../types/database.generated';
 import { productKeys, stockKeys } from '../utils/queryKeyFactory';
 import { createBroadcastHelper } from '../utils/broadcastFactory';
+import { ValidationMonitor } from '../utils/validationMonitor';
 
 type DBProduct = Database['public']['Tables']['products']['Row'];
 
@@ -338,6 +339,14 @@ export const useStockValidation = () => {
       });
     },
     onSuccess: async (_result: StockOperationResult<StockData[]>) => {
+      // Record pattern success
+      ValidationMonitor.recordPatternSuccess({
+        service: 'useStockValidation',
+        pattern: 'stock_refresh',
+        operation: 'refreshStock',
+        category: 'stock_management_pattern_success'
+      });
+      
       // Smart invalidation strategy (following cart pattern)
       await queryClient.invalidateQueries({ queryKey: stockQueryKey });
       await queryClient.invalidateQueries({ queryKey: productKeys.all() });
