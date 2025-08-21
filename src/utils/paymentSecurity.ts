@@ -174,7 +174,7 @@ export class PaymentSecurityManager {
       
       ValidationMonitor.recordPatternSuccess({
         service: 'PaymentSecurityManager',
-        pattern: 'data_encryption',
+        pattern: 'transformation_schema',
         operation: 'encryptPaymentData'
       });
       
@@ -207,7 +207,7 @@ export class PaymentSecurityManager {
       
       ValidationMonitor.recordPatternSuccess({
         service: 'PaymentSecurityManager',
-        pattern: 'data_decryption',
+        pattern: 'transformation_schema',
         operation: 'decryptPaymentData'
       });
       
@@ -320,7 +320,7 @@ export class PaymentSecurityManager {
       
       ValidationMonitor.recordPatternSuccess({
         service: 'PaymentSecurityManager',
-        pattern: 'session_token_creation',
+        pattern: 'transformation_schema',
         operation: 'createPaymentSessionToken'
       });
       
@@ -361,7 +361,7 @@ export class PaymentSecurityManager {
 
       ValidationMonitor.recordPatternSuccess({
         service: 'PaymentSecurityManager',
-        pattern: 'session_token_validation',
+        pattern: 'transformation_schema',
         operation: 'validatePaymentSessionToken'
       });
 

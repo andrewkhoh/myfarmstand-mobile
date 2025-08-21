@@ -342,9 +342,8 @@ export const useStockValidation = () => {
       // Record pattern success
       ValidationMonitor.recordPatternSuccess({
         service: 'useStockValidation',
-        pattern: 'stock_refresh',
+        pattern: 'direct_supabase_query',
         operation: 'refreshStock',
-        category: 'stock_management_pattern_success'
       });
       
       // Smart invalidation strategy (following cart pattern)

@@ -19,8 +19,9 @@ export const getStockDisplayInfo = (
   cartQuantity: number = 0,
   messageVariant: 'full' | 'compact' = 'full'
 ): StockDisplayInfo => {
-  const availableStock = Math.max(0, product.stock - cartQuantity);
-  const isOutOfStock = product.stock === 0;
+  const productStock = product.stock || 0;
+  const availableStock = Math.max(0, productStock - cartQuantity);
+  const isOutOfStock = productStock === 0;
   
   // Low-stock warning system with consistent thresholds
   const getLowStockWarning = (): string | null => {

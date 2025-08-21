@@ -112,17 +112,15 @@ export const useLoginMutation = () => {
       
       // Record pattern error
       ValidationMonitor.recordValidationError({
-        source: 'useAuth.login',
-        message: error.message,
-        severity: 'medium',
-        affectedEntity: 'auth',
-        entityId: variables.email
+        context: 'useAuth.login',
+        errorMessage: error.message,
+        errorCode: (error as any).code
       });
       
       // Enhanced error logging (following cart pattern)
       console.error('❌ Login mutation failed:', {
         error: error.message,
-        userMessage: (error as AuthError).userMessage,
+        userMessage: (error as any).userMessage,
         email: variables.email
       });
     },
@@ -135,7 +133,6 @@ export const useLoginMutation = () => {
           service: 'useAuth',
           pattern: 'transformation_schema',
           operation: 'login',
-          category: 'authentication_pattern_success'
         });
         
         // Set user data in cache
@@ -152,7 +149,7 @@ export const useLoginMutation = () => {
     // Enhanced retry logic (following cart pattern)
     retry: (failureCount, error: any) => {
       // Don't retry on invalid credentials
-      if ((error as AuthError).code === 'INVALID_CREDENTIALS') {
+      if ((error as any).code === 'INVALID_CREDENTIALS') {
         return false;
       }
       return failureCount < 2;
@@ -224,7 +221,7 @@ export const useRegisterMutation = () => {
       // Enhanced error logging (following cart pattern)
       console.error('❌ Register mutation failed:', {
         error: error.message,
-        userMessage: (error as AuthError).userMessage,
+        userMessage: (error as any).userMessage,
         email: variables.email
       });
       
@@ -238,7 +235,6 @@ export const useRegisterMutation = () => {
           service: 'useAuth',
           pattern: 'transformation_schema',
           operation: 'register',
-          category: 'authentication_pattern_success'
         });
         
         // Update React Query cache only
@@ -261,7 +257,7 @@ export const useRegisterMutation = () => {
     // Enhanced retry logic (following cart pattern)
     retry: (failureCount, error: any) => {
       // Don't retry on user exists or weak password
-      if ((error as AuthError).code === 'USER_EXISTS' || (error as AuthError).code === 'WEAK_PASSWORD') {
+      if ((error as any).code === 'USER_EXISTS' || (error as any).code === 'WEAK_PASSWORD') {
         return false;
       }
       return failureCount < 2;
@@ -318,7 +314,7 @@ export const useLogoutMutation = () => {
       // Enhanced error logging (following cart pattern)
       console.error('❌ Logout mutation failed:', {
         error: error.message,
-        userMessage: (error as AuthError).userMessage
+        userMessage: (error as any).userMessage
       });
       
       // Even if logout fails, clear states for security (targeted approach)
@@ -426,7 +422,7 @@ export const useUpdateProfileMutation = () => {
       // Enhanced error logging (following cart pattern)
       console.error('❌ Update profile failed:', {
         error: error.message,
-        userMessage: (error as AuthError).userMessage,
+        userMessage: (error as any).userMessage,
         userId: variables.userId
       });
     },
@@ -453,7 +449,7 @@ export const useUpdateProfileMutation = () => {
     // Enhanced retry logic (following cart pattern)
     retry: (failureCount, error: any) => {
       // Don't retry on unauthorized errors
-      if ((error as AuthError).code === 'UNAUTHORIZED') {
+      if ((error as any).code === 'UNAUTHORIZED') {
         return false;
       }
       return failureCount < 2;
@@ -521,7 +517,7 @@ export const useChangePasswordMutation = () => {
       // Enhanced error logging (following cart pattern)
       console.error('❌ Password change failed:', {
         error: error.message,
-        userMessage: (error as AuthError).userMessage
+        userMessage: (error as any).userMessage
       });
     },
     onSuccess: async (_result: AuthOperationResult<void>) => {
@@ -538,7 +534,7 @@ export const useChangePasswordMutation = () => {
     // Enhanced retry logic (following cart pattern)
     retry: (failureCount, error: any) => {
       // Don't retry on credential or unauthorized errors
-      if ((error as AuthError).code === 'INVALID_CREDENTIALS' || (error as AuthError).code === 'UNAUTHORIZED') {
+      if ((error as any).code === 'INVALID_CREDENTIALS' || (error as any).code === 'UNAUTHORIZED') {
         return false;
       }
       return failureCount < 2;
@@ -563,8 +559,7 @@ export const useCurrentUser = () => {
             service: 'useAuth',
             pattern: 'direct_supabase_query',
             operation: 'getCurrentUser',
-            category: 'authentication_pattern_success'
-          });
+            });
         }
         
         return result || null;
@@ -674,7 +669,7 @@ export const useRefreshTokenMutation = () => {
       // Enhanced error logging (following cart pattern)
       console.error('❌ Token refresh failed:', {
         error: error.message,
-        userMessage: (error as AuthError).userMessage
+        userMessage: (error as any).userMessage
       });
       
       // If refresh fails, clear user data for security (following cart pattern)
@@ -697,7 +692,7 @@ export const useRefreshTokenMutation = () => {
     // Enhanced retry logic (following cart pattern)
     retry: (failureCount, error: any) => {
       // Don't retry on token expired or unauthorized
-      if ((error as AuthError).code === 'TOKEN_EXPIRED' || (error as AuthError).code === 'UNAUTHORIZED') {
+      if ((error as any).code === 'TOKEN_EXPIRED' || (error as any).code === 'UNAUTHORIZED') {
         return false;
       }
       return failureCount < 1; // Limited retries for token refresh

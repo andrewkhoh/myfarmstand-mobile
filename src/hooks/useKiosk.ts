@@ -47,7 +47,7 @@ export const useKioskAuth = () => {
         if (result.success) {
           ValidationMonitor.recordPatternSuccess({
             service: 'useKioskAuth',
-            pattern: 'direct_supabase_query_with_validation',
+            pattern: 'direct_supabase_query',
             operation: 'authenticateStaff'
           });
         }
@@ -115,7 +115,7 @@ export const useKioskSession = (sessionId: string | null) => {
         if (result.success) {
           ValidationMonitor.recordPatternSuccess({
             service: 'useKioskSession',
-            pattern: 'direct_supabase_query_with_validation',
+            pattern: 'direct_supabase_query',
             operation: 'getSession'
           });
         }
@@ -161,7 +161,7 @@ export const useKioskSessions = (
         if (result.success) {
           ValidationMonitor.recordPatternSuccess({
             service: 'useKioskSessions',
-            pattern: 'direct_supabase_query_with_validation',
+            pattern: 'direct_supabase_query',
             operation: 'getSessions'
           });
         }
@@ -210,7 +210,7 @@ export const useKioskSessionOperations = () => {
         if (result.success) {
           ValidationMonitor.recordPatternSuccess({
             service: 'useKioskSessionOperations',
-            pattern: 'direct_supabase_query_with_validation',
+            pattern: 'direct_supabase_query',
             operation: 'endSession'
           });
         }
@@ -255,7 +255,7 @@ export const useKioskSessionOperations = () => {
         if (result.success) {
           ValidationMonitor.recordPatternSuccess({
             service: 'useKioskSessionOperations',
-            pattern: 'direct_supabase_query_with_validation',
+            pattern: 'direct_supabase_query',
             operation: 'updateCustomer'
           });
         }
@@ -315,7 +315,7 @@ export const useKioskTransactions = (sessionId: string | null) => {
         if (result.success) {
           ValidationMonitor.recordPatternSuccess({
             service: 'useKioskTransactions',
-            pattern: 'direct_supabase_query_with_validation',
+            pattern: 'direct_supabase_query',
             operation: 'getSessionTransactions'
           });
         }

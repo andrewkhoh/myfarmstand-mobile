@@ -82,7 +82,7 @@ export const useRealtime = () => {
     'Please sign in to use real-time features'
   ) : null;
   
-  const realtimeQueryKey = user?.id ? [...authKeys.details(user.id), 'realtime', 'status'] : ['realtime', 'unauthenticated'];
+  const realtimeQueryKey = user?.id ? [...authKeys.details(user?.id), 'realtime', 'status'] : ['realtime', 'unauthenticated'];
   
   // Enhanced query with proper enabled guard and error handling (following cart pattern)
   const {
@@ -204,7 +204,7 @@ export const useRealtime = () => {
       return { 
         previousStatus, 
         operationType: 'initialize',
-        metadata: { userId: user.id }
+        metadata: { userId: user?.id }
       };
     },
     onError: (error: any, _variables: void, context?: RealtimeMutationContext) => {
@@ -217,7 +217,7 @@ export const useRealtime = () => {
       console.error('❌ Initialize subscriptions failed:', {
         error: error.message,
         userMessage: (error as RealtimeError).userMessage,
-        userId: user.id
+        userId: user?.id
       });
     },
     onSuccess: async (_result: RealtimeOperationResult<RealtimeStatus>) => {
@@ -226,7 +226,7 @@ export const useRealtime = () => {
       
       // Broadcast success (following cart pattern)
       await realtimeBroadcast.send('subscriptions-initialized', {
-        userId: user.id,
+        userId: user?.id,
         timestamp: new Date().toISOString()
       });
     },
@@ -270,7 +270,7 @@ export const useRealtime = () => {
       return { 
         previousStatus, 
         operationType: 'cleanup',
-        metadata: { userId: user.id }
+        metadata: { userId: user?.id }
       };
     },
     onError: (error: any, _variables: void, context?: RealtimeMutationContext) => {
@@ -283,7 +283,7 @@ export const useRealtime = () => {
       console.error('❌ Cleanup subscriptions failed:', {
         error: error.message,
         userMessage: (error as RealtimeError).userMessage,
-        userId: user.id
+        userId: user?.id
       });
     },
     onSuccess: async (_result: RealtimeOperationResult<void>) => {
@@ -292,7 +292,7 @@ export const useRealtime = () => {
       
       // Broadcast success (following cart pattern)
       await realtimeBroadcast.send('subscriptions-cleaned', {
-        userId: user.id,
+        userId: user?.id,
         timestamp: new Date().toISOString()
       });
     },
@@ -329,7 +329,7 @@ export const useRealtime = () => {
       
       // Broadcast success (following cart pattern)
       await realtimeBroadcast.send('status-refreshed', {
-        userId: user.id,
+        userId: user?.id,
         timestamp: new Date().toISOString()
       });
     },
@@ -347,7 +347,7 @@ export const useRealtime = () => {
   }, [refetch]);
   
   const getRealtimeQueryKey = useCallback(() => 
-    user?.id ? [...authKeys.details(user.id), 'realtime', 'status'] : ['realtime', 'unauthenticated'], 
+    user?.id ? [...authKeys.details(user?.id), 'realtime', 'status'] : ['realtime', 'unauthenticated'], 
     [user?.id]
   );
 
@@ -442,7 +442,7 @@ export const useRealtimeNotifications = () => {
   ) : null;
   
   // Query for notification history (following cart pattern)
-  const notificationKeys = user?.id ? [...authKeys.lists(user.id), 'notifications'] : ['notifications', 'unauthenticated'];
+  const notificationKeys = user?.id ? [...authKeys.lists(user?.id), 'notifications'] : ['notifications', 'unauthenticated'];
   
   const {
     data: notificationHistory = [],

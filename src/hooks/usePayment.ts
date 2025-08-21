@@ -19,7 +19,8 @@ import type {
   CreatePaymentRequest,
   CreatePaymentMethodRequest,
   PaymentError,
-  PaymentCalculation
+  PaymentCalculation,
+  PaymentTokenizationResult
 } from '../types';
 import { paymentKeys } from '../utils/queryKeyFactory';
 import { paymentBroadcast } from '../utils/broadcastFactory';
@@ -221,7 +222,7 @@ export const useCreatePaymentMethod = () => {
   const queryClient = useQueryClient();
   const { data: user } = useCurrentUser();
 
-  return useMutation<PaymentMethodOperationResult, PaymentError, CreatePaymentMethodRequest, PaymentMutationContext>({
+  return useMutation<PaymentTokenizationResult, PaymentError, CreatePaymentMethodRequest, PaymentMutationContext>({
     mutationFn: (params: CreatePaymentMethodRequest) => 
       paymentService.tokenizeCard({
         cardNumber: params.card?.number || '',

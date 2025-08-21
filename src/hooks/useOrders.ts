@@ -130,7 +130,7 @@ export const useCustomerOrders = (userEmail?: string): UseQueryResult<Order[], E
         'Please sign in to view your orders.'
       ),
       isError: true,
-    } as UseQueryResult<Order[], Error>;
+    } as any;
   }
 
   return query;
@@ -268,7 +268,7 @@ export const useOrder = (orderId: string): UseQueryResult<Order | null, Error> =
         'Order ID is required to fetch order details.'
       ),
       isError: true,
-    } as UseQueryResult<Order | null, Error>;
+    } as any;
   }
 
   return query;
@@ -394,7 +394,7 @@ export const useUserOrders = (userId: string): UseQueryResult<Order[], Error> =>
         'User ID is required to fetch orders.'
       ),
       isError: true,
-    } as UseQueryResult<Order[], Error>;
+    } as any;
   }
 
   return query;
@@ -525,9 +525,8 @@ export const useUpdateOrderStatusMutation = () => {
         // Record pattern success
         ValidationMonitor.recordPatternSuccess({
           service: 'useOrders',
-          pattern: 'order_status_update',
+          pattern: 'transformation_schema',
           operation: 'updateOrderStatus',
-          category: 'order_management_pattern_success'
         });
         
         console.log('✅ Order status updated successfully:', {

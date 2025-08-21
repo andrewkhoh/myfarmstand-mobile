@@ -157,7 +157,7 @@ export const useProducts = () => {
       return { 
         previousData, 
         operationType: 'refresh',
-        metadata: { userId: user.id }
+        metadata: { userId: user?.id }
       };
     },
     onError: (error: any, _variables: void, context?: ProductMutationContext) => {
@@ -170,7 +170,7 @@ export const useProducts = () => {
       console.error('❌ Refresh products failed:', {
         error: error.message,
         userMessage: (error as ProductError).userMessage,
-        userId: user.id
+        userId: user?.id
       });
     },
     onSuccess: async (_result: ProductOperationResult<Product[]>) => {
@@ -179,7 +179,7 @@ export const useProducts = () => {
       
       // Broadcast success (following cart pattern)
       await productBroadcast.send('products-refreshed', {
-        userId: user.id,
+        userId: user?.id,
         timestamp: new Date().toISOString()
       });
     },
@@ -512,7 +512,7 @@ export const useCategories = () => {
       return { 
         previousData, 
         operationType: 'refresh',
-        metadata: { userId: user.id }
+        metadata: { userId: user?.id }
       };
     },
     onError: (error: any, _variables: void, context?: ProductMutationContext) => {
@@ -525,7 +525,7 @@ export const useCategories = () => {
       console.error('❌ Refresh categories failed:', {
         error: error.message,
         userMessage: (error as ProductError).userMessage,
-        userId: user.id
+        userId: user?.id
       });
     },
     onSuccess: async (_result: ProductOperationResult<Category[]>) => {
@@ -534,7 +534,7 @@ export const useCategories = () => {
       
       // Broadcast success (following cart pattern)
       await productBroadcast.send('categories-refreshed', {
-        userId: user.id,
+        userId: user?.id,
         timestamp: new Date().toISOString()
       });
     },

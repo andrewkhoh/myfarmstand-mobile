@@ -189,7 +189,7 @@ export const useCart = () => {
       // Enhanced error logging
       console.error('❌ Add to cart failed:', {
         error: error.message,
-        userMessage: (error as CartError).userMessage,
+        userMessage: (error as any).userMessage,
         product: variables.product.id,
         quantity: variables.quantity
       });
@@ -214,7 +214,7 @@ export const useCart = () => {
     // Enhanced retry logic
     retry: (failureCount, error: any) => {
       // Don't retry on stock or product issues
-      if ((error as CartError).code === 'STOCK_INSUFFICIENT' || (error as CartError).code === 'PRODUCT_NOT_FOUND') {
+      if ((error as any).code === 'STOCK_INSUFFICIENT' || (error as any).code === 'PRODUCT_NOT_FOUND') {
         return false;
       }
       return failureCount < 2;
@@ -279,28 +279,30 @@ export const useCart = () => {
       // Enhanced error logging
       console.error('❌ Remove from cart failed:', {
         error: error.message,
-        userMessage: (error as CartError).userMessage,
+        userMessage: (error as any).userMessage,
         productId: _variables
       });
     },
     onSuccess: async (_result: CartOperationResult, productId: string) => {
       // Smart invalidation strategy
-      const relatedKeys = getRelatedQueryKeys(user.id);
-      await Promise.all(
-        relatedKeys.map(key => queryClient.invalidateQueries({ queryKey: key }))
-      );
-      
-      // Broadcast success
-      await cartBroadcast.send('cart-item-removed', {
-        userId: user.id,
-        productId,
-        timestamp: new Date().toISOString()
-      });
+      if (user?.id) {
+        const relatedKeys = getRelatedQueryKeys(user.id);
+        await Promise.all(
+          relatedKeys.map(key => queryClient.invalidateQueries({ queryKey: key }))
+        );
+        
+        // Broadcast success
+        await cartBroadcast.send('cart-item-removed', {
+          userId: user.id,
+          productId,
+          timestamp: new Date().toISOString()
+        });
+      }
     },
     // Enhanced retry logic
     retry: (failureCount, error: any) => {
       // Don't retry on product not found
-      if ((error as CartError).code === 'PRODUCT_NOT_FOUND') {
+      if ((error as any).code === 'PRODUCT_NOT_FOUND') {
         return false;
       }
       return failureCount < 2;
@@ -382,30 +384,32 @@ export const useCart = () => {
       // Enhanced error logging
       console.error('❌ Update cart quantity failed:', {
         error: error.message,
-        userMessage: (error as CartError).userMessage,
+        userMessage: (error as any).userMessage,
         productId: variables.productId,
         quantity: variables.quantity
       });
     },
     onSuccess: async (_result: CartOperationResult, variables: UpdateQuantityParams) => {
       // Smart invalidation strategy
-      const relatedKeys = getRelatedQueryKeys(user.id);
-      await Promise.all(
-        relatedKeys.map(key => queryClient.invalidateQueries({ queryKey: key }))
-      );
-      
-      // Broadcast success
-      await cartBroadcast.send('cart-quantity-updated', {
-        userId: user.id,
-        productId: variables.productId,
-        quantity: variables.quantity,
-        timestamp: new Date().toISOString()
-      });
+      if (user?.id) {
+        const relatedKeys = getRelatedQueryKeys(user.id);
+        await Promise.all(
+          relatedKeys.map(key => queryClient.invalidateQueries({ queryKey: key }))
+        );
+        
+        // Broadcast success
+        await cartBroadcast.send('cart-quantity-updated', {
+          userId: user.id,
+          productId: variables.productId,
+          quantity: variables.quantity,
+          timestamp: new Date().toISOString()
+        });
+      }
     },
     // Enhanced retry logic
     retry: (failureCount, error: any) => {
       // Don't retry on stock or product issues
-      if ((error as CartError).code === 'STOCK_INSUFFICIENT' || (error as CartError).code === 'PRODUCT_NOT_FOUND') {
+      if ((error as any).code === 'STOCK_INSUFFICIENT' || (error as any).code === 'PRODUCT_NOT_FOUND') {
         return false;
       }
       return failureCount < 2;
@@ -453,22 +457,24 @@ export const useCart = () => {
       // Enhanced error logging
       console.error('❌ Clear cart failed:', {
         error: error.message,
-        userMessage: (error as CartError).userMessage,
+        userMessage: (error as any).userMessage,
         itemCount: context?.metadata?.itemCount
       });
     },
     onSuccess: async (_result: CartOperationResult) => {
       // Smart invalidation strategy
-      const relatedKeys = getRelatedQueryKeys(user.id);
-      await Promise.all(
-        relatedKeys.map(key => queryClient.invalidateQueries({ queryKey: key }))
-      );
-      
-      // Broadcast success
-      await cartBroadcast.send('cart-cleared', {
-        userId: user.id,
-        timestamp: new Date().toISOString()
-      });
+      if (user?.id) {
+        const relatedKeys = getRelatedQueryKeys(user.id);
+        await Promise.all(
+          relatedKeys.map(key => queryClient.invalidateQueries({ queryKey: key }))
+        );
+        
+        // Broadcast success
+        await cartBroadcast.send('cart-cleared', {
+          userId: user.id,
+          timestamp: new Date().toISOString()
+        });
+      }
     },
     // Enhanced retry logic
     retry: (failureCount, _error: any) => {

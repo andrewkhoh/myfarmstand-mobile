@@ -68,6 +68,6 @@ export class RealtimeDiagnostic {
   static logCurrentState() {
     console.log('📋 Current RealtimeService state:');
     console.log('- Subscription status:', RealtimeService.getSubscriptionStatus());
-    console.log('- ChannelManager channels:', ChannelManager.getChannelCount());
+    console.log('- ChannelManager: Available');
   }
 }

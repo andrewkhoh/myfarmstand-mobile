@@ -387,7 +387,7 @@ class ProductService {
     }
 
     // Step 1: Get unique category IDs from products (Pattern 1: Separate queries)
-    const uniqueCategoryIds = Array.from(new Set(rawProductsData?.map(product => product.category_id)))
+    const uniqueCategoryIds = Array.from(new Set(rawProductsData?.map((product: any) => product.category_id)))
       .filter(id => id && typeof id === 'string');
     
     // Step 2: Fetch categories separately for resilience
