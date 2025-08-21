@@ -1,5 +1,5 @@
 // Centralized Query Key Factory with User Isolation Support and Fallback Strategies
-export type EntityType = 'cart' | 'orders' | 'products' | 'auth' | 'stock' | 'kiosk' | 'notifications' | 'payment' | 'roles';
+export type EntityType = 'cart' | 'orders' | 'products' | 'auth' | 'stock' | 'kiosk' | 'notifications' | 'payment' | 'roles' | 'inventory';
 export type UserIsolationLevel = 'user-specific' | 'admin-global' | 'global';
 
 interface QueryKeyConfig {
@@ -120,6 +120,59 @@ export const roleKeys = {
   // Role type queries
   roleType: (roleType: string) => 
     [...baseRoleKeys.all(), 'type', roleType] as const
+};
+
+// Inventory-specific query key factory with entity-specific methods
+const baseInventoryKeys = createQueryKeyFactory({ entity: 'inventory', isolation: 'user-specific' });
+
+export const inventoryKeys = {
+  ...baseInventoryKeys,
+  
+  // Inventory Items
+  items: (userId?: string) => 
+    [...baseInventoryKeys.lists(userId), 'items'] as const,
+  
+  item: (itemId: string, userId?: string) => 
+    [...baseInventoryKeys.details(userId), 'item', itemId] as const,
+  
+  itemByProduct: (productId: string, userId?: string) => 
+    [...baseInventoryKeys.details(userId), 'product', productId] as const,
+  
+  // Stock Operations
+  lowStock: (filters?: any, userId?: string) => 
+    [...baseInventoryKeys.lists(userId), 'low-stock', filters] as const,
+  
+  visible: (userId?: string) => 
+    [...baseInventoryKeys.lists(userId), 'visible'] as const,
+  
+  active: (userId?: string) => 
+    [...baseInventoryKeys.lists(userId), 'active'] as const,
+  
+  // Stock Movements (Audit Trail)
+  movements: (userId?: string) => 
+    [...baseInventoryKeys.lists(userId), 'movements'] as const,
+  
+  movement: (movementId: string, userId?: string) => 
+    [...baseInventoryKeys.details(userId), 'movement', movementId] as const,
+  
+  movementHistory: (inventoryItemId: string, filters?: any, userId?: string) => 
+    [...baseInventoryKeys.details(userId), 'item', inventoryItemId, 'movements', filters] as const,
+  
+  movementsByType: (movementType: string, filters?: any, userId?: string) => 
+    [...baseInventoryKeys.lists(userId), 'movements', 'type', movementType, filters] as const,
+  
+  movementsByUser: (performedBy: string, filters?: any, userId?: string) => 
+    [...baseInventoryKeys.lists(userId), 'movements', 'user', performedBy, filters] as const,
+  
+  movementsByBatch: (batchId: string, userId?: string) => 
+    [...baseInventoryKeys.lists(userId), 'movements', 'batch', batchId] as const,
+  
+  // Analytics
+  analytics: (filters?: any, userId?: string) => 
+    [...baseInventoryKeys.stats(userId), 'analytics', filters] as const,
+  
+  stockAnalytics: (filters?: any, userId?: string) => 
+    [...baseInventoryKeys.stats(userId), 'stock', filters] as const
 };
 // Kiosk-specific query key factory with entity-specific methods
 const baseKioskKeys = createQueryKeyFactory({ entity: 'kiosk', isolation: 'user-specific' });
