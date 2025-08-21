@@ -429,6 +429,7 @@ export const orderBroadcast = {
 };
 
 export const productBroadcast = createBroadcastHelper({ entity: 'products', target: 'global' });
+export const paymentBroadcast = createBroadcastHelper({ entity: 'payment', target: 'user-specific' });
 
 // CRYPTOGRAPHIC SECURITY: Enhanced multi-target broadcast with secure channels
 export const sendMultiTargetBroadcast = async (
@@ -486,5 +487,6 @@ export const broadcastFactory = {
   // Pre-configured helpers
   cartBroadcast,
   orderBroadcast,
-  productBroadcast
+  productBroadcast,
+  paymentBroadcast
 };

@@ -1,5 +1,5 @@
 // Centralized Query Key Factory with User Isolation Support and Fallback Strategies
-export type EntityType = 'cart' | 'orders' | 'products' | 'auth' | 'stock' | 'kiosk' | 'notifications';
+export type EntityType = 'cart' | 'orders' | 'products' | 'auth' | 'stock' | 'kiosk' | 'notifications' | 'payment';
 export type UserIsolationLevel = 'user-specific' | 'admin-global' | 'global';
 
 interface QueryKeyConfig {
@@ -100,6 +100,63 @@ export const authKeys = createQueryKeyFactory({ entity: 'auth', isolation: 'user
 export const stockKeys = createQueryKeyFactory({ entity: 'stock', isolation: 'global' });
 export const kioskKeys = createQueryKeyFactory({ entity: 'kiosk', isolation: 'user-specific' }); // Kiosk sessions are user-specific for security
 export const notificationKeys = createQueryKeyFactory({ entity: 'notifications', isolation: 'user-specific' }); // Notifications are user-specific
+// Payment-specific query key factory with entity-specific methods
+const basePaymentKeys = createQueryKeyFactory({ entity: 'payment', isolation: 'user-specific' });
+
+export const paymentKeys = {
+  ...basePaymentKeys,
+  
+  // Payment Methods
+  paymentMethods: (userId?: string) => 
+    [...basePaymentKeys.lists(userId), 'methods'] as const,
+  
+  paymentMethod: (methodId: string, userId?: string) => 
+    [...basePaymentKeys.details(userId), 'method', methodId] as const,
+  
+  defaultPaymentMethod: (userId?: string) => 
+    [...basePaymentKeys.details(userId), 'method', 'default'] as const,
+  
+  // Payment Intents
+  paymentIntents: (userId?: string) => 
+    [...basePaymentKeys.lists(userId), 'intents'] as const,
+  
+  paymentIntent: (intentId: string, userId?: string) => 
+    [...basePaymentKeys.details(userId), 'intent', intentId] as const,
+  
+  paymentIntentsFiltered: (filters: any, userId?: string) => 
+    [...basePaymentKeys.lists(userId), 'intents', filters] as const,
+  
+  // Payment History
+  paymentHistory: (userId?: string) => 
+    [...basePaymentKeys.lists(userId), 'history'] as const,
+  
+  paymentHistoryFiltered: (filters: any, userId?: string) => 
+    [...basePaymentKeys.lists(userId), 'history', filters] as const,
+  
+  // Payment Settings
+  paymentSettings: (userId?: string) => 
+    [...basePaymentKeys.details(userId), 'settings'] as const,
+  
+  // Specific payment transactions
+  payment: (paymentId: string, userId?: string) => 
+    [...basePaymentKeys.details(userId), 'payment', paymentId] as const,
+  
+  // Order-related payments
+  orderPayments: (orderId: string, userId?: string) => 
+    [...basePaymentKeys.details(userId), 'order', orderId, 'payments'] as const,
+  
+  // Customer-related payments (for Stripe customer integration)
+  customerPayments: (customerId: string, userId?: string) => 
+    [...basePaymentKeys.details(userId), 'customer', customerId] as const,
+  
+  // Webhook and event tracking
+  paymentEvents: (paymentId: string, userId?: string) => 
+    [...basePaymentKeys.details(userId), 'payment', paymentId, 'events'] as const,
+  
+  // Real-time status tracking
+  paymentStatus: (paymentId: string, userId?: string) => 
+    [...basePaymentKeys.details(userId), 'payment', paymentId, 'status'] as const,
+};
 
 // Utility function to get user-specific query key with fallback
 export const getUserSpecificKey = (entity: EntityType, userId?: string, ...additionalKeys: string[]) => {

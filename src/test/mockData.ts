@@ -1,4 +1,4 @@
-import { User, Order, Product, OrderItem } from '../types';
+import { User, Order, Product, OrderItem, Payment, PaymentMethod, PaymentIntent, PaymentError, CreatePaymentRequest, CreatePaymentMethodRequest } from '../types';
 import { NotificationRequest, NotificationResult, NotificationChannel, NotificationType } from '../services/notificationService';
 import { NoShowHandlingResult } from '../services/noShowHandlingService';
 import { ErrorRecoveryResult, ErrorContext } from '../services/errorRecoveryService';
@@ -178,4 +178,87 @@ export const createMockRegisterResponse = (overrides?: Partial<RegisterResponse>
 export const createMockLogoutResponse = () => ({
   success: true,
   message: 'Logout successful',
+});
+
+// Payment mock data - Following established patterns
+export const createMockPaymentMethod = (overrides?: Partial<PaymentMethod>): PaymentMethod => ({
+  id: 'pm_test123',
+  type: 'card',
+  customerId: 'cus_test123',
+  userId: 'user_123',
+  isDefault: false,
+  createdAt: new Date().toISOString(),
+  card: {
+    brand: 'visa',
+    last4: '4242',
+    expMonth: 12,
+    expYear: 2025,
+  },
+  ...overrides,
+});
+
+export const createMockPaymentIntent = (overrides?: Partial<PaymentIntent>): PaymentIntent => ({
+  id: 'pi_test123',
+  amount: 1000, // $10.00
+  currency: 'usd',
+  status: 'requires_payment_method',
+  clientSecret: 'pi_test123_secret_test',
+  paymentMethodId: '',
+  confirmationMethod: 'automatic',
+  createdAt: new Date().toISOString(),
+  metadata: {},
+  ...overrides,
+});
+
+export const createMockPayment = (overrides?: Partial<Payment>): Payment => ({
+  id: 'payment_test123',
+  paymentIntentId: 'pi_test123',
+  paymentMethodId: 'pm_test123',
+  amount: 1000,
+  currency: 'usd',
+  status: 'succeeded',
+  userId: 'user_123',
+  orderId: 'order_test123',
+  clientSecret: 'pi_test123_secret_test',
+  confirmationMethod: 'automatic',
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+  metadata: {
+    order_id: 'order_test123',
+    customer_note: 'Test payment'
+  },
+  ...overrides,
+});
+
+export const createMockPaymentError = (overrides?: Partial<PaymentError>): PaymentError => ({
+  code: 'CARD_DECLINED',
+  message: 'Your card was declined.',
+  userMessage: 'Your payment method was declined. Please try a different card.',
+  type: 'card_error',
+  details: {},
+  retryable: true,
+  ...overrides,
+});
+
+export const createMockCreatePaymentRequest = (overrides?: Partial<CreatePaymentRequest>): CreatePaymentRequest => ({
+  amount: 1000,
+  currency: 'usd',
+  paymentMethodId: 'pm_test123',
+  confirmationMethod: 'automatic',
+  metadata: {
+    order_id: 'order_test123'
+  },
+  ...overrides,
+});
+
+export const createMockCreatePaymentMethodRequest = (overrides?: Partial<CreatePaymentMethodRequest>): CreatePaymentMethodRequest => ({
+  type: 'card',
+  customerId: 'cus_test123',
+  card: {
+    number: '4242424242424242',
+    expMonth: 12,
+    expYear: 2025,
+    cvc: '123',
+  },
+  ...overrides,
 });
