@@ -1,4 +1,4 @@
-import { supabaseClient } from '../../config/supabase';
+import { supabase } from '../../config/supabase';
 import { 
   RolePermissionTransformSchema,
   CreateRolePermissionSchema,
@@ -13,7 +13,7 @@ import { ValidationMonitor } from '../../utils/validationMonitor';
 // Pattern: Direct Supabase + ValidationMonitor + Resilient Processing
 
 export class RolePermissionService {
-  private static supabase = supabaseClient;
+  private static supabase = supabase;
 
   /**
    * Get user role (Pattern 1: Direct Supabase with exact fields)
@@ -73,7 +73,7 @@ export class RolePermissionService {
       const rolePermissions = ROLE_PERMISSIONS[userRole.roleType] || [];
       const customPermissions = userRole.permissions || [];
       
-      const hasPermission = rolePermissions.includes(permission) || 
+      const hasPermission = (rolePermissions as string[]).includes(permission) || 
                            customPermissions.includes(permission);
       
       // Monitor permission checks for analytics/security
@@ -90,7 +90,7 @@ export class RolePermissionService {
         context: 'RolePermissionService.hasPermission',
         errorMessage: error instanceof Error ? error.message : 'Unknown error',
         errorCode: 'PERMISSION_CHECK_FAILED',
-        validationPattern: 'simple_input_validation'
+        validationPattern: 'simple_validation'
       });
       
       return false; // Fail closed for security

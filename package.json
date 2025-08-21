@@ -26,6 +26,8 @@
     "test:race:core": "npm run test:race:cart && npm run test:race:orders && npm run test:race:realtime && npm run test:race:auth && npm run test:race:stock && npm run test:race:notifications && npm run test:race:products && npm run test:race:pickup && npm run test:race:payment",
     "test:services": "TEST_TYPE=services jest --config jest.config.services.js src/services/",
     "test:services:watch": "TEST_TYPE=services jest --config jest.config.services.js --watch src/services/",
+    "test:realdb": "TEST_TYPE=realdb jest --config jest.config.realdb.js --forceExit",
+    "test:realdb:watch": "TEST_TYPE=realdb jest --config jest.config.realdb.js --watch",
     "test:payment": "jest src/__tests__/payment-integration.test.ts --forceExit",
     "test:payment:watch": "jest --watch src/__tests__/payment-integration.test.ts",
     "test:all": "npm run test:services && npm run test:hooks && npm run test:payment",

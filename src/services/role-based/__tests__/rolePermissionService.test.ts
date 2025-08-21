@@ -5,17 +5,17 @@ jest.mock('../../../utils/validationMonitor');
 
 // Mock Supabase config
 jest.mock('../../../config/supabase', () => ({
-  supabaseClient: {
+  supabase: {
     from: jest.fn()
   }
 }));
 
 import { RolePermissionService } from '../rolePermissionService';
 import { ValidationMonitor } from '../../../utils/validationMonitor';
-import { supabaseClient } from '../../../config/supabase';
+import { supabase } from '../../../config/supabase';
 
 // Type the mocked supabase
-const mockSupabase = supabaseClient as jest.Mocked<typeof supabaseClient>;
+const mockSupabase = supabase as jest.Mocked<typeof supabase>;
 
 describe('RolePermissionService - Phase 1', () => {
   beforeEach(() => {
