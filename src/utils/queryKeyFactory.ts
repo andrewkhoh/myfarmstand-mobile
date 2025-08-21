@@ -1,5 +1,5 @@
 // Centralized Query Key Factory with User Isolation Support and Fallback Strategies
-export type EntityType = 'cart' | 'orders' | 'products' | 'auth' | 'stock' | 'kiosk' | 'notifications' | 'payment' | 'roles' | 'inventory';
+export type EntityType = 'cart' | 'orders' | 'products' | 'auth' | 'stock' | 'kiosk' | 'notifications' | 'payment' | 'roles' | 'inventory' | 'businessMetrics' | 'businessIntelligence' | 'strategicReports' | 'predictiveForecasts';
 export type UserIsolationLevel = 'user-specific' | 'admin-global' | 'global';
 
 interface QueryKeyConfig {
@@ -267,6 +267,169 @@ export const getUserEntityInvalidationKeys = (entity: EntityType, userId?: strin
   return factory.getInvalidationKeys(userId, includeFallbacks);
 };
 
+// Phase 4: Executive Analytics Query Key Factories
+// Business Metrics query key factory
+const baseBusinessMetricsKeys = createQueryKeyFactory({ entity: 'businessMetrics', isolation: 'user-specific' });
+
+export const businessMetricsKeys = {
+  ...baseBusinessMetricsKeys,
+  
+  // Category-based queries
+  category: (category: string, userId?: string) =>
+    [...baseBusinessMetricsKeys.lists(userId), 'category', category] as const,
+  
+  categoryWithFilters: (category: string, filters: any, userId?: string) =>
+    [...baseBusinessMetricsKeys.lists(userId), 'category', category, filters] as const,
+  
+  // Aggregation queries
+  aggregation: (categories: string[], aggregationLevel: string, dateRange: string, userId?: string) =>
+    [...baseBusinessMetricsKeys.stats(userId), 'aggregation', { categories, aggregationLevel, dateRange }] as const,
+  
+  // Correlation analysis
+  correlation: (category1: string, category2: string, dateRange: string, userId?: string) =>
+    [...baseBusinessMetricsKeys.stats(userId), 'correlation', category1, category2, dateRange] as const,
+  
+  // Trend analysis
+  trends: (category: string, metricName: string, dateRange: string, userId?: string) =>
+    [...baseBusinessMetricsKeys.stats(userId), 'trends', category, metricName, dateRange] as const,
+  
+  // Batch operations
+  batch: (operation: string, userId?: string) =>
+    [...baseBusinessMetricsKeys.all(userId), 'batch', operation] as const
+};
+
+// Business Intelligence query key factory
+const baseBusinessIntelligenceKeys = createQueryKeyFactory({ entity: 'businessIntelligence', isolation: 'user-specific' });
+
+export const businessIntelligenceKeys = {
+  ...baseBusinessIntelligenceKeys,
+  
+  // Insight type queries
+  insightType: (type: string, userId?: string) =>
+    [...baseBusinessIntelligenceKeys.lists(userId), 'type', type] as const,
+  
+  // Impact level queries
+  impactLevel: (level: string, userId?: string) =>
+    [...baseBusinessIntelligenceKeys.lists(userId), 'impact', level] as const,
+  
+  // Affected areas queries
+  affectedAreas: (areas: string[], userId?: string) =>
+    [...baseBusinessIntelligenceKeys.lists(userId), 'areas', areas] as const,
+  
+  // Active insights
+  active: (userId?: string) =>
+    [...baseBusinessIntelligenceKeys.lists(userId), 'active'] as const,
+  
+  // Insight generation
+  generation: (parameters: any, userId?: string) =>
+    [...baseBusinessIntelligenceKeys.stats(userId), 'generation', parameters] as const,
+  
+  // Anomaly detection
+  anomalies: (dateRange: string, userId?: string) =>
+    [...baseBusinessIntelligenceKeys.stats(userId), 'anomalies', dateRange] as const,
+  
+  // Recommendations
+  recommendations: (category: string, userId?: string) =>
+    [...baseBusinessIntelligenceKeys.lists(userId), 'recommendations', category] as const
+};
+
+// Strategic Reports query key factory  
+const baseStrategicReportsKeys = createQueryKeyFactory({ entity: 'strategicReports', isolation: 'user-specific' });
+
+export const strategicReportsKeys = {
+  ...baseStrategicReportsKeys,
+  
+  // Report type queries
+  reportType: (type: string, userId?: string) =>
+    [...baseStrategicReportsKeys.lists(userId), 'type', type] as const,
+  
+  // Report frequency queries
+  frequency: (frequency: string, userId?: string) =>
+    [...baseStrategicReportsKeys.lists(userId), 'frequency', frequency] as const,
+  
+  // Automated reports
+  automated: (userId?: string) =>
+    [...baseStrategicReportsKeys.lists(userId), 'automated'] as const,
+  
+  // Report generation
+  generation: (reportId: string, userId?: string) =>
+    [...baseStrategicReportsKeys.details(userId), 'generation', reportId] as const,
+  
+  // Report data
+  reportData: (reportId: string, filters: any, userId?: string) =>
+    [...baseStrategicReportsKeys.details(userId), 'data', reportId, filters] as const,
+  
+  // Export operations
+  export: (reportId: string, format: string, userId?: string) =>
+    [...baseStrategicReportsKeys.details(userId), 'export', reportId, format] as const,
+  
+  // Schedule operations
+  schedule: (reportId: string, userId?: string) =>
+    [...baseStrategicReportsKeys.details(userId), 'schedule', reportId] as const
+};
+
+// Predictive Forecasts query key factory
+const basePredictiveForecastsKeys = createQueryKeyFactory({ entity: 'predictiveForecasts', isolation: 'user-specific' });
+
+export const predictiveForecastsKeys = {
+  ...basePredictiveForecastsKeys,
+  
+  // Forecast type queries
+  forecastType: (type: string, userId?: string) =>
+    [...basePredictiveForecastsKeys.lists(userId), 'type', type] as const,
+  
+  // Model type queries
+  modelType: (model: string, userId?: string) =>
+    [...basePredictiveForecastsKeys.lists(userId), 'model', model] as const,
+  
+  // Target-specific forecasts
+  target: (target: string, userId?: string) =>
+    [...basePredictiveForecastsKeys.lists(userId), 'target', target] as const,
+  
+  // Active forecasts (not expired)
+  active: (userId?: string) =>
+    [...basePredictiveForecastsKeys.lists(userId), 'active'] as const,
+  
+  // Forecast generation
+  generation: (parameters: any, userId?: string) =>
+    [...basePredictiveForecastsKeys.stats(userId), 'generation', parameters] as const,
+  
+  // Model accuracy tracking
+  accuracy: (modelType: string, userId?: string) =>
+    [...basePredictiveForecastsKeys.stats(userId), 'accuracy', modelType] as const,
+  
+  // Forecast validation
+  validation: (forecastId: string, userId?: string) =>
+    [...basePredictiveForecastsKeys.details(userId), 'validation', forecastId] as const,
+  
+  // Confidence intervals
+  confidence: (forecastId: string, level: number, userId?: string) =>
+    [...basePredictiveForecastsKeys.details(userId), 'confidence', forecastId, level] as const
+};
+
+// Executive Analytics Cross-Entity Query Keys
+export const executiveAnalyticsKeys = {
+  // Cross-role analytics dashboard
+  dashboard: (userId?: string) =>
+    ['executive', 'dashboard', userId] as const,
+  
+  // Cross-entity correlation analysis
+  crossCorrelation: (entities: string[], dateRange: string, userId?: string) =>
+    ['executive', 'cross-correlation', entities, dateRange, userId] as const,
+  
+  // Executive summary data
+  summary: (period: string, userId?: string) =>
+    ['executive', 'summary', period, userId] as const,
+  
+  // Strategic insights aggregation
+  strategicInsights: (filters: any, userId?: string) =>
+    ['executive', 'strategic-insights', filters, userId] as const,
+  
+  // Performance benchmarks
+  benchmarks: (category: string, period: string, userId?: string) =>
+    ['executive', 'benchmarks', category, period, userId] as const
+};
+
 // Enhanced invalidation utility that handles offline/fallback scenarios
 export const createRobustInvalidation = (queryClient: any) => {
   return {
@@ -279,7 +442,7 @@ export const createRobustInvalidation = (queryClient: any) => {
         isolation: entity === 'products' || entity === 'stock' ? 'global' : 'user-specific' 
       });
       
-      const keys = factory.getInvalidationKeys(userId, options?.includeFallbacks ?? true);
+      const keys = factory.getInvalidationKeys?.(userId, options?.includeFallbacks ?? true) || [factory.all(userId)];
       const results: Array<{ key: readonly unknown[]; success: boolean; error?: any }> = [];
       
       for (const key of keys) {
