@@ -1,6 +1,6 @@
 /**
- * Task 2.3.4: Inventory Operations Hooks Implementation (GREEN Phase)
- * Mutations, optimistic updates, and batch operations
+ * Task 2.3.7: Inventory Operations Hooks (REFACTOR Phase)
+ * Optimized mutations, cache strategies, and error recovery
  */
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
