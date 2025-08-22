@@ -223,3 +223,17 @@ export const ContentStatus = {
 } as const;
 
 export type ContentStatusType = typeof ContentStatus[keyof typeof ContentStatus];
+
+// File upload types for content workflow integration
+export type FileUpload = {
+  name: string;
+  type: string;
+  size: number;
+  buffer: ArrayBuffer;
+};
+
+export type UploadProgress = {
+  uploadedBytes: number;
+  totalBytes: number;
+  percentage: number;
+};

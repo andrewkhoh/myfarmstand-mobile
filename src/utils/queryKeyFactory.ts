@@ -1,5 +1,5 @@
 // Centralized Query Key Factory with User Isolation Support and Fallback Strategies
-export type EntityType = 'cart' | 'orders' | 'products' | 'auth' | 'stock' | 'kiosk' | 'notifications' | 'payment' | 'roles' | 'inventory' | 'businessMetrics' | 'businessIntelligence' | 'strategicReports' | 'predictiveForecasts';
+export type EntityType = 'cart' | 'orders' | 'products' | 'auth' | 'stock' | 'kiosk' | 'notifications' | 'payment' | 'roles' | 'inventory' | 'businessMetrics' | 'businessIntelligence' | 'strategicReports' | 'predictiveForecasts' | 'content' | 'campaigns' | 'bundles';
 export type UserIsolationLevel = 'user-specific' | 'admin-global' | 'global';
 
 interface QueryKeyConfig {
@@ -428,6 +428,122 @@ export const executiveAnalyticsKeys = {
   // Performance benchmarks
   benchmarks: (category: string, period: string, userId?: string) =>
     ['executive', 'benchmarks', category, period, userId] as const
+};
+
+// Phase 3: Marketing Query Key Factories
+// Product Content query key factory
+const baseContentKeys = createQueryKeyFactory({ entity: 'content', isolation: 'user-specific' });
+
+export const contentKeys = {
+  ...baseContentKeys,
+  
+  // Status-based queries
+  byStatus: (status: string, userId?: string) =>
+    [...baseContentKeys.lists(userId), 'status', status] as const,
+    
+  byStatusPaginated: (status: string, pagination: any, userId?: string) =>
+    [...baseContentKeys.lists(userId), 'status', status, pagination] as const,
+  
+  // Content performance tracking
+  performance: (contentId: string, userId?: string) =>
+    [...baseContentKeys.details(userId), 'content', contentId, 'performance'] as const,
+  
+  // Content analytics
+  analytics: (contentId: string, userId?: string) =>
+    [...baseContentKeys.details(userId), 'content', contentId, 'analytics'] as const,
+  
+  // Workflow states
+  workflow: (userId?: string) =>
+    [...baseContentKeys.all(userId), 'workflow'] as const,
+    
+  workflowState: (contentId: string, userId?: string) =>
+    [...baseContentKeys.details(userId), 'content', contentId, 'workflow'] as const
+};
+
+// Marketing Campaign query key factory
+const baseCampaignKeys = createQueryKeyFactory({ entity: 'campaigns', isolation: 'user-specific' });
+
+export const campaignKeys = {
+  ...baseCampaignKeys,
+  
+  // Status-based queries
+  byStatus: (status: string, userId?: string) =>
+    [...baseCampaignKeys.lists(userId), 'status', status] as const,
+    
+  byStatusPaginated: (status: string, pagination: any, userId?: string) =>
+    [...baseCampaignKeys.lists(userId), 'status', status, pagination] as const,
+  
+  // Campaign performance tracking
+  performance: (campaignId: string, userId?: string) =>
+    [...baseCampaignKeys.details(userId), 'campaign', campaignId, 'performance'] as const,
+  
+  // Campaign analytics  
+  analytics: (campaignId: string, userId?: string) =>
+    [...baseCampaignKeys.details(userId), 'campaign', campaignId, 'analytics'] as const,
+  
+  // Campaign metrics
+  metrics: (userId?: string) =>
+    [...baseCampaignKeys.all(userId), 'metrics'] as const,
+  
+  // Campaign scheduling
+  scheduling: (userId?: string) =>
+    [...baseCampaignKeys.all(userId), 'scheduling'] as const
+};
+
+// Product Bundle query key factory
+const baseBundleKeys = createQueryKeyFactory({ entity: 'bundles', isolation: 'user-specific' });
+
+export const bundleKeys = {
+  ...baseBundleKeys,
+  
+  // Status-based queries
+  byStatus: (status: string, userId?: string) =>
+    [...baseBundleKeys.lists(userId), 'status', status] as const,
+    
+  byStatusPaginated: (status: string, pagination: any, userId?: string) =>
+    [...baseBundleKeys.lists(userId), 'status', status, pagination] as const,
+  
+  // Bundle performance tracking
+  performance: (bundleId: string, userId?: string) =>
+    [...baseBundleKeys.details(userId), 'bundle', bundleId, 'performance'] as const,
+  
+  // Inventory impact tracking
+  inventoryImpact: (userId?: string) =>
+    [...baseBundleKeys.all(userId), 'inventory-impact'] as const,
+    
+  inventoryImpactForBundle: (bundleId: string, userId?: string) =>
+    [...baseBundleKeys.details(userId), 'bundle', bundleId, 'inventory-impact'] as const,
+  
+  // Bundle products
+  products: (bundleId: string, userId?: string) =>
+    [...baseBundleKeys.details(userId), 'bundle', bundleId, 'products'] as const
+};
+
+// Marketing Cross-Entity Query Keys
+export const marketingKeys = {
+  // Cross-entity marketing operations
+  marketing: ['marketing'] as const,
+  
+  // Cross-entity analytics
+  analytics: () => [...marketingKeys.marketing, 'analytics'] as const,
+  
+  // Cross-entity performance tracking
+  performance: () => [...marketingKeys.marketing, 'performance'] as const,
+  
+  // Cross-entity workflow integration
+  crossEntity: () => [...marketingKeys.marketing, 'cross-entity'] as const,
+  
+  // Content-campaign associations
+  contentCampaigns: (contentId: string) =>
+    [...marketingKeys.marketing, 'content', contentId, 'campaigns'] as const,
+  
+  // Campaign-bundle associations
+  campaignBundles: (campaignId: string) =>
+    [...marketingKeys.marketing, 'campaign', campaignId, 'bundles'] as const,
+  
+  // Bundle-content associations
+  bundleContent: (bundleId: string) =>
+    [...marketingKeys.marketing, 'bundle', bundleId, 'content'] as const
 };
 
 // Enhanced invalidation utility that handles offline/fallback scenarios

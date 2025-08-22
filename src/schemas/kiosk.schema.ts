@@ -89,7 +89,7 @@ const RawDbUserSchema = z.object({
   raw_user_meta_data: z.object({
     role: z.string().optional()
   }).nullable().optional()
-});
+  
 
 // ✅ PATTERN: Transformation Schema Architecture - DB → App format conversion
 
@@ -110,11 +110,11 @@ export const DbKioskSessionTransformSchema = RawDbKioskSessionSchema
     sessionStart: new Date(data.session_start || Date.now()),
     sessionEnd: data.session_end ? new Date(data.session_end) : null,
     totalSales: data.total_sales ?? 0,          // ✅ Apply defaults during transformation
-    transactionCount: data.transaction_count ?? 0, 
-    isActive: data.is_active ?? true,           
+    transactionCount: data.transaction_count ?? 0,
+    isActive: data.is_active ?? true,
     deviceId: data.device_id || null,
     currentCustomer: null, // Runtime value, not from DB
-    
+
     // ✅ PATTERN: Internal metadata for debugging/monitoring
     _dbData: {
       staff_id: data.staff_id,
@@ -147,7 +147,7 @@ export const DbStaffPinTransformSchema = RawDbStaffPinSchema
       email: data.users.email,
       role: (data.users.raw_user_meta_data?.role || 'staff') as 'customer' | 'staff' | 'manager' | 'admin'
     } : null,
-    
+
     // ✅ PATTERN: Internal metadata
     _dbData: {
       user_id: data.user_id,
@@ -244,7 +244,7 @@ export const DbKioskTransactionTransformSchema = RawDbKioskTransactionSchema
     paymentMethod: data.payment_method,
     paymentStatus: data.payment_status,
     completedAt: data.completed_at ? new Date(data.completed_at) : null,
-    
+
     // Internal metadata
     _dbData: {
       session_id: data.session_id,

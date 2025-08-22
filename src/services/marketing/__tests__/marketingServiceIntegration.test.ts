@@ -303,7 +303,7 @@ describe('Marketing Service Integration - Phase 3.2.7', () => {
       jest.spyOn(RolePermissionService, 'hasPermission').mockResolvedValue(true);
 
       // Mock inventory service responses
-      jest.spyOn(InventoryService, 'getInventoryByProductId')
+      jest.spyOn(InventoryService, 'getInventoryByProduct')
         .mockImplementation(async (productId: string) => {
           const mockInventory = {
             id: `inventory-${productId}`,
@@ -359,7 +359,7 @@ describe('Marketing Service Integration - Phase 3.2.7', () => {
         expect(impactResult.data?.availability.shortages).toHaveLength(0);
 
         // Step 4: Test bundle deactivation due to insufficient inventory
-        jest.spyOn(InventoryService, 'getInventoryByProductId')
+        jest.spyOn(InventoryService, 'getInventoryByProduct')
           .mockImplementation(async (productId: string) => {
             const lowInventory = {
               id: `inventory-${productId}`,

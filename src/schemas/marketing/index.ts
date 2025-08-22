@@ -25,7 +25,9 @@ export {
   type ProductContentTransform,
   type CreateProductContentInput,
   type UpdateProductContentInput,
-  type ContentStatusType
+  type ContentStatusType,
+  type FileUpload,
+  type UploadProgress
 } from './productContent.schemas';
 
 // Marketing Campaign Schemas and Types
