@@ -9,6 +9,7 @@ import type {
 import { 
   BusinessMetricsTransformSchema,
   BusinessMetricsDatabaseSchema,
+  UpdateBusinessMetricsSchema,
   METRIC_CATEGORIES,
   AGGREGATION_LEVELS 
 } from '../../schemas/executive';
@@ -36,11 +37,12 @@ export class BusinessMetricsService {
       aggregation_level: string;
     };
   }> {
+    const startTime = Date.now();
     try {
-      ValidationMonitor.logOperation('aggregate_business_metrics', {
-        categories,
-        aggregationLevel,
-        dateRange: `${startDate} to ${endDate}`
+      ValidationMonitor.recordPatternSuccess({
+        service: 'BusinessMetricsService',
+        pattern: 'direct_supabase_query',
+        operation: 'aggregateBusinessMetrics'
       });
 
       // Role-based filtering
@@ -121,10 +123,11 @@ export class BusinessMetricsService {
         }
       };
 
-      ValidationMonitor.logSuccess('aggregate_business_metrics', {
-        metricsProcessed: transformedMetrics.length,
-        errors: processingErrors.length,
-        categoriesIncluded: result.summary.categories_included.length
+      ValidationMonitor.recordPatternSuccess({
+        service: 'BusinessMetricsService',
+        pattern: 'transformation_schema',
+        operation: 'aggregateBusinessMetrics',
+        performanceMs: Date.now() - startTime
       });
 
       return result;
@@ -219,9 +222,10 @@ export class BusinessMetricsService {
         }
       }
 
-      ValidationMonitor.logSuccess('get_metrics_by_category', {
-        category,
-        metricsReturned: transformedMetrics.length
+      ValidationMonitor.recordPatternSuccess({
+        pattern: 'get_metrics_by_category',
+        context: 'BusinessMetricsService.getMetricsByCategory',
+        description: `Retrieved ${transformedMetrics.length} metrics for category: ${category}`
       });
 
       return transformedMetrics;
@@ -324,10 +328,10 @@ export class BusinessMetricsService {
         correlation_data: correlationData
       };
 
-      ValidationMonitor.logSuccess('generate_correlation_analysis', {
-        categories: [category1, category2],
-        sampleSize: n,
-        correlationStrength: correlation
+      ValidationMonitor.recordPatternSuccess({
+        pattern: 'generate_correlation_analysis',
+        context: 'BusinessMetricsService.generateCorrelationAnalysis',
+        description: `Generated correlation analysis between ${category1} and ${category2} with correlation: ${correlation}`
       });
 
       return result;
@@ -351,7 +355,7 @@ export class BusinessMetricsService {
   ): Promise<BusinessMetricsTransform> {
     try {
       // Validate updates before applying
-      const validationResult = BusinessMetricsDatabaseSchema.partial().safeParse(updates);
+      const validationResult = UpdateBusinessMetricsSchema.safeParse(updates);
       
       if (!validationResult.success) {
         ValidationMonitor.recordValidationError({
@@ -397,9 +401,10 @@ export class BusinessMetricsService {
         throw new Error(`Failed to transform updated metric: ${transformResult.error.message}`);
       }
 
-      ValidationMonitor.logSuccess('update_metric_values', {
-        metricId,
-        updatedFields: Object.keys(updates)
+      ValidationMonitor.recordPatternSuccess({
+        pattern: 'update_metric_values',
+        context: 'BusinessMetricsService.updateMetricValues',
+        description: `Updated metric ${metricId} with fields: ${Object.keys(updates).join(', ')}`
       });
 
       return transformResult.data;
@@ -483,10 +488,10 @@ export class BusinessMetricsService {
       }
     }
 
-    ValidationMonitor.logSuccess('batch_process_metrics', {
-      totalProcessed: metricsData.length,
-      successful: results.successful,
-      failed: results.failed
+    ValidationMonitor.recordPatternSuccess({
+      pattern: 'batch_process_metrics',
+      context: 'BusinessMetricsService.batchProcessMetrics',
+      description: `Batch processed ${metricsData.length} metrics: ${results.successful} successful, ${results.failed} failed`
     });
 
     return results;
