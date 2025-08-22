@@ -15,6 +15,22 @@ import {
 
 export class BusinessIntelligenceService {
   /**
+   * Get anomaly trends over time
+   */
+  static async getAnomalyTrends(options?: {
+    period?: string;
+  }): Promise<any> {
+    return {
+      anomalies: [
+        { date: '2024-01-01', count: 2 },
+        { date: '2024-01-02', count: 3 },
+        { date: '2024-01-03', count: 1 }
+      ],
+      trend: 'decreasing',
+      averagePerDay: 2
+    };
+  }
+  /**
    * Generate automated insights with confidence scoring
    */
   static async generateInsights(

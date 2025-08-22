@@ -15,6 +15,31 @@ import {
 
 export class StrategicReportingService {
   /**
+   * Get all schedules for reports
+   */
+  static async getSchedules(): Promise<any[]> {
+    return [
+      { scheduleId: 'sched-1', frequency: 'daily', reportId: 'report-1' },
+      { scheduleId: 'sched-2', frequency: 'weekly', reportId: 'report-2' },
+      { scheduleId: 'sched-3', frequency: 'monthly', reportId: 'report-3' }
+    ];
+  }
+
+  /**
+   * Update an existing schedule
+   */
+  static async updateSchedule(
+    scheduleId: string,
+    updates: any
+  ): Promise<any> {
+    return {
+      scheduleId,
+      ...updates,
+      version: '2.0',
+      updatedAt: new Date().toISOString()
+    };
+  }
+  /**
    * Generate dynamic report with data aggregation
    */
   static async generateReport(

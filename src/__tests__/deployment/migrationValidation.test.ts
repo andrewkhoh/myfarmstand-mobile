@@ -406,7 +406,7 @@ describe('Database Migration Validation Tests', () => {
   });
 
   // Helper methods for migration testing
-  private async validateTableStructure(tableName: string, expectedColumns: string[]): Promise<void> {
+  async function validateTableStructure(tableName: string, expectedColumns: string[]): Promise<void> {
     const { data: columns, error } = await supabase
       .from('information_schema.columns')
       .select('column_name, data_type, is_nullable')
@@ -424,7 +424,7 @@ describe('Database Migration Validation Tests', () => {
     }
   }
 
-  private async validateForeignKeyConstraints(): Promise<boolean> {
+  async function validateForeignKeyConstraints(): Promise<boolean> {
     const { data: constraints, error } = await supabase
       .from('information_schema.table_constraints')
       .select('constraint_name, table_name, constraint_type')
@@ -435,7 +435,7 @@ describe('Database Migration Validation Tests', () => {
     return true;
   }
 
-  private async validateUniqueConstraints(): Promise<boolean> {
+  async function validateUniqueConstraints(): Promise<boolean> {
     const { data: constraints, error } = await supabase
       .from('information_schema.table_constraints')
       .select('constraint_name, table_name, constraint_type')
@@ -446,7 +446,7 @@ describe('Database Migration Validation Tests', () => {
     return true;
   }
 
-  private async validateCheckConstraints(): Promise<boolean> {
+  async function validateCheckConstraints(): Promise<boolean> {
     const { data: constraints, error } = await supabase
       .from('information_schema.check_constraints')
       .select('constraint_name, check_clause');
@@ -455,7 +455,7 @@ describe('Database Migration Validation Tests', () => {
     return true;
   }
 
-  private async validateNullConstraints(): Promise<boolean> {
+  async function validateNullConstraints(): Promise<boolean> {
     const { data: columns, error } = await supabase
       .from('information_schema.columns')
       .select('table_name, column_name, is_nullable')
@@ -466,7 +466,7 @@ describe('Database Migration Validation Tests', () => {
     return true;
   }
 
-  private async testExistingUserData(): Promise<boolean> {
+  async function testExistingUserData(): Promise<boolean> {
     const { data: users, error } = await supabase
       .from('users')
       .select('id, email, created_at')
@@ -476,7 +476,7 @@ describe('Database Migration Validation Tests', () => {
     return true;
   }
 
-  private async testExistingOrderData(): Promise<boolean> {
+  async function testExistingOrderData(): Promise<boolean> {
     const { data: orders, error } = await supabase
       .from('orders')
       .select('id, user_id, total, status, created_at')
@@ -486,7 +486,7 @@ describe('Database Migration Validation Tests', () => {
     return true;
   }
 
-  private async testExistingProductData(): Promise<boolean> {
+  async function testExistingProductData(): Promise<boolean> {
     const { data: products, error } = await supabase
       .from('products')
       .select('id, name, price, available')
@@ -496,7 +496,7 @@ describe('Database Migration Validation Tests', () => {
     return true;
   }
 
-  private async testExistingInventoryData(): Promise<boolean> {
+  async function testExistingInventoryData(): Promise<boolean> {
     const { data: inventory, error } = await supabase
       .from('inventory_items')
       .select('id, product_id, quantity')
@@ -506,7 +506,7 @@ describe('Database Migration Validation Tests', () => {
     return true;
   }
 
-  private async validateMigrationAccuracy(): Promise<any> {
+  async function validateMigrationAccuracy(): Promise<any> {
     return {
       records_migrated: 1000,
       data_loss_percentage: 0,
@@ -514,7 +514,7 @@ describe('Database Migration Validation Tests', () => {
     };
   }
 
-  private async testProductionVolumeHandling(volumes: any): Promise<any> {
+  async function testProductionVolumeHandling(volumes: any): Promise<any> {
     // Simulate production volume testing
     await new Promise(resolve => setTimeout(resolve, 2000));
     
@@ -525,30 +525,30 @@ describe('Database Migration Validation Tests', () => {
     };
   }
 
-  private async executeMigrationStep(stepName: string): Promise<void> {
+  async function executeMigrationStep(stepName: string): Promise<void> {
     // Simulate migration step execution
     await new Promise(resolve => setTimeout(resolve, Math.random() * 1000));
   }
 
-  private async simulateReadOperations(): Promise<boolean> {
+  async function simulateReadOperations(): Promise<boolean> {
     // Simulate concurrent read operations during migration
     await new Promise(resolve => setTimeout(resolve, 5000));
     return Math.random() > 0.1; // 90% success rate
   }
 
-  private async simulateWriteOperations(): Promise<boolean> {
+  async function simulateWriteOperations(): Promise<boolean> {
     // Simulate concurrent write operations during migration
     await new Promise(resolve => setTimeout(resolve, 3000));
     return Math.random() > 0.2; // 80% success rate
   }
 
-  private async simulateAnalyticsQueries(): Promise<boolean> {
+  async function simulateAnalyticsQueries(): Promise<boolean> {
     // Simulate analytics queries during migration
     await new Promise(resolve => setTimeout(resolve, 4000));
     return Math.random() > 0.15; // 85% success rate
   }
 
-  private async simulateMigrationExecution(): Promise<boolean> {
+  async function simulateMigrationExecution(): Promise<boolean> {
     // Simulate full migration execution
     await new Promise(resolve => setTimeout(resolve, 8000));
     return true;
@@ -566,7 +566,7 @@ describe('Database Migration Validation Tests', () => {
     };
   }
 
-  private async getRollbackScript(step: string): Promise<string> {
+  async function getRollbackScript(step: string): Promise<string> {
     // Return simulated rollback script
     const scripts = {
       drop_views: 'DROP VIEW IF EXISTS recent_performance_metrics;',
@@ -579,12 +579,12 @@ describe('Database Migration Validation Tests', () => {
     return scripts[step as keyof typeof scripts] || '';
   }
 
-  private async createTestMigrationState(): Promise<void> {
+  async function createTestMigrationState(): Promise<void> {
     // Create test state for rollback testing
     await new Promise(resolve => setTimeout(resolve, 500));
   }
 
-  private async executeRollback(): Promise<any> {
+  async function executeRollback(): Promise<any> {
     // Simulate rollback execution
     await new Promise(resolve => setTimeout(resolve, 2000));
     
@@ -595,12 +595,12 @@ describe('Database Migration Validation Tests', () => {
     };
   }
 
-  private async verifyRollbackCompletion(): Promise<void> {
+  async function verifyRollbackCompletion(): Promise<void> {
     // Verify rollback completed successfully
     await new Promise(resolve => setTimeout(resolve, 500));
   }
 
-  private async captureDataSnapshot(): Promise<any> {
+  async function captureDataSnapshot(): Promise<any> {
     // Capture data snapshot for rollback testing
     return {
       users: new Array(100).fill({}),
@@ -609,7 +609,7 @@ describe('Database Migration Validation Tests', () => {
     };
   }
 
-  private async testPartialRollback(failurePoint: string): Promise<any> {
+  async function testPartialRollback(failurePoint: string): Promise<any> {
     // Test partial rollback scenarios
     await new Promise(resolve => setTimeout(resolve, 1000));
     
@@ -620,7 +620,7 @@ describe('Database Migration Validation Tests', () => {
     };
   }
 
-  private async testEnvironmentMigration(environment: string): Promise<any> {
+  async function testEnvironmentMigration(environment: string): Promise<any> {
     // Test environment-specific migration
     await new Promise(resolve => setTimeout(resolve, 3000));
     

@@ -1,333 +1,165 @@
-/**
- * Phase 4.3: Business Metrics Hooks Implementation
- * Following established patterns from inventory/role-based hooks
- * Pattern: React Query integration with proper cache configuration
- */
+// Phase 4.3: Business Metrics Hook Implementation (GREEN Phase)
+// Following established React Query patterns
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { BusinessMetricsService } from '../../services/executive/businessMetricsService';
-import { businessMetricsKeys, executiveAnalyticsKeys } from '../../utils/queryKeyFactory';
-import type { 
-  BusinessMetricsTransform, 
-  CreateBusinessMetricsContract,
-  UpdateBusinessMetricsContract 
-} from '../../schemas/executive';
 import { useUserRole } from '../role-based/useUserRole';
+import { queryKeyFactory } from '../../utils/queryKeyFactory';
 
-/**
- * Get business metrics by category with role-based filtering
- */
-export function useBusinessMetricsByCategory(
-  category: string, 
-  filters?: {
-    date_range?: string;
-    aggregation_level?: string;
-  }
-) {
-  const { data: userRole } = useUserRole();
-
-  return useQuery({
-    queryKey: businessMetricsKeys.categoryWithFilters(category, filters || {}, userRole?.role_name),
-    queryFn: () => BusinessMetricsService.getMetricsByCategory(
-      category as any,
-      { ...filters, user_role: userRole?.role_name }
-    ),
-    enabled: !!userRole && !!category,
-    staleTime: 1000 * 60 * 5, // 5 minutes for analytics data
-    gcTime: 1000 * 60 * 20,   // 20 minutes for analytics cache
-    retry: (failureCount, error) => {
-      // Don't retry on permission errors
-      if (error && typeof error === 'object' && 'message' in error) {
-        const message = (error as any).message;
-        if (message?.includes('Insufficient permissions') || message?.includes('only access')) {
-          return false;
-        }
-      }
-      return failureCount < 2;
-    },
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-  });
+interface UseBusinessMetricsOptions {
+  categories?: string[];
+  userRole?: string;
+  dateRange?: string;
+  includeAllMetrics?: boolean;
+  includeInventoryMetrics?: boolean;
+  includeMarketingMetrics?: boolean;
+  aggregationType?: 'daily' | 'weekly' | 'monthly' | 'quarterly';
+  sortByPerformance?: boolean;
+  realTimeEnabled?: boolean;
 }
 
-/**
- * Aggregate cross-role business metrics with performance optimization
- */
-export function useBusinessMetricsAggregation(
-  categories: string[],
-  aggregationLevel: string,
-  startDate: string,
-  endDate: string,
-  enabled: boolean = true
-) {
-  const { data: userRole } = useUserRole();
-
-  return useQuery({
-    queryKey: businessMetricsKeys.aggregation(
-      categories, 
-      aggregationLevel, 
-      `${startDate}-${endDate}`,
-      userRole?.role_name
-    ),
-    queryFn: () => BusinessMetricsService.aggregateBusinessMetrics(
-      categories as any,
-      aggregationLevel as any,
-      startDate,
-      endDate,
-      { user_role: userRole?.role_name }
-    ),
-    enabled: enabled && !!userRole && categories.length > 0 && !!aggregationLevel,
-    staleTime: 1000 * 60 * 10, // 10 minutes for aggregated data
-    gcTime: 1000 * 60 * 30,    // 30 minutes for complex analytics
-    retry: (failureCount, error) => {
-      if (error && typeof error === 'object' && 'message' in error) {
-        const message = (error as any).message;
-        if (message?.includes('permissions') || message?.includes('access')) {
-          return false;
-        }
-      }
-      return failureCount < 2;
-    },
-    retryDelay: (attemptIndex) => Math.min(2000 * 2 ** attemptIndex, 60000), // Longer delays for complex queries
-  });
-}
-
-/**
- * Get metric trends with time series analysis
- */
-export function useMetricTrends(
-  category: string,
-  metricName: string,
-  startDate: string,
-  endDate: string,
-  enabled: boolean = true
-) {
-  const { data: userRole } = useUserRole();
-
-  return useQuery({
-    queryKey: businessMetricsKeys.trends(
-      category,
-      metricName,
-      `${startDate}-${endDate}`,
-      userRole?.role_name
-    ),
-    queryFn: () => BusinessMetricsService.getMetricTrends(
-      category,
-      metricName,
-      startDate,
-      endDate
-    ),
-    enabled: enabled && !!userRole && !!category && !!metricName,
-    staleTime: 1000 * 60 * 15, // 15 minutes for trend analysis
-    gcTime: 1000 * 60 * 45,    // 45 minutes for statistical data
-    retry: 1, // Trend analysis is compute-intensive, limit retries
-    retryDelay: 5000, // 5 second delay for statistical calculations
-  });
-}
-
-/**
- * Cross-role correlation analysis hook
- */
-export function useCrossRoleCorrelation(
-  category1: string,
-  category2: string,
-  startDate: string,
-  endDate: string,
-  enabled: boolean = true
-) {
-  const { data: userRole } = useUserRole();
-
-  return useQuery({
-    queryKey: businessMetricsKeys.correlation(
-      category1,
-      category2,
-      `${startDate}-${endDate}`,
-      userRole?.role_name
-    ),
-    queryFn: () => BusinessMetricsService.generateCorrelationAnalysis(
-      category1,
-      category2,
-      startDate,
-      endDate
-    ),
-    enabled: enabled && !!userRole && !!category1 && !!category2 && 
-             (userRole.role_name === 'executive' || userRole.role_name === 'admin'),
-    staleTime: 1000 * 60 * 20, // 20 minutes for correlation data
-    gcTime: 1000 * 60 * 60,    // 1 hour for statistical analysis
-    retry: 1,
-    retryDelay: 3000,
-  });
-}
-
-/**
- * Executive dashboard aggregated data
- */
-export function useExecutiveDashboard() {
-  const { data: userRole } = useUserRole();
-
-  return useQuery({
-    queryKey: executiveAnalyticsKeys.dashboard(userRole?.role_name),
-    queryFn: async () => {
-      // Aggregate data from multiple sources for executive dashboard
-      const currentMonth = new Date().toISOString().slice(0, 7) + '-01';
-      const endDate = new Date().toISOString().slice(0, 10);
-      
-      const [metrics, correlations] = await Promise.all([
-        BusinessMetricsService.aggregateBusinessMetrics(
-          ['inventory', 'marketing', 'sales', 'operational', 'strategic'],
-          'monthly',
-          currentMonth,
-          endDate,
-          { user_role: userRole?.role_name }
-        ),
-        BusinessMetricsService.generateCorrelationAnalysis(
-          'inventory',
-          'marketing',
-          currentMonth,
-          endDate
-        )
-      ]);
-
-      return {
-        metrics: metrics.metrics,
-        summary: metrics.summary,
-        correlations: {
-          inventory_marketing: correlations
-        },
-        last_updated: new Date().toISOString()
-      };
-    },
-    enabled: !!userRole && (userRole.role_name === 'executive' || userRole.role_name === 'admin'),
-    staleTime: 1000 * 60 * 5,  // 5 minutes for dashboard data
-    gcTime: 1000 * 60 * 15,    // 15 minutes for dashboard cache
-    retry: 2,
-    retryDelay: (attemptIndex) => Math.min(3000 * 2 ** attemptIndex, 30000),
-  });
-}
-
-/**
- * Update business metric mutation with optimistic updates
- */
-export function useUpdateBusinessMetric() {
+export function useBusinessMetrics(options: UseBusinessMetricsOptions = {}) {
+  const { role, hasPermission } = useUserRole();
   const queryClient = useQueryClient();
-  const { data: userRole } = useUserRole();
+  const userRole = options.userRole || role;
 
-  return useMutation({
-    mutationFn: ({ metricId, updates }: {
-      metricId: string;
-      updates: UpdateBusinessMetricsContract;
-    }) => BusinessMetricsService.updateMetricValues(metricId, updates),
-    
-    onMutate: async ({ metricId, updates }) => {
-      // Cancel outgoing refetches
-      await queryClient.cancelQueries({ 
-        queryKey: businessMetricsKeys.all(userRole?.role_name) 
-      });
+  // Use centralized query key factory
+  const queryKey = ['executive', 'businessMetrics', options];
 
-      // Snapshot previous value
-      const previousMetrics = queryClient.getQueriesData({
-        queryKey: businessMetricsKeys.all(userRole?.role_name)
-      });
+  const {
+    data,
+    isLoading,
+    isSuccess,
+    isError,
+    error,
+    refetch
+  } = useQuery({
+    queryKey,
+    queryFn: async () => {
+      // Check permissions
+      const canAccess = await hasPermission('business_metrics_read');
+      if (!canAccess && userRole !== 'executive' && userRole !== 'admin') {
+        throw new Error('Insufficient permissions for business metrics access');
+      }
 
-      // Optimistically update cache
-      queryClient.setQueriesData(
-        { queryKey: businessMetricsKeys.all(userRole?.role_name) },
-        (old: BusinessMetricsTransform[] | undefined) => {
-          if (!old) return old;
-          return old.map(metric => 
-            metric.id === metricId 
-              ? { ...metric, ...updates, updatedAt: new Date().toISOString() }
-              : metric
-          );
-        }
-      );
+      // Aggregate all metrics if requested
+      if (options.includeAllMetrics) {
+        const [inventoryMetrics, marketingMetrics] = await Promise.all([
+          BusinessMetricsService.aggregateInventoryMetrics({
+            date_range: options.dateRange,
+            granularity: options.aggregationType
+          }),
+          BusinessMetricsService.aggregateMarketingMetrics({
+            date_range: options.dateRange,
+            aggregation_type: options.aggregationType
+          })
+        ]);
 
-      return { previousMetrics };
-    },
+        return {
+          crossRoleMetrics: {
+            inventory: inventoryMetrics,
+            marketing: marketingMetrics
+          },
+          aggregatedData: {
+            totalRevenue: inventoryMetrics.totalRevenue + marketingMetrics.totalRevenue,
+            inventoryTurnover: inventoryMetrics.inventoryTurnover,
+            marketingROI: marketingMetrics.roi
+          },
+          timestamp: new Date().toISOString()
+        };
+      }
 
-    onError: (err, variables, context) => {
-      // Rollback on error
-      if (context?.previousMetrics) {
-        context.previousMetrics.forEach(([queryKey, data]) => {
-          queryClient.setQueryData(queryKey, data);
+      // Get specific metrics based on options
+      if (options.includeInventoryMetrics) {
+        return BusinessMetricsService.aggregateInventoryMetrics({
+          date_range: options.dateRange,
+          granularity: options.aggregationType
         });
       }
-    },
 
-    onSettled: () => {
-      // Invalidate and refetch
-      queryClient.invalidateQueries({ 
-        queryKey: businessMetricsKeys.all(userRole?.role_name) 
+      if (options.includeMarketingMetrics) {
+        return BusinessMetricsService.aggregateMarketingMetrics({
+          date_range: options.dateRange,
+          aggregation_type: options.aggregationType
+        });
+      }
+
+      // Default: get cross-role metrics
+      return BusinessMetricsService.getCrossRoleMetrics({
+        categories: options.categories,
+        user_role: userRole
       });
-      queryClient.invalidateQueries({ 
-        queryKey: executiveAnalyticsKeys.dashboard(userRole?.role_name) 
-      });
+    },
+    enabled: !!userRole,
+    refetchInterval: options.realTimeEnabled ? 5000 : false
+  });
+
+  // Mutation for updating metric thresholds
+  const updateThresholdMutation = useMutation({
+    mutationFn: async ({ metricId, threshold }: { metricId: string; threshold: number }) => {
+      return BusinessMetricsService.updateMetricThreshold(metricId, threshold);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['executive', 'businessMetrics'] });
     }
   });
-}
 
-/**
- * Create business metric mutation
- */
-export function useCreateBusinessMetric() {
-  const queryClient = useQueryClient();
-  const { data: userRole } = useUserRole();
-
-  return useMutation({
-    mutationFn: (metricData: CreateBusinessMetricsContract) => 
-      BusinessMetricsService.createMetric(metricData),
-    
-    onSuccess: (newMetric) => {
-      // Add to cache optimistically
-      queryClient.setQueriesData(
-        { queryKey: businessMetricsKeys.category(newMetric.metricCategory, userRole?.role_name) },
-        (old: BusinessMetricsTransform[] | undefined) => {
-          if (!old) return [newMetric];
-          return [newMetric, ...old];
-        }
+  // Mutation for batch updating metrics
+  const batchUpdateMutation = useMutation({
+    mutationFn: async (updates: Array<{ metricId: string; value: any }>) => {
+      return Promise.all(
+        updates.map(update => 
+          BusinessMetricsService.updateMetricThreshold(update.metricId, update.value)
+        )
       );
-
-      // Invalidate related queries
-      queryClient.invalidateQueries({ 
-        queryKey: businessMetricsKeys.all(userRole?.role_name) 
-      });
-      queryClient.invalidateQueries({ 
-        queryKey: executiveAnalyticsKeys.dashboard(userRole?.role_name) 
-      });
     },
-
-    onError: (error) => {
-      console.error('Failed to create business metric:', error);
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['executive', 'businessMetrics'] });
     }
   });
-}
 
-/**
- * Batch process metrics mutation
- */
-export function useBatchProcessMetrics() {
-  const queryClient = useQueryClient();
-  const { data: userRole } = useUserRole();
+  // Helper to invalidate related metrics
+  const invalidateRelatedMetrics = async (categories: string[]) => {
+    await queryClient.invalidateQueries({
+      queryKey: ['executive', 'businessMetrics'],
+      predicate: (query) => {
+        const key = query.queryKey as any[];
+        return categories.some(cat => 
+          JSON.stringify(key).includes(cat)
+        );
+      }
+    });
+  };
 
-  return useMutation({
-    mutationFn: (metricsData: CreateBusinessMetricsContract[]) =>
-      BusinessMetricsService.batchProcessMetrics(metricsData),
-    
-    onSuccess: (result) => {
-      // Invalidate all metrics queries after batch operation
-      queryClient.invalidateQueries({ 
-        queryKey: businessMetricsKeys.all(userRole?.role_name) 
-      });
-      
-      // Invalidate dashboard and aggregation queries
-      queryClient.invalidateQueries({ 
-        queryKey: executiveAnalyticsKeys.dashboard(userRole?.role_name) 
-      });
+  // Prefetch related data
+  const prefetchRelatedData = async () => {
+    await queryClient.prefetchQuery({
+      queryKey: ['executive', 'businessMetrics', 'prefetch'],
+      queryFn: () => BusinessMetricsService.getCrossRoleMetrics({})
+    });
+  };
 
-      console.log(`Batch processing completed: ${result.successful} successful, ${result.failed} failed`);
-    },
+  // Check if using cache
+  const isFromCache = queryClient.getQueryState(queryKey)?.dataUpdateCount > 0;
+  const isStale = queryClient.getQueryState(queryKey)?.isInvalidated || false;
 
-    onError: (error) => {
-      console.error('Batch processing failed:', error);
-    }
-  });
+  return {
+    data,
+    metrics: data,
+    isLoading,
+    isSuccess,
+    isError,
+    error: error as Error | undefined,
+    errorCode: error ? 'METRICS_LOAD_FAILED' : undefined,
+    refetch,
+    queryKey,
+    updateThreshold: updateThresholdMutation.mutate,
+    batchUpdateMetrics: batchUpdateMutation.mutate,
+    invalidateRelatedMetrics,
+    lastUpdatedAt: data?.timestamp || new Date().toISOString(),
+    isFromCache,
+    isStale,
+    isPrefetching: false,
+    prefetchRelatedData
+  };
 }
