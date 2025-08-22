@@ -42,6 +42,18 @@ export function useBusinessMetrics(options: UseBusinessMetricsOptions = {}) {
         throw new Error('Insufficient permissions for business metrics access');
       }
 
+      // Use aggregateBusinessMetrics when categories and date range are provided
+      if (options.categories && options.categories.length > 0 && options.dateRange) {
+        const dates = options.dateRange.split(',');
+        return BusinessMetricsService.aggregateBusinessMetrics(
+          options.categories as any,
+          options.aggregationType || 'daily',
+          dates[0],
+          dates[1] || dates[0],
+          { user_role: userRole }
+        );
+      }
+
       // Aggregate all metrics if requested
       if (options.includeAllMetrics) {
         const [inventoryMetrics, marketingMetrics] = await Promise.all([
@@ -84,7 +96,18 @@ export function useBusinessMetrics(options: UseBusinessMetricsOptions = {}) {
         });
       }
 
-      // Default: get cross-role metrics
+      // Default: get cross-role metrics or aggregateBusinessMetrics
+      if (options.realTimeEnabled && !options.categories) {
+        // For real-time updates without specific categories, return basic metrics
+        return BusinessMetricsService.aggregateBusinessMetrics(
+          ['revenue', 'inventory'] as any,
+          'daily',
+          new Date().toISOString().split('T')[0],
+          new Date().toISOString().split('T')[0],
+          { user_role: userRole }
+        );
+      }
+
       return BusinessMetricsService.getCrossRoleMetrics({
         categories: options.categories,
         user_role: userRole

@@ -32,11 +32,19 @@ export class BusinessIntelligenceService {
   }
   /**
    * Generate automated insights with confidence scoring
+   * Overloaded to accept both signatures for compatibility
    */
   static async generateInsights(
-    insightType: 'correlation' | 'trend' | 'anomaly' | 'recommendation',
-    startDate: string,
-    endDate: string,
+    insightTypeOrOptions: 'correlation' | 'trend' | 'anomaly' | 'recommendation' | {
+      insight_type?: 'correlation' | 'trend' | 'anomaly' | 'recommendation';
+      date_range?: string;
+      min_confidence?: number;
+      include_recommendations?: boolean;
+      include_statistical_validation?: boolean;
+      data_sources?: string[];
+    },
+    startDate?: string,
+    endDate?: string,
     options?: {
       minConfidence?: number;
       includeStatisticalValidation?: boolean;
@@ -53,6 +61,28 @@ export class BusinessIntelligenceService {
     };
   }> {
     try {
+      // Handle both function signatures
+      let insightType: string;
+      let dateStart: string;
+      let dateEnd: string;
+      let minConfidence: number;
+      
+      if (typeof insightTypeOrOptions === 'object') {
+        // Options object signature (from hooks)
+        insightType = insightTypeOrOptions.insight_type || 'trend';
+        const dateRange = insightTypeOrOptions.date_range || '';
+        const dates = dateRange.split(',');
+        dateStart = dates[0] || new Date().toISOString().split('T')[0];
+        dateEnd = dates[1] || dateStart;
+        minConfidence = insightTypeOrOptions.min_confidence || 0.7;
+      } else {
+        // Original signature (from tests)
+        insightType = insightTypeOrOptions;
+        dateStart = startDate!;
+        dateEnd = endDate!;
+        minConfidence = options?.minConfidence || 0.7;
+      }
+
       // Role permission check if user_role provided
       if (options?.user_role) {
         const hasPermission = await RolePermissionService.hasPermission(
@@ -69,11 +99,11 @@ export class BusinessIntelligenceService {
         .from('business_insights')
         .select('*')
         .eq('insight_type', insightType)
-        .gte('insight_date_range', `[${startDate},${endDate})`)
+        .gte('insight_date_range', `[${dateStart},${dateEnd})`)
         .eq('is_active', true);
 
-      if (options?.minConfidence) {
-        query = query.gte('confidence_score', options.minConfidence);
+      if (minConfidence) {
+        query = query.gte('confidence_score', minConfidence);
       }
 
       const { data: rawInsights, error } = await query.order('confidence_score', { ascending: false });
