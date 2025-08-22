@@ -89,7 +89,7 @@ const RawDbUserSchema = z.object({
   raw_user_meta_data: z.object({
     role: z.string().optional()
   }).nullable().optional()
-  
+});
 
 // ✅ PATTERN: Transformation Schema Architecture - DB → App format conversion
 
