@@ -23,9 +23,6 @@ const createRoleError = (
 export function useUserRole(userId?: string) {
   const { data: currentUser } = useCurrentUser();
   
-  // Determine the actual user ID to fetch (parameter or current user)
-  const targetUserId = userId || currentUser?.id;
-  
   // Enhanced authentication guard (Pattern 4: Error Recovery & User Experience)
   if (!userId && !currentUser?.id) {
     const authError = createRoleError(
@@ -43,6 +40,9 @@ export function useUserRole(userId?: string) {
       refetch: () => Promise.resolve({ data: null } as any),
     };
   }
+  
+  // Determine the actual user ID to fetch (parameter or current user)
+  const targetUserId = userId || currentUser?.id;
   
   const queryKey = roleKeys.user(targetUserId || '');
   

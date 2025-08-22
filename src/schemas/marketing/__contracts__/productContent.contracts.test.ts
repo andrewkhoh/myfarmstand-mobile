@@ -119,9 +119,15 @@ describe('Product Content Schema Contracts - Phase 3.1', () => {
       const result = ProductContentDatabaseSchema.safeParse({
         id: 'test-id',
         product_id: 'product-123',
+        marketing_title: null,
+        marketing_description: null,
+        marketing_highlights: null,
+        seo_keywords: null,
         featured_image_url: url,
         gallery_urls: [url],
         content_status: 'draft',
+        content_priority: 1,
+        last_updated_by: null,
         created_at: '2024-01-01T00:00:00Z',
         updated_at: '2024-01-01T00:00:00Z'
       });
@@ -137,8 +143,15 @@ describe('Product Content Schema Contracts - Phase 3.1', () => {
       const result = ProductContentDatabaseSchema.safeParse({
         id: 'test-id',
         product_id: 'product-123',
+        marketing_title: null,
+        marketing_description: null,
+        marketing_highlights: null,
+        seo_keywords: null,
+        featured_image_url: null,
+        gallery_urls: null,
         content_status: 'draft',
         content_priority: priority,
+        last_updated_by: null,
         created_at: '2024-01-01T00:00:00Z',
         updated_at: '2024-01-01T00:00:00Z'
       });
@@ -151,8 +164,15 @@ describe('Product Content Schema Contracts - Phase 3.1', () => {
       const result = ProductContentDatabaseSchema.safeParse({
         id: 'test-id',
         product_id: 'product-123',
+        marketing_title: null,
+        marketing_description: null,
+        marketing_highlights: null,
+        seo_keywords: null,
+        featured_image_url: null,
+        gallery_urls: null,
         content_status: 'draft',
         content_priority: priority,
+        last_updated_by: null,
         created_at: '2024-01-01T00:00:00Z',
         updated_at: '2024-01-01T00:00:00Z'
       });
@@ -260,14 +280,19 @@ describe('Product Content Schema Contracts - Phase 3.1', () => {
     const validArrays = {
       id: 'test-id',
       product_id: 'product-123',
+      marketing_title: null,
+      marketing_description: null,
       marketing_highlights: ['Fresh', 'Organic', 'Local', 'Sustainable'],
       seo_keywords: ['fresh', 'organic', 'local', 'vegetables'],
+      featured_image_url: null,
       gallery_urls: [
         'https://example.com/image1.jpg',
         'https://example.com/image2.jpg',
         'https://example.com/image3.jpg'
       ],
       content_status: 'draft' as const,
+      content_priority: 1,
+      last_updated_by: null,
       created_at: '2024-01-01T00:00:00Z',
       updated_at: '2024-01-01T00:00:00Z'
     };

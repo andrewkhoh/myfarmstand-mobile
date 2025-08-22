@@ -3,7 +3,7 @@ import { useCallback } from 'react';
 import { cartService } from '../services/cartService';
 import { useCurrentUser } from './useAuth';
 import type { Product, CartState, CartItem } from '../types';
-import { cartKeys } from '../utils/queryKeyFactory';
+import { cartKeys, stockKeys, orderKeys } from '../utils/queryKeyFactory';
 import { cartBroadcast } from '../utils/broadcastFactory';
 
 // Enhanced TypeScript interfaces for cart operations
@@ -61,11 +61,11 @@ const createCartError = (
   ...metadata,
 });
 
-// Enhanced invalidation strategy
+// Enhanced invalidation strategy using centralized factories
 const getRelatedQueryKeys = (userId: string) => [
   cartKeys.all(userId),
-  ['stock'], // Invalidate stock validation cache (not full products)
-  ['orders'], // Invalidate order history that might be affected
+  stockKeys.all(userId), // Invalidate stock validation cache (not full products)
+  orderKeys.all(userId), // Invalidate order history that might be affected
 ];
 
 export const useCart = () => {

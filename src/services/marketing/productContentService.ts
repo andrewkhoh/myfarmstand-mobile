@@ -6,9 +6,13 @@ import { supabase } from '../../config/supabase';
 import { ValidationMonitor } from '../../utils/validationMonitor';
 import { RolePermissionService } from '../role-based/rolePermissionService';
 import { MarketingErrorMessageService } from '../../utils/marketingErrorMessages';
+import { contentKeys, marketingKeys } from '../../utils/queryKeyFactory';
+import { queryClient } from '../../config/queryClient';
 import { 
   ProductContentTransformSchema,
   ContentWorkflowHelpers,
+  toSnakeCaseDbFormat,
+  toCreateDbFormat,
   type ProductContentTransform,
   type CreateProductContentInput,
   type UpdateProductContentInput,
@@ -44,19 +48,7 @@ interface PaginatedResponse<T> {
   limit: number;
 }
 
-// File upload types
-interface FileUpload {
-  name: string;
-  size: number;
-  type: string;
-  buffer: Buffer;
-}
-
-interface UploadProgress {
-  uploadedBytes: number;
-  totalBytes: number;
-  percentage: number;
-}
+// File upload types imported from schema (following architectural patterns)
 
 // Batch operation types
 interface BatchUpdateItem {
@@ -98,7 +90,7 @@ export class ProductContentService {
         ValidationMonitor.recordValidationError({
           context: 'ProductContentService.createProductContent',
           errorCode: 'INSUFFICIENT_PERMISSIONS',
-          validationPattern: 'transformation_schema',
+          validationPattern: 'content_transformation_schema',
           errorMessage: 'Insufficient permissions for content creation'
         });
         
@@ -109,26 +101,13 @@ export class ProductContentService {
         };
       }
 
-      // Transform to database format
-      const dbData = {
-        product_id: contentData.productId,
-        marketing_title: contentData.marketingTitle || null,
-        marketing_description: contentData.marketingDescription || null,
-        marketing_highlights: contentData.marketingHighlights || null,
-        seo_keywords: contentData.seoKeywords || null,
-        featured_image_url: contentData.featuredImageUrl || null,
-        gallery_urls: contentData.galleryUrls || null,
-        content_status: contentData.contentStatus || 'draft',
-        content_priority: contentData.contentPriority || 1,
-        last_updated_by: userId,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
+      // Transform to database format using utility (following architectural patterns)
+      const dbData = toCreateDbFormat(contentData, userId);
 
       const { data, error } = await supabase
         .from('product_content')
         .insert(dbData)
-        .select()
+        .select('id, product_id, marketing_title, marketing_description, marketing_highlights, seo_keywords, featured_image_url, gallery_urls, content_status, content_priority, last_updated_by, created_at, updated_at')
         .single();
 
       if (error || !data) {
@@ -141,7 +120,7 @@ export class ProductContentService {
         ValidationMonitor.recordValidationError({
           context: 'ProductContentService.createProductContent',
           errorCode: 'CONTENT_CREATION_FAILED',
-          validationPattern: 'transformation_schema',
+          validationPattern: 'content_transformation_schema',
           errorMessage: error?.message || 'Failed to create content'
         });
         
@@ -161,6 +140,14 @@ export class ProductContentService {
         operation: 'createProductContent'
       });
 
+      // Invalidate content cache after successful creation
+      await queryClient.invalidateQueries({ 
+        queryKey: contentKeys.lists(userId) 
+      });
+      await queryClient.invalidateQueries({ 
+        queryKey: contentKeys.byProduct(transformedContent.productId, userId) 
+      });
+
       return { success: true, data: transformedContent };
 
     } catch (error) {
@@ -169,7 +156,7 @@ export class ProductContentService {
       ValidationMonitor.recordValidationError({
         context: 'ProductContentService.createProductContent',
         errorCode: 'CONTENT_CREATION_FAILED',
-        validationPattern: 'transformation_schema',
+        validationPattern: 'content_transformation_schema',
         errorMessage
       });
 
@@ -195,7 +182,7 @@ export class ProductContentService {
           ValidationMonitor.recordValidationError({
             context: 'ProductContentService.getProductContent',
             errorCode: 'INSUFFICIENT_PERMISSIONS',
-            validationPattern: 'transformation_schema',
+            validationPattern: 'content_transformation_schema',
             errorMessage: 'Insufficient permissions for content access'
           });
           return { success: false, error: 'Insufficient permissions for content access' };
@@ -214,7 +201,7 @@ export class ProductContentService {
         ValidationMonitor.recordValidationError({
           context: 'ProductContentService.getProductContent',
           errorCode: 'CONTENT_FETCH_FAILED',
-          validationPattern: 'transformation_schema',
+          validationPattern: 'content_transformation_schema',
           errorMessage
         });
         
@@ -238,7 +225,7 @@ export class ProductContentService {
       ValidationMonitor.recordValidationError({
         context: 'ProductContentService.getProductContent',
         errorCode: 'CONTENT_FETCH_FAILED',
-        validationPattern: 'transformation_schema',
+        validationPattern: 'content_transformation_schema',
         errorMessage
       });
 
@@ -264,7 +251,7 @@ export class ProductContentService {
         ValidationMonitor.recordValidationError({
           context: 'ProductContentService.updateProductContent',
           errorCode: 'INSUFFICIENT_PERMISSIONS',
-          validationPattern: 'transformation_schema',
+          validationPattern: 'content_transformation_schema',
           errorMessage: 'Insufficient permissions for content management'
         });
         return { success: false, error: 'Insufficient permissions for content management' };
@@ -287,7 +274,7 @@ export class ProductContentService {
           ValidationMonitor.recordValidationError({
             context: 'ProductContentService.updateProductContent',
             errorCode: 'INVALID_STATUS_TRANSITION',
-            validationPattern: 'transformation_schema',
+            validationPattern: 'content_transformation_schema',
             errorMessage: `Invalid content status transition from ${currentResult.data.contentStatus} to ${updateData.contentStatus}`
           });
           return { 
@@ -303,7 +290,7 @@ export class ProductContentService {
             ValidationMonitor.recordValidationError({
               context: 'ProductContentService.updateProductContent',
               errorCode: 'CONTENT_NOT_PUBLISHABLE',
-              validationPattern: 'transformation_schema',
+              validationPattern: 'content_transformation_schema',
               errorMessage: 'Content is not ready for publishing. Marketing title is required.'
             });
             return { success: false, error: 'Content is not ready for publishing. Marketing title is required.' };
@@ -311,32 +298,21 @@ export class ProductContentService {
         }
       }
 
-      // Prepare update data (convert camelCase to snake_case)
-      const dbUpdateData: any = {
-        ...(updateData.marketingTitle !== undefined && { marketing_title: updateData.marketingTitle }),
-        ...(updateData.marketingDescription !== undefined && { marketing_description: updateData.marketingDescription }),
-        ...(updateData.marketingHighlights !== undefined && { marketing_highlights: updateData.marketingHighlights }),
-        ...(updateData.seoKeywords !== undefined && { seo_keywords: updateData.seoKeywords }),
-        ...(updateData.featuredImageUrl !== undefined && { featured_image_url: updateData.featuredImageUrl }),
-        ...(updateData.galleryUrls !== undefined && { gallery_urls: updateData.galleryUrls }),
-        ...(updateData.contentStatus !== undefined && { content_status: updateData.contentStatus }),
-        ...(updateData.contentPriority !== undefined && { content_priority: updateData.contentPriority }),
-        last_updated_by: userId,
-        updated_at: new Date().toISOString()
-      };
+      // Prepare update data using utility (following architectural patterns)
+      const dbUpdateData = toSnakeCaseDbFormat(updateData, userId);
 
       const { data, error } = await supabase
         .from('product_content')
         .update(dbUpdateData)
         .eq('id', contentId)
-        .select()
+        .select('id, product_id, marketing_title, marketing_description, marketing_highlights, seo_keywords, featured_image_url, gallery_urls, content_status, content_priority, last_updated_by, created_at, updated_at')
         .single();
 
       if (error || !data) {
         ValidationMonitor.recordValidationError({
           context: 'ProductContentService.updateProductContent',
           errorCode: 'CONTENT_UPDATE_FAILED',
-          validationPattern: 'transformation_schema',
+          validationPattern: 'content_transformation_schema',
           errorMessage: error?.message || 'Failed to update content'
         });
         return { success: false, error: error?.message || 'Failed to update content' };
@@ -359,7 +335,7 @@ export class ProductContentService {
       ValidationMonitor.recordValidationError({
         context: 'ProductContentService.updateProductContent',
         errorCode: 'CONTENT_UPDATE_FAILED',
-        validationPattern: 'transformation_schema',
+        validationPattern: 'content_transformation_schema',
         errorMessage
       });
 
@@ -490,7 +466,7 @@ export class ProductContentService {
         ValidationMonitor.recordValidationError({
           context: 'ProductContentService.updateContentStatus',
           errorCode: 'STATUS_UPDATE_FAILED',
-          validationPattern: 'transformation_schema',
+          validationPattern: 'content_transformation_schema',
           errorMessage: updateResult.error || 'Status update failed'
         });
       }
@@ -503,7 +479,7 @@ export class ProductContentService {
       ValidationMonitor.recordValidationError({
         context: 'ProductContentService.updateContentStatus',
         errorCode: 'STATUS_UPDATE_FAILED',
-        validationPattern: 'transformation_schema',
+        validationPattern: 'content_transformation_schema',
         errorMessage
       });
 
@@ -529,7 +505,7 @@ export class ProductContentService {
         ValidationMonitor.recordValidationError({
           context: 'ProductContentService.getContentByStatus',
           errorCode: 'INSUFFICIENT_PERMISSIONS',
-          validationPattern: 'transformation_schema',
+          validationPattern: 'content_transformation_schema',
           errorMessage: 'Insufficient permissions for content access'
         });
         return { success: false, error: 'Insufficient permissions for content access' };
@@ -555,7 +531,7 @@ export class ProductContentService {
         ValidationMonitor.recordValidationError({
           context: 'ProductContentService.getContentByStatus',
           errorCode: 'CONTENT_QUERY_FAILED',
-          validationPattern: 'transformation_schema',
+          validationPattern: 'content_transformation_schema',
           errorMessage: error.message
         });
         return { success: false, error: error.message };
@@ -591,7 +567,7 @@ export class ProductContentService {
       ValidationMonitor.recordValidationError({
         context: 'ProductContentService.getContentByStatus',
         errorCode: 'CONTENT_QUERY_FAILED',
-        validationPattern: 'transformation_schema',
+        validationPattern: 'content_transformation_schema',
         errorMessage
       });
 
@@ -674,7 +650,7 @@ export class ProductContentService {
       ValidationMonitor.recordValidationError({
         context: 'ProductContentService.batchUpdateContent',
         errorCode: 'BATCH_UPDATE_FAILED',
-        validationPattern: 'transformation_schema',
+        validationPattern: 'content_transformation_schema',
         errorMessage
       });
 
@@ -714,7 +690,7 @@ export class ProductContentService {
           ValidationMonitor.recordValidationError({
             context: 'ProductContentService.updateProductContentWithWorkflowValidation',
             errorCode: 'INVALID_WORKFLOW_TRANSITION',
-            validationPattern: 'transformation_schema',
+            validationPattern: 'content_transformation_schema',
             errorMessage: `Invalid workflow transition: ${currentContent.contentStatus} → ${updateData.contentStatus}`
           });
           return { 
@@ -731,7 +707,7 @@ export class ProductContentService {
             ValidationMonitor.recordValidationError({
               context: 'ProductContentService.updateProductContentWithWorkflowValidation',
               errorCode: 'INSUFFICIENT_WORKFLOW_PERMISSIONS',
-              validationPattern: 'transformation_schema',
+              validationPattern: 'content_transformation_schema',
               errorMessage: `Insufficient permissions for ${updateData.contentStatus} transition`
             });
             return { 
@@ -756,7 +732,7 @@ export class ProductContentService {
       ValidationMonitor.recordValidationError({
         context: 'ProductContentService.updateProductContentWithWorkflowValidation',
         errorCode: 'WORKFLOW_VALIDATION_FAILED',
-        validationPattern: 'transformation_schema',
+        validationPattern: 'content_transformation_schema',
         errorMessage
       });
 
@@ -767,100 +743,6 @@ export class ProductContentService {
   /**
    * File upload with progress tracking and content integration
    */
-  static async uploadContentImage(
-    contentId: string,
-    fileData: FileUpload,
-    userId: string
-  ): Promise<ServiceResponse<{ imageUrl: string; uploadProgress: UploadProgress }>> {
-    try {
-      // Validate permissions
-      const hasPermission = await RolePermissionService.hasPermission(userId, 'content_management');
-      if (!hasPermission) {
-        return { success: false, error: 'Insufficient permissions for file upload' };
-      }
-
-      // Validate file
-      const validationResult = this.validateFileUpload(fileData);
-      if (!validationResult.isValid) {
-        ValidationMonitor.recordValidationError({
-          context: 'ProductContentService.uploadContentImage',
-          errorCode: 'INVALID_FILE_UPLOAD',
-          validationPattern: 'transformation_schema',
-          errorMessage: validationResult.error || 'File validation failed'
-        });
-        return { success: false, error: validationResult.error || 'File validation failed' };
-      }
-
-      // Simulate upload process with progress
-      const fileName = `content-${contentId}-${Date.now()}-${fileData.name}`;
-      const uploadPath = `content-images/${fileName}`;
-
-      // Upload to Supabase storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('content-uploads')
-        .upload(uploadPath, fileData.buffer, {
-          contentType: fileData.type,
-          upsert: false
-        });
-
-      if (uploadError) {
-        ValidationMonitor.recordValidationError({
-          context: 'ProductContentService.uploadContentImage',
-          errorCode: 'FILE_UPLOAD_FAILED',
-          validationPattern: 'transformation_schema',
-          errorMessage: uploadError.message
-        });
-        return { success: false, error: uploadError.message };
-      }
-
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('content-uploads')
-        .getPublicUrl(uploadPath);
-
-      // Update content with image URL
-      const updateResult = await this.updateProductContent(
-        contentId,
-        { featuredImageUrl: publicUrl },
-        userId
-      );
-
-      if (!updateResult.success) {
-        return { success: false, error: 'Failed to update content with image URL' };
-      }
-
-      ValidationMonitor.recordPatternSuccess({
-        service: 'ProductContentService',
-        pattern: 'transformation_schema',
-        operation: 'uploadContentImage'
-      });
-
-      return {
-        success: true,
-        data: {
-          imageUrl: publicUrl,
-          uploadProgress: {
-            uploadedBytes: fileData.size,
-            totalBytes: fileData.size,
-            percentage: 100
-          }
-        }
-      };
-
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'File upload failed';
-      
-      ValidationMonitor.recordValidationError({
-        context: 'ProductContentService.uploadContentImage',
-        errorCode: 'FILE_UPLOAD_FAILED',
-        validationPattern: 'transformation_schema',
-        errorMessage
-      });
-
-      return { success: false, error: errorMessage };
-    }
-  }
-
   /**
    * Upload content image with progress tracking callback
    */

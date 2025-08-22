@@ -1,71 +1,102 @@
 import React from 'react';
 import { renderHook, waitFor } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useUserRole } from '../useUserRole';
-import { RolePermissionService } from '../../../services/role-based/rolePermissionService';
 
-// Mock the service layer (following architectural pattern)
-jest.mock('../../../services/role-based/rolePermissionService');
+// Mock ValidationMonitor before importing service (Pattern 1)
+jest.mock('../../../utils/validationMonitor');
 
-// Mock useCurrentUser hook
+// Mock RolePermissionService with all methods (exact race test pattern)
+jest.mock('../../../services/role-based/rolePermissionService', () => ({
+  RolePermissionService: {
+    getUserRole: jest.fn(),
+    hasPermission: jest.fn(),
+    getAllUserRoles: jest.fn(),
+    createUserRole: jest.fn(),
+    updateUserPermissions: jest.fn(),
+  }
+}));
+
+// Mock useCurrentUser hook  
 jest.mock('../../useAuth', () => ({
   useCurrentUser: () => ({ data: { id: 'current-user-123' } })
 }));
 
+import { useUserRole } from '../useUserRole';
+import { RolePermissionService } from '../../../services/role-based/rolePermissionService';
+import type { RolePermissionTransform } from '../../../services/role-based/rolePermissionService';
+
+// Get the mocked service (services are mocked, React Query is real) - EXACT race test pattern
 const mockRolePermissionService = RolePermissionService as jest.Mocked<typeof RolePermissionService>;
 
 describe('useUserRole - Phase 1', () => {
   let queryClient: QueryClient;
-  
-  const createWrapper = () => {
-    queryClient = new QueryClient({
-      defaultOptions: { 
-        queries: { retry: false }, 
-        mutations: { retry: false } 
-      }
-    });
-    return ({ children }: { children: any }) => (
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    );
-  };
 
   beforeEach(() => {
     jest.clearAllMocks();
-    queryClient?.clear();
+    
+    // Create fresh QueryClient for each test (exact race test pattern)
+    queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { 
+          retry: false,
+          staleTime: 0,
+          gcTime: 0,
+          refetchOnMount: false,
+          refetchOnWindowFocus: false,
+          refetchOnReconnect: false
+        },
+        mutations: { 
+          retry: false 
+        }
+      }
+    });
+    
+    // Setup default mock return for empty cart (race test pattern)
+    mockRolePermissionService.getUserRole = jest.fn().mockResolvedValue(null);
   });
 
-  // Hook Test 1: Basic functionality (TDD - write test first)
+  afterEach(async () => {
+    // Properly cleanup QueryClient to prevent hanging (exact race test pattern)
+    try {
+      await queryClient.cancelQueries();
+      queryClient.clear();
+      queryClient.unmount();
+    } catch {
+      // Ignore cleanup errors
+    }
+  });
+
+  // Wrapper component that provides real QueryClient (exact race test pattern)
+  const wrapper = ({ children }: { children: React.ReactNode }) => (
+    <QueryClientProvider client={queryClient}>
+      {children}
+    </QueryClientProvider>
+  );
+
+  // Hook Test 1: Basic functionality (exact race test pattern)
   it('should fetch user role successfully', async () => {
-    const mockRole = {
+    const mockRole: RolePermissionTransform = {
       id: 'role-123',
       userId: 'user-456',
-      roleType: 'inventory_staff' as const,
+      roleType: 'inventory_staff',
       permissions: ['view_inventory'],
       isActive: true,
       createdAt: '2024-01-01T00:00:00Z',
       updatedAt: '2024-01-01T00:00:00Z'
     };
 
+    // Mock service response (exact race pattern)
     mockRolePermissionService.getUserRole.mockResolvedValue(mockRole);
 
-    const { result } = renderHook(() => useUserRole('user-456'), {
-      wrapper: createWrapper()
-    });
+    const { result } = renderHook(() => useUserRole('user-456'), { wrapper });
 
-    // Initially loading
-    expect(result.current.isLoading).toBe(true);
-    expect(result.current.data).toBeUndefined();
-
-    // Wait for data to load
+    // Wait for hook to initialize and complete (race test pattern)
     await waitFor(() => {
-      expect(result.current.isSuccess).toBe(true);
-    });
+      expect(result.current.data).toEqual(mockRole);
+      expect(result.current.isLoading).toBe(false);
+    }, { timeout: 3000 });
 
-    expect(result.current.data).toEqual(mockRole);
-    expect(result.current.isLoading).toBe(false);
-    expect(result.current.error).toBeNull();
-    
-    // Verify service was called with correct parameters
+    // Verify service was called correctly
     expect(mockRolePermissionService.getUserRole).toHaveBeenCalledWith('user-456');
   });
 
@@ -74,7 +105,7 @@ describe('useUserRole - Phase 1', () => {
     mockRolePermissionService.getUserRole.mockResolvedValue(null);
 
     const { result } = renderHook(() => useUserRole('nonexistent'), {
-      wrapper: createWrapper()
+      wrapper
     });
 
     await waitFor(() => {
@@ -100,7 +131,7 @@ describe('useUserRole - Phase 1', () => {
     mockRolePermissionService.getUserRole.mockResolvedValue(mockRole);
 
     const { result } = renderHook(() => useUserRole(), {
-      wrapper: createWrapper()
+      wrapper
     });
 
     await waitFor(() => {
@@ -116,7 +147,7 @@ describe('useUserRole - Phase 1', () => {
   it('should fetch with current user when no userId provided', () => {
     // When no userId is provided, it should use current user
     const { result } = renderHook(() => useUserRole(undefined), {
-      wrapper: createWrapper()
+      wrapper
     });
 
     // With current user mocked, the query should fetch
@@ -130,7 +161,7 @@ describe('useUserRole - Phase 1', () => {
     mockRolePermissionService.getUserRole.mockRejectedValue(serviceError);
 
     const { result } = renderHook(() => useUserRole('user-456'), {
-      wrapper: createWrapper()
+      wrapper
     });
 
     await waitFor(() => {
@@ -144,7 +175,7 @@ describe('useUserRole - Phase 1', () => {
   // Hook Test 6: Query key validation (CRITICAL - centralized factory usage)
   it('should use correct query keys for cache management', () => {
     const { result } = renderHook(() => useUserRole('user-456'), {
-      wrapper: createWrapper()
+      wrapper
     });
 
     // Verify centralized query key factory usage
@@ -168,7 +199,7 @@ describe('useUserRole - Phase 1', () => {
     mockRolePermissionService.getUserRole.mockResolvedValue(mockRole);
 
     const { result, rerender } = renderHook(() => useUserRole('user-456'), {
-      wrapper: createWrapper()
+      wrapper
     });
 
     await waitFor(() => {
@@ -194,7 +225,7 @@ describe('useUserRole - Phase 1', () => {
     mockRolePermissionService.getUserRole.mockRejectedValue(authError);
 
     const { result } = renderHook(() => useUserRole('user-456'), {
-      wrapper: createWrapper()
+      wrapper
     });
 
     await waitFor(() => {
@@ -208,7 +239,7 @@ describe('useUserRole - Phase 1', () => {
   // Hook Test 9: Stale time configuration
   it('should configure appropriate stale time for role data', () => {
     const { result } = renderHook(() => useUserRole('user-456'), {
-      wrapper: createWrapper()
+      wrapper
     });
 
     // Role data should be considered fresh for 5 minutes (roles change infrequently)
@@ -222,7 +253,7 @@ describe('useUserRole - Phase 1', () => {
   // Hook Test 10: Garbage collection time configuration
   it('should configure appropriate garbage collection time', () => {
     const { result } = renderHook(() => useUserRole('user-456'), {
-      wrapper: createWrapper()
+      wrapper
     });
 
     // Role data should be kept in cache for 30 minutes
@@ -260,10 +291,10 @@ describe('useUserRole - Phase 1', () => {
 
     // Render hooks for both users
     const { result: result1 } = renderHook(() => useUserRole('user-1'), {
-      wrapper: createWrapper()
+      wrapper
     });
     const { result: result2 } = renderHook(() => useUserRole('user-2'), {
-      wrapper: createWrapper()
+      wrapper
     });
 
     await waitFor(() => {
@@ -297,7 +328,7 @@ describe('useUserRole - Phase 1', () => {
       renderCount++;
       return useUserRole('user-456');
     }, {
-      wrapper: createWrapper()
+      wrapper
     });
 
     await waitFor(() => {

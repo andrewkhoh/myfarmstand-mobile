@@ -320,7 +320,11 @@ describe('Predictive Analytics Schema Contracts - Phase 4', () => {
           prediction: 100,
           type_specific: forecastType
         },
-        confidence_intervals: null,
+        confidence_intervals: {
+          lower_bound: 80,
+          upper_bound: 120,
+          confidence_level: 0.95
+        },
         model_accuracy: 0.85,
         input_features: [`${forecastType}_history`, 'general_trends'],
         generated_at: '2024-01-01T00:00:00Z',
@@ -334,6 +338,10 @@ describe('Predictive Analytics Schema Contracts - Phase 4', () => {
 
   // Contract Test 7: Forecast expiration and lifecycle management
   it('must validate forecast expiration and lifecycle management', () => {
+    const futureDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24 hours from now
+    const pastDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(); // 24 hours ago
+    const veryPastDate = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(); // 48 hours ago
+    
     const activeValidForecast: PredictiveAnalyticsDatabaseContract = {
       id: 'forecast-active',
       forecast_type: 'demand',
@@ -351,9 +359,9 @@ describe('Predictive Analytics Schema Contracts - Phase 4', () => {
       },
       model_accuracy: 0.92,
       input_features: ['recent_sales', 'weather_data', 'promotions'],
-      generated_at: '2024-01-14T00:00:00Z',
-      expires_at: '2024-01-22T00:00:00Z',
-      created_at: '2024-01-14T00:00:00Z'
+      generated_at: pastDate,
+      expires_at: futureDate,
+      created_at: pastDate
     };
 
     const expiredForecast: PredictiveAnalyticsDatabaseContract = {
@@ -372,9 +380,9 @@ describe('Predictive Analytics Schema Contracts - Phase 4', () => {
       },
       model_accuracy: 0.88,
       input_features: ['historical_revenue', 'seasonal_adjustments'],
-      generated_at: '2023-11-15T00:00:00Z',
-      expires_at: '2024-01-01T00:00:00Z',
-      created_at: '2023-11-15T00:00:00Z'
+      generated_at: veryPastDate,
+      expires_at: pastDate,
+      created_at: veryPastDate
     };
 
     const activeTransformed = PredictiveAnalyticsTransformSchema.parse(activeValidForecast);

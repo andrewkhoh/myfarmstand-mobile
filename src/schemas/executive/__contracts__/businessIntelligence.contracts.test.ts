@@ -405,7 +405,7 @@ describe('Business Intelligence Schema Contracts - Phase 4', () => {
         empty_array: [],
         empty_object: {}
       },
-      recommendation_actions: [],
+      recommendation_actions: ['Implement strategic optimization', 'Monitor critical metrics'],
       insight_date_range: '[2024-01-01,2024-01-31)',
       generated_by: 'type_validator',
       is_active: true,
@@ -457,6 +457,7 @@ describe('Business Intelligence Schema Contracts - Phase 4', () => {
       insight_type: 'correlation',
       insight_title: 'New Insight',
       insight_description: 'Testing create schema validation.',
+      confidence_score: 0.85,
       impact_level: 'high',
       affected_areas: ['inventory', 'marketing'],
       insight_date_range: '[2024-01-01,2024-01-31)'

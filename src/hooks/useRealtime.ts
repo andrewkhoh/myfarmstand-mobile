@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { RealtimeService } from '../services/realtimeService';
 import { useCurrentUser } from './useAuth';
-import { cartKeys, orderKeys, productKeys, authKeys } from '../utils/queryKeyFactory';
+import { cartKeys, orderKeys, productKeys, authKeys, notificationKeys } from '../utils/queryKeyFactory';
 import { createBroadcastHelper } from '../utils/broadcastFactory';
 
 // Enhanced interfaces following cart pattern
@@ -441,14 +441,14 @@ export const useRealtimeNotifications = () => {
     'Please sign in to receive notifications'
   ) : null;
   
-  // Query for notification history (following cart pattern)
-  const notificationKeys = user?.id ? [...authKeys.lists(user?.id), 'notifications'] : ['notifications', 'unauthenticated'];
+  // Query for notification history using centralized factory
+  const notificationQueryKey = user?.id ? notificationKeys.lists(user.id) : notificationKeys.all();
   
   const {
     data: notificationHistory = [],
     isLoading
   } = useQuery({
-    queryKey: notificationKeys,
+    queryKey: notificationQueryKey,
     queryFn: async () => {
       // This could be enhanced to fetch notification history from a service
       return [];
@@ -490,7 +490,7 @@ export const useRealtimeNotifications = () => {
   }, [user?.id, queryClient]);
   
   // Enhanced return with useCallback for stable references (following cart pattern)
-  const getNotificationQueryKey = useCallback(() => notificationKeys, [user?.id]);
+  const getNotificationQueryKey = useCallback(() => notificationQueryKey, [notificationQueryKey]);
 
   // Handle unauthenticated users by returning safe defaults
   if (authError) {

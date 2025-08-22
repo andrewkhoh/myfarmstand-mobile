@@ -64,20 +64,20 @@ describe('Environment Configuration Tests', () => {
       
       switch (nodeEnv) {
         case 'development':
-          await this.validateDevelopmentConfig();
+          await validateDevelopmentConfig();
           break;
         case 'staging':
-          await this.validateStagingConfig();
+          await validateStagingConfig();
           break;
         case 'production':
-          await this.validateProductionConfig();
+          await validateProductionConfig();
           break;
         case 'test':
-          await this.validateTestConfig();
+          await validateTestConfig();
           break;
         default:
           // Default to development validation
-          await this.validateDevelopmentConfig();
+          await validateDevelopmentConfig();
       }
     });
 
@@ -196,7 +196,7 @@ describe('Environment Configuration Tests', () => {
 
     it('should validate secret access permissions', async () => {
       // Test that secrets are only accessible by authorized processes
-      const secretPermissions = await this.validateSecretPermissions();
+      const secretPermissions = await validateSecretPermissions();
       
       expect(secretPermissions.admin_access).toBe(true);
       expect(secretPermissions.user_access).toBe(false);
@@ -408,7 +408,7 @@ describe('Environment Configuration Tests', () => {
   });
 
   // Helper methods for environment testing
-  private async validateDevelopmentConfig(): Promise<void> {
+  async function validateDevelopmentConfig(): Promise<void> {
     // Development-specific validations
     expect(process.env.NODE_ENV).toBe('development');
     
@@ -417,7 +417,7 @@ describe('Environment Configuration Tests', () => {
     expect(typeof debugMode).toBe('boolean');
   }
 
-  private async validateStagingConfig(): Promise<void> {
+  async function validateStagingConfig(): Promise<void> {
     // Staging-specific validations
     expect(process.env.NODE_ENV).toBe('staging');
     
@@ -426,7 +426,7 @@ describe('Environment Configuration Tests', () => {
     expect(typeof productionLike).toBe('boolean');
   }
 
-  private async validateProductionConfig(): Promise<void> {
+  async function validateProductionConfig(): Promise<void> {
     // Production-specific validations
     expect(process.env.NODE_ENV).toBe('production');
     
@@ -439,7 +439,7 @@ describe('Environment Configuration Tests', () => {
     expect(monitoringEnabled).toBe(true);
   }
 
-  private async validateTestConfig(): Promise<void> {
+  async function validateTestConfig(): Promise<void> {
     // Test-specific validations
     expect(process.env.NODE_ENV).toBe('test');
     
@@ -448,7 +448,7 @@ describe('Environment Configuration Tests', () => {
     expect(testDb).toBe(true);
   }
 
-  private async validateSecretPermissions(): Promise<any> {
+  async function validateSecretPermissions(): Promise<any> {
     // Simulate secret permission validation
     return {
       admin_access: true,

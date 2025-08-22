@@ -334,15 +334,34 @@ describe('Business Metrics Schema Contracts - Phase 4', () => {
   it('must handle large metric datasets efficiently', () => {
     const largeDataset: BusinessMetricsDatabaseContract[] = [];
     
-    // Generate 100 metrics
+    // Generate 100 metrics with valid values for each unit type
     for (let i = 0; i < 100; i++) {
+      const unit = ['count', 'percentage', 'currency', 'ratio'][i % 4] as any;
+      let value: number;
+      
+      // Generate valid values based on unit type
+      switch (unit) {
+        case 'percentage':
+          value = Math.random() * 100; // 0-100 for percentage
+          break;
+        case 'ratio':
+          value = Math.random() * 10; // 0-10 for ratio (non-negative)
+          break;
+        case 'count':
+          value = Math.floor(Math.random() * 1000); // Integer for count
+          break;
+        default: // currency
+          value = Math.random() * 1000; // Any positive value for currency
+          break;
+      }
+      
       largeDataset.push({
         id: `metric-perf-${i}`,
         metric_date: `2024-01-${String(i % 31 + 1).padStart(2, '0')}`,
         metric_category: ['inventory', 'marketing', 'sales', 'operational', 'strategic'][i % 5] as any,
         metric_name: `performance_metric_${i}`,
-        metric_value: Math.random() * 1000,
-        metric_unit: ['count', 'percentage', 'currency', 'ratio'][i % 4] as any,
+        metric_value: value,
+        metric_unit: unit,
         aggregation_level: ['daily', 'weekly', 'monthly', 'quarterly'][i % 4] as any,
         source_data_type: `source_${i}`,
         correlation_factors: {

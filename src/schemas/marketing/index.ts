@@ -21,6 +21,8 @@ export {
   UpdateProductContentSchema,
   ContentWorkflowHelpers,
   ContentStatus,
+  toSnakeCaseDbFormat,
+  toCreateDbFormat,
   type ProductContentDatabaseContract,
   type ProductContentTransform,
   type CreateProductContentInput,

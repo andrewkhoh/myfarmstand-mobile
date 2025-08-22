@@ -29,11 +29,11 @@ describe('System-Wide Pattern Compliance Audit', () => {
       const auditResults = [];
       
       // Audit all schema files for single validation pass
-      const schemaFiles = await this.findFilesRecursive('src', /\.schema\.ts$/);
+      const schemaFiles = await findFilesRecursive('src', /\.schema\.ts$/);
       
       for (const file of schemaFiles) {
-        const content = await this.readFileContent(file);
-        const validationCompliance = this.auditSingleValidationPass(content, file);
+        const content = await readFileContent(file);
+        const validationCompliance = auditSingleValidationPass(content, file);
         auditResults.push(validationCompliance);
       }
 
@@ -43,7 +43,7 @@ describe('System-Wide Pattern Compliance Audit', () => {
         expect(result.violations.length).toBeLessThan(3);
       });
 
-      const overallCompliance = this.calculateOverallCompliance(auditResults);
+      const overallCompliance = calculateOverallCompliance(auditResults);
       expect(overallCompliance).toBeGreaterThan(0.95);
     });
 
@@ -58,9 +58,9 @@ describe('System-Wide Pattern Compliance Audit', () => {
       const auditResults = [];
       
       for (const file of monitoringFiles) {
-        if (await this.fileExists(file)) {
-          const content = await this.readFileContent(file);
-          const dbFirstCompliance = this.auditDatabaseFirstValidation(content, file);
+        if (await fileExists(file)) {
+          const content = await readFileContent(file);
+          const dbFirstCompliance = auditDatabaseFirstValidation(content, file);
           auditResults.push(dbFirstCompliance);
         }
       }
@@ -73,12 +73,12 @@ describe('System-Wide Pattern Compliance Audit', () => {
 
     it('should validate resilient item processing with skip-on-error in all production services', async () => {
       // Audit all service files for resilient processing patterns
-      const serviceFiles = await this.findFilesRecursive('src/services', /\.ts$/);
+      const serviceFiles = await findFilesRecursive('src/services', /\.ts$/);
       const auditResults = [];
 
       for (const file of serviceFiles) {
-        const content = await this.readFileContent(file);
-        const resilienceCompliance = this.auditResilientProcessing(content, file);
+        const content = await readFileContent(file);
+        const resilienceCompliance = auditResilientProcessing(content, file);
         auditResults.push(resilienceCompliance);
       }
 
@@ -89,12 +89,12 @@ describe('System-Wide Pattern Compliance Audit', () => {
 
     it('should validate transformation schema architecture compliance across entire system', async () => {
       // Audit transformation schema usage across all domains
-      const allSchemaFiles = await this.findFilesRecursive('src', /\.schema\.ts$/);
+      const allSchemaFiles = await findFilesRecursive('src', /\.schema\.ts$/);
       const transformationAudit = [];
 
       for (const file of allSchemaFiles) {
-        const content = await this.readFileContent(file);
-        const transformationUsage = this.auditTransformationSchemas(content, file);
+        const content = await readFileContent(file);
+        const transformationUsage = auditTransformationSchemas(content, file);
         transformationAudit.push(transformationUsage);
       }
 
@@ -107,10 +107,10 @@ describe('System-Wide Pattern Compliance Audit', () => {
 
     it('should validate database-interface alignment for production monitoring data', async () => {
       // Verify monitoring schemas align with database structure
-      const monitoringSchema = await this.readFileContent('database/production-monitoring-schema.sql');
-      const monitoringTypes = await this.readFileContent('src/monitoring/performanceMonitoring.ts');
+      const monitoringSchema = await readFileContent('database/production-monitoring-schema.sql');
+      const monitoringTypes = await readFileContent('src/monitoring/performanceMonitoring.ts');
       
-      const alignmentCheck = this.auditDatabaseInterfaceAlignment(monitoringSchema, monitoringTypes);
+      const alignmentCheck = auditDatabaseInterfaceAlignment(monitoringSchema, monitoringTypes);
       
       expect(alignmentCheck.table_interface_match).toBeGreaterThan(0.9);
       expect(alignmentCheck.column_type_match).toBeGreaterThan(0.95);
@@ -121,15 +121,15 @@ describe('System-Wide Pattern Compliance Audit', () => {
   describe('React Query Patterns Audit (System-Wide)', () => {
     it('should validate centralized query key factory usage across ALL phases (zero dual systems)', async () => {
       // Audit for query key factory usage vs local implementations
-      const hookFiles = await this.findFilesRecursive('src/hooks', /\.ts$/);
-      const serviceFiles = await this.findFilesRecursive('src/services', /\.ts$/);
+      const hookFiles = await findFilesRecursive('src/hooks', /\.ts$/);
+      const serviceFiles = await findFilesRecursive('src/services', /\.ts$/);
       
       const allFiles = [...hookFiles, ...serviceFiles];
       const queryKeyAudit = [];
 
       for (const file of allFiles) {
-        const content = await this.readFileContent(file);
-        const factoryUsage = this.auditQueryKeyFactoryUsage(content, file);
+        const content = await readFileContent(file);
+        const factoryUsage = auditQueryKeyFactoryUsage(content, file);
         queryKeyAudit.push(factoryUsage);
       }
 
@@ -147,8 +147,8 @@ describe('System-Wide Pattern Compliance Audit', () => {
 
     it('should validate user-isolated query keys with proper fallback strategies system-wide', async () => {
       // Audit user isolation in query keys
-      const queryKeyFactoryContent = await this.readFileContent('src/utils/queryKeyFactory.ts');
-      const isolationCompliance = this.auditUserIsolation(queryKeyFactoryContent);
+      const queryKeyFactoryContent = await readFileContent('src/utils/queryKeyFactory.ts');
+      const isolationCompliance = auditUserIsolation(queryKeyFactoryContent);
       
       expect(isolationCompliance.user_isolation_present).toBe(true);
       expect(isolationCompliance.fallback_strategies).toBeGreaterThan(3);
@@ -157,8 +157,8 @@ describe('System-Wide Pattern Compliance Audit', () => {
 
     it('should validate entity-specific factory methods across all business domains', async () => {
       // Audit entity coverage in query key factory
-      const factoryContent = await this.readFileContent('src/utils/queryKeyFactory.ts');
-      const entityCoverage = this.auditEntityCoverage(factoryContent);
+      const factoryContent = await readFileContent('src/utils/queryKeyFactory.ts');
+      const entityCoverage = auditEntityCoverage(factoryContent);
       
       const expectedEntities = [
         'products', 'orders', 'cart', 'users', 'inventory', 
@@ -174,14 +174,14 @@ describe('System-Wide Pattern Compliance Audit', () => {
 
     it('should validate optimized cache configuration for production load patterns', async () => {
       // Audit React Query configurations across the system
-      const configFiles = await this.findFilesRecursive('src', /config.*\.ts$/);
-      const hookFiles = await this.findFilesRecursive('src/hooks', /\.ts$/);
+      const configFiles = await findFilesRecursive('src', /config.*\.ts$/);
+      const hookFiles = await findFilesRecursive('src/hooks', /\.ts$/);
       
       const cacheConfigAudit = [];
 
       for (const file of [...configFiles, ...hookFiles]) {
-        const content = await this.readFileContent(file);
-        const cacheConfig = this.auditCacheConfiguration(content, file);
+        const content = await readFileContent(file);
+        const cacheConfig = auditCacheConfiguration(content, file);
         if (cacheConfig.has_cache_config) {
           cacheConfigAudit.push(cacheConfig);
         }
@@ -197,12 +197,12 @@ describe('System-Wide Pattern Compliance Audit', () => {
 
     it('should validate smart query invalidation across multi-role workflows', async () => {
       // Audit invalidation strategies in services and hooks
-      const allCodeFiles = await this.findFilesRecursive('src', /\.(ts|tsx)$/);
+      const allCodeFiles = await findFilesRecursive('src', /\.(ts|tsx)$/);
       const invalidationAudit = [];
 
       for (const file of allCodeFiles) {
-        const content = await this.readFileContent(file);
-        const invalidationUsage = this.auditQueryInvalidation(content, file);
+        const content = await readFileContent(file);
+        const invalidationUsage = auditQueryInvalidation(content, file);
         if (invalidationUsage.has_invalidation) {
           invalidationAudit.push(invalidationUsage);
         }
@@ -220,12 +220,12 @@ describe('System-Wide Pattern Compliance Audit', () => {
   describe('Database Query Patterns Audit (System-Wide)', () => {
     it('should validate direct Supabase queries with proper validation pipelines in production', async () => {
       // Audit all services for direct Supabase usage with validation
-      const serviceFiles = await this.findFilesRecursive('src/services', /\.ts$/);
+      const serviceFiles = await findFilesRecursive('src/services', /\.ts$/);
       const supabaseUsageAudit = [];
 
       for (const file of serviceFiles) {
-        const content = await this.readFileContent(file);
-        const supabaseUsage = this.auditSupabaseQueryPatterns(content, file);
+        const content = await readFileContent(file);
+        const supabaseUsage = auditSupabaseQueryPatterns(content, file);
         supabaseUsageAudit.push(supabaseUsage);
       }
 
@@ -249,9 +249,9 @@ describe('System-Wide Pattern Compliance Audit', () => {
       const atomicityAudit = [];
 
       for (const file of crossRoleFiles) {
-        if (await this.fileExists(file)) {
-          const content = await this.readFileContent(file);
-          const atomicPatterns = this.auditAtomicOperations(content, file);
+        if (await fileExists(file)) {
+          const content = await readFileContent(file);
+          const atomicPatterns = auditAtomicOperations(content, file);
           atomicityAudit.push(atomicPatterns);
         }
       }
@@ -264,12 +264,12 @@ describe('System-Wide Pattern Compliance Audit', () => {
 
     it('should validate real-time updates with broadcasting patterns under production load', async () => {
       // Audit real-time update patterns
-      const realtimeFiles = await this.findFilesRecursive('src', /realtime|broadcast/i);
+      const realtimeFiles = await findFilesRecursive('src', /realtime|broadcast/i);
       const broadcastingAudit = [];
 
       for (const file of realtimeFiles) {
-        const content = await this.readFileContent(file);
-        const broadcastPatterns = this.auditBroadcastingPatterns(content, file);
+        const content = await readFileContent(file);
+        const broadcastPatterns = auditBroadcastingPatterns(content, file);
         broadcastingAudit.push(broadcastPatterns);
       }
 
@@ -284,12 +284,12 @@ describe('System-Wide Pattern Compliance Audit', () => {
 
     it('should validate complex aggregation queries with production-optimized field selection', async () => {
       // Audit complex queries for optimization
-      const analyticsFiles = await this.findFilesRecursive('src', /analytics|reporting/i);
+      const analyticsFiles = await findFilesRecursive('src', /analytics|reporting/i);
       const aggregationAudit = [];
 
       for (const file of analyticsFiles) {
-        const content = await this.readFileContent(file);
-        const queryOptimization = this.auditQueryOptimization(content, file);
+        const content = await readFileContent(file);
+        const queryOptimization = auditQueryOptimization(content, file);
         aggregationAudit.push(queryOptimization);
       }
 
@@ -312,9 +312,9 @@ describe('System-Wide Pattern Compliance Audit', () => {
       const performanceAudit = [];
 
       for (const file of performanceFiles) {
-        if (await this.fileExists(file)) {
-          const content = await this.readFileContent(file);
-          const optimizationPatterns = this.auditPerformancePatterns(content, file);
+        if (await fileExists(file)) {
+          const content = await readFileContent(file);
+          const optimizationPatterns = auditPerformancePatterns(content, file);
           performanceAudit.push(optimizationPatterns);
         }
       }
@@ -330,7 +330,7 @@ describe('System-Wide Pattern Compliance Audit', () => {
   describe('Security Patterns Audit (System-Wide)', () => {
     it('should validate user data isolation across ALL phases and production systems', async () => {
       // Audit RLS policies and data isolation
-      const securityAudit = await this.auditUserDataIsolation();
+      const securityAudit = await auditUserDataIsolation();
       
       expect(securityAudit.rls_coverage).toBeGreaterThan(0.95);
       expect(securityAudit.data_isolation_violations).toBeLessThan(2);
@@ -339,7 +339,7 @@ describe('System-Wide Pattern Compliance Audit', () => {
 
     it('should validate role-based access control boundaries in production environment', async () => {
       // Audit RBAC implementation
-      const rbacAudit = await this.auditRoleBasedAccess();
+      const rbacAudit = await auditRoleBasedAccess();
       
       expect(rbacAudit.role_boundaries_enforced).toBe(true);
       expect(rbacAudit.privilege_escalation_prevented).toBe(true);
@@ -348,7 +348,7 @@ describe('System-Wide Pattern Compliance Audit', () => {
 
     it('should validate cryptographic channel security for all real-time features', async () => {
       // Audit cryptographic security
-      const cryptoAudit = await this.auditCryptographicSecurity();
+      const cryptoAudit = await auditCryptographicSecurity();
       
       expect(cryptoAudit.encryption_present).toBe(true);
       expect(cryptoAudit.secure_channels_only).toBe(true);
@@ -357,7 +357,7 @@ describe('System-Wide Pattern Compliance Audit', () => {
 
     it('should validate cross-role permission boundaries under production stress testing', async () => {
       // Audit permission boundaries under load
-      const stressTestAudit = await this.auditPermissionBoundariesUnderLoad();
+      const stressTestAudit = await auditPermissionBoundariesUnderLoad();
       
       expect(stressTestAudit.boundaries_maintained).toBe(true);
       expect(stressTestAudit.performance_under_load).toBeGreaterThan(0.9);
@@ -366,7 +366,7 @@ describe('System-Wide Pattern Compliance Audit', () => {
 
     it('should validate production security monitoring and audit trail completeness', async () => {
       // Audit security monitoring implementation
-      const monitoringAudit = await this.auditSecurityMonitoring();
+      const monitoringAudit = await auditSecurityMonitoring();
       
       expect(monitoringAudit.audit_trail_complete).toBe(true);
       expect(monitoringAudit.monitoring_coverage).toBeGreaterThan(0.95);
@@ -377,12 +377,12 @@ describe('System-Wide Pattern Compliance Audit', () => {
   describe('Schema Contract Management Audit (System-Wide)', () => {
     it('should validate compile-time contract enforcement across ALL phases', async () => {
       // Audit TypeScript contract enforcement
-      const contractFiles = await this.findFilesRecursive('src/schemas/__contracts__', /\.ts$/);
+      const contractFiles = await findFilesRecursive('src/schemas/__contracts__', /\.ts$/);
       const contractAudit = [];
 
       for (const file of contractFiles) {
-        const content = await this.readFileContent(file);
-        const contractCompliance = this.auditContractEnforcement(content, file);
+        const content = await readFileContent(file);
+        const contractCompliance = auditContractEnforcement(content, file);
         contractAudit.push(contractCompliance);
       }
 
@@ -394,12 +394,12 @@ describe('System-Wide Pattern Compliance Audit', () => {
 
     it('should validate service field selection validation in production environment', async () => {
       // Audit field selection patterns
-      const serviceFiles = await this.findFilesRecursive('src/services', /\.ts$/);
+      const serviceFiles = await findFilesRecursive('src/services', /\.ts$/);
       const fieldSelectionAudit = [];
 
       for (const file of serviceFiles) {
-        const content = await this.readFileContent(file);
-        const fieldSelection = this.auditFieldSelection(content, file);
+        const content = await readFileContent(file);
+        const fieldSelection = auditFieldSelection(content, file);
         fieldSelectionAudit.push(fieldSelection);
       }
 
@@ -418,7 +418,7 @@ describe('System-Wide Pattern Compliance Audit', () => {
         '.husky',
       ];
 
-      const cicdAudit = await this.auditCICDIntegration(cicdFiles);
+      const cicdAudit = await auditCICDIntegration(cicdFiles);
       
       expect(cicdAudit.precommit_validation_present).toBe(true);
       expect(cicdAudit.contract_tests_integrated).toBe(true);
@@ -435,11 +435,11 @@ describe('System-Wide Pattern Compliance Audit', () => {
       const transformationAudit = [];
 
       for (const dir of domainDirectories) {
-        if (await this.directoryExists(dir)) {
-          const files = await this.findFilesRecursive(dir, /\.ts$/);
+        if (await directoryExists(dir)) {
+          const files = await findFilesRecursive(dir, /\.ts$/);
           for (const file of files) {
-            const content = await this.readFileContent(file);
-            const transformations = this.auditTransformationCompleteness(content, file);
+            const content = await readFileContent(file);
+            const transformations = auditTransformationCompleteness(content, file);
             transformationAudit.push(transformations);
           }
         }
@@ -454,7 +454,7 @@ describe('System-Wide Pattern Compliance Audit', () => {
   });
 
   // Helper methods for pattern auditing
-  private async findFilesRecursive(dir: string, pattern: RegExp): Promise<string[]> {
+  async function findFilesRecursive(dir: string, pattern: RegExp): Promise<string[]> {
     // Simulate file finding - in real implementation, would use fs.readdir recursively
     const mockFiles = [
       'src/schemas/auth.schema.ts',
@@ -474,7 +474,7 @@ describe('System-Wide Pattern Compliance Audit', () => {
     );
   }
 
-  private async readFileContent(filePath: string): Promise<string> {
+  async function readFileContent(filePath: string): Promise<string> {
     // Simulate file reading - in real implementation, would use fs.readFileSync
     return `// Mock content for ${filePath}
 import { z } from 'zod';
@@ -491,17 +491,17 @@ export const validateData = (data: unknown) => {
 `;
   }
 
-  private async fileExists(filePath: string): Promise<boolean> {
+  async function fileExists(filePath: string): Promise<boolean> {
     // Simulate file existence check
     return true;
   }
 
-  private async directoryExists(dirPath: string): Promise<boolean> {
+  async function directoryExists(dirPath: string): Promise<boolean> {
     // Simulate directory existence check
     return true;
   }
 
-  private auditSingleValidationPass(content: string, filePath: string): any {
+  function auditSingleValidationPass(content: string, filePath: string): any {
     // Audit for single validation pass principle
     const hasParseCall = content.includes('.parse(');
     const hasSafeParseCall = content.includes('.safeParse(');
@@ -515,7 +515,7 @@ export const validateData = (data: unknown) => {
     };
   }
 
-  private auditDatabaseFirstValidation(content: string, filePath: string): any {
+  function auditDatabaseFirstValidation(content: string, filePath: string): any {
     // Audit for database-first validation patterns
     const hasSupabaseImport = content.includes('supabase');
     const hasValidationPipeline = content.includes('validate') || content.includes('.parse(');
@@ -529,7 +529,7 @@ export const validateData = (data: unknown) => {
     };
   }
 
-  private auditResilientProcessing(content: string, filePath: string): any {
+  function auditResilientProcessing(content: string, filePath: string): any {
     // Audit for resilient processing patterns
     const hasTryCatch = content.includes('try') && content.includes('catch');
     const hasErrorHandling = content.includes('error') || content.includes('Error');
@@ -543,7 +543,7 @@ export const validateData = (data: unknown) => {
     };
   }
 
-  private auditTransformationSchemas(content: string, filePath: string): any {
+  function auditTransformationSchemas(content: string, filePath: string): any {
     // Audit for transformation schema usage
     const hasTransform = content.includes('transform') || content.includes('.transform(');
     const hasRefine = content.includes('refine') || content.includes('.refine(');
@@ -556,7 +556,7 @@ export const validateData = (data: unknown) => {
     };
   }
 
-  private auditDatabaseInterfaceAlignment(schemaContent: string, typesContent: string): any {
+  function auditDatabaseInterfaceAlignment(schemaContent: string, typesContent: string): any {
     // Audit database-interface alignment
     const tableMatches = 0.95; // Simulated high match rate
     const columnMatches = 0.98; // Simulated high match rate
@@ -569,7 +569,7 @@ export const validateData = (data: unknown) => {
     };
   }
 
-  private auditQueryKeyFactoryUsage(content: string, filePath: string): any {
+  function auditQueryKeyFactoryUsage(content: string, filePath: string): any {
     // Audit query key factory usage patterns
     const hasLocalKeys = content.includes('queryKey') || content.includes('QueryKey');
     const hasCentralizedKeys = content.includes('queryKeyFactory') || content.includes('Keys.');
@@ -583,7 +583,7 @@ export const validateData = (data: unknown) => {
     };
   }
 
-  private auditUserIsolation(content: string): any {
+  function auditUserIsolation(content: string): any {
     // Audit user isolation patterns
     const hasUserContext = content.includes('user') || content.includes('User');
     const hasFallbackStrategies = content.includes('fallback') || content.includes('default');
@@ -596,7 +596,7 @@ export const validateData = (data: unknown) => {
     };
   }
 
-  private auditEntityCoverage(content: string): any {
+  function auditEntityCoverage(content: string): any {
     // Audit entity coverage in query key factory
     const entities = ['products', 'orders', 'cart', 'users', 'inventory', 'analytics', 'campaigns', 'auth', 'kiosk'];
     const coveredEntities = entities.filter(entity => content.includes(entity));
@@ -608,7 +608,7 @@ export const validateData = (data: unknown) => {
     };
   }
 
-  private auditCacheConfiguration(content: string, filePath: string): any {
+  function auditCacheConfiguration(content: string, filePath: string): any {
     // Audit cache configuration patterns
     const hasCacheConfig = content.includes('staleTime') || content.includes('gcTime');
     const hasStaleTime = content.includes('staleTime');
@@ -623,7 +623,7 @@ export const validateData = (data: unknown) => {
     };
   }
 
-  private auditQueryInvalidation(content: string, filePath: string): any {
+  function auditQueryInvalidation(content: string, filePath: string): any {
     // Audit query invalidation patterns
     const hasInvalidation = content.includes('invalidate');
     const hasSmartPatterns = content.includes('invalidateQueries') && content.includes('queryKey');
@@ -636,7 +636,7 @@ export const validateData = (data: unknown) => {
     };
   }
 
-  private auditSupabaseQueryPatterns(content: string, filePath: string): any {
+  function auditSupabaseQueryPatterns(content: string, filePath: string): any {
     // Audit Supabase query patterns
     const hasSupabaseQueries = content.includes('supabase.from(');
     const hasValidation = content.includes('validate') || content.includes('.parse(');
@@ -650,7 +650,7 @@ export const validateData = (data: unknown) => {
     };
   }
 
-  private auditAtomicOperations(content: string, filePath: string): any {
+  function auditAtomicOperations(content: string, filePath: string): any {
     // Audit atomic operation patterns
     const hasTransactions = content.includes('transaction') || content.includes('atomic');
     const hasRollback = content.includes('rollback') || content.includes('revert');
@@ -663,7 +663,7 @@ export const validateData = (data: unknown) => {
     };
   }
 
-  private auditBroadcastingPatterns(content: string, filePath: string): any {
+  function auditBroadcastingPatterns(content: string, filePath: string): any {
     // Audit broadcasting patterns
     const hasBroadcasting = content.includes('broadcast') || content.includes('realtime');
     const hasFactory = content.includes('Factory') || content.includes('factory');
@@ -676,7 +676,7 @@ export const validateData = (data: unknown) => {
     };
   }
 
-  private auditQueryOptimization(content: string, filePath: string): any {
+  function auditQueryOptimization(content: string, filePath: string): any {
     // Audit query optimization patterns
     const hasComplexQueries = content.includes('select(') && content.includes('join');
     const hasFieldSelection = content.includes('select(') && !content.includes('select("*")');
@@ -690,7 +690,7 @@ export const validateData = (data: unknown) => {
     };
   }
 
-  private auditPerformancePatterns(content: string, filePath: string): any {
+  function auditPerformancePatterns(content: string, filePath: string): any {
     // Audit performance optimization patterns
     const hasOptimization = content.includes('performance') || content.includes('optimize');
     const hasMonitoring = content.includes('monitor') || content.includes('metric');
@@ -704,7 +704,7 @@ export const validateData = (data: unknown) => {
   }
 
   // Security audit methods
-  private async auditUserDataIsolation(): Promise<any> {
+  async function auditUserDataIsolation(): Promise<any> {
     return {
       rls_coverage: 0.98,
       data_isolation_violations: 1,
@@ -712,7 +712,7 @@ export const validateData = (data: unknown) => {
     };
   }
 
-  private async auditRoleBasedAccess(): Promise<any> {
+  async function auditRoleBasedAccess(): Promise<any> {
     return {
       role_boundaries_enforced: true,
       privilege_escalation_prevented: true,
@@ -720,7 +720,7 @@ export const validateData = (data: unknown) => {
     };
   }
 
-  private async auditCryptographicSecurity(): Promise<any> {
+  async function auditCryptographicSecurity(): Promise<any> {
     return {
       encryption_present: true,
       secure_channels_only: true,
@@ -728,7 +728,7 @@ export const validateData = (data: unknown) => {
     };
   }
 
-  private async auditPermissionBoundariesUnderLoad(): Promise<any> {
+  async function auditPermissionBoundariesUnderLoad(): Promise<any> {
     return {
       boundaries_maintained: true,
       performance_under_load: 0.95,
@@ -736,7 +736,7 @@ export const validateData = (data: unknown) => {
     };
   }
 
-  private async auditSecurityMonitoring(): Promise<any> {
+  async function auditSecurityMonitoring(): Promise<any> {
     return {
       audit_trail_complete: true,
       monitoring_coverage: 0.97,
@@ -745,7 +745,7 @@ export const validateData = (data: unknown) => {
   }
 
   // Schema contract audit methods
-  private auditContractEnforcement(content: string, filePath: string): any {
+  function auditContractEnforcement(content: string, filePath: string): any {
     const hasContractTests = content.includes('contract') || content.includes('test');
     const hasTypeChecking = content.includes('expect') && content.includes('type');
 
@@ -757,7 +757,7 @@ export const validateData = (data: unknown) => {
     };
   }
 
-  private auditFieldSelection(content: string, filePath: string): any {
+  function auditFieldSelection(content: string, filePath: string): any {
     const hasOptimizedSelection = content.includes('select(') && !content.includes('*');
     const hasFieldValidation = content.includes('select') && content.includes('validate');
 
@@ -768,7 +768,7 @@ export const validateData = (data: unknown) => {
     };
   }
 
-  private async auditCICDIntegration(files: string[]): Promise<any> {
+  async function auditCICDIntegration(files: string[]): Promise<any> {
     return {
       precommit_validation_present: true,
       contract_tests_integrated: true,
@@ -776,7 +776,7 @@ export const validateData = (data: unknown) => {
     };
   }
 
-  private auditTransformationCompleteness(content: string, filePath: string): any {
+  function auditTransformationCompleteness(content: string, filePath: string): any {
     const hasTransformations = content.includes('transform');
     const hasValidation = content.includes('validate');
     const hasErrorHandling = content.includes('catch');
@@ -788,7 +788,7 @@ export const validateData = (data: unknown) => {
     };
   }
 
-  private calculateOverallCompliance(auditResults: any[]): number {
+  function calculateOverallCompliance(auditResults: any[]): number {
     if (auditResults.length === 0) return 0;
     
     const totalScore = auditResults.reduce((sum, result) => 

@@ -149,10 +149,14 @@ describe('Product Bundle Schema Contracts - Phase 3.1', () => {
       const bundle = {
         id: 'bundle-test',
         bundle_name: `Bundle ${order}`,
+        bundle_description: null,
         bundle_price: 50.00,
+        bundle_discount_amount: null,
         display_order: order,
         is_featured: order <= 10, // Feature top 10
         is_active: true,
+        campaign_id: null,
+        created_by: null,
         created_at: '2024-01-01T00:00:00Z',
         updated_at: '2024-01-01T00:00:00Z'
       };
@@ -168,10 +172,14 @@ describe('Product Bundle Schema Contracts - Phase 3.1', () => {
     const bundleWithCampaign = {
       id: 'bundle-123',
       bundle_name: 'Campaign Bundle',
+      bundle_description: null,
       bundle_price: 75.00,
       bundle_discount_amount: 20.00,
-      campaign_id: 'campaign-789', // Valid campaign reference
       is_active: true,
+      is_featured: false,
+      display_order: null,
+      campaign_id: 'campaign-789', // Valid campaign reference
+      created_by: null,
       created_at: '2024-01-01T00:00:00Z',
       updated_at: '2024-01-01T00:00:00Z'
     };

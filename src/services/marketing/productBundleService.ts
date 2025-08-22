@@ -6,6 +6,8 @@ import { supabase } from '../../config/supabase';
 import { ValidationMonitor } from '../../utils/validationMonitor';
 import { RolePermissionService } from '../role-based/rolePermissionService';
 import { InventoryService } from '../inventory/inventoryService';
+import { bundleKeys, marketingKeys } from '../../utils/queryKeyFactory';
+import { queryClient } from '../../config/queryClient';
 import { 
   ProductBundleTransformSchema,
   BundleProductTransformSchema,
@@ -173,14 +175,14 @@ export class ProductBundleService {
       const { data: bundleResult, error: bundleError } = await supabase
         .from('product_bundles')
         .insert(dbBundleData)
-        .select()
+        .select('id, bundle_name, bundle_description, bundle_price, bundle_discount_amount, is_active, is_featured, display_order, campaign_id, created_by, created_at, updated_at')
         .single();
 
       if (bundleError || !bundleResult) {
         ValidationMonitor.recordValidationError({
           context: 'ProductBundleService.createBundle',
           errorCode: 'BUNDLE_CREATION_FAILED',
-          validationPattern: 'transformation_schema',
+          validationPattern: 'bundle_transformation_schema',
           errorMessage: bundleError?.message || 'Bundle creation failed'
         });
         return { success: false, error: bundleError?.message || 'Failed to create bundle' };
@@ -198,7 +200,7 @@ export class ProductBundleService {
       const { data: productsResult, error: productsError } = await supabase
         .from('bundle_products')
         .insert(bundleProductsData)
-        .select();
+        .select('id, bundle_id, product_id, quantity, display_order, created_at');
 
       if (productsError || !productsResult) {
         // Clean up bundle if products creation failed
@@ -207,7 +209,7 @@ export class ProductBundleService {
         ValidationMonitor.recordValidationError({
           context: 'ProductBundleService.createBundle',
           errorCode: 'BUNDLE_PRODUCTS_CREATION_FAILED',
-          validationPattern: 'transformation_schema',
+          validationPattern: 'bundle_transformation_schema',
           errorMessage: productsError?.message || 'Bundle products creation failed'
         });
         return { success: false, error: productsError?.message || 'Failed to create bundle products' };
@@ -230,6 +232,14 @@ export class ProductBundleService {
         operation: 'createBundle'
       });
 
+      // Invalidate bundle cache after successful creation
+      await queryClient.invalidateQueries({ 
+        queryKey: bundleKeys.lists(userId) 
+      });
+      await queryClient.invalidateQueries({ 
+        queryKey: marketingKeys.all(userId) 
+      });
+
       return { success: true, data: bundleWithProducts };
 
     } catch (error) {
@@ -238,7 +248,7 @@ export class ProductBundleService {
       ValidationMonitor.recordValidationError({
         context: 'ProductBundleService.createBundle',
         errorCode: 'BUNDLE_CREATION_FAILED',
-        validationPattern: 'transformation_schema',
+        validationPattern: 'bundle_transformation_schema',
         errorMessage: errorMessage
       });
 
@@ -281,7 +291,7 @@ export class ProductBundleService {
         ValidationMonitor.recordValidationError({
           context: 'ProductBundleService.updateBundleProducts',
           errorCode: 'BUNDLE_PRODUCTS_UPDATE_FAILED',
-          validationPattern: 'transformation_schema',
+          validationPattern: 'bundle_transformation_schema',
           errorMessage: deleteError.message
         });
         return { success: false, error: deleteError.message };
@@ -299,13 +309,13 @@ export class ProductBundleService {
       const { data: productsResult, error: insertError } = await supabase
         .from('bundle_products')
         .insert(bundleProductsData)
-        .select();
+        .select('id, bundle_id, product_id, quantity, display_order, created_at');
 
       if (insertError || !productsResult) {
         ValidationMonitor.recordValidationError({
           context: 'ProductBundleService.updateBundleProducts',
           errorCode: 'BUNDLE_PRODUCTS_UPDATE_FAILED',
-          validationPattern: 'transformation_schema',
+          validationPattern: 'bundle_transformation_schema',
           errorMessage: insertError?.message || 'Insert failed'
         });
         return { success: false, error: insertError?.message || 'Failed to update bundle products' };
@@ -336,7 +346,7 @@ export class ProductBundleService {
       ValidationMonitor.recordValidationError({
         context: 'ProductBundleService.updateBundleProducts',
         errorCode: 'BUNDLE_PRODUCTS_UPDATE_FAILED',
-        validationPattern: 'transformation_schema',
+        validationPattern: 'bundle_transformation_schema',
         errorMessage: errorMessage
       });
 
@@ -402,7 +412,7 @@ export class ProductBundleService {
       ValidationMonitor.recordValidationError({
         context: 'ProductBundleService.calculateInventoryImpact',
         errorCode: 'INVENTORY_CALCULATION_FAILED',
-        validationPattern: 'transformation_schema',
+        validationPattern: 'bundle_transformation_schema',
         errorMessage: errorMessage
       });
 
@@ -461,7 +471,7 @@ export class ProductBundleService {
       ValidationMonitor.recordValidationError({
         context: 'ProductBundleService.getBundlePerformance',
         errorCode: 'BUNDLE_PERFORMANCE_QUERY_FAILED',
-        validationPattern: 'direct_schema',
+        validationPattern: 'bundle_database_query',
         errorMessage: errorMessage
       });
 
@@ -505,7 +515,7 @@ export class ProductBundleService {
             ValidationMonitor.recordValidationError({
               context: 'ProductBundleService.toggleBundleStatus',
               errorCode: 'BUNDLE_STATUS_UPDATE_FAILED',
-              validationPattern: 'transformation_schema',
+              validationPattern: 'bundle_transformation_schema',
               errorMessage: 'Insufficient inventory'
             });
             return { success: false, error: 'Insufficient inventory to activate bundle' };
@@ -521,14 +531,14 @@ export class ProductBundleService {
           updated_at: new Date().toISOString()
         })
         .eq('id', bundleId)
-        .select()
+        .select('id, bundle_name, bundle_description, bundle_price, bundle_discount_amount, is_active, is_featured, display_order, campaign_id, created_by, created_at, updated_at')
         .single();
 
       if (error || !data) {
         ValidationMonitor.recordValidationError({
           context: 'ProductBundleService.toggleBundleStatus',
           errorCode: 'BUNDLE_STATUS_UPDATE_FAILED',
-          validationPattern: 'transformation_schema',
+          validationPattern: 'bundle_transformation_schema',
           errorMessage: error?.message || 'Update failed'
         });
         return { success: false, error: error?.message || 'Failed to update bundle status' };
@@ -551,7 +561,7 @@ export class ProductBundleService {
       ValidationMonitor.recordValidationError({
         context: 'ProductBundleService.toggleBundleStatus',
         errorCode: 'BUNDLE_STATUS_UPDATE_FAILED',
-        validationPattern: 'transformation_schema',
+        validationPattern: 'bundle_transformation_schema',
         errorMessage: errorMessage
       });
 
@@ -612,7 +622,7 @@ export class ProductBundleService {
       ValidationMonitor.recordValidationError({
         context: 'ProductBundleService.calculateBundleDiscount',
         errorCode: 'DISCOUNT_CALCULATION_FAILED',
-        validationPattern: 'transformation_schema',
+        validationPattern: 'bundle_transformation_schema',
         errorMessage: errorMessage
       });
 
@@ -665,7 +675,7 @@ export class ProductBundleService {
         ValidationMonitor.recordValidationError({
           context: 'ProductBundleService.getBundlesByStatus',
           errorCode: 'BUNDLE_QUERY_FAILED',
-          validationPattern: 'direct_schema',
+          validationPattern: 'bundle_database_query',
           errorMessage: error.message
         });
         return { success: false, error: error.message };
@@ -701,7 +711,7 @@ export class ProductBundleService {
       ValidationMonitor.recordValidationError({
         context: 'ProductBundleService.getBundlesByStatus',
         errorCode: 'BUNDLE_QUERY_FAILED',
-        validationPattern: 'direct_schema',
+        validationPattern: 'bundle_database_query',
         errorMessage: errorMessage
       });
 

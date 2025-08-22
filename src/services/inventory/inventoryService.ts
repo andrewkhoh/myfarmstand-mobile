@@ -15,17 +15,11 @@ export class InventoryService {
    */
   static async getInventoryItem(inventoryId: string): Promise<InventoryItemTransform | null> {
     try {
-      console.log('[DEBUG] Querying for inventory ID:', inventoryId);
-      
-      const queryPromise = supabase
+      const { data, error } = await supabase
         .from('test_inventory_items')
         .select('*')
         .eq('id', inventoryId)
         .single();
-      
-      console.log('[DEBUG] About to await query...');
-      const { data, error } = await queryPromise;
-      console.log('[DEBUG] Query completed with result:', { data, error });
 
       if (error || !data) {
         if (error?.code === 'PGRST116') {
@@ -325,7 +319,7 @@ export class InventoryService {
       return {
         success: results,
         errors,
-        totalProcessed: results.length
+        totalProcessed: data?.length || 0  // Count all attempted items, not just successful ones
       };
     } catch (error) {
       ValidationMonitor.recordValidationError({
@@ -377,7 +371,7 @@ export class InventoryService {
     return {
       success: results,
       errors,
-      totalProcessed: results.length
+      totalProcessed: updates.length  // Total attempted items, not just successful ones
     };
   }
 

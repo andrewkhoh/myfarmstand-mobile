@@ -237,3 +237,43 @@ export type UploadProgress = {
   totalBytes: number;
   percentage: number;
 };
+
+// Transformation utility following architectural patterns
+// Converts camelCase update input to snake_case database format
+export const toSnakeCaseDbFormat = (updateData: UpdateProductContentInput, userId: string): Record<string, any> => {
+  const dbFormat: Record<string, any> = {};
+  
+  // Only include defined fields (preserving undefined vs null distinction)
+  if (updateData.marketingTitle !== undefined) dbFormat.marketing_title = updateData.marketingTitle;
+  if (updateData.marketingDescription !== undefined) dbFormat.marketing_description = updateData.marketingDescription;
+  if (updateData.marketingHighlights !== undefined) dbFormat.marketing_highlights = updateData.marketingHighlights;
+  if (updateData.seoKeywords !== undefined) dbFormat.seo_keywords = updateData.seoKeywords;
+  if (updateData.featuredImageUrl !== undefined) dbFormat.featured_image_url = updateData.featuredImageUrl;
+  if (updateData.galleryUrls !== undefined) dbFormat.gallery_urls = updateData.galleryUrls;
+  if (updateData.contentStatus !== undefined) dbFormat.content_status = updateData.contentStatus;
+  if (updateData.contentPriority !== undefined) dbFormat.content_priority = updateData.contentPriority;
+  
+  // Always include audit fields
+  dbFormat.last_updated_by = userId;
+  dbFormat.updated_at = new Date().toISOString();
+  
+  return dbFormat;
+};
+
+// Create format utility for new content
+export const toCreateDbFormat = (createData: CreateProductContentInput, userId: string): Record<string, any> => {
+  return {
+    product_id: createData.productId,
+    marketing_title: createData.marketingTitle || null,
+    marketing_description: createData.marketingDescription || null,
+    marketing_highlights: createData.marketingHighlights || null,
+    seo_keywords: createData.seoKeywords || null,
+    featured_image_url: createData.featuredImageUrl || null,
+    gallery_urls: createData.galleryUrls || null,
+    content_status: createData.contentStatus || 'draft',
+    content_priority: createData.contentPriority || 1,
+    last_updated_by: userId,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
+};

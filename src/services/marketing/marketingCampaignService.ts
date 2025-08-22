@@ -5,6 +5,8 @@
 import { supabase } from '../../config/supabase';
 import { ValidationMonitor } from '../../utils/validationMonitor';
 import { RolePermissionService } from '../role-based/rolePermissionService';
+import { campaignKeys, marketingKeys } from '../../utils/queryKeyFactory';
+import { queryClient } from '../../config/queryClient';
 import { 
   MarketingCampaignTransformSchema,
   CampaignLifecycleHelpers,
@@ -120,7 +122,7 @@ export class MarketingCampaignService {
         ValidationMonitor.recordValidationError({
           context: 'MarketingCampaignService.createCampaign',
           errorCode: 'INSUFFICIENT_PERMISSIONS',
-          validationPattern: 'transformation_schema',
+          validationPattern: 'campaign_transformation_schema',
           errorMessage: 'Insufficient permissions for campaign management'
         });
         return { success: false, error: 'Insufficient permissions for campaign management' };
@@ -171,14 +173,14 @@ export class MarketingCampaignService {
       const { data, error } = await supabase
         .from('marketing_campaigns')
         .insert(dbInsertData)
-        .select()
+        .select('id, campaign_name, campaign_type, description, start_date, end_date, discount_percentage, target_audience, campaign_status, created_by, created_at, updated_at')
         .single();
 
       if (error || !data) {
         ValidationMonitor.recordValidationError({
           context: 'MarketingCampaignService.createCampaign',
           errorCode: 'CAMPAIGN_CREATION_FAILED',
-          validationPattern: 'transformation_schema',
+          validationPattern: 'campaign_transformation_schema',
           errorMessage: error?.message || 'Insert failed'
         });
         return { success: false, error: error?.message || 'Failed to create campaign' };
@@ -193,6 +195,14 @@ export class MarketingCampaignService {
         operation: 'createCampaign'
       });
 
+      // Invalidate campaign cache after successful creation
+      await queryClient.invalidateQueries({ 
+        queryKey: campaignKeys.lists(userId) 
+      });
+      await queryClient.invalidateQueries({ 
+        queryKey: marketingKeys.all(userId) 
+      });
+
       return { success: true, data: transformedCampaign };
 
     } catch (error) {
@@ -201,7 +211,7 @@ export class MarketingCampaignService {
       ValidationMonitor.recordValidationError({
         context: 'MarketingCampaignService.createCampaign',
         errorCode: 'CAMPAIGN_CREATION_FAILED',
-        validationPattern: 'transformation_schema',
+        validationPattern: 'campaign_transformation_schema',
         errorMessage
       });
 
@@ -238,7 +248,7 @@ export class MarketingCampaignService {
         ValidationMonitor.recordValidationError({
           context: 'MarketingCampaignService.updateCampaignStatus',
           errorCode: 'CAMPAIGN_NOT_FOUND',
-          validationPattern: 'transformation_schema',
+          validationPattern: 'campaign_transformation_schema',
           errorMessage: 'Campaign not found'
         });
         return { success: false, error: 'Campaign not found' };
@@ -254,7 +264,7 @@ export class MarketingCampaignService {
         ValidationMonitor.recordValidationError({
           context: 'MarketingCampaignService.updateCampaignStatus',
           errorCode: 'INVALID_STATUS_TRANSITION',
-          validationPattern: 'transformation_schema',
+          validationPattern: 'campaign_transformation_schema',
           errorMessage: `Invalid campaign status transition from ${currentCampaign.campaign_status} to ${newStatus}`
         });
         return { 
@@ -271,14 +281,14 @@ export class MarketingCampaignService {
           updated_at: new Date().toISOString()
         })
         .eq('id', campaignId)
-        .select()
+        .select('id, campaign_name, campaign_type, description, start_date, end_date, discount_percentage, target_audience, campaign_status, created_by, created_at, updated_at')
         .single();
 
       if (error || !data) {
         ValidationMonitor.recordValidationError({
           context: 'MarketingCampaignService.updateCampaignStatus',
           errorCode: 'STATUS_UPDATE_FAILED',
-          validationPattern: 'transformation_schema',
+          validationPattern: 'campaign_transformation_schema',
           errorMessage: error?.message || 'Update failed'
         });
         return { success: false, error: error?.message || 'Failed to update campaign status' };
@@ -293,6 +303,14 @@ export class MarketingCampaignService {
         operation: 'updateCampaignStatus'
       });
 
+      // Invalidate campaign cache after status update
+      await queryClient.invalidateQueries({ 
+        queryKey: campaignKeys.details(campaignId, userId) 
+      });
+      await queryClient.invalidateQueries({ 
+        queryKey: campaignKeys.byStatus(newStatus, userId) 
+      });
+
       return { success: true, data: transformedCampaign };
 
     } catch (error) {
@@ -301,7 +319,7 @@ export class MarketingCampaignService {
       ValidationMonitor.recordValidationError({
         context: 'MarketingCampaignService.updateCampaignStatus',
         errorCode: 'STATUS_UPDATE_FAILED',
-        validationPattern: 'transformation_schema',
+        validationPattern: 'campaign_transformation_schema',
         errorMessage
       });
 
@@ -347,7 +365,7 @@ export class MarketingCampaignService {
         ValidationMonitor.recordValidationError({
           context: 'MarketingCampaignService.getCampaignPerformance',
           errorCode: 'METRICS_QUERY_FAILED',
-          validationPattern: 'direct_schema',
+          validationPattern: 'campaign_database_query',
           errorMessage: metricsError.message
         });
         return { success: false, error: metricsError.message };
@@ -399,7 +417,7 @@ export class MarketingCampaignService {
       ValidationMonitor.recordValidationError({
         context: 'MarketingCampaignService.getCampaignPerformance',
         errorCode: 'PERFORMANCE_QUERY_FAILED',
-        validationPattern: 'direct_schema',
+        validationPattern: 'campaign_database_query',
         errorMessage
       });
 
@@ -453,14 +471,14 @@ export class MarketingCampaignService {
           updated_at: new Date().toISOString()
         })
         .eq('id', campaignId)
-        .select()
+        .select('id, campaign_name, campaign_type, description, start_date, end_date, discount_percentage, target_audience, campaign_status, created_by, created_at, updated_at')
         .single();
 
       if (error || !data) {
         ValidationMonitor.recordValidationError({
           context: 'MarketingCampaignService.scheduleCampaign',
           errorCode: 'CAMPAIGN_SCHEDULING_FAILED',
-          validationPattern: 'transformation_schema',
+          validationPattern: 'campaign_transformation_schema',
           errorMessage: error?.message || 'Scheduling failed'
         });
         return { success: false, error: error?.message || 'Failed to schedule campaign' };
@@ -487,7 +505,7 @@ export class MarketingCampaignService {
       ValidationMonitor.recordValidationError({
         context: 'MarketingCampaignService.scheduleCampaign',
         errorCode: 'CAMPAIGN_SCHEDULING_FAILED',
-        validationPattern: 'transformation_schema',
+        validationPattern: 'campaign_transformation_schema',
         errorMessage
       });
 
@@ -513,7 +531,7 @@ export class MarketingCampaignService {
         ValidationMonitor.recordValidationError({
           context: 'MarketingCampaignService.getCampaignsByStatus',
           errorCode: 'INSUFFICIENT_PERMISSIONS',
-          validationPattern: 'transformation_schema',
+          validationPattern: 'campaign_transformation_schema',
           errorMessage: 'Insufficient permissions'
         });
         return { success: false, error: 'Insufficient permissions for campaign access' };
@@ -539,7 +557,7 @@ export class MarketingCampaignService {
         ValidationMonitor.recordValidationError({
           context: 'MarketingCampaignService.getCampaignsByStatus',
           errorCode: 'STATUS_QUERY_FAILED',
-          validationPattern: 'transformation_schema',
+          validationPattern: 'campaign_transformation_schema',
           errorMessage: error.message
         });
         return { success: false, error: error.message };
@@ -575,7 +593,7 @@ export class MarketingCampaignService {
       ValidationMonitor.recordValidationError({
         context: 'MarketingCampaignService.getCampaignsByStatus',
         errorCode: 'STATUS_QUERY_FAILED',
-        validationPattern: 'transformation_schema',
+        validationPattern: 'campaign_transformation_schema',
         errorMessage
       });
 
@@ -611,14 +629,14 @@ export class MarketingCampaignService {
           product_id: productId || null,
           created_at: new Date().toISOString()
         })
-        .select()
+        .select('id, campaign_name, campaign_type, description, start_date, end_date, discount_percentage, target_audience, campaign_status, created_by, created_at, updated_at')
         .single();
 
       if (error || !data) {
         ValidationMonitor.recordValidationError({
           context: 'MarketingCampaignService.recordCampaignMetric',
           errorCode: 'METRIC_RECORDING_FAILED',
-          validationPattern: 'direct_schema',
+          validationPattern: 'campaign_database_query',
           errorMessage: error?.message || 'Insert failed'
         });
         return { success: false, error: error?.message || 'Failed to record metric' };
@@ -645,7 +663,7 @@ export class MarketingCampaignService {
       ValidationMonitor.recordValidationError({
         context: 'MarketingCampaignService.recordCampaignMetric',
         errorCode: 'METRIC_RECORDING_FAILED',
-        validationPattern: 'direct_schema',
+        validationPattern: 'campaign_database_query',
         errorMessage
       });
 
@@ -807,7 +825,7 @@ export class MarketingCampaignService {
       ValidationMonitor.recordValidationError({
         context: 'MarketingCampaignService.getAnalyticsData',
         errorCode: 'ANALYTICS_QUERY_FAILED',
-        validationPattern: 'direct_schema',
+        validationPattern: 'campaign_database_query',
         errorMessage
       });
 
@@ -845,7 +863,7 @@ export class MarketingCampaignService {
         ValidationMonitor.recordValidationError({
           context: 'MarketingCampaignService.getCampaign',
           errorCode: 'CAMPAIGN_FETCH_FAILED',
-          validationPattern: 'transformation_schema',
+          validationPattern: 'campaign_transformation_schema',
           errorMessage
         });
         
@@ -869,7 +887,7 @@ export class MarketingCampaignService {
       ValidationMonitor.recordValidationError({
         context: 'MarketingCampaignService.getCampaign',
         errorCode: 'CAMPAIGN_FETCH_FAILED',
-        validationPattern: 'transformation_schema',
+        validationPattern: 'campaign_transformation_schema',
         errorMessage
       });
 
@@ -1255,7 +1273,7 @@ export class MarketingCampaignService {
           updated_at: new Date().toISOString()
         })
         .eq('id', campaignId)
-        .select()
+        .select('id, campaign_name, campaign_type, description, start_date, end_date, discount_percentage, target_audience, campaign_status, created_by, created_at, updated_at')
         .single();
 
       if (error || !data) {

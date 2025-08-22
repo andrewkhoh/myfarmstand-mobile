@@ -176,7 +176,7 @@ describe('Strategic Reporting Schema Contracts - Phase 4', () => {
           frequency_specific: frequency
         },
         last_generated_at: null,
-        next_generation_at: null,
+        next_generation_at: frequency !== 'on_demand' ? '2024-01-15T00:00:00Z' : null,
         is_automated: frequency !== 'on_demand', // on_demand should not be automated
         created_by: 'test-user',
         created_at: '2024-01-01T00:00:00Z',

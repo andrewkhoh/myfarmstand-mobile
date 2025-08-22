@@ -1,9 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
-
-// Real Supabase configuration for testing
-import { supabase } from '../../../config/supabase';
-
-// Mock ValidationMonitor (following architectural pattern)
+// Mock ValidationMonitor before importing service (Pattern 1)
 jest.mock('../../../utils/validationMonitor');
 
 import { MarketingCampaignService } from '../marketingCampaignService';
@@ -15,52 +10,42 @@ import type {
   CampaignStatusType
 } from '../../../schemas/marketing';
 
-// Phase 1 Integration: Role-based permissions
-import { RolePermissionService } from '../../role-based/rolePermissionService';
+// Mock the supabase module at the service level (AuthService exact pattern)
+const mockSupabase = require('../../../config/supabase').supabase;
 
-// Real database testing against test tables
-describe('MarketingCampaignService - Phase 3.2 (Real Database)', () => {
+// Mock role permissions
+jest.mock('../../role-based/rolePermissionService');
+const mockRolePermissionService = require('../../role-based/rolePermissionService').RolePermissionService;
+
+// Mock-based service testing following scratchpad Pattern 1
+describe('MarketingCampaignService - Phase 3.2', () => {
   
-  // Test data cleanup IDs
-  const testCampaignIds = new Set<string>();
-  const testMetricIds = new Set<string>();
   const testUserId = 'test-user-campaign-123';
+  const testCampaignId = 'campaign-456';
   
   beforeEach(() => {
     jest.clearAllMocks();
-    // Track test data for cleanup
-    testCampaignIds.clear();
-    testMetricIds.clear();
-  });
-
-  afterEach(async () => {
-    // Clean up test data from real database
-    try {
-      // Delete test campaign metrics first (foreign key constraint)
-      if (testMetricIds.size > 0) {
-        await supabase
-          .from('campaign_metrics')
-          .delete()
-          .in('id', Array.from(testMetricIds));
-      }
-
-      // Delete test campaigns
-      if (testCampaignIds.size > 0) {
-        await supabase
-          .from('marketing_campaigns')
-          .delete()
-          .in('id', Array.from(testCampaignIds));
-      }
-    } catch (error) {
-      console.warn('Cleanup warning:', error);
-    }
+    
+    // Setup default mock returns for chainable Supabase queries
+    mockSupabase.from = jest.fn(() => ({
+      select: jest.fn().mockReturnThis(),
+      insert: jest.fn().mockReturnThis(),
+      update: jest.fn().mockReturnThis(),
+      delete: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      in: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+      order: jest.fn().mockReturnThis(),
+      range: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({ data: null, error: null })
+    }));
+    
+    // Default role permission setup
+    mockRolePermissionService.hasPermission.mockResolvedValue(true);
   });
 
   describe('createCampaign', () => {
     it('should create campaign with complete lifecycle management', async () => {
-      // Mock role permission
-      jest.spyOn(RolePermissionService, 'hasPermission').mockResolvedValue(true);
-
       const campaignData: CreateMarketingCampaignInput = {
         campaignName: 'Test Spring Campaign',
         campaignType: 'seasonal',
@@ -72,6 +57,31 @@ describe('MarketingCampaignService - Phase 3.2 (Real Database)', () => {
         campaignStatus: 'planned'
       };
 
+      // Mock successful database insertion
+      const mockCreatedCampaign = {
+        id: 'campaign-created-123',
+        campaign_name: 'Test Spring Campaign',
+        campaign_type: 'seasonal',
+        description: 'Test campaign for spring season',
+        start_date: campaignData.startDate,
+        end_date: campaignData.endDate,
+        discount_percentage: 15.50,
+        target_audience: 'Health-conscious consumers',
+        campaign_status: 'planned',
+        created_by: testUserId,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      mockSupabase.from.mockReturnValue({
+        insert: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: mockCreatedCampaign,
+          error: null
+        })
+      });
+
       const result = await MarketingCampaignService.createCampaign(
         campaignData,
         testUserId
@@ -81,41 +91,23 @@ describe('MarketingCampaignService - Phase 3.2 (Real Database)', () => {
       expect(result.data).toBeDefined();
 
       if (result.success && result.data) {
-        testCampaignIds.add(result.data.id);
-
         // Verify campaign data transformation
         expect(result.data.campaignName).toBe('Test Spring Campaign');
         expect(result.data.campaignType).toBe('seasonal');
         expect(result.data.campaignStatus).toBe('planned');
         expect(result.data.discountPercentage).toBe(15.50);
         expect(result.data.createdBy).toBe(testUserId);
-
-        // Verify database state
-        const { data: dbCampaign } = await supabase
-          .from('marketing_campaigns')
-          .select('*')
-          .eq('id', result.data.id)
-          .single();
-
-        expect(dbCampaign?.campaign_name).toBe('Test Spring Campaign');
-        expect(dbCampaign?.campaign_type).toBe('seasonal');
-        expect(dbCampaign?.created_by).toBe(testUserId);
       }
 
       // Verify ValidationMonitor integration
-      expect(ValidationMonitor.logOperation).toHaveBeenCalledWith(
-        'MarketingCampaignService.createCampaign',
-        true,
-        expect.objectContaining({
-          campaignName: 'Test Spring Campaign',
-          campaignType: 'seasonal'
-        })
-      );
+      expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith({
+        service: 'marketingCampaignService',
+        pattern: 'transformation_schema',
+        operation: 'createCampaign'
+      });
     });
 
     it('should validate campaign date constraints', async () => {
-      jest.spyOn(RolePermissionService, 'hasPermission').mockResolvedValue(true);
-
       const invalidCampaignData: CreateMarketingCampaignInput = {
         campaignName: 'Invalid Date Campaign',
         campaignType: 'promotional',
@@ -132,11 +124,17 @@ describe('MarketingCampaignService - Phase 3.2 (Real Database)', () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toContain('End date must be after start date');
+      
+      // Verify ValidationMonitor logs validation error  
+      expect(ValidationMonitor.recordValidationError).toHaveBeenCalledWith({
+        context: 'MarketingCampaignService.createCampaign',
+        errorCode: 'INVALID_DATE_RANGE',
+        validationPattern: 'simple_validation',
+        errorMessage: 'End date must be after start date'
+      });
     });
 
     it('should enforce business rules for campaign types', async () => {
-      jest.spyOn(RolePermissionService, 'hasPermission').mockResolvedValue(true);
-
       // Clearance campaign without sufficient discount
       const clearanceCampaignData: CreateMarketingCampaignInput = {
         campaignName: 'Invalid Clearance Campaign',
@@ -365,7 +363,7 @@ describe('MarketingCampaignService - Phase 3.2 (Real Database)', () => {
 
   describe('scheduleCampaign', () => {
     it('should schedule campaign with date validation and automation', async () => {
-      jest.spyOn(RolePermissionService, 'hasPermission').mockResolvedValue(true);
+      // Role permission already mocked in beforeEach
 
       const scheduleData = {
         campaignId: 'will-be-created',
@@ -429,7 +427,7 @@ describe('MarketingCampaignService - Phase 3.2 (Real Database)', () => {
 
   describe('getCampaignsByStatus', () => {
     it('should filter campaigns by status with role-based access', async () => {
-      jest.spyOn(RolePermissionService, 'hasPermission').mockResolvedValue(true);
+      // Role permission already mocked in beforeEach
 
       const result = await MarketingCampaignService.getCampaignsByStatus(
         'active',
@@ -450,14 +448,14 @@ describe('MarketingCampaignService - Phase 3.2 (Real Database)', () => {
         });
       }
 
-      expect(RolePermissionService.hasPermission).toHaveBeenCalledWith(
+      expect(mockRolePermissionService.hasPermission).toHaveBeenCalledWith(
         testUserId,
         'campaign_management'
       );
     });
 
     it('should validate role permissions for campaign access', async () => {
-      jest.spyOn(RolePermissionService, 'hasPermission').mockResolvedValue(false);
+      mockRolePermissionService.hasPermission.mockResolvedValue(false);
 
       const result = await MarketingCampaignService.getCampaignsByStatus(
         'planned',

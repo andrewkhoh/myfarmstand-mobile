@@ -1,4 +1,5 @@
 module.exports = {
+  preset: 'jest-expo',
   displayName: 'services',
   testMatch: [
     '**/services/__tests__/**/*.(ts|js)',
@@ -21,7 +22,7 @@ module.exports = {
     '^@/(.*)$': '<rootDir>/src/$1'
   },
   transformIgnorePatterns: [
-    'node_modules/(?!(@supabase|uuid)/)'
+    'node_modules/(?!(jest-)?@?react-native|@react-native-community|@react-navigation|@supabase|expo|@expo)'
   ],
   collectCoverageFrom: [
     'src/services/**/*.{ts,tsx}',

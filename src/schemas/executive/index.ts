@@ -2,6 +2,28 @@
 // Clean exports for all executive analytics schemas
 // Following Phase 1, 2, 3 patterns for consistent module structure
 
+// Import constants first to avoid reference issues
+import {
+  METRIC_CATEGORIES,
+  AGGREGATION_LEVELS
+} from './businessMetrics.schemas';
+
+import {
+  INSIGHT_TYPES,
+  IMPACT_LEVELS,
+  AFFECTED_AREAS
+} from './businessIntelligence.schemas';
+
+import {
+  REPORT_TYPES,
+  REPORT_FREQUENCIES
+} from './strategicReporting.schemas';
+
+import {
+  FORECAST_TYPES,
+  MODEL_TYPES
+} from './predictiveAnalytics.schemas';
+
 // Business Metrics exports
 export {
   BusinessMetricsDatabaseSchema,

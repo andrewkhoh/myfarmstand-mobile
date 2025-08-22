@@ -59,8 +59,8 @@ export interface InventoryItemTransform {
   currentStock: number;
   reservedStock: number;
   availableStock: number;
-  minimumThreshold: number | null;
-  maximumThreshold: number | null;
+  minimumThreshold: number;
+  maximumThreshold: number;
   isActive: boolean;
   isVisibleToCustomers: boolean;
   lastStockUpdate: string;
@@ -77,8 +77,8 @@ export const InventoryItemTransformSchema = InventoryItemDatabaseSchema.transfor
     currentStock: data.current_stock,                                 // Snake → camel
     reservedStock: data.reserved_stock,                               // Snake → camel
     availableStock: data.available_stock,                             // Snake → camel
-    minimumThreshold: data.minimum_threshold,                         // Snake → camel, preserve null
-    maximumThreshold: data.maximum_threshold,                         // Snake → camel, preserve null
+    minimumThreshold: data.minimum_threshold ?? 10,                  // Snake → camel, null-safe default
+    maximumThreshold: data.maximum_threshold ?? 1000,                // Snake → camel, null-safe default
     isActive: data.is_active ?? true,                                 // Snake → camel, null-safe default
     isVisibleToCustomers: data.is_visible_to_customers ?? true,       // Snake → camel, null-safe default
     lastStockUpdate: data.last_stock_update || new Date().toISOString(), // Snake → camel, null-safe default

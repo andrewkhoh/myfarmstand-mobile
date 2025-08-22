@@ -61,7 +61,8 @@ export const ROLE_PERMISSIONS = {
     'update_stock', 
     'view_stock_reports',
     'receive_stock',
-    'adjust_inventory'
+    'adjust_inventory',
+    'inventory_management'
   ],
   marketing_staff: [
     'view_products',
@@ -69,19 +70,26 @@ export const ROLE_PERMISSIONS = {
     'create_promotions',
     'manage_bundles', 
     'send_notifications',
-    'view_marketing_analytics'
+    'view_marketing_analytics',
+    'content_management',
+    'campaign_management'
   ],
   executive: [
     'view_all_analytics',
     'view_cross_role_insights',
     'generate_strategic_reports',
-    'view_business_intelligence'
+    'view_business_intelligence',
+    'executive_analytics'
   ],
   admin: [
     'manage_users',
     'manage_roles',
     'system_administration',
-    'view_all_data'
+    'view_all_data',
+    'content_management',
+    'campaign_management',
+    'inventory_management',
+    'executive_analytics'
   ]
 } as const;
 

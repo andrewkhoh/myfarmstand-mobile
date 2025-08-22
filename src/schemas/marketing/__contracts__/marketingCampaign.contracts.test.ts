@@ -91,9 +91,13 @@ describe('Marketing Campaign Schema Contracts - Phase 3.1', () => {
       id: 'test-id',
       campaign_name: 'Valid Date Campaign',
       campaign_type: 'promotional' as const,
+      description: null,
       start_date: '2024-01-01T00:00:00Z',
       end_date: '2024-02-01T00:00:00Z', // After start date
+      discount_percentage: null,
+      target_audience: null,
       campaign_status: 'planned' as const,
+      created_by: null,
       created_at: '2024-01-01T00:00:00Z',
       updated_at: '2024-01-01T00:00:00Z'
     };
@@ -109,9 +113,9 @@ describe('Marketing Campaign Schema Contracts - Phase 3.1', () => {
       end_date: '2024-01-01T00:00:00Z' // Same as start date
     };
     
-    // Schema allows it, but service layer should reject
+    // Schema enforces business rule: end_date must be after start_date
     const sameDateResult = MarketingCampaignDatabaseSchema.safeParse(sameDates);
-    expect(sameDateResult.success).toBe(true); // Schema validates structure, not business rules
+    expect(sameDateResult.success).toBe(false); // Schema enforces business rule
   });
 
   // Contract Test 4: Campaign type enum constraint validation
@@ -123,9 +127,13 @@ describe('Marketing Campaign Schema Contracts - Phase 3.1', () => {
         id: 'test-id',
         campaign_name: 'Test Campaign',
         campaign_type: type,
+        description: null,
         start_date: '2024-01-01T00:00:00Z',
         end_date: '2024-02-01T00:00:00Z',
+        discount_percentage: null,
+        target_audience: null,
         campaign_status: 'planned',
+        created_by: null,
         created_at: '2024-01-01T00:00:00Z',
         updated_at: '2024-01-01T00:00:00Z'
       });
@@ -158,11 +166,14 @@ describe('Marketing Campaign Schema Contracts - Phase 3.1', () => {
       const result = MarketingCampaignDatabaseSchema.safeParse({
         id: 'test-id',
         campaign_name: 'Discount Campaign',
-        campaign_type: 'promotional',
+        campaign_type: 'seasonal',
+        description: null,
         start_date: '2024-01-01T00:00:00Z',
         end_date: '2024-02-01T00:00:00Z',
         discount_percentage: discount,
+        target_audience: null,
         campaign_status: 'active',
+        created_by: null,
         created_at: '2024-01-01T00:00:00Z',
         updated_at: '2024-01-01T00:00:00Z'
       });
@@ -177,17 +188,20 @@ describe('Marketing Campaign Schema Contracts - Phase 3.1', () => {
       const result = MarketingCampaignDatabaseSchema.safeParse({
         id: 'test-id',
         campaign_name: 'Invalid Discount',
-        campaign_type: 'promotional',
+        campaign_type: 'seasonal',
+        description: null,
         start_date: '2024-01-01T00:00:00Z',
         end_date: '2024-02-01T00:00:00Z',
         discount_percentage: discount,
+        target_audience: null,
         campaign_status: 'active',
+        created_by: null,
         created_at: '2024-01-01T00:00:00Z',
         updated_at: '2024-01-01T00:00:00Z'
       });
       
-      // Schema validates number type, service validates business rules
-      expect(result.success).toBe(true);
+      // Schema enforces 0-100 range for discount percentage
+      expect(result.success).toBe(false);
     });
   });
 
@@ -230,10 +244,13 @@ describe('Marketing Campaign Schema Contracts - Phase 3.1', () => {
       id: 'campaign-789',
       campaign_name: 'Analytics Campaign',
       campaign_type: 'promotional' as const,
+      description: null,
       start_date: '2024-01-01T00:00:00Z',
       end_date: '2024-02-01T00:00:00Z',
       discount_percentage: 20.00,
+      target_audience: null,
       campaign_status: 'active' as const,
+      created_by: null,
       created_at: '2024-01-01T00:00:00Z',
       updated_at: '2024-01-01T00:00:00Z'
     };
@@ -281,6 +298,7 @@ describe('Marketing Campaign Schema Contracts - Phase 3.1', () => {
       discount_percentage: 30.00,
       target_audience: 'Value seekers',
       campaign_status: 'active' as const,
+      created_by: null,
       created_at: '2024-01-01T00:00:00Z',
       updated_at: '2024-01-01T00:00:00Z'
     };
@@ -296,8 +314,8 @@ describe('Marketing Campaign Schema Contracts - Phase 3.1', () => {
       campaignName: 'New Spring Campaign',
       campaignType: 'seasonal' as const,
       description: 'Fresh spring produce promotion',
-      startDate: '2024-03-01T00:00:00Z',
-      endDate: '2024-05-31T23:59:59Z',
+      startDate: '2026-03-01T00:00:00Z',
+      endDate: '2026-05-31T23:59:59Z',
       discountPercentage: 20.00,
       targetAudience: 'Health-conscious consumers',
       campaignStatus: 'planned' as const

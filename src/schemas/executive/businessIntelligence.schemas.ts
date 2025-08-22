@@ -121,7 +121,7 @@ export const BusinessIntelligenceTransformSchema = BusinessIntelligenceDatabaseS
     recommendationActions: data.recommendation_actions,               // Snake → camel
     insightDateRange: data.insight_date_range,                        // Snake → camel
     generatedBy: data.generated_by,                                   // Snake → camel
-    isActive: data.is_active || true,                                 // Snake → camel, with default
+    isActive: data.is_active ?? true,                                 // Snake → camel, with null fallback only
     createdAt: data.created_at || new Date().toISOString(),          // Snake → camel, with default
     updatedAt: data.updated_at || new Date().toISOString()           // Snake → camel, with default
   };

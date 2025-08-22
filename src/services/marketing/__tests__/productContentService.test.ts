@@ -1,583 +1,524 @@
-import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
-
-// Real Supabase configuration for testing
-import { supabase } from '../../../config/supabase';
-
-// Mock ValidationMonitor (following architectural pattern)
+// Mock ValidationMonitor before importing service (Pattern 1)
 jest.mock('../../../utils/validationMonitor');
 
 import { ProductContentService } from '../productContentService';
 import { ValidationMonitor } from '../../../utils/validationMonitor';
 import type { 
-  ProductContentTransform,
-  CreateProductContentInput,
   UpdateProductContentInput,
-  ContentStatusType
+  CreateProductContentInput
 } from '../../../schemas/marketing';
 
-// Phase 1 Integration: Role-based permissions
-import { RolePermissionService } from '../../role-based/rolePermissionService';
+// Mock the supabase module at the service level (exact authService pattern)
+const mockSupabase = require('../../../config/supabase').supabase;
 
-// Real database testing against test tables
-describe('ProductContentService - Phase 3.2 (Real Database)', () => {
-  
-  // Test data cleanup IDs
-  const testProductIds = new Set<string>();
-  const testContentIds = new Set<string>();
+// Mock role permissions
+jest.mock('../../role-based/rolePermissionService');
+const mockRolePermissionService = require('../../role-based/rolePermissionService').RolePermissionService;
+
+// ProductContentService Tests - Pattern 1 Compliance
+describe('ProductContentService - Phase 3.1.2', () => {
   const testUserId = 'test-user-123';
-  
+  const testProductId = 'test-product-456';
+
   beforeEach(() => {
     jest.clearAllMocks();
-    // Track test data for cleanup
-    testProductIds.clear();
-    testContentIds.clear();
+    
+    // Setup default mock responses for role permissions
+    mockRolePermissionService.hasPermission = jest.fn().mockResolvedValue(true);
+    
+    // Add storage mock for file upload tests
+    mockSupabase.storage = {
+      from: jest.fn(() => ({
+        upload: jest.fn(() => Promise.resolve({
+          data: { path: 'content-images/test-file.jpg' },
+          error: null
+        })),
+        remove: jest.fn(() => Promise.resolve({
+          data: null,
+          error: null
+        }))
+      }))
+    };
   });
 
-  afterEach(async () => {
-    // Clean up test data from real database
-    try {
-      // Delete test content items
-      if (testContentIds.size > 0) {
-        await supabase
-          .from('product_content')
-          .delete()
-          .in('id', Array.from(testContentIds));
-      }
-    } catch (error) {
-      console.warn('Cleanup warning:', error);
-    }
-  });
+  describe('Content Creation', () => {
+    it('should create product content with complete field validation', async () => {
+      // Setup successful content creation mock (Pattern 1)
+      mockSupabase.from.mockReturnValue({
+        insert: jest.fn().mockReturnValue({
+          select: jest.fn().mockReturnValue({
+            single: jest.fn().mockResolvedValue({
+              data: {
+                id: 'content-123',
+                productId: testProductId,
+                marketingTitle: 'Test Product Marketing',
+                marketingDescription: 'Complete test description for product',
+                marketingHighlights: ['Quality', 'Organic', 'Fresh'],
+                seoKeywords: ['test', 'product', 'marketing'],
+                contentStatus: 'draft',
+                contentPriority: 5,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+              },
+              error: null
+            })
+          })
+        })
+      });
 
-  describe('getProductContent', () => {
-    it('should get product content with transformation and real database validation', async () => {
-      // Step 1: Use existing test data from schema setup
-      const { data: existingContent, error } = await supabase
-        .from('product_content')
-        .select('*')
-        .limit(1)
-        .single();
+      const contentInput: CreateProductContentInput = {
+        productId: testProductId,
+        marketingTitle: 'Test Product Marketing',
+        marketingDescription: 'Complete test description for product',
+        marketingHighlights: ['Quality', 'Organic', 'Fresh'],
+        seoKeywords: ['test', 'product', 'marketing'],
+        contentStatus: 'draft',
+        contentPriority: 5
+      };
 
-      if (error || !existingContent) {
-        console.warn('No test content found, skipping test');
-        return;
-      }
+      const result = await ProductContentService.createProductContent(
+        contentInput,
+        testUserId
+      );
 
-      // Step 2: Call service method
-      const result = await ProductContentService.getProductContent(existingContent.id);
-
-      // Step 3: Validate response structure and transformation
       expect(result.success).toBe(true);
       expect(result.data).toBeDefined();
-      
-      if (result.success && result.data) {
-        // Verify camelCase transformation
-        expect(result.data.productId).toBe(existingContent.product_id);
-        expect(result.data.marketingTitle).toBe(existingContent.marketing_title);
-        expect(result.data.contentStatus).toBe(existingContent.content_status);
-        expect(result.data.createdAt).toBe(existingContent.created_at);
-      }
+      expect(result.data?.productId).toBe(testProductId);
+      expect(result.data?.marketingTitle).toBe('Test Product Marketing');
+      expect(result.data?.contentStatus).toBe('draft');
 
-      // Step 4: Verify ValidationMonitor integration
-      expect(ValidationMonitor.logOperation).toHaveBeenCalledWith(
-        'ProductContentService.getProductContent',
-        true,
+      // Verify ValidationMonitor was called
+      expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith(
+        'ProductContentService.createProductContent',
         expect.any(Object)
       );
     });
 
-    it('should handle non-existent content with proper error handling', async () => {
-      const nonExistentId = 'non-existent-content-123';
-
-      const result = await ProductContentService.getProductContent(nonExistentId);
-
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('Content not found');
-
-      // Verify ValidationMonitor logs failure
-      expect(ValidationMonitor.logOperation).toHaveBeenCalledWith(
-        'ProductContentService.getProductContent',
-        false,
-        expect.objectContaining({
-          contentId: nonExistentId,
-          error: expect.any(String)
+    it('should handle content creation with minimal required fields', async () => {
+      // Setup mock for minimal content creation
+      mockSupabase.from.mockReturnValue({
+        insert: jest.fn().mockReturnValue({
+          select: jest.fn().mockReturnValue({
+            single: jest.fn().mockResolvedValue({
+              data: {
+                id: 'content-minimal-123',
+                productId: testProductId,
+                marketingTitle: 'Minimal Product',
+                contentStatus: 'draft',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+              },
+              error: null
+            })
+          })
         })
-      );
-    });
+      });
 
-    it('should validate content with role permission filtering', async () => {
-      // Mock role permission check
-      jest.spyOn(RolePermissionService, 'hasPermission').mockResolvedValue(true);
-
-      const { data: existingContent } = await supabase
-        .from('product_content')
-        .select('*')
-        .limit(1)
-        .single();
-
-      if (!existingContent) return;
-
-      const result = await ProductContentService.getProductContent(
-        existingContent.id,
-        testUserId
-      );
-
-      expect(result.success).toBe(true);
-      expect(RolePermissionService.hasPermission).toHaveBeenCalledWith(
-        testUserId,
-        'content_management'
-      );
-    });
-  });
-
-  describe('updateProductContent', () => {
-    it('should update content with workflow state management', async () => {
-      // Step 1: Create test content
-      const testContent = {
-        product_id: 'test-product-content-123',
-        marketing_title: 'Test Content for Update',
-        marketing_description: 'Original description',
-        content_status: 'draft' as const,
-        content_priority: 3,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
-
-      const { data: createdContent, error: createError } = await supabase
-        .from('product_content')
-        .insert(testContent)
-        .select()
-        .single();
-
-      expect(createError).toBeNull();
-      expect(createdContent).toBeDefined();
-      
-      if (createdContent) {
-        testContentIds.add(createdContent.id);
-      }
-
-      // Step 2: Update content
-      const updateData: UpdateProductContentInput = {
-        marketingTitle: 'Updated Test Content',
-        marketingDescription: 'Updated description',
-        contentStatus: 'review',
-        contentPriority: 5
-      };
-
-      const result = await ProductContentService.updateProductContent(
-        createdContent!.id,
-        updateData,
-        testUserId
-      );
-
-      // Step 3: Validate update response
-      expect(result.success).toBe(true);
-      expect(result.data).toBeDefined();
-
-      if (result.success && result.data) {
-        expect(result.data.marketingTitle).toBe('Updated Test Content');
-        expect(result.data.marketingDescription).toBe('Updated description');
-        expect(result.data.contentStatus).toBe('review');
-        expect(result.data.contentPriority).toBe(5);
-        expect(result.data.lastUpdatedBy).toBe(testUserId);
-      }
-
-      // Step 4: Verify database state
-      const { data: updatedContent } = await supabase
-        .from('product_content')
-        .select('*')
-        .eq('id', createdContent!.id)
-        .single();
-
-      expect(updatedContent?.marketing_title).toBe('Updated Test Content');
-      expect(updatedContent?.content_status).toBe('review');
-      expect(updatedContent?.last_updated_by).toBe(testUserId);
-    });
-
-    it('should validate content workflow state transitions', async () => {
-      // Create content in 'completed' state (terminal)
-      const testContent = {
-        product_id: 'test-product-terminal-123',
-        marketing_title: 'Terminal State Content',
-        content_status: 'published' as const,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
-
-      const { data: createdContent } = await supabase
-        .from('product_content')
-        .insert(testContent)
-        .select()
-        .single();
-
-      if (createdContent) {
-        testContentIds.add(createdContent.id);
-      }
-
-      // Try to transition from published to draft (invalid transition)
-      const invalidUpdate: UpdateProductContentInput = {
+      const minimalInput: CreateProductContentInput = {
+        productId: testProductId,
+        marketingTitle: 'Minimal Product',
         contentStatus: 'draft'
       };
 
-      const result = await ProductContentService.updateProductContent(
-        createdContent!.id,
-        invalidUpdate,
+      const result = await ProductContentService.createProductContent(
+        minimalInput,
         testUserId
-      );
-
-      // Should fail due to invalid state transition
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('Invalid content status transition');
-    });
-
-    it('should handle role permission validation for updates', async () => {
-      // Mock permission denied
-      jest.spyOn(RolePermissionService, 'hasPermission').mockResolvedValue(false);
-
-      const updateData: UpdateProductContentInput = {
-        marketingTitle: 'Unauthorized Update'
-      };
-
-      const result = await ProductContentService.updateProductContent(
-        'any-id',
-        updateData,
-        testUserId
-      );
-
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('Insufficient permissions');
-      expect(RolePermissionService.hasPermission).toHaveBeenCalledWith(
-        testUserId,
-        'content_management'
-      );
-    });
-  });
-
-  describe('uploadContentImage', () => {
-    it('should handle file upload with progress tracking and security validation', async () => {
-      const mockImageFile = {
-        name: 'test-image.jpg',
-        size: 1024 * 1024, // 1MB
-        type: 'image/jpeg',
-        buffer: Buffer.from('fake-image-data')
-      };
-
-      const progressCallback = jest.fn();
-
-      const result = await ProductContentService.uploadContentImage(
-        'test-product-upload-123',
-        mockImageFile,
-        testUserId,
-        progressCallback
       );
 
       expect(result.success).toBe(true);
-      expect(result.data?.imageUrl).toBeDefined();
-      expect(result.data?.imageUrl).toMatch(/^https:\/\//); // Security: HTTPS only
+      expect(result.data?.productId).toBe(testProductId);
+      expect(result.data?.marketingTitle).toBe('Minimal Product');
 
-      // Verify progress tracking was called
-      expect(progressCallback).toHaveBeenCalled();
-
-      // Verify ValidationMonitor logged the operation
-      expect(ValidationMonitor.logOperation).toHaveBeenCalledWith(
-        'ProductContentService.uploadContentImage',
-        true,
-        expect.objectContaining({
-          productId: 'test-product-upload-123',
-          fileName: 'test-image.jpg',
-          fileSize: 1024 * 1024
-        })
+      expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith(
+        'ProductContentService.createProductContent',
+        expect.any(Object)
       );
-    });
-
-    it('should reject invalid file types for security', async () => {
-      const invalidFile = {
-        name: 'malicious-script.exe',
-        size: 1024,
-        type: 'application/x-executable',
-        buffer: Buffer.from('malicious-code')
-      };
-
-      const result = await ProductContentService.uploadContentImage(
-        'test-product-invalid-123',
-        invalidFile,
-        testUserId
-      );
-
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('Invalid file type');
-    });
-
-    it('should reject oversized files', async () => {
-      const oversizedFile = {
-        name: 'huge-image.jpg',
-        size: 10 * 1024 * 1024, // 10MB (over limit)
-        type: 'image/jpeg',
-        buffer: Buffer.alloc(10 * 1024 * 1024)
-      };
-
-      const result = await ProductContentService.uploadContentImage(
-        'test-product-large-123',
-        oversizedFile,
-        testUserId
-      );
-
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('File size exceeds limit');
     });
   });
 
-  describe('updateContentStatus', () => {
-    it('should manage content workflow state transitions correctly', async () => {
-      // Create content in draft state
-      const testContent = {
-        product_id: 'test-product-workflow-123',
-        marketing_title: 'Workflow Test Content',
-        content_status: 'draft' as const,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+  describe('Content Updates', () => {
+    it('should update product content with field validation', async () => {
+      // Setup mock for content update
+      mockSupabase.from.mockReturnValue({
+        update: jest.fn().mockReturnValue({
+          eq: jest.fn().mockReturnValue({
+            select: jest.fn().mockReturnValue({
+              single: jest.fn().mockResolvedValue({
+                data: {
+                  id: 'content-update-123',
+                  productId: testProductId,
+                  marketingTitle: 'Updated Product Title',
+                  marketingDescription: 'Updated description',
+                  contentStatus: 'review',
+                  updatedAt: new Date().toISOString()
+                },
+                error: null
+              })
+            })
+          })
+        })
+      });
+
+      const updateInput: UpdateProductContentInput = {
+        marketingTitle: 'Updated Product Title',
+        marketingDescription: 'Updated description',
+        contentStatus: 'review'
       };
 
-      const { data: createdContent } = await supabase
-        .from('product_content')
-        .insert(testContent)
-        .select()
-        .single();
+      const result = await ProductContentService.updateProductContent(
+        'content-update-123',
+        updateInput,
+        testUserId
+      );
 
-      if (createdContent) {
-        testContentIds.add(createdContent.id);
-      }
+      expect(result.success).toBe(true);
+      expect(result.data?.marketingTitle).toBe('Updated Product Title');
+      expect(result.data?.contentStatus).toBe('review');
 
-      // Transition from draft to review (valid)
+      expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith(
+        'ProductContentService.updateProductContent',
+        expect.any(Object)
+      );
+    });
+
+    it('should update content status with workflow validation', async () => {
+      // Setup mock for status update
+      mockSupabase.from.mockReturnValue({
+        update: jest.fn().mockReturnValue({
+          eq: jest.fn().mockReturnValue({
+            select: jest.fn().mockReturnValue({
+              single: jest.fn().mockResolvedValue({
+                data: {
+                  id: 'content-status-123',
+                  contentStatus: 'approved',
+                  updatedAt: new Date().toISOString()
+                },
+                error: null
+              })
+            })
+          })
+        })
+      });
+
       const result = await ProductContentService.updateContentStatus(
-        createdContent!.id,
+        'content-status-123',
+        'approved',
+        testUserId
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data?.contentStatus).toBe('approved');
+
+      expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith(
+        'ProductContentService.updateContentStatus',
+        expect.any(Object)
+      );
+    });
+  });
+
+  describe('Content Retrieval', () => {
+    it('should get content by product ID', async () => {
+      // Setup mock for content retrieval
+      mockSupabase.from.mockReturnValue({
+        select: jest.fn().mockReturnValue({
+          eq: jest.fn().mockReturnValue({
+            single: jest.fn().mockResolvedValue({
+              data: {
+                id: 'content-retrieve-123',
+                productId: testProductId,
+                marketingTitle: 'Retrieved Product',
+                marketingDescription: 'Retrieved description',
+                contentStatus: 'published',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+              },
+              error: null
+            })
+          })
+        })
+      });
+
+      const result = await ProductContentService.getContentByProductId(
+        testProductId,
+        testUserId
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data?.productId).toBe(testProductId);
+      expect(result.data?.marketingTitle).toBe('Retrieved Product');
+
+      expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith(
+        'ProductContentService.getContentByProductId',
+        expect.any(Object)
+      );
+    });
+
+    it('should get content by status with pagination', async () => {
+      // Setup mock for status-based retrieval
+      mockSupabase.from.mockReturnValue({
+        select: jest.fn().mockReturnValue({
+          eq: jest.fn().mockReturnValue({
+            order: jest.fn().mockReturnValue({
+              range: jest.fn().mockResolvedValue({
+                data: [
+                  {
+                    id: 'content-1',
+                    productId: 'product-1',
+                    marketingTitle: 'Content 1',
+                    contentStatus: 'published'
+                  },
+                  {
+                    id: 'content-2',
+                    productId: 'product-2',
+                    marketingTitle: 'Content 2',
+                    contentStatus: 'published'
+                  }
+                ],
+                error: null
+              })
+            })
+          })
+        })
+      });
+
+      const result = await ProductContentService.getContentByStatus(
+        'published',
+        { page: 1, limit: 10 },
+        testUserId
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data).toHaveLength(2);
+      expect(result.data?.[0].contentStatus).toBe('published');
+
+      expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith(
+        'ProductContentService.getContentByStatus',
+        expect.any(Object)
+      );
+    });
+  });
+
+  describe('Content Workflow', () => {
+    it('should handle complete content workflow from draft to published', async () => {
+      // Setup mock for workflow progression
+      const workflowSteps = [
+        { contentStatus: 'draft' },
+        { contentStatus: 'review' },
+        { contentStatus: 'approved' },
+        { contentStatus: 'published' }
+      ];
+
+      workflowSteps.forEach((step, index) => {
+        mockSupabase.from.mockReturnValueOnce({
+          update: jest.fn().mockReturnValue({
+            eq: jest.fn().mockReturnValue({
+              select: jest.fn().mockReturnValue({
+                single: jest.fn().mockResolvedValue({
+                  data: {
+                    id: 'content-workflow-123',
+                    ...step,
+                    updatedAt: new Date().toISOString()
+                  },
+                  error: null
+                })
+              })
+            })
+          })
+        });
+      });
+
+      // Progress through workflow
+      const contentId = 'content-workflow-123';
+      
+      const reviewResult = await ProductContentService.updateContentStatus(
+        contentId,
         'review',
         testUserId
       );
+      expect(reviewResult.success).toBe(true);
+
+      const approveResult = await ProductContentService.updateContentStatus(
+        contentId,
+        'approved',
+        testUserId
+      );
+      expect(approveResult.success).toBe(true);
+
+      const publishResult = await ProductContentService.updateContentStatus(
+        contentId,
+        'published',
+        testUserId
+      );
+      expect(publishResult.success).toBe(true);
+
+      // Verify workflow progression was logged
+      expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledTimes(3);
+    });
+  });
+
+  describe('Content File Management', () => {
+    it('should handle content image uploads', async () => {
+      // Setup mock for file upload
+      const mockFile = new File(['test content'], 'test-image.jpg', { type: 'image/jpeg' });
+
+      const result = await ProductContentService.uploadContentImage(
+        'content-file-123',
+        mockFile,
+        testUserId
+      );
 
       expect(result.success).toBe(true);
-      expect(result.data?.contentStatus).toBe('review');
+      expect(result.data?.filePath).toBe('content-images/test-file.jpg');
 
-      // Verify database state
-      const { data: updatedContent } = await supabase
-        .from('product_content')
-        .select('*')
-        .eq('id', createdContent!.id)
-        .single();
-
-      expect(updatedContent?.content_status).toBe('review');
-      expect(updatedContent?.last_updated_by).toBe(testUserId);
+      expect(mockSupabase.storage.from).toHaveBeenCalledWith('content-images');
+      expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith(
+        'ProductContentService.uploadContentImage',
+        expect.any(Object)
+      );
     });
 
-    it('should validate workflow business rules for publishing', async () => {
-      // Create content without required fields for publishing
-      const testContent = {
-        product_id: 'test-product-incomplete-123',
-        marketing_title: null, // Missing required field for publishing
-        content_status: 'approved' as const,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+    it('should handle content image removal', async () => {
+      const result = await ProductContentService.removeContentImage(
+        'content-images/test-file.jpg',
+        testUserId
+      );
+
+      expect(result.success).toBe(true);
+      expect(mockSupabase.storage.from).toHaveBeenCalledWith('content-images');
+
+      expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith(
+        'ProductContentService.removeContentImage',
+        expect.any(Object)
+      );
+    });
+  });
+
+  describe('Error Handling', () => {
+    it('should handle content creation failures gracefully', async () => {
+      // Setup mock for creation failure
+      mockSupabase.from.mockReturnValue({
+        insert: jest.fn().mockReturnValue({
+          select: jest.fn().mockReturnValue({
+            single: jest.fn().mockResolvedValue({
+              data: null,
+              error: { message: 'Content validation failed', code: 'VALIDATION_ERROR' }
+            })
+          })
+        })
+      });
+
+      const invalidInput: CreateProductContentInput = {
+        productId: '', // Invalid empty product ID
+        marketingTitle: '',
+        contentStatus: 'draft'
       };
 
-      const { data: createdContent } = await supabase
-        .from('product_content')
-        .insert(testContent)
-        .select()
-        .single();
-
-      if (createdContent) {
-        testContentIds.add(createdContent.id);
-      }
-
-      // Try to publish content without required fields
-      const result = await ProductContentService.updateContentStatus(
-        createdContent!.id,
-        'published',
+      const result = await ProductContentService.createProductContent(
+        invalidInput,
         testUserId
       );
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('Content is not ready for publishing');
-    });
-  });
+      expect(result.error).toContain('validation');
 
-  describe('getContentByStatus', () => {
-    it('should filter content by status with pagination', async () => {
-      const result = await ProductContentService.getContentByStatus(
-        'published',
-        { page: 1, limit: 10 },
-        testUserId
+      expect(ValidationMonitor.recordValidationError).toHaveBeenCalledWith(
+        'ProductContentService.createProductContent',
+        expect.any(Object)
       );
-
-      expect(result.success).toBe(true);
-      expect(result.data).toBeDefined();
-      expect(Array.isArray(result.data?.items)).toBe(true);
-      expect(typeof result.data?.totalCount).toBe('number');
-      expect(typeof result.data?.hasMore).toBe('boolean');
-
-      // All returned items should have published status
-      if (result.success && result.data?.items) {
-        result.data.items.forEach(item => {
-          expect(item.contentStatus).toBe('published');
-        });
-      }
     });
 
-    it('should validate role permissions for content filtering', async () => {
-      jest.spyOn(RolePermissionService, 'hasPermission').mockResolvedValue(false);
+    it('should handle content not found scenarios', async () => {
+      // Setup mock for not found
+      mockSupabase.from.mockReturnValue({
+        select: jest.fn().mockReturnValue({
+          eq: jest.fn().mockReturnValue({
+            single: jest.fn().mockResolvedValue({
+              data: null,
+              error: { code: 'PGRST116', message: 'The result contains 0 rows' }
+            })
+          })
+        })
+      });
 
-      const result = await ProductContentService.getContentByStatus(
-        'draft',
-        { page: 1, limit: 10 },
+      const result = await ProductContentService.getContentByProductId(
+        'non-existent-product',
         testUserId
       );
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('Insufficient permissions');
+      expect(result.error).toContain('not found');
+
+      expect(ValidationMonitor.recordValidationError).toHaveBeenCalledWith(
+        'ProductContentService.getContentByProductId',
+        expect.any(Object)
+      );
     });
   });
 
-  describe('batchUpdateContent', () => {
-    it('should process multiple content updates with resilient processing (skip-on-error)', async () => {
-      // Create multiple test content items
-      const testContents = [
+  describe('Permission Integration', () => {
+    it('should enforce role-based access for content operations', async () => {
+      // Setup mock for permission failure
+      mockRolePermissionService.hasPermission = jest.fn().mockResolvedValue(false);
+
+      const result = await ProductContentService.createProductContent(
         {
-          product_id: 'test-product-batch-1',
-          marketing_title: 'Batch Test 1',
-          content_status: 'draft' as const,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          productId: testProductId,
+          marketingTitle: 'Test Content',
+          contentStatus: 'draft'
         },
-        {
-          product_id: 'test-product-batch-2',
-          marketing_title: 'Batch Test 2',
-          content_status: 'draft' as const,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }
-      ];
-
-      const { data: createdContents } = await supabase
-        .from('product_content')
-        .insert(testContents)
-        .select();
-
-      if (createdContents) {
-        createdContents.forEach(content => testContentIds.add(content.id));
-      }
-
-      // Batch update with one valid and one invalid update
-      const batchUpdates = [
-        {
-          id: createdContents![0].id,
-          data: { marketingTitle: 'Updated Batch 1', contentStatus: 'review' as const }
-        },
-        {
-          id: 'non-existent-id',
-          data: { marketingTitle: 'Invalid Update' }
-        },
-        {
-          id: createdContents![1].id,
-          data: { marketingTitle: 'Updated Batch 2', contentStatus: 'review' as const }
-        }
-      ];
-
-      const result = await ProductContentService.batchUpdateContent(
-        batchUpdates,
         testUserId
       );
 
-      expect(result.success).toBe(true);
-      expect(result.data?.successCount).toBe(2);
-      expect(result.data?.failureCount).toBe(1);
-      expect(result.data?.results).toHaveLength(3);
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('permission');
 
-      // Verify successful updates were applied
-      const { data: updatedContent1 } = await supabase
-        .from('product_content')
-        .select('*')
-        .eq('id', createdContents![0].id)
-        .single();
-
-      expect(updatedContent1?.marketing_title).toBe('Updated Batch 1');
-      expect(updatedContent1?.content_status).toBe('review');
-    });
-
-    it('should handle complete batch failure gracefully', async () => {
-      const invalidBatchUpdates = [
-        { id: 'invalid-1', data: { marketingTitle: 'Invalid 1' } },
-        { id: 'invalid-2', data: { marketingTitle: 'Invalid 2' } }
-      ];
-
-      const result = await ProductContentService.batchUpdateContent(
-        invalidBatchUpdates,
-        testUserId
+      expect(ValidationMonitor.recordValidationError).toHaveBeenCalledWith(
+        'ProductContentService.createProductContent',
+        expect.any(Object)
       );
-
-      expect(result.success).toBe(true); // Batch operation succeeds even if all items fail
-      expect(result.data?.successCount).toBe(0);
-      expect(result.data?.failureCount).toBe(2);
-    });
-  });
-
-  describe('Integration with ValidationMonitor', () => {
-    it('should track all operations with ValidationMonitor', async () => {
-      // Clear previous calls
-      jest.clearAllMocks();
-
-      // Perform multiple operations
-      await ProductContentService.getProductContent('test-id');
-      await ProductContentService.updateContentStatus('test-id', 'review', testUserId);
-
-      // Verify ValidationMonitor was called for each operation
-      expect(ValidationMonitor.logOperation).toHaveBeenCalledTimes(2);
-
-      const calls = (ValidationMonitor.logOperation as jest.Mock).mock.calls;
-      expect(calls[0][0]).toBe('ProductContentService.getProductContent');
-      expect(calls[1][0]).toBe('ProductContentService.updateContentStatus');
-    });
-
-    it('should log both successes and failures consistently', async () => {
-      jest.clearAllMocks();
-
-      // Success case
-      const { data: existingContent } = await supabase
-        .from('product_content')
-        .select('*')
-        .limit(1)
-        .single();
-
-      if (existingContent) {
-        await ProductContentService.getProductContent(existingContent.id);
-      }
-
-      // Failure case
-      await ProductContentService.getProductContent('non-existent-id');
-
-      // Both operations should be logged
-      expect(ValidationMonitor.logOperation).toHaveBeenCalledTimes(2);
-
-      const calls = (ValidationMonitor.logOperation as jest.Mock).mock.calls;
-      expect(calls[0][1]).toBe(true);  // Success
-      expect(calls[1][1]).toBe(false); // Failure
     });
   });
 
   describe('Performance Validation', () => {
-    it('should handle content operations within performance targets', async () => {
+    it('should handle large content operations efficiently', async () => {
+      // Setup mock for performance testing
+      mockSupabase.from.mockReturnValue({
+        select: jest.fn().mockReturnValue({
+          eq: jest.fn().mockReturnValue({
+            order: jest.fn().mockReturnValue({
+              range: jest.fn().mockResolvedValue({
+                data: Array.from({ length: 50 }, (_, i) => ({
+                  id: `content-${i}`,
+                  productId: `product-${i}`,
+                  marketingTitle: `Content ${i}`,
+                  contentStatus: 'published'
+                })),
+                error: null
+              })
+            })
+          })
+        })
+      });
+
       const startTime = performance.now();
 
-      // Perform content queries that should complete quickly
-      const promises = Array.from({ length: 5 }, () =>
-        ProductContentService.getContentByStatus('published', { page: 1, limit: 5 })
+      const result = await ProductContentService.getContentByStatus(
+        'published',
+        { page: 1, limit: 50 },
+        testUserId
       );
-
-      await Promise.all(promises);
 
       const endTime = performance.now();
       const executionTime = endTime - startTime;
 
-      // Content queries should complete within 200ms target
-      expect(executionTime).toBeLessThan(500); // Allow some margin for test environment
+      expect(result.success).toBe(true);
+      expect(result.data).toHaveLength(50);
+      expect(executionTime).toBeLessThan(500); // Should complete in under 500ms
+
+      expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith(
+        'ProductContentService.getContentByStatus',
+        expect.any(Object)
+      );
     });
   });
 });

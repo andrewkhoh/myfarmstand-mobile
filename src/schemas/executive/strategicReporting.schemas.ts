@@ -100,7 +100,10 @@ export const StrategicReportingTransformSchema = StrategicReportingDatabaseSchem
     reportName: data.report_name,                                     // Snake → camel
     reportType: data.report_type,                                     // Snake → camel
     reportFrequency: data.report_frequency,                           // Snake → camel
-    reportConfig: data.report_config,                                 // Snake → camel
+    reportConfig: {
+      ...data.report_config,                                         // Preserve all existing config
+      classification: data.report_config?.access_control?.classification // Flatten classification field
+    },
     lastGeneratedAt: data.last_generated_at,                          // Snake → camel, preserve null
     nextGenerationAt: data.next_generation_at,                        // Snake → camel, preserve null
     isAutomated: data.is_automated || false,                          // Snake → camel, with default

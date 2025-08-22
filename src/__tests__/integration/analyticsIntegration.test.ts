@@ -59,7 +59,7 @@ describe('Analytics Pipeline Integration Tests', () => {
       expect(rawSalesData).toBeDefined();
 
       // Step 2: Process data into strategic metrics
-      const strategicMetrics = await this.processSalesAnalytics(rawSalesData || []);
+      const strategicMetrics = await processSalesAnalytics(rawSalesData || []);
       
       expect(strategicMetrics.total_revenue).toBeDefined();
       expect(strategicMetrics.average_order_value).toBeDefined();
@@ -67,7 +67,7 @@ describe('Analytics Pipeline Integration Tests', () => {
       expect(strategicMetrics.customer_segments).toBeDefined();
 
       // Step 3: Generate executive insights
-      const executiveInsights = await this.generateExecutiveInsights(strategicMetrics);
+      const executiveInsights = await generateExecutiveInsights(strategicMetrics);
       
       expect(executiveInsights.revenue_trends).toBeDefined();
       expect(executiveInsights.growth_opportunities).toBeDefined();
@@ -75,7 +75,7 @@ describe('Analytics Pipeline Integration Tests', () => {
       expect(executiveInsights.recommendations).toBeDefined();
 
       // Step 4: Validate data accuracy and completeness
-      const dataQuality = await this.validateDataQuality(rawSalesData, strategicMetrics);
+      const dataQuality = await validateDataQuality(rawSalesData, strategicMetrics);
       
       expect(dataQuality.completeness_score).toBeGreaterThan(0.95);
       expect(dataQuality.accuracy_score).toBeGreaterThan(0.98);
@@ -107,7 +107,7 @@ describe('Analytics Pipeline Integration Tests', () => {
       expect(inventoryData).toBeDefined();
 
       // Step 2: Process inventory analytics
-      const inventoryAnalytics = await this.processInventoryAnalytics(inventoryData || []);
+      const inventoryAnalytics = await processInventoryAnalytics(inventoryData || []);
       
       expect(inventoryAnalytics.turnover_rates).toBeDefined();
       expect(inventoryAnalytics.stock_levels).toBeDefined();
@@ -115,7 +115,7 @@ describe('Analytics Pipeline Integration Tests', () => {
       expect(inventoryAnalytics.valuation).toBeDefined();
 
       // Step 3: Generate inventory insights
-      const inventoryInsights = await this.generateInventoryInsights(inventoryAnalytics);
+      const inventoryInsights = await generateInventoryInsights(inventoryAnalytics);
       
       expect(inventoryInsights.optimization_opportunities).toBeDefined();
       expect(inventoryInsights.cost_reduction_potential).toBeDefined();
@@ -146,7 +146,7 @@ describe('Analytics Pipeline Integration Tests', () => {
       expect(campaignData).toBeDefined();
 
       // Step 2: Process marketing analytics
-      const marketingAnalytics = await this.processMarketingAnalytics(campaignData || []);
+      const marketingAnalytics = await processMarketingAnalytics(campaignData || []);
       
       expect(marketingAnalytics.roi_by_campaign).toBeDefined();
       expect(marketingAnalytics.conversion_rates).toBeDefined();
@@ -154,7 +154,7 @@ describe('Analytics Pipeline Integration Tests', () => {
       expect(marketingAnalytics.channel_effectiveness).toBeDefined();
 
       // Step 3: Generate marketing insights
-      const marketingInsights = await this.generateMarketingInsights(marketingAnalytics);
+      const marketingInsights = await generateMarketingInsights(marketingAnalytics);
       
       expect(marketingInsights.budget_optimization).toBeDefined();
       expect(marketingInsights.audience_insights).toBeDefined();
@@ -183,7 +183,7 @@ describe('Analytics Pipeline Integration Tests', () => {
       expect(customerData).toBeDefined();
 
       // Step 2: Process customer analytics
-      const customerAnalytics = await this.processCustomerAnalytics(customerData || []);
+      const customerAnalytics = await processCustomerAnalytics(customerData || []);
       
       expect(customerAnalytics.lifetime_values).toBeDefined();
       expect(customerAnalytics.segmentation).toBeDefined();
@@ -191,7 +191,7 @@ describe('Analytics Pipeline Integration Tests', () => {
       expect(customerAnalytics.engagement_scores).toBeDefined();
 
       // Step 3: Generate customer insights
-      const customerInsights = await this.generateCustomerInsights(customerAnalytics);
+      const customerInsights = await generateCustomerInsights(customerAnalytics);
       
       expect(customerInsights.retention_strategies).toBeDefined();
       expect(customerInsights.upselling_opportunities).toBeDefined();
@@ -225,14 +225,14 @@ describe('Analytics Pipeline Integration Tests', () => {
       expect(order).toBeDefined();
 
       // Step 2: Update real-time analytics
-      const updatedAnalytics = await this.updateRealTimeAnalytics(order);
+      const updatedAnalytics = await updateRealTimeAnalytics(order);
       
       expect(updatedAnalytics.daily_revenue).toBeDefined();
       expect(updatedAnalytics.order_count).toBeDefined();
       expect(updatedAnalytics.average_order_value).toBeDefined();
 
       // Step 3: Trigger dashboard updates
-      const dashboardUpdates = await this.triggerDashboardUpdates(updatedAnalytics);
+      const dashboardUpdates = await triggerDashboardUpdates(updatedAnalytics);
       
       expect(dashboardUpdates.success).toBe(true);
       expect(dashboardUpdates.updated_widgets).toBeDefined();
@@ -269,7 +269,7 @@ describe('Analytics Pipeline Integration Tests', () => {
       expect(updateError).toBeNull();
 
       // Step 3: Check for low stock alerts
-      const lowStockCheck = await this.checkLowStockAlerts(inventoryMovement.product_id);
+      const lowStockCheck = await checkLowStockAlerts(inventoryMovement.product_id);
       
       expect(lowStockCheck.checked).toBe(true);
     });
@@ -285,7 +285,7 @@ describe('Analytics Pipeline Integration Tests', () => {
       const processingResults = [];
       
       for (const event of streamingEvents) {
-        const result = await this.processStreamingEvent(event);
+        const result = await processStreamingEvent(event);
         processingResults.push(result);
       }
 
@@ -300,22 +300,22 @@ describe('Analytics Pipeline Integration Tests', () => {
       const roles = ['customer', 'inventory_staff', 'marketing_staff', 'executive', 'admin'];
       
       for (const role of roles) {
-        const roleAnalytics = await this.generateRoleSpecificAnalytics(role);
+        const roleAnalytics = await generateRoleSpecificAnalytics(role);
         
         expect(roleAnalytics.role).toBe(role);
         expect(roleAnalytics.metrics).toBeDefined();
         expect(roleAnalytics.permissions).toBeDefined();
         
         // Verify role-appropriate data access
-        this.validateRoleDataAccess(role, roleAnalytics);
+        validateRoleDataAccess(role, roleAnalytics);
       }
     });
 
     it('should maintain data consistency across role views', async () => {
       // Get the same data from different role perspectives
-      const customerView = await this.getAnalyticsForRole('customer');
-      const staffView = await this.getAnalyticsForRole('inventory_staff');
-      const executiveView = await this.getAnalyticsForRole('executive');
+      const customerView = await getAnalyticsForRole('customer');
+      const staffView = await getAnalyticsForRole('inventory_staff');
+      const executiveView = await getAnalyticsForRole('executive');
       
       // Verify consistency of overlapping data
       if (customerView.order_count && executiveView.order_count) {
@@ -325,10 +325,10 @@ describe('Analytics Pipeline Integration Tests', () => {
 
     it('should handle analytics permissions and data isolation', async () => {
       // Test that roles only see appropriate data
-      const sensitiveMetrics = await this.getSensitiveMetrics();
+      const sensitiveMetrics = await getSensitiveMetrics();
       
-      const customerAccess = await this.checkAnalyticsAccess('customer', sensitiveMetrics);
-      const executiveAccess = await this.checkAnalyticsAccess('executive', sensitiveMetrics);
+      const customerAccess = await checkAnalyticsAccess('customer', sensitiveMetrics);
+      const executiveAccess = await checkAnalyticsAccess('executive', sensitiveMetrics);
       
       expect(customerAccess.allowed_metrics.length).toBeLessThan(executiveAccess.allowed_metrics.length);
       expect(executiveAccess.restricted_metrics.length).toBeLessThan(customerAccess.restricted_metrics.length);
@@ -340,7 +340,7 @@ describe('Analytics Pipeline Integration Tests', () => {
       const largeDatasetStart = performance.now();
       
       // Process analytics on large dataset (simulated)
-      const largeDatasetMetrics = await this.processLargeDatasetAnalytics({
+      const largeDatasetMetrics = await processLargeDatasetAnalytics({
         orderCount: 10000,
         customerCount: 2000,
         productCount: 500,
@@ -357,9 +357,9 @@ describe('Analytics Pipeline Integration Tests', () => {
     it('should optimize analytics queries for performance', async () => {
       // Test query optimization for analytics
       const optimizedQueries = [
-        this.testOptimizedSalesQuery(),
-        this.testOptimizedInventoryQuery(),
-        this.testOptimizedCustomerQuery(),
+        testOptimizedSalesQuery(),
+        testOptimizedInventoryQuery(),
+        testOptimizedCustomerQuery(),
       ];
 
       const results = await Promise.all(optimizedQueries);
@@ -373,7 +373,7 @@ describe('Analytics Pipeline Integration Tests', () => {
     it('should handle concurrent analytics requests', async () => {
       // Test concurrent analytics processing
       const concurrentRequests = Array.from({ length: 10 }, (_, i) => 
-        this.processAnalyticsRequest(`request-${i}`)
+        processAnalyticsRequest(`request-${i}`)
       );
 
       const results = await Promise.allSettled(concurrentRequests);
@@ -386,7 +386,7 @@ describe('Analytics Pipeline Integration Tests', () => {
   describe('Analytics Data Quality and Validation', () => {
     it('should validate data integrity in analytics pipeline', async () => {
       // Test data integrity checks
-      const integrityCheck = await this.validateAnalyticsDataIntegrity();
+      const integrityCheck = await validateAnalyticsDataIntegrity();
       
       expect(integrityCheck.sales_data_integrity).toBeGreaterThan(0.99);
       expect(integrityCheck.inventory_data_integrity).toBeGreaterThan(0.99);
@@ -396,7 +396,7 @@ describe('Analytics Pipeline Integration Tests', () => {
 
     it('should detect and handle analytics anomalies', async () => {
       // Test anomaly detection in analytics data
-      const anomalies = await this.detectAnalyticsAnomalies();
+      const anomalies = await detectAnalyticsAnomalies();
       
       expect(anomalies.detected_anomalies).toBeDefined();
       expect(anomalies.confidence_scores).toBeDefined();
@@ -424,8 +424,8 @@ describe('Analytics Pipeline Integration Tests', () => {
     });
   });
 
-  // Helper methods for analytics testing
-  private async processSalesAnalytics(salesData: any[]): Promise<any> {
+// Helper methods for analytics testing
+async function processSalesAnalytics(salesData: any[]): Promise<any> {
     const totalRevenue = salesData.reduce((sum, order) => sum + order.total, 0);
     const averageOrderValue = totalRevenue / (salesData.length || 1);
     
@@ -444,11 +444,11 @@ describe('Analytics Pipeline Integration Tests', () => {
       top_categories: Array.from(categoryRevenue.entries())
         .sort(([,a], [,b]) => b - a)
         .slice(0, 5),
-      customer_segments: await this.analyzeCustomerSegments(salesData),
+      customer_segments: await analyzeCustomerSegments(salesData),
     };
   }
 
-  private async generateExecutiveInsights(metrics: any): Promise<any> {
+async function generateExecutiveInsights(metrics: any): Promise<any> {
     return {
       revenue_trends: {
         current_period: metrics.total_revenue,
@@ -472,27 +472,27 @@ describe('Analytics Pipeline Integration Tests', () => {
     };
   }
 
-  private async validateDataQuality(rawData: any[], processedData: any): Promise<any> {
+async function validateDataQuality(rawData: any[], processedData: any): Promise<any> {
     const completenessScore = rawData.length > 0 ? 1.0 : 0.0;
-    const accuracyScore = this.calculateAccuracyScore(rawData, processedData);
+    const accuracyScore = calculateAccuracyScore(rawData, processedData);
     
     return {
       completeness_score: completenessScore,
       accuracy_score: accuracyScore,
-      data_freshness: this.calculateDataFreshness(rawData),
+      data_freshness: calculateDataFreshness(rawData),
     };
   }
 
-  private async processInventoryAnalytics(inventoryData: any[]): Promise<any> {
+async function processInventoryAnalytics(inventoryData: any[]): Promise<any> {
     return {
-      turnover_rates: this.calculateTurnoverRates(inventoryData),
-      stock_levels: this.analyzeStockLevels(inventoryData),
-      reorder_alerts: this.generateReorderAlerts(inventoryData),
-      valuation: this.calculateInventoryValuation(inventoryData),
+      turnover_rates: calculateTurnoverRates(inventoryData),
+      stock_levels: analyzeStockLevels(inventoryData),
+      reorder_alerts: generateReorderAlerts(inventoryData),
+      valuation: calculateInventoryValuation(inventoryData),
     };
   }
 
-  private async generateInventoryInsights(analytics: any): Promise<any> {
+async function generateInventoryInsights(analytics: any): Promise<any> {
     return {
       optimization_opportunities: [
         'Reduce slow-moving inventory',
@@ -506,16 +506,16 @@ describe('Analytics Pipeline Integration Tests', () => {
     };
   }
 
-  private async processMarketingAnalytics(campaignData: any[]): Promise<any> {
+async function processMarketingAnalytics(campaignData: any[]): Promise<any> {
     return {
-      roi_by_campaign: this.calculateCampaignROI(campaignData),
-      conversion_rates: this.calculateConversionRates(campaignData),
-      customer_acquisition_cost: this.calculateCAC(campaignData),
-      channel_effectiveness: this.analyzeChannelEffectiveness(campaignData),
+      roi_by_campaign: calculateCampaignROI(campaignData),
+      conversion_rates: calculateConversionRates(campaignData),
+      customer_acquisition_cost: calculateCAC(campaignData),
+      channel_effectiveness: analyzeChannelEffectiveness(campaignData),
     };
   }
 
-  private async generateMarketingInsights(analytics: any): Promise<any> {
+async function generateMarketingInsights(analytics: any): Promise<any> {
     return {
       budget_optimization: {
         recommended_allocation: 'Increase digital spend by 20%',
@@ -532,16 +532,16 @@ describe('Analytics Pipeline Integration Tests', () => {
     };
   }
 
-  private async processCustomerAnalytics(customerData: any[]): Promise<any> {
+async function processCustomerAnalytics(customerData: any[]): Promise<any> {
     return {
-      lifetime_values: this.calculateCustomerLTV(customerData),
-      segmentation: this.segmentCustomers(customerData),
-      churn_risk: this.assessChurnRisk(customerData),
-      engagement_scores: this.calculateEngagementScores(customerData),
+      lifetime_values: calculateCustomerLTV(customerData),
+      segmentation: segmentCustomers(customerData),
+      churn_risk: assessChurnRisk(customerData),
+      engagement_scores: calculateEngagementScores(customerData),
     };
   }
 
-  private async generateCustomerInsights(analytics: any): Promise<any> {
+async function generateCustomerInsights(analytics: any): Promise<any> {
     return {
       retention_strategies: [
         'Implement loyalty program',
@@ -559,7 +559,7 @@ describe('Analytics Pipeline Integration Tests', () => {
   }
 
   // Additional helper methods would be implemented here...
-  private async updateRealTimeAnalytics(order: any): Promise<any> {
+async function updateRealTimeAnalytics(order: any): Promise<any> {
     return {
       daily_revenue: 5000 + order.total,
       order_count: 45,
@@ -567,22 +567,22 @@ describe('Analytics Pipeline Integration Tests', () => {
     };
   }
 
-  private async triggerDashboardUpdates(analytics: any): Promise<any> {
+async function triggerDashboardUpdates(analytics: any): Promise<any> {
     return {
       success: true,
       updated_widgets: ['revenue_chart', 'order_summary', 'kpi_metrics'],
     };
   }
 
-  private async checkLowStockAlerts(productId: string): Promise<any> {
+async function checkLowStockAlerts(productId: string): Promise<any> {
     return { checked: true, alert_triggered: false };
   }
 
-  private async processStreamingEvent(event: any): Promise<any> {
+async function processStreamingEvent(event: any): Promise<any> {
     return { success: true, event_id: event.timestamp };
   }
 
-  private async generateRoleSpecificAnalytics(role: string): Promise<any> {
+async function generateRoleSpecificAnalytics(role: string): Promise<any> {
     const baseMetrics = {
       role,
       metrics: {},
@@ -607,20 +607,20 @@ describe('Analytics Pipeline Integration Tests', () => {
     return baseMetrics;
   }
 
-  private validateRoleDataAccess(role: string, analytics: any): void {
+function validateRoleDataAccess(role: string, analytics: any): void {
     // Validate that role has appropriate access
     expect(analytics.permissions.length).toBeGreaterThan(0);
   }
 
-  private async getAnalyticsForRole(role: string): Promise<any> {
+async function getAnalyticsForRole(role: string): Promise<any> {
     return { role, order_count: 100 };
   }
 
-  private async getSensitiveMetrics(): Promise<string[]> {
+async function getSensitiveMetrics(): Promise<string[]> {
     return ['profit_margins', 'cost_data', 'supplier_pricing'];
   }
 
-  private async checkAnalyticsAccess(role: string, metrics: string[]): Promise<any> {
+async function checkAnalyticsAccess(role: string, metrics: string[]): Promise<any> {
     const rolePermissions = {
       customer: ['order_count'],
       executive: ['order_count', 'revenue', 'profit_margins'],
@@ -632,7 +632,7 @@ describe('Analytics Pipeline Integration Tests', () => {
     return { allowed_metrics: allowed, restricted_metrics: restricted };
   }
 
-  private async processLargeDatasetAnalytics(params: any): Promise<any> {
+async function processLargeDatasetAnalytics(params: any): Promise<any> {
     // Simulate large dataset processing
     await new Promise(resolve => setTimeout(resolve, 2000));
     
@@ -643,7 +643,7 @@ describe('Analytics Pipeline Integration Tests', () => {
     };
   }
 
-  private async testOptimizedSalesQuery(): Promise<any> {
+async function testOptimizedSalesQuery(): Promise<any> {
     const start = performance.now();
     // Simulate optimized query
     await new Promise(resolve => setTimeout(resolve, 500));
@@ -653,7 +653,7 @@ describe('Analytics Pipeline Integration Tests', () => {
     };
   }
 
-  private async testOptimizedInventoryQuery(): Promise<any> {
+async function testOptimizedInventoryQuery(): Promise<any> {
     const start = performance.now();
     await new Promise(resolve => setTimeout(resolve, 300));
     return {
@@ -662,7 +662,7 @@ describe('Analytics Pipeline Integration Tests', () => {
     };
   }
 
-  private async testOptimizedCustomerQuery(): Promise<any> {
+async function testOptimizedCustomerQuery(): Promise<any> {
     const start = performance.now();
     await new Promise(resolve => setTimeout(resolve, 400));
     return {
@@ -671,12 +671,12 @@ describe('Analytics Pipeline Integration Tests', () => {
     };
   }
 
-  private async processAnalyticsRequest(requestId: string): Promise<any> {
+async function processAnalyticsRequest(requestId: string): Promise<any> {
     await new Promise(resolve => setTimeout(resolve, Math.random() * 1000));
     return { requestId, status: 'completed' };
   }
 
-  private async validateAnalyticsDataIntegrity(): Promise<any> {
+async function validateAnalyticsDataIntegrity(): Promise<any> {
     return {
       sales_data_integrity: 0.995,
       inventory_data_integrity: 0.998,
@@ -685,7 +685,7 @@ describe('Analytics Pipeline Integration Tests', () => {
     };
   }
 
-  private async detectAnalyticsAnomalies(): Promise<any> {
+async function detectAnalyticsAnomalies(): Promise<any> {
     return {
       detected_anomalies: [],
       confidence_scores: [0.95, 0.87, 0.92],
@@ -694,15 +694,15 @@ describe('Analytics Pipeline Integration Tests', () => {
   }
 
   // Additional calculation methods...
-  private calculateAccuracyScore(rawData: any[], processedData: any): number {
+function calculateAccuracyScore(rawData: any[], processedData: any): number {
     return 0.99; // Simulated high accuracy
   }
 
-  private calculateDataFreshness(rawData: any[]): number {
+function calculateDataFreshness(rawData: any[]): number {
     return 0.95; // Simulated freshness score
   }
 
-  private analyzeCustomerSegments(salesData: any[]): any[] {
+function analyzeCustomerSegments(salesData: any[]): any[] {
     return [
       { segment: 'High Value', count: 50, avg_order: 200 },
       { segment: 'Regular', count: 150, avg_order: 100 },
@@ -710,48 +710,48 @@ describe('Analytics Pipeline Integration Tests', () => {
     ];
   }
 
-  private calculateTurnoverRates(inventoryData: any[]): any {
+function calculateTurnoverRates(inventoryData: any[]): any {
     return { fast_moving: 30, medium_moving: 45, slow_moving: 25 };
   }
 
-  private analyzeStockLevels(inventoryData: any[]): any {
+function analyzeStockLevels(inventoryData: any[]): any {
     return { healthy: 80, low_stock: 15, out_of_stock: 5 };
   }
 
-  private generateReorderAlerts(inventoryData: any[]): any[] {
+function generateReorderAlerts(inventoryData: any[]): any[] {
     return [
       { product_id: 'product-1', current_stock: 5, reorder_level: 10 },
     ];
   }
 
-  private calculateInventoryValuation(inventoryData: any[]): number {
+function calculateInventoryValuation(inventoryData: any[]): number {
     return 150000; // Simulated total inventory value
   }
 
-  private calculateCampaignROI(campaignData: any[]): any {
+function calculateCampaignROI(campaignData: any[]): any {
     return { average_roi: 3.2, best_performing: 'summer_sale' };
   }
 
-  private calculateConversionRates(campaignData: any[]): any {
+function calculateConversionRates(campaignData: any[]): any {
     return { overall: 0.15, by_channel: { email: 0.12, social: 0.18 } };
   }
 
-  private calculateCAC(campaignData: any[]): number {
+function calculateCAC(campaignData: any[]): number {
     return 25.50; // Average customer acquisition cost
   }
 
-  private analyzeChannelEffectiveness(campaignData: any[]): any {
+function analyzeChannelEffectiveness(campaignData: any[]): any {
     return {
       email: { effectiveness: 'high', cost_per_conversion: 15 },
       social: { effectiveness: 'medium', cost_per_conversion: 22 },
     };
   }
 
-  private calculateCustomerLTV(customerData: any[]): any {
+function calculateCustomerLTV(customerData: any[]): any {
     return { average_ltv: 500, top_segment_ltv: 1200 };
   }
 
-  private segmentCustomers(customerData: any[]): any {
+function segmentCustomers(customerData: any[]): any {
     return {
       premium: 20,
       regular: 60,
@@ -759,11 +759,11 @@ describe('Analytics Pipeline Integration Tests', () => {
     };
   }
 
-  private assessChurnRisk(customerData: any[]): any {
+function assessChurnRisk(customerData: any[]): any {
     return { high_risk: 15, medium_risk: 25, low_risk: 60 };
   }
 
-  private calculateEngagementScores(customerData: any[]): any {
+function calculateEngagementScores(customerData: any[]): any {
     return { average_score: 7.5, distribution: { high: 30, medium: 50, low: 20 } };
   }
 });
