@@ -12,7 +12,8 @@ import {
 } from '../useOrders';
 import { useCurrentUser } from '../useAuth';
 import { createWrapper } from '../../test/test-utils';
-import { createMockUser, createMockOrder } from '../../test/mockData';
+import { createSupabaseMock } from '../../test/mocks/supabase.simplified.mock';
+import { hookContracts } from '../../test/contracts/hook.contracts';
 
 jest.mock('../../services/orderService');
 const mockOrderService = OrderService as jest.Mocked<typeof OrderService>;
@@ -31,8 +32,23 @@ jest.mock('../../utils/queryKeyFactory', () => ({
   },
 }));
 
-const mockUser = createMockUser();
-const mockOrder = createMockOrder();
+const mockUser = {
+  id: 'user-1',
+  email: 'test@example.com',
+  name: 'Test User',
+  role: 'customer' as const,
+};
+
+const mockOrder = {
+  id: 'order123',
+  user_id: mockUser.id,
+  status: 'pending' as const,
+  total_amount: 99.99,
+  pickup_time: new Date(Date.now() + 3600000).toISOString(),
+  notes: 'Test order',
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+};
 
 describe('useOrders hooks', () => {
   beforeEach(() => {
@@ -59,6 +75,9 @@ describe('useOrders hooks', () => {
 
       expect(result.current.data).toEqual(mockOrders);
       expect(mockOrderService.getCustomerOrders).toHaveBeenCalledWith('test@example.com');
+      
+      // Validate contract
+      hookContracts.orders.validate('validateOrderList', mockOrders);
     });
 
     it('should use current user email when no email provided', async () => {
@@ -92,6 +111,9 @@ describe('useOrders hooks', () => {
 
       expect(result.current.data).toEqual(mockOrders);
       expect(mockOrderService.getAllOrders).toHaveBeenCalledWith({});
+      
+      // Validate contract
+      hookContracts.orders.validate('validateOrderList', mockOrders);
     });
   });
 

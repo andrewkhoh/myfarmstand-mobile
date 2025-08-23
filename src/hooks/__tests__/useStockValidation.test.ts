@@ -4,7 +4,8 @@ import { createWrapper } from '../../test/test-utils';
 import { useStockValidation } from '../useStockValidation';
 import { useCurrentUser } from '../useAuth';
 import { useCart } from '../useCart';
-import { createMockUser, createMockProduct } from '../../test/mockData';
+import { createSupabaseMock } from '../../test/mocks/supabase.simplified.mock';
+import { createProduct } from '../../test/factories/product.factory';
 
 jest.mock('../useAuth');
 const mockUseCurrentUser = useCurrentUser as jest.MockedFunction<typeof useCurrentUser>;
@@ -35,8 +36,14 @@ jest.mock('../../config/supabase', () => ({
 }));
 
 
-const mockUser = createMockUser({ id: 'user123' });
-const mockProduct = createMockProduct({ id: 'prod1', name: 'Test Product' });
+const mockUser = {
+  id: 'user-1',
+  email: 'test@example.com',
+  name: 'Test User',
+  role: 'customer' as const,
+};
+
+const mockProduct = createProduct({ id: 'prod1', name: 'Test Product' });
 
 describe('useStockValidation', () => {
   beforeEach(() => {

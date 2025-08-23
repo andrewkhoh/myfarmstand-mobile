@@ -3,7 +3,8 @@ import { PickupReschedulingService } from '../../services/pickupReschedulingServ
 import { usePickupRescheduling } from '../usePickupRescheduling';
 import { useCurrentUser } from '../useAuth';
 import { createWrapper } from '../../test/test-utils';
-import { createMockUser, createMockRescheduleRequest } from '../../test/mockData';
+import { createSupabaseMock } from '../../test/mocks/supabase.simplified.mock';
+import { hookContracts } from '../../test/contracts/hook.contracts';
 
 jest.mock('../../services/pickupReschedulingService');
 const mockPickupReschedulingService = PickupReschedulingService as jest.Mocked<typeof PickupReschedulingService>;
@@ -21,7 +22,18 @@ jest.mock('../../utils/broadcastFactory', () => ({
   },
 }));
 
-const mockUser = createMockUser();
+const mockUser = {
+  id: 'user-1',
+  email: 'test@example.com',
+  name: 'Test User',
+  role: 'customer' as const,
+};
+
+const mockRescheduleRequest = {
+  orderId: 'order-123',
+  newPickupTime: new Date(Date.now() + 86400000).toISOString(), // tomorrow
+  reason: 'Schedule conflict',
+};
 
 describe('usePickupRescheduling', () => {
   beforeEach(() => {
@@ -51,7 +63,7 @@ describe('usePickupRescheduling', () => {
       wrapper: createWrapper(),
     });
 
-    const rescheduleData = createMockRescheduleRequest();
+    const rescheduleData = mockRescheduleRequest;
     result.current.reschedulePickup(rescheduleData);
 
     await waitFor(() => {
@@ -68,7 +80,7 @@ describe('usePickupRescheduling', () => {
       wrapper: createWrapper(),
     });
 
-    const rescheduleData = createMockRescheduleRequest();
+    const rescheduleData = mockRescheduleRequest;
     result.current.reschedulePickup(rescheduleData);
 
     await waitFor(() => {
@@ -86,7 +98,7 @@ describe('usePickupRescheduling', () => {
       wrapper: createWrapper(),
     });
 
-    const rescheduleData = createMockRescheduleRequest();
+    const rescheduleData = mockRescheduleRequest;
     const response = await result.current.reschedulePickupAsync(rescheduleData);
 
     expect(response.success).toBe(true);

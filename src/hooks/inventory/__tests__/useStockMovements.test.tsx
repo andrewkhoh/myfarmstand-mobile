@@ -1,3 +1,6 @@
+import { createSupabaseMock } from '../../../test/mocks/supabase.simplified.mock';
+import { hookContracts } from '../../../test/contracts/hook.contracts';
+
 /**
  * Phase 2.3.1: Stock Movement Hooks Tests (RED Phase)
  * Testing audit trail, movement history, and batch tracking hooks

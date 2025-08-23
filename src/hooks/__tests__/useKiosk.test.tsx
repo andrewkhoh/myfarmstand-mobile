@@ -12,6 +12,8 @@ import {
 } from '../useKiosk';
 import { kioskKeys } from '../../utils/queryKeyFactory';
 import { kioskService } from '../../services/kioskService';
+import { createSupabaseMock } from '../../test/mocks/supabase.simplified.mock';
+import { hookContracts } from '../../test/contracts/hook.contracts';
 
 // Mock the kiosk service (following CLAUDE.md pattern: service layer mocked for hooks)
 jest.mock('../../services/kioskService');
