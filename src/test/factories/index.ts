@@ -1,0 +1,218 @@
+/**
+ * Test Data Factories - Centralized Export
+ * 
+ * All test data factories with schema validation for consistent test data generation.
+ * These factories ensure that all test data passes schema validation, preventing
+ * test failures due to invalid data structures.
+ */
+
+// Base factory class
+export { SchemaFactory } from './base.factory';
+export type { FactoryEntity, FactoryDbEntity } from './base.factory';
+
+// Product Factory
+export { 
+  ProductFactory,
+  createProduct,
+  createDbProduct,
+  createProducts
+} from './product.factory';
+
+// Order Factory
+export { 
+  OrderFactory,
+  OrderItemFactory,
+  CustomerInfoFactory,
+  orderFactory,
+  orderItemFactory,
+  customerInfoFactory,
+  createOrder,
+  createOrderItem,
+  createCustomerInfo
+} from './order.factory';
+
+// User Factory
+export { 
+  UserFactory,
+  AuthStateFactory,
+  SupabaseAuthUserFactory,
+  SupabaseSessionFactory,
+  userFactory,
+  authStateFactory,
+  supabaseAuthUserFactory,
+  supabaseSessionFactory,
+  createUser,
+  createAuthState,
+  createSupabaseUser,
+  createSupabaseSession
+} from './user.factory';
+
+// Cart Factory
+export { 
+  CartItemFactory,
+  CartStateFactory,
+  CartSummaryFactory,
+  cartItemFactory,
+  cartStateFactory,
+  cartSummaryFactory,
+  createCartItem,
+  createCartState,
+  createCartSummary
+} from './cart.factory';
+
+// Category Factory
+export { 
+  CategoryFactory,
+  categoryFactory,
+  createCategory,
+  createDbCategory,
+  createCategories
+} from './category.factory';
+
+// Payment Factory
+export { 
+  PaymentFactory,
+  PaymentMethodFactory,
+  PaymentIntentFactory,
+  PaymentCalculationFactory,
+  CreatePaymentRequestFactory,
+  paymentFactory,
+  paymentMethodFactory,
+  paymentIntentFactory,
+  paymentCalculationFactory,
+  createPaymentRequestFactory,
+  createPayment,
+  createPaymentMethod,
+  createPaymentIntent,
+  createPaymentCalculation,
+  createPaymentRequest
+} from './payment.factory';
+
+/**
+ * Reset all factory ID counters
+ * Useful for test isolation
+ */
+export function resetAllFactories(): void {
+  SchemaFactory.resetAll();
+  
+  // Reset individual factory instances
+  orderFactory.reset();
+  orderItemFactory.reset();
+  customerInfoFactory.reset();
+  userFactory.reset();
+  authStateFactory.reset();
+  supabaseAuthUserFactory.reset();
+  supabaseSessionFactory.reset();
+  cartItemFactory.reset();
+  cartStateFactory.reset();
+  cartSummaryFactory.reset();
+  categoryFactory.reset();
+  paymentFactory.reset();
+  paymentMethodFactory.reset();
+  paymentIntentFactory.reset();
+  paymentCalculationFactory.reset();
+  createPaymentRequestFactory.reset();
+  
+  // Reset ProductFactory static counter
+  ProductFactory.reset();
+}
+
+/**
+ * Common test data scenarios
+ */
+export const testScenarios = {
+  /**
+   * Create a complete e-commerce test scenario
+   */
+  createCompleteScenario() {
+    const user = createUser();
+    const categories = categoryFactory.createFarmCategories();
+    const products = createProducts(10);
+    const cart = createCartState();
+    const paymentMethod = createPaymentMethod({ userId: user.id });
+    const order = createOrder({ user_id: user.id });
+    const payment = createPayment({ userId: user.id, orderId: order.id });
+    
+    return {
+      user,
+      categories,
+      products,
+      cart,
+      paymentMethod,
+      order,
+      payment
+    };
+  },
+
+  /**
+   * Create a checkout scenario
+   */
+  createCheckoutScenario() {
+    const user = createUser();
+    const products = createProducts(3);
+    const cartItems = products.map(p => cartItemFactory.createWithProduct(p));
+    const cart = cartStateFactory.createWithItems(cartItems);
+    const paymentMethod = paymentMethodFactory.createDefault({ userId: user.id });
+    const customerInfo = createCustomerInfo({
+      name: user.name,
+      email: user.email,
+      phone: user.phone || '+1234567890'
+    });
+    
+    return {
+      user,
+      products,
+      cart,
+      paymentMethod,
+      customerInfo
+    };
+  },
+
+  /**
+   * Create a failed payment scenario
+   */
+  createFailedPaymentScenario() {
+    const user = createUser();
+    const order = createOrder({ 
+      user_id: user.id,
+      payment_status: 'failed'
+    });
+    const expiredCard = paymentMethodFactory.createExpiredCard({ userId: user.id });
+    const failedPayment = paymentFactory.createFailed({
+      userId: user.id,
+      orderId: order.id,
+      paymentMethodId: expiredCard.id
+    });
+    
+    return {
+      user,
+      order,
+      paymentMethod: expiredCard,
+      payment: failedPayment
+    };
+  },
+
+  /**
+   * Create an admin testing scenario
+   */
+  createAdminScenario() {
+    const admin = userFactory.createAdmin();
+    const customers = userFactory.createMany(5);
+    const orders = customers.map(c => 
+      orderFactory.createWithItems(
+        orderItemFactory.createMany(3),
+        { user_id: c.id }
+      )
+    );
+    const categories = categoryFactory.createFarmCategories();
+    const products = createProducts(20);
+    
+    return {
+      admin,
+      customers,
+      orders,
+      categories,
+      products
+    };
+  }
+};
