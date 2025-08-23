@@ -34,7 +34,25 @@ export type RootStackParamList = {
 };
 
 // User Types
-export type UserRole = 'customer' | 'staff' | 'manager' | 'admin';
+export type UserRole = 'customer' | 'staff' | 'manager' | 'admin' | 'farmer' | 'vendor';
+
+// Navigation Types for Role-based Navigation
+export interface NavigationMenuItem {
+  name: string;
+  component: string;
+  icon: string;
+  permissions: string[];
+  badge?: number | string;
+  hidden?: boolean;
+  priority?: number;
+}
+
+export interface NavigationState {
+  currentScreen: string;
+  history: string[];
+  timestamp: string;
+  userId: string;
+}
 
 export interface User {
   id: string;
