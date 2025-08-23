@@ -479,4 +479,81 @@ export class InventoryService {
       return false;
     }
   }
+
+  /**
+   * Get all inventory items with transformation and validation
+   * Used for dashboard metrics and comprehensive overviews
+   */
+  static async getAllInventoryItems(): Promise<InventoryItemTransform[]> {
+    try {
+      const { data, error } = await supabase
+        .from('test_inventory_items')
+        .select('*')
+        .order('updated_at', { ascending: false });
+
+      if (error) {
+        ValidationMonitor.recordValidationError({
+          context: 'InventoryService.getAllInventoryItems',
+          errorCode: 'INVENTORY_FETCH_ALL_FAILED',
+          validationPattern: 'transformation_schema',
+          errorMessage: error.message || 'Database query failed'
+        });
+        return [];
+      }
+
+      if (!data || data.length === 0) {
+        ValidationMonitor.recordPatternSuccess({
+          service: 'inventoryService',
+          pattern: 'transformation_schema',
+          operation: 'getAllInventoryItems'
+        });
+        return [];
+      }
+
+      // Transform all items with resilient processing (skip-on-error)
+      const transformedItems: InventoryItemTransform[] = [];
+      let successCount = 0;
+      let failureCount = 0;
+
+      for (const item of data) {
+        const transformResult = InventoryItemTransformSchema.safeParse(item);
+        
+        if (transformResult.success) {
+          transformedItems.push(transformResult.data);
+          successCount++;
+        } else {
+          failureCount++;
+          ValidationMonitor.recordValidationError({
+            context: 'InventoryService.getAllInventoryItems',
+            errorCode: 'INVENTORY_ITEM_TRANSFORMATION_FAILED',
+            validationPattern: 'transformation_schema',
+            errorMessage: `Item ${item.id}: ${transformResult.error.message}`
+          });
+          // Continue processing other items (skip-on-error pattern)
+        }
+      }
+
+      ValidationMonitor.recordPatternSuccess({
+        service: 'inventoryService',
+        pattern: 'resilient_processing',
+        operation: 'getAllInventoryItems',
+        metadata: {
+          totalItems: data.length,
+          successCount,
+          failureCount,
+          successRate: successCount / data.length
+        }
+      });
+
+      return transformedItems;
+    } catch (error) {
+      ValidationMonitor.recordValidationError({
+        context: 'InventoryService.getAllInventoryItems',
+        errorCode: 'INVENTORY_FETCH_ALL_FAILED',
+        validationPattern: 'transformation_schema',
+        errorMessage: error instanceof Error ? error.message : 'Unknown error'
+      });
+      return [];
+    }
+  }
 }
