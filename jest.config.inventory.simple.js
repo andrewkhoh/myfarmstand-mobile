@@ -1,7 +1,10 @@
 module.exports = {
   displayName: 'inventory',
   testEnvironment: 'jsdom',
-  setupFilesAfterEnv: ['<rootDir>/src/test/inventory-test-setup.js'],
+  setupFilesAfterEnv: ['<rootDir>/src/test/test-setup.ts'],
+  globals: {
+    TEST_MODE: 'default'
+  },
   testMatch: [
     '<rootDir>/src/hooks/inventory/__tests__/**/*.(test|spec).(ts|tsx|js)',
     '<rootDir>/src/screens/inventory/__tests__/**/*.(test|spec).(ts|tsx|js)', 

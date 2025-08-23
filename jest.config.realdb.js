@@ -8,7 +8,10 @@ module.exports = {
     '/android/',
     '/ios/'
   ],
-  setupFilesAfterEnv: ['<rootDir>/src/test/realDbSetup.ts'],
+  setupFilesAfterEnv: ['<rootDir>/src/test/test-setup.ts'],
+  globals: {
+    TEST_MODE: 'realdb'
+  },
   testEnvironment: 'node',
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],
   transform: {

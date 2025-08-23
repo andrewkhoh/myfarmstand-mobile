@@ -20,7 +20,7 @@ module.exports = {
     'node_modules/(?!(react-native|@react-native|@supabase|@tanstack/react-query)/)',
   ],
   setupFilesAfterEnv: [
-    '<rootDir>/src/test/performance-setup.ts',
+    '<rootDir>/src/test/test-setup.ts',
   ],
   testTimeout: 30000, // 30 seconds for performance tests
   forceExit: true, // Force exit to prevent hanging
@@ -38,6 +38,7 @@ module.exports = {
     'ts-jest': {
       useESM: true,
     },
+    TEST_MODE: 'performance'
   },
   moduleNameMapping: {
     '^@/(.*)$': '<rootDir>/src/$1',
