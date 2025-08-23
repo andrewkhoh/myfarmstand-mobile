@@ -12,8 +12,9 @@ import { QueryClient, QueryClientProvider, useQuery, useMutation, useQueryClient
 import { paymentService } from '../../services/paymentService';
 import { usePaymentMethods, usePaymentIntents, useCreatePayment } from '../usePayment';
 import { useCurrentUser } from '../useAuth';
-import { createMockUser, createMockPaymentMethod, createMockPaymentIntent } from '../../test/mockData';
 import { paymentKeys } from '../../utils/queryKeyFactory';
+import { createSupabaseMock } from '../../test/mocks/supabase.simplified.mock';
+import { hookContracts } from '../../test/contracts/hook.contracts';
 
 // Mock the payment service
 jest.mock('../../services/paymentService');
@@ -51,9 +52,27 @@ jest.mock('../../utils/broadcastFactory', () => ({
   },
 }));
 
-const mockUser = createMockUser();
-const mockPaymentMethod = createMockPaymentMethod();
-const mockPaymentIntent = createMockPaymentIntent();
+const mockUser = {
+  id: 'user-1',
+  email: 'test@example.com',
+  name: 'Test User',
+  role: 'customer' as const,
+};
+
+const mockPaymentMethod = {
+  id: 'pm_test',
+  type: 'card' as const,
+  last4: '4242',
+  brand: 'visa',
+};
+
+const mockPaymentIntent = {
+  id: 'pi_test',
+  amount: 10000,
+  currency: 'usd',
+  status: 'pending' as const,
+  client_secret: 'secret_test',
+};
 
 describe('Payment Hooks - Following Established Patterns', () => {
   let queryClient: QueryClient;
