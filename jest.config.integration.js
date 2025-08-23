@@ -22,7 +22,7 @@ module.exports = {
     'node_modules/(?!(react-native|@react-native|@supabase|@tanstack/react-query)/)',
   ],
   setupFilesAfterEnv: [
-    '<rootDir>/src/test/integration-setup.ts',
+    '<rootDir>/src/test/test-setup.ts',
   ],
   testTimeout: 90000, // 90 seconds for integration tests
   forceExit: true,
@@ -40,6 +40,7 @@ module.exports = {
     'ts-jest': {
       useESM: true,
     },
+    TEST_MODE: 'integration'
   },
   moduleNameMapping: {
     '^@/(.*)$': '<rootDir>/src/$1',
