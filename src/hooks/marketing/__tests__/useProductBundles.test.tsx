@@ -5,6 +5,8 @@
 import { renderHook, waitFor, act } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
+import { createSupabaseMock } from '../../../test/mocks/supabase.simplified.mock';
+import { hookContracts } from '../../../test/contracts/hook.contracts';
 
 // Import hooks to test (these don't exist yet - RED phase)
 import {

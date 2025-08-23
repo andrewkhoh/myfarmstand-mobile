@@ -4,6 +4,8 @@
  */
 
 import React from 'react';
+import { createSupabaseMock } from '../../../test/mocks/supabase.simplified.mock';
+import { hookContracts } from '../../../test/contracts/hook.contracts';
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {

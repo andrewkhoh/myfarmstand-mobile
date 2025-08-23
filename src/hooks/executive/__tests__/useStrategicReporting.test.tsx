@@ -2,6 +2,8 @@
 // Following established React Query testing patterns
 
 import React from 'react';
+import { createSupabaseMock } from '../../../test/mocks/supabase.simplified.mock';
+import { hookContracts } from '../../../test/contracts/hook.contracts';
 import { renderHook, waitFor, act } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useStrategicReporting } from '../useStrategicReporting';
