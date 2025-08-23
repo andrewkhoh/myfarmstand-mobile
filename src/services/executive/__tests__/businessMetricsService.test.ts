@@ -1,14 +1,25 @@
-// Mock ValidationMonitor before importing service (exact authService pattern)
-jest.mock('../../../utils/validationMonitor');
-
+import { createSupabaseMock } from '../../../test/mocks/supabase.simplified.mock';
+import { createUser, resetAllFactories } from '../../../test/factories';
 import { BusinessMetricsService } from '../businessMetricsService';
-import { ValidationMonitor } from '../../../utils/validationMonitor';
 
-// Mock the supabase module at the service level (exact authService pattern)
-const mockSupabase = require('../../../config/supabase').supabase;
+// Mock ValidationMonitor
+jest.mock('../../../utils/validationMonitor');
+const { ValidationMonitor } = require('../../../utils/validationMonitor');
 
-// Mock-based service testing (following successful pattern)
-describe('BusinessMetricsService - Phase 4.2', () => {
+// Mock Supabase
+jest.mock('../../../config/supabase');
+const { supabase } = require('../../../config/supabase');
+
+describe('BusinessMetricsService', () => {
+  const testUser = createUser();
+  
+  beforeEach(() => {
+    jest.clearAllMocks();
+    resetAllFactories();
+    
+    const mockClient = createSupabaseMock();
+    Object.assign(supabase, mockClient);
+  });
   
   // Helper function to create complete business metrics data
   const createMockMetric = (overrides: Partial<any> = {}) => ({

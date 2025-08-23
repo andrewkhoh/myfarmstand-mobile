@@ -1,8 +1,10 @@
 /**
- * useAuth Race Condition Tests with REAL React Query
+ * useAuth Race Condition Tests - MIGRATED
  * 
- * This test file uses real React Query instances to test actual race conditions.
- * Key differences from mocked tests:
+ * Migrated to use SimplifiedSupabaseMock and hook contracts while preserving
+ * race condition testing integrity with real React Query.
+ * 
+ * Key features preserved:
  * - Uses actual QueryClient and mutations
  * - Tests real optimistic updates and rollbacks  
  * - Tests real query invalidation and caching
@@ -25,6 +27,8 @@ import {
   useAuthOperations 
 } from '../useAuth';
 import { AuthService } from '../../services/authService';
+import { createSupabaseMock } from '../../test/mocks/supabase.simplified.mock';
+import { hookContracts } from '../../test/contracts/hook.contracts';
 
 // Get the mocked services (services are mocked in setup file, React Query is real)  
 const mockAuthService = AuthService as jest.Mocked<typeof AuthService>;

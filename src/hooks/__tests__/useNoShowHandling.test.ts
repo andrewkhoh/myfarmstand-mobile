@@ -3,7 +3,8 @@ import { NoShowHandlingService } from '../../services/noShowHandlingService';
 import { useNoShowHandling } from '../useNoShowHandling';
 import { useCurrentUser } from '../useAuth';
 import { createWrapper } from '../../test/test-utils';
-import { createMockUser, createMockNoShowHandlingResult } from '../../test/mockData';
+import { createSupabaseMock } from '../../test/mocks/supabase.simplified.mock';
+import { hookContracts } from '../../test/contracts/hook.contracts';
 
 jest.mock('../../services/noShowHandlingService');
 const mockNoShowHandlingService = NoShowHandlingService as jest.Mocked<typeof NoShowHandlingService>;
@@ -17,7 +18,12 @@ jest.mock('../../utils/broadcastFactory', () => ({
   },
 }));
 
-const mockUser = createMockUser({ role: 'admin' });
+const mockUser = {
+  id: 'user-1',
+  email: 'admin@example.com',
+  name: 'Admin User',
+  role: 'admin' as const,
+};
 
 describe('useNoShowHandling', () => {
   beforeEach(() => {

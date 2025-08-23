@@ -4,7 +4,8 @@ import { createWrapper } from '../../test/test-utils';
 import { NotificationService } from '../../services/notificationService';
 import { useNotifications } from '../useNotifications';
 import { useCurrentUser } from '../useAuth';
-import { createMockUser, createMockNotificationRequest, createMockNotificationResult } from '../../test/mockData';
+import { createSupabaseMock } from '../../test/mocks/supabase.simplified.mock';
+import { hookContracts } from '../../test/contracts/hook.contracts';
 
 jest.mock('../../services/notificationService');
 const mockNotificationService = NotificationService as jest.Mocked<typeof NotificationService>;
@@ -19,30 +20,41 @@ jest.mock('../../utils/broadcastFactory', () => ({
 }));
 
 
-const mockUser = createMockUser();
-const mockNotificationRequest = createMockNotificationRequest();
+const mockUser = {
+  id: 'user-1',
+  email: 'test@example.com',
+  name: 'Test User',
+  role: 'customer' as const,
+};
+
+const mockNotificationRequest = {
+  type: 'order_ready' as const,
+  userId: mockUser.id,
+  orderId: 'order-123',
+  message: 'Your order is ready for pickup',
+  channel: 'email' as const,
+};
 
 const mockNotificationHistory = [
   {
     id: 'notif1',
-    type: 'order_ready',
-    userId: 'user123',
-    customerName: 'Test Customer',
-    status: 'sent' as const,
-    createdAt: '2023-01-01T00:00:00Z',
+    title: 'Order Ready',
     message: 'Your order is ready',
+    type: 'info' as const,
+    read: false,
+    created_at: new Date().toISOString(),
   },
 ];
 
 const mockPreferences = {
-  userId: 'user123',
+  userId: mockUser.id,
   emailEnabled: true,
   smsEnabled: true,
   inAppEnabled: true,
   orderReady: true,
   orderCancelled: true,
   promotions: false,
-  updatedAt: '2023-01-01T00:00:00Z',
+  updatedAt: new Date().toISOString(),
 };
 
 describe('useNotifications', () => {

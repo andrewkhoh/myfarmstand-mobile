@@ -7,6 +7,8 @@ import {
   useRealtimeNotifications,
 } from '../useRealtime';
 import { useCurrentUser } from '../useAuth';
+import { createSupabaseMock } from '../../test/mocks/supabase.simplified.mock';
+import { hookContracts } from '../../test/contracts/hook.contracts';
 
 jest.mock('../../services/realtimeService');
 const mockRealtimeService = RealtimeService as jest.Mocked<typeof RealtimeService>;
@@ -46,14 +48,19 @@ jest.mock('../../utils/broadcastFactory', () => ({
 }));
 
 
-const mockUser = { id: 'user123', email: 'test@example.com', name: 'Test User', role: 'customer' as const };
+const mockUser = {
+  id: 'user-1',
+  email: 'test@example.com',
+  name: 'Test User',
+  role: 'customer' as const,
+};
 
 const mockSubscriptionStatus = {
   totalSubscriptions: 3,
   subscriptions: [
-    { channel: 'cart', state: 'connected', isConnected: true },
-    { channel: 'orders', state: 'connected', isConnected: true },
-    { channel: 'products', state: 'connected', isConnected: true },
+    { channel: 'cart', status: 'connected' as const, error: undefined },
+    { channel: 'orders', status: 'connected' as const, error: undefined },
+    { channel: 'products', status: 'connected' as const, error: undefined },
   ],
   allConnected: true,
 };

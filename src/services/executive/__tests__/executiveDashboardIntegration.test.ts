@@ -1,23 +1,31 @@
-// Phase 4.4.2: Executive Dashboard Integration Tests (RED Phase)
-// Testing complete executive dashboard functionality with multi-source integration
-
-import { supabase } from '../../../config/supabase';
+import { createSupabaseMock } from '../../../test/mocks/supabase.simplified.mock';
+import { createUser, resetAllFactories } from '../../../test/factories';
 import { BusinessMetricsService } from '../businessMetricsService';
 import { BusinessIntelligenceService } from '../businessIntelligenceService';
 import { StrategicReportingService } from '../strategicReportingService';
 import { PredictiveAnalyticsService } from '../predictiveAnalyticsService';
 import { RolePermissionService } from '../../role-based/rolePermissionService';
-import { ValidationMonitor } from '../../../utils/validationMonitor';
 
-// Mock dependencies
-jest.mock('../../../config/supabase');
+// Mock ValidationMonitor
 jest.mock('../../../utils/validationMonitor');
+const { ValidationMonitor } = require('../../../utils/validationMonitor');
+
+// Mock role permissions
 jest.mock('../../role-based/rolePermissionService');
 
-describe('Executive Dashboard Integration - Phase 4.4.2', () => {
-  const mockSupabase = supabase as jest.Mocked<typeof supabase>;
+// Mock Supabase
+jest.mock('../../../config/supabase');
+const { supabase } = require('../../../config/supabase');
+
+describe('Executive Dashboard Integration', () => {
+  const testUser = createUser();
   
   beforeEach(() => {
+    jest.clearAllMocks();
+    resetAllFactories();
+    
+    const mockClient = createSupabaseMock();
+    Object.assign(supabase, mockClient);
     jest.clearAllMocks();
     
     // Setup default mocks

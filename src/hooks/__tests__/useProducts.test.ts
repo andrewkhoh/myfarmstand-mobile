@@ -16,7 +16,9 @@ import {
 } from '../useProducts';
 import { useCurrentUser } from '../useAuth';
 import { createWrapper } from '../../test/test-utils';
-import { createMockUser, createMockProduct } from '../../test/mockData';
+import { createSupabaseMock } from '../../test/mocks/supabase.simplified.mock';
+import { hookContracts } from '../../test/contracts/hook.contracts';
+import { createProduct } from '../../test/factories/product.factory';
 
 jest.mock('../../services/productService');
 const mockGetProducts = getProducts as jest.MockedFunction<typeof getProducts>;
@@ -41,7 +43,12 @@ jest.mock('../../utils/queryKeyFactory', () => ({
   },
 }));
 
-const mockUser = createMockUser();
+const mockUser = {
+  id: 'user-1',
+  email: 'test@example.com',
+  name: 'Test User',
+  role: 'customer' as const,
+};
 
 describe('useProducts hooks', () => {
   beforeEach(() => {
@@ -60,8 +67,8 @@ describe('useProducts hooks', () => {
     describe('useProducts', () => {
       it('should fetch products successfully', async () => {
         const mockProducts = [
-          createMockProduct({ id: 'prod1', name: 'Product 1', price: 10 }),
-          createMockProduct({ id: 'prod2', name: 'Product 2', price: 20 }),
+          createProduct({ id: 'prod1', name: 'Product 1', price: 10 }),
+          createProduct({ id: 'prod2', name: 'Product 2', price: 20 }),
         ];
         mockGetProducts.mockResolvedValue({
           success: true,
@@ -78,6 +85,9 @@ describe('useProducts hooks', () => {
 
         expect(result.current.data).toEqual(mockProducts);
         expect(mockGetProducts).toHaveBeenCalled();
+        
+        // Validate contract
+        hookContracts.products.validate('validateProductList', mockProducts);
       });
 
       it('should handle products fetch error', async () => {
@@ -97,7 +107,7 @@ describe('useProducts hooks', () => {
 
     describe('useProduct', () => {
       it('should fetch single product successfully', async () => {
-        const mockProduct = createMockProduct({ id: 'prod1', name: 'Product 1', price: 10 });
+        const mockProduct = createProduct({ id: 'prod1', name: 'Product 1', price: 10 });
         mockGetProductById.mockResolvedValue({
           success: true,
           product: mockProduct,

@@ -12,9 +12,11 @@ module.exports = {
     '/.expo/'
   ],
   setupFilesAfterEnv: [
-    '<rootDir>/src/test/serviceSetup.ts',
-    '<rootDir>/src/test/navigationSetup.ts'
+    '<rootDir>/src/test/test-setup.ts'
   ],
+  globals: {
+    TEST_MODE: 'navigation'
+  },
   testEnvironment: 'node',
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],
   transform: {

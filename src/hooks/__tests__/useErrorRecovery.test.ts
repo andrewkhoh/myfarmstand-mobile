@@ -4,7 +4,8 @@ import { createWrapper } from '../../test/test-utils';
 import { ErrorRecoveryService } from '../../services/errorRecoveryService';
 import { useErrorRecovery } from '../useErrorRecovery';
 import { useCurrentUser } from '../useAuth';
-import { createMockUser, createMockErrorRecoveryResult, createMockErrorContext } from '../../test/mockData';
+import { createSupabaseMock } from '../../test/mocks/supabase.simplified.mock';
+import { hookContracts } from '../../test/contracts/hook.contracts';
 
 jest.mock('../../services/errorRecoveryService');
 const mockErrorRecoveryService = ErrorRecoveryService as jest.Mocked<typeof ErrorRecoveryService>;
@@ -19,7 +20,12 @@ jest.mock('../../utils/broadcastFactory', () => ({
 }));
 
 
-const mockUser = createMockUser();
+const mockUser = {
+  id: 'user-1',
+  email: 'test@example.com',
+  name: 'Test User',
+  role: 'customer' as const,
+};
 
 describe('useErrorRecovery', () => {
   beforeEach(() => {

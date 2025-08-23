@@ -1,31 +1,31 @@
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
-
-// Mock ValidationMonitor before importing service (copying authService pattern)
-jest.mock('../../../utils/validationMonitor');
-
+import { createSupabaseMock } from '../../../test/mocks/supabase.simplified.mock';
+import { createUser, resetAllFactories } from '../../../test/factories';
 import { StockMovementService } from '../stockMovementService';
-import { ValidationMonitor } from '../../../utils/validationMonitor';
 import type { 
-  StockMovementTransform,
   CreateStockMovementInput,
   BatchStockMovementInput,
   MovementFilterInput,
   MovementHistoryInput
 } from '../../../schemas/inventory';
 
-// Mock the supabase module at the service level (copying authService exact pattern)
-const mockSupabase = require('../../../config/supabase').supabase;
+// Mock ValidationMonitor
+jest.mock('../../../utils/validationMonitor');
+const { ValidationMonitor } = require('../../../utils/validationMonitor');
 
-// Service testing with mocks (following successful patterns)
-describe('StockMovementService - Phase 2.2 (Mocked)', () => {
-  
-  // Mock test data
-  const testInventoryId = '11111111-1111-1111-1111-111111111111';
-  const testUserId = '11111111-1111-1111-1111-111111111111';
-  const testMovementId = '22222222-2222-2222-2222-222222222222';
+// Mock Supabase
+jest.mock('../../../config/supabase');
+const { supabase } = require('../../../config/supabase');
+
+describe('StockMovementService - Mock Tests', () => {
+  const testUser = createUser();
   
   beforeEach(() => {
     jest.clearAllMocks();
+    resetAllFactories();
+    
+    // Reset to simplified mock
+    const mockClient = createSupabaseMock();
+    Object.assign(supabase, mockClient);
   });
 
   describe('recordMovement', () => {

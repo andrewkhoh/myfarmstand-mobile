@@ -1,222 +1,104 @@
-// Mock ValidationMonitor before importing service (Pattern 1)
-jest.mock('../../../utils/validationMonitor');
-
+import { createSupabaseMock } from '../../../test/mocks/supabase.simplified.mock';
+import { createUser, createProduct, resetAllFactories } from '../../../test/factories';
 import { ProductContentService } from '../productContentService';
-import { ValidationMonitor } from '../../../utils/validationMonitor';
 import type {
-  ProductContentTransform,
   CreateProductContentInput,
   UpdateProductContentInput,
   ContentStatusType
 } from '../../../schemas/marketing';
 
-// Mock the supabase module at the service level (AuthService exact pattern)
-const mockSupabase = require('../../../config/supabase').supabase;
+// Mock ValidationMonitor
+jest.mock('../../../utils/validationMonitor');
+const { ValidationMonitor } = require('../../../utils/validationMonitor');
 
 // Mock role permissions
 jest.mock('../../role-based/rolePermissionService');
-const mockRolePermissionService = require('../../role-based/rolePermissionService').RolePermissionService;
+const { RolePermissionService } = require('../../role-based/rolePermissionService');
 
-describe('Content Workflow Integration - Phase 3.4.1 (RED Phase)', () => {
-  const testUserId = 'test-user-123';
-  const testContentId = 'content-456';
-  const testProductId = 'product-789';
+// Mock Supabase
+jest.mock('../../../config/supabase');
+const { supabase } = require('../../../config/supabase');
+
+describe('Content Workflow Integration', () => {
+  const testUser = createUser();
+  const testProduct = createProduct();
   
   beforeEach(() => {
     jest.clearAllMocks();
+    resetAllFactories();
     
-    // Reset Supabase mocks to prevent state contamination
-    if (global.resetSupabaseMocks) {
-      global.resetSupabaseMocks();
-    }
-    
-    // Setup default mock returns for chainable Supabase queries
-    mockSupabase.from = jest.fn(() => ({
-      select: jest.fn().mockReturnThis(),
-      insert: jest.fn().mockReturnThis(),
-      update: jest.fn().mockReturnThis(),
-      delete: jest.fn().mockReturnThis(),
-      eq: jest.fn().mockReturnThis(),
-      in: jest.fn().mockReturnThis(),
-      limit: jest.fn().mockReturnThis(),
-      order: jest.fn().mockReturnThis(),
-      range: jest.fn().mockReturnThis(),
-      single: jest.fn().mockResolvedValue({ data: null, error: null })
-    }));
+    // Reset to simplified mock
+    const mockClient = createSupabaseMock();
+    Object.assign(supabase, mockClient);
     
     // Default role permission setup
-    mockRolePermissionService.hasPermission.mockResolvedValue(true);
+    RolePermissionService.hasPermission.mockResolvedValue(true);
   });
 
   describe('Complete Content Workflow (draft → review → approved → published)', () => {
     test('should execute complete content lifecycle workflow', async () => {
-      // Mock successful content creation
-      const createdContent = {
-        id: testContentId,
-        product_id: testProductId,
+      const testContent = {
+        id: 'content-workflow',
+        product_id: testProduct.id,
         marketing_title: 'Test Product Content',
         marketing_description: 'Test description',
-        marketing_highlights: null,
-        seo_keywords: null,
-        featured_image_url: null,
-        gallery_urls: null,
         content_status: 'draft',
         content_priority: 1,
-        last_updated_by: testUserId,
+        last_updated_by: testUser.id,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
 
-      // Setup comprehensive mocks for the entire workflow
-      let currentStatus = 'draft';
-      
-      // Mock for create and update operations
-      mockSupabase.from.mockImplementation((table) => {
-        if (table === 'product_content') {
-          return {
-            insert: jest.fn().mockReturnValue({
-              select: jest.fn().mockReturnValue({
-                single: jest.fn().mockResolvedValue({
-                  data: createdContent,
-                  error: null
-                })
-              })
-            }),
-            update: jest.fn().mockImplementation((updateData) => {
-              return {
-                eq: jest.fn().mockReturnValue({
-                  select: jest.fn().mockReturnValue({
-                    single: jest.fn().mockImplementation(() => {
-                      // Update the status from the update data
-                      const newStatus = updateData.content_status || currentStatus;
-                      const updatedContent = {
-                        ...createdContent,
-                        content_status: newStatus,
-                        updated_at: new Date().toISOString()
-                      };
-                      return Promise.resolve({
-                        data: updatedContent,
-                        error: null
-                      });
-                    })
-                  })
-                })
-              };
-            }),
-            select: jest.fn().mockReturnValue({
-              eq: jest.fn().mockReturnValue({
-                single: jest.fn().mockImplementation(() => {
-                  const fetchContent = {
-                    ...createdContent,
-                    content_status: currentStatus
-                  };
-                  return Promise.resolve({
-                    data: fetchContent,
-                    error: null
-                  });
-                })
-              })
-            })
-          };
-        }
-        return {
-          select: jest.fn().mockReturnValue({
-            eq: jest.fn().mockReturnValue({
-              single: jest.fn().mockResolvedValue({ data: null, error: null })
-            })
-          })
-        };
+      const mockClient = createSupabaseMock({
+        product_content: [testContent]
       });
-
-      // Setup spy on getProductContent to verify it gets called
-      const getProductContentSpy = jest.spyOn(ProductContentService, 'getProductContent')
-        .mockImplementation(async (contentId) => {
-          return {
-            success: true,
-            data: {
-              id: contentId,
-              productId: testProductId,
-              marketingTitle: 'Test Product Content',
-              marketingDescription: 'Test description',
-              marketingHighlights: null,
-              seoKeywords: null,
-              featuredImageUrl: null,
-              galleryUrls: null,
-              contentStatus: currentStatus as ContentStatusType,
-              contentPriority: 1,
-              lastUpdatedBy: testUserId,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString()
-            }
-          };
-        });
+      Object.assign(supabase, mockClient);
 
       // Step 1: Create content in draft state
       const createInput: CreateProductContentInput = {
-        productId: testProductId,
+        productId: testProduct.id,
         marketingTitle: 'Test Product Content',
         marketingDescription: 'Test description',
         contentPriority: 1
       };
 
-      const createResult = await ProductContentService.createProductContent(createInput, testUserId);
+      const createResult = await ProductContentService.createProductContent(createInput, testUser.id);
       expect(createResult.success).toBe(true);
       expect(createResult.data?.contentStatus).toBe('draft');
 
       // Step 2: Move to review state
-      const reviewUpdate: UpdateProductContentInput = {
-        contentStatus: 'review' as ContentStatusType
-      };
-      
       const reviewResult = await ProductContentService.updateProductContent(
-        testContentId, 
-        reviewUpdate, 
-        testUserId
+        testContent.id,
+        { contentStatus: 'review' as ContentStatusType },
+        testUser.id
       );
-      currentStatus = 'review'; // Update mock status AFTER the call
-      if (!reviewResult.success) {
-        console.log('Review result error:', reviewResult.error);
-      }
       expect(reviewResult.success).toBe(true);
       expect(reviewResult.data?.contentStatus).toBe('review');
 
       // Step 3: Approve content
-      const approveUpdate: UpdateProductContentInput = {
-        contentStatus: 'approved' as ContentStatusType
-      };
-      
       const approveResult = await ProductContentService.updateProductContent(
-        testContentId,
-        approveUpdate,
-        testUserId
+        testContent.id,
+        { contentStatus: 'approved' as ContentStatusType },
+        testUser.id
       );
-      currentStatus = 'approved'; // Update mock status AFTER the call
       expect(approveResult.success).toBe(true);
       expect(approveResult.data?.contentStatus).toBe('approved');
 
       // Step 4: Publish content
-      const publishUpdate: UpdateProductContentInput = {
-        contentStatus: 'published' as ContentStatusType
-      };
-      
       const publishResult = await ProductContentService.updateProductContent(
-        testContentId,
-        publishUpdate,
-        testUserId
+        testContent.id,
+        { contentStatus: 'published' as ContentStatusType },
+        testUser.id
       );
-      currentStatus = 'published'; // Update mock status AFTER the call
       expect(publishResult.success).toBe(true);
       expect(publishResult.data?.contentStatus).toBe('published');
 
       // Verify workflow validation was recorded
       expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith({
-        service: expect.stringContaining('productContentService'),
+        service: 'productContentService',
         pattern: 'transformation_schema',
-        operation: expect.stringContaining('update')
+        operation: 'createProductContent'
       });
-
-      // Cleanup
-      getProductContentSpy.mockRestore();
     });
 
     test('should prevent invalid workflow transitions', async () => {
@@ -282,8 +164,8 @@ describe('Content Workflow Integration - Phase 3.4.1 (RED Phase)', () => {
       
       expect(result.success).toBe(false);
       expect(result.error).toContain('permission');
-      expect(mockRolePermissionService.hasPermission).toHaveBeenCalledWith(
-        testUserId,
+      expect(RolePermissionService.hasPermission).toHaveBeenCalledWith(
+        testUser.id,
         'content_management'
       );
     });

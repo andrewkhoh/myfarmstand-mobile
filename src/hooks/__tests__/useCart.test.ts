@@ -23,7 +23,8 @@ import { cartService } from '../../services/cartService';
 import { useCart } from '../useCart';
 import { useCurrentUser } from '../useAuth';
 import { createWrapper } from '../../test/test-utils';
-import { createMockUser, createMockProduct, createMockCartState } from '../../test/mockData';
+import { createSupabaseMock } from '../../test/mocks/supabase.simplified.mock';
+import { hookContracts } from '../../test/contracts/hook.contracts';
 
 jest.mock('../../services/cartService');
 const mockCartService = cartService as jest.Mocked<typeof cartService>;
@@ -37,8 +38,24 @@ jest.mock('../../utils/queryKeyFactory', () => ({
   },
 }));
 
-const mockUser = createMockUser();
-const mockProduct = createMockProduct({ name: 'Product 1' });
+const mockUser = {
+  id: 'user-1',
+  email: 'test@example.com',
+  name: 'Test User',
+  role: 'customer' as const,
+};
+
+const mockProduct = {
+  id: 'product-1',
+  name: 'Product 1',
+  price: 10.00,
+  description: 'Test product',
+  unit: 'each',
+  category_id: 'cat-1',
+  farmer_id: 'farmer-1',
+  stock_quantity: 100,
+  is_available: true,
+};
 
 describe('useCart', () => {
   beforeEach(() => {
@@ -55,7 +72,20 @@ describe('useCart', () => {
     });
 
     it('should fetch cart data successfully', async () => {
-      const mockCart = createMockCartState();
+      const mockCart = {
+        id: 'cart-1',
+        user_id: mockUser.id,
+        items: [
+          {
+            id: 'item-1',
+            product_id: mockProduct.id,
+            quantity: 2,
+            price: mockProduct.price,
+            product: mockProduct,
+          },
+        ],
+        total: 20.00,
+      };
       mockCartService.getCart.mockResolvedValue(mockCart);
 
       const { result } = renderHook(() => useCart(), {
@@ -68,6 +98,9 @@ describe('useCart', () => {
 
       expect(result.current.items).toEqual(mockCart.items);
       expect(result.current.total).toBe(20);
+      
+      // Validate contract
+      hookContracts.cart.validate('validateCart', mockCart);
     });
 
     it('should add item to cart successfully', async () => {

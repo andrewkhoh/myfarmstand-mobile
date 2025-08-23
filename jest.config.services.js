@@ -12,7 +12,10 @@ module.exports = {
     'simpleServices.test.ts',
     'allServices.test.ts'
   ],
-  setupFilesAfterEnv: ['<rootDir>/src/test/serviceSetup.ts'],
+  setupFilesAfterEnv: ['<rootDir>/src/test/test-setup.ts'],
+  globals: {
+    TEST_MODE: 'service'
+  },
   testEnvironment: 'node',
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],
   transform: {

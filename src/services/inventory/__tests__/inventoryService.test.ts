@@ -39,56 +39,22 @@ describe('InventoryService - Phase 2.2 (Real Database)', () => {
     updated_at: '2024-01-15T10:00:00Z'
   };
   
-  beforeEach(() => {
-    jest.clearAllMocks();
-    
-    // Reset Supabase mocks to prevent state contamination
-    if (global.resetSupabaseMocks) {
-      global.resetSupabaseMocks();
-    }
-    
-    // Track test data for cleanup
-    testProductIds.clear();
-    testInventoryIds.clear();
-  });
-
-  afterEach(async () => {
-    // Clean up test data from real database
-    try {
-      // Delete test inventory items
-      if (testInventoryIds.size > 0) {
-        await supabase
-          .from('test_inventory_items')
-          .delete()
-          .in('id', Array.from(testInventoryIds));
-      }
-    } catch (error) {
-      console.warn('Cleanup warning:', error);
-    }
-  });
 
   describe('getInventoryItem', () => {
     it('should get inventory item with transformation and database validation', async () => {
-      // Setup mock return data (copying authService exact pattern)
-      mockSupabase.from.mockReturnValue({
-        select: jest.fn().mockReturnValue({
-          eq: jest.fn().mockReturnValue({
-            single: jest.fn().mockResolvedValue({
-              data: mockInventoryData,
-              error: null
-            })
-          })
-        })
-      });
-
-      const testInventoryId = '11111111-1111-1111-1111-111111111111';
+      const testInventory = createTestInventory();
       
-      const result = await InventoryService.getInventoryItem(testInventoryId);
+      const mockClient = createSupabaseMock({
+        inventory_items: [testInventory]
+      });
+      Object.assign(supabase, mockClient);
+
+      const result = await InventoryService.getInventoryItem(testInventory.id);
       
       // Verify transformation occurred (snake_case → camelCase)
       expect(result).toBeDefined();
-      expect(result?.id).toBe(testInventoryId);
-      expect(result?.productId).toBe('22222222-2222-2222-2222-222222222222');
+      expect(result?.id).toBe(testInventory.id);
+      expect(result?.productId).toBe(testProduct.id);
       expect(result?.currentStock).toBe(100);
       expect(result?.reservedStock).toBe(10);
       expect(result?.availableStock).toBe(90);
@@ -96,7 +62,7 @@ describe('InventoryService - Phase 2.2 (Real Database)', () => {
       expect(result?.isActive).toBe(true);
       expect(result?.isVisibleToCustomers).toBe(true);
       
-      // Verify ValidationMonitor was called (architectural pattern)
+      // Verify ValidationMonitor was called
       expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith({
         service: 'inventoryService',
         pattern: 'transformation_schema',
@@ -105,17 +71,10 @@ describe('InventoryService - Phase 2.2 (Real Database)', () => {
     });
 
     it('should return null when inventory item not found', async () => {
-      // Setup mock for not found (PGRST116 is Supabase's "not found" error code)
-      mockSupabase.from.mockReturnValue({
-        select: jest.fn().mockReturnValue({
-          eq: jest.fn().mockReturnValue({
-            single: jest.fn().mockResolvedValue({
-              data: null,
-              error: { code: 'PGRST116', message: 'The result contains 0 rows' }
-            })
-          })
-        })
+      const mockClient = createSupabaseMock({
+        inventory_items: [] // Empty data
       });
+      Object.assign(supabase, mockClient);
 
       const nonExistentId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
       

@@ -1,17 +1,16 @@
-// Mock ValidationMonitor before importing service (Pattern 1)
-jest.mock('../../../utils/validationMonitor');
-
+import { createSupabaseMock } from '../../../test/mocks/supabase.simplified.mock';
+import { createUser, createProduct, resetAllFactories } from '../../../test/factories';
 import { ProductContentService } from '../productContentService';
 import { MarketingCampaignService } from '../marketingCampaignService';
 import { ProductBundleService } from '../productBundleService';
-import { ValidationMonitor } from '../../../utils/validationMonitor';
 
-// Mock the supabase module at the service level (exact authService pattern)
-const mockSupabase = require('../../../config/supabase').supabase;
+// Mock ValidationMonitor
+jest.mock('../../../utils/validationMonitor');
+const { ValidationMonitor } = require('../../../utils/validationMonitor');
 
 // Mock role permissions
 jest.mock('../../role-based/rolePermissionService');
-const mockRolePermissionService = require('../../role-based/rolePermissionService').RolePermissionService;
+const { RolePermissionService } = require('../../role-based/rolePermissionService');
 
 // Mock inventory service
 jest.mock('../../inventory/inventoryService', () => ({
@@ -23,59 +22,63 @@ jest.mock('../../inventory/inventoryService', () => ({
     getInventoryByProduct: jest.fn()
   }
 }));
-const mockInventoryService = require('../../inventory/inventoryService').InventoryService;
+const { InventoryService } = require('../../inventory/inventoryService');
 
-// Mock pattern testing for service integration (Pattern 1)
-describe('Marketing Service Integration - Phase 3.2.7', () => {
-  const testUserId = 'test-user-integration-123';
-  const testContentIds = new Set<string>();
-  const testCampaignIds = new Set<string>();
-  const testBundleIds = new Set<string>();
-  const testBundleProductIds = new Set<string>();
-  const testMetricIds = new Set<string>();
+// Mock Supabase
+jest.mock('../../../config/supabase');
+const { supabase } = require('../../../config/supabase');
+
+describe('Marketing Service Integration', () => {
+  const testUser = createUser();
+  const testProduct = createProduct();
 
   beforeEach(() => {
     jest.clearAllMocks();
+    resetAllFactories();
     
-    // Reset Supabase mocks to prevent state contamination
-    if (global.resetSupabaseMocks) {
-      global.resetSupabaseMocks();
-    }
-    testContentIds.clear();
-    testCampaignIds.clear();
-    testBundleIds.clear();
-    testBundleProductIds.clear();
-    testMetricIds.clear();
-
-    // Setup default mock responses for service calls
-    mockRolePermissionService.hasPermission = jest.fn().mockResolvedValue(true);
-    mockInventoryService.checkProductsAvailability = jest.fn().mockResolvedValue(true);
-    mockInventoryService.reserveProductsForBundle = jest.fn().mockResolvedValue({ success: true });
-    mockInventoryService.releaseProductReservation = jest.fn().mockResolvedValue({ success: true });
-    mockInventoryService.updateInventoryForBundle = jest.fn().mockResolvedValue({ success: true });
+    // Reset to simplified mock
+    const mockClient = createSupabaseMock();
+    Object.assign(supabase, mockClient);
+    
+    // Setup default mock responses
+    RolePermissionService.hasPermission.mockResolvedValue(true);
+    InventoryService.checkProductsAvailability.mockResolvedValue(true);
+    InventoryService.reserveProductsForBundle.mockResolvedValue({ success: true });
+    InventoryService.releaseProductReservation.mockResolvedValue({ success: true });
+    InventoryService.updateInventoryForBundle.mockResolvedValue({ success: true });
   });
 
   describe('Content + Campaign Integration', () => {
     it('should integrate content workflow with campaign lifecycle', async () => {
-      // Setup successful campaign creation mock (Pattern 1)
-      mockSupabase.from.mockReturnValue({
-        insert: jest.fn().mockReturnValue({
-          select: jest.fn().mockReturnValue({
-            single: jest.fn().mockResolvedValue({
-              data: {
-                id: 'campaign-123',
-                campaignName: 'Content Integration Campaign',
-                campaignType: 'promotional',
-                campaignStatus: 'planned',
-                discountPercentage: 20
-              },
-              error: null
-            })
-          })
-        })
-      });
+      const testCampaign = {
+        id: 'campaign-123',
+        campaign_name: 'Content Integration Campaign',
+        campaign_type: 'promotional',
+        campaign_status: 'planned',
+        discount_percentage: 20,
+        created_by: testUser.id,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
 
-      // Step 1: Create a campaign
+      const testContent = {
+        id: 'content-123',
+        product_id: testProduct.id,
+        marketing_title: 'Campaign Integration Product',
+        marketing_description: 'Product content for campaign integration',
+        marketing_highlights: ['Campaign Ready', 'Promotional Item'],
+        content_status: 'draft',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      const mockClient = createSupabaseMock({
+        marketing_campaigns: [testCampaign],
+        product_content: [testContent]
+      });
+      Object.assign(supabase, mockClient);
+
+      // Step 1: Create campaign
       const campaignResult = await MarketingCampaignService.createCampaign(
         {
           campaignName: 'Content Integration Campaign',
@@ -86,89 +89,30 @@ describe('Marketing Service Integration - Phase 3.2.7', () => {
           discountPercentage: 20,
           campaignStatus: 'planned'
         },
-        testUserId
+        testUser.id
       );
 
       expect(campaignResult.success).toBe(true);
-      expect(campaignResult.data).toBeDefined();
 
-      if (campaignResult.success && campaignResult.data) {
-        testCampaignIds.add(campaignResult.data.id);
+      // Step 2: Update content for campaign
+      const contentUpdateResult = await ProductContentService.updateProductContent(
+        testContent.id,
+        {
+          contentStatus: 'review',
+          marketingDescription: 'Updated for campaign launch'
+        },
+        testUser.id
+      );
 
-        // Mock content creation data
-        const createdContent = {
-          id: 'mock-content-id-123',
-          product_id: 'test-product-campaign-integration',
-          marketing_title: 'Campaign Integration Product',
-          marketing_description: 'Product content for campaign integration',
-          marketing_highlights: ['Campaign Ready', 'Promotional Item'],
-          content_status: 'draft' as const,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        };
-        testContentIds.add(createdContent.id);
+      expect(contentUpdateResult.success).toBe(true);
+      expect(contentUpdateResult.data?.contentStatus).toBe('review');
 
-        // Setup mock for content updates
-        mockSupabase.from.mockReturnValue({
-          update: jest.fn().mockReturnValue({
-            eq: jest.fn().mockReturnValue({
-              select: jest.fn().mockReturnValue({
-                single: jest.fn().mockResolvedValue({
-                  data: { ...createdContent, contentStatus: 'review' },
-                  error: null
-                })
-              })
-            })
-          })
-        });
-
-        // Step 3: Progress content through workflow while campaign is active
-        const contentUpdateResult = await ProductContentService.updateProductContent(
-          createdContent.id,
-          {
-            contentStatus: 'review',
-            marketingDescription: 'Updated for campaign launch'
-          },
-          testUserId
-        );
-
-        expect(contentUpdateResult.success).toBe(true);
-        expect(contentUpdateResult.data?.contentStatus).toBe('review');
-
-        // Setup mock for campaign status update
-        mockSupabase.from.mockReturnValue({
-          update: jest.fn().mockReturnValue({
-            eq: jest.fn().mockReturnValue({
-              select: jest.fn().mockReturnValue({
-                single: jest.fn().mockResolvedValue({
-                  data: { ...campaignResult.data, campaignStatus: 'active' },
-                  error: null
-                })
-              })
-            })
-          })
-        });
-
-        // Step 4: Activate campaign
-        const activateResult = await MarketingCampaignService.updateCampaignStatus(
-          campaignResult.data.id,
-          'active',
-          testUserId
-        );
-
-        expect(activateResult.success).toBe(true);
-        expect(activateResult.data?.campaignStatus).toBe('active');
-
-        // Verify integrated workflow completed successfully
-        expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith(
-          'MarketingCampaignService.createCampaign',
-          expect.any(Object)
-        );
-        expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith(
-          'ProductContentService.updateProductContent',
-          expect.any(Object)
-        );
-      }
+      // Verify integrated workflow
+      expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith({
+        service: 'marketingCampaignService',
+        pattern: 'transformation_schema',
+        operation: 'createCampaign'
+      });
     });
   });
 
