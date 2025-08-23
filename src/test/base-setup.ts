@@ -10,7 +10,7 @@ import '@testing-library/jest-native/extend-expect';
 // CORE REACT NATIVE MOCKS
 // ============================================================================
 
-export const reactNativeMocks = {
+export const mockReactNative = {
   Platform: { OS: 'ios' },
   Alert: { alert: jest.fn() },
   Dimensions: { get: jest.fn(() => ({ width: 375, height: 812 })) },
@@ -29,13 +29,13 @@ export const reactNativeMocks = {
 // ASYNC STORAGE MOCK
 // ============================================================================
 
-export const asyncStorageMock = require('@react-native-async-storage/async-storage/jest/async-storage-mock');
+export const mockAsyncStorage = require('@react-native-async-storage/async-storage/jest/async-storage-mock');
 
 // ============================================================================
 // REACT NAVIGATION MOCKS
 // ============================================================================
 
-export const navigationMocks = {
+export const mockNavigation = {
   useNavigation: () => ({
     navigate: jest.fn(),
     dispatch: jest.fn(),
@@ -77,7 +77,7 @@ export const navigationMocks = {
 };
 
 // Stack Navigator Mocks
-export const stackNavigatorMocks = {
+export const mockStackNavigator = {
   createStackNavigator: () => ({
     Navigator: ({ children }: any) => children,
     Screen: ({ children }: any) => children,
@@ -109,7 +109,7 @@ export const stackNavigatorMocks = {
 };
 
 // Bottom Tabs Navigator Mocks
-export const bottomTabsMocks = {
+export const mockBottomTabs = {
   createBottomTabNavigator: () => ({
     Navigator: ({ children }: any) => children,
     Screen: ({ children }: any) => children,
@@ -118,7 +118,7 @@ export const bottomTabsMocks = {
 };
 
 // Drawer Navigator Mocks
-export const drawerMocks = {
+export const mockDrawer = {
   createDrawerNavigator: () => ({
     Navigator: ({ children }: any) => children,
     Screen: ({ children }: any) => children,
@@ -134,7 +134,7 @@ export const drawerMocks = {
 // DATE TIME PICKER MOCK
 // ============================================================================
 
-export const dateTimePickerMock = {
+export const mockDateTimePicker = {
   __esModule: true,
   default: (props: any) => {
     const React = require('react');
@@ -149,7 +149,7 @@ export const dateTimePickerMock = {
 // BROADCAST FACTORY MOCKS
 // ============================================================================
 
-export const broadcastMocks = {
+export const mockBroadcast = {
   createBroadcastHelper: jest.fn(() => ({
     send: jest.fn().mockResolvedValue(undefined),
     getAuthorizedChannelNames: jest.fn().mockReturnValue(['test-channel'])
@@ -183,14 +183,14 @@ export const broadcastMocks = {
 // EXPO/REACT NATIVE ADDITIONAL MOCKS
 // ============================================================================
 
-export const expoSecureStoreMocks = {
+export const mockExpoSecureStore = {
   setItemAsync: jest.fn().mockResolvedValue(undefined),
   getItemAsync: jest.fn().mockResolvedValue(null),
   deleteItemAsync: jest.fn().mockResolvedValue(undefined),
   isAvailableAsync: jest.fn().mockResolvedValue(true),
 };
 
-export const gestureHandlerMocks = (() => {
+export const mockGestureHandler = (() => {
   const View = 'View';
   return {
     Swipeable: View,
@@ -205,7 +205,7 @@ export const gestureHandlerMocks = (() => {
   };
 })();
 
-export const safeAreaContextMocks = {
+export const mockSafeAreaContext = {
   SafeAreaProvider: ({ children }: any) => children,
   SafeAreaView: ({ children }: any) => children,
   useSafeAreaInsets: () => ({
@@ -226,7 +226,7 @@ export const safeAreaContextMocks = {
   },
 };
 
-export const reanimatedMock = () => {
+export const mockReanimated = () => {
   const Reanimated = require('react-native-reanimated/mock');
   Reanimated.default.call = () => {};
   return Reanimated;
@@ -236,7 +236,7 @@ export const reanimatedMock = () => {
 // MONITORING SERVICE MOCKS
 // ============================================================================
 
-export const monitoringMocks = {
+export const mockMonitoring = {
   systemHealth: {
     getSystemHealth: jest.fn().mockResolvedValue({
       success: true,
@@ -311,34 +311,34 @@ export const monitoringMocks = {
 
 export function applyBaseMocks() {
   // React Native
-  jest.mock('react-native', () => reactNativeMocks);
+  jest.mock('react-native', () => mockReactNative);
   
   // AsyncStorage
-  jest.mock('@react-native-async-storage/async-storage', () => asyncStorageMock);
+  jest.mock('@react-native-async-storage/async-storage', () => mockAsyncStorage);
   
   // React Navigation
-  jest.mock('@react-navigation/native', () => navigationMocks);
-  jest.mock('@react-navigation/stack', () => stackNavigatorMocks);
-  jest.mock('@react-navigation/bottom-tabs', () => bottomTabsMocks);
-  jest.mock('@react-navigation/drawer', () => drawerMocks);
+  jest.mock('@react-navigation/native', () => mockNavigation);
+  jest.mock('@react-navigation/stack', () => mockStackNavigator);
+  jest.mock('@react-navigation/bottom-tabs', () => mockBottomTabs);
+  jest.mock('@react-navigation/drawer', () => mockDrawer);
   
   // DateTimePicker
-  jest.mock('@react-native-community/datetimepicker', () => dateTimePickerMock);
+  jest.mock('@react-native-community/datetimepicker', () => mockDateTimePicker);
   
   // Broadcast Factory
-  jest.mock('../utils/broadcastFactory', () => broadcastMocks);
+  jest.mock('../utils/broadcastFactory', () => mockBroadcast);
   
   // Expo Secure Store
-  jest.mock('expo-secure-store', () => expoSecureStoreMocks);
+  jest.mock('expo-secure-store', () => mockExpoSecureStore);
   
   // Gesture Handler
-  jest.mock('react-native-gesture-handler', () => gestureHandlerMocks);
+  jest.mock('react-native-gesture-handler', () => mockGestureHandler);
   
   // Safe Area Context
-  jest.mock('react-native-safe-area-context', () => safeAreaContextMocks);
+  jest.mock('react-native-safe-area-context', () => mockSafeAreaContext);
   
   // Reanimated
-  jest.mock('react-native-reanimated', reanimatedMock);
+  jest.mock('react-native-reanimated', () => mockReanimated());
   
   // React Native Screens
   jest.mock('react-native-screens', () => ({
@@ -451,7 +451,7 @@ export function resetAllMocks() {
   });
   
   // Reset monitoring mocks
-  Object.values(monitoringMocks).forEach(service => {
+  Object.values(mockMonitoring).forEach(service => {
     Object.values(service).forEach(method => {
       if (jest.isMockFunction(method)) {
         method.mockReset();

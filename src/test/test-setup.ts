@@ -9,7 +9,7 @@ import {
   applyBaseMocks, 
   setupGlobalCleanup, 
   suppressConsoleWarnings,
-  monitoringMocks,
+  mockMonitoring,
   resetAllMocks 
 } from './base-setup';
 
@@ -232,15 +232,15 @@ function mockTypeMappers() {
 
 function mockMonitoringServices() {
   jest.mock('../monitoring/systemHealth', () => ({
-    systemHealth: monitoringMocks.systemHealth
+    systemHealth: mockMonitoring.systemHealth
   }));
   
   jest.mock('../monitoring/performanceMonitoring', () => ({
-    performanceMonitoring: monitoringMocks.performanceMonitoring
+    performanceMonitoring: mockMonitoring.performanceMonitoring
   }));
   
   jest.mock('../monitoring/securityAuditing', () => ({
-    securityAuditing: monitoringMocks.securityAuditing
+    securityAuditing: mockMonitoring.securityAuditing
   }));
 }
 
