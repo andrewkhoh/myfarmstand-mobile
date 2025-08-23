@@ -30,6 +30,9 @@ export enum TestMode {
   PERFORMANCE = 'performance',   // Performance tests
   SECURITY = 'security',        // Security tests
   NAVIGATION = 'navigation',     // Navigation component tests
+  MARKETING = 'marketing',       // Marketing campaign tests
+  INVENTORY = 'inventory',       // Inventory management tests
+  EXECUTIVE = 'executive',       // Executive analytics tests
 }
 
 // Get test mode from environment or use default
@@ -341,6 +344,137 @@ function setupSecurityUtilities() {
   };
 }
 
+function setupMarketingUtilities() {
+  (global as any).marketingTestUtils = {
+    createMockCampaign: (type: string = 'seasonal') => ({
+      id: `campaign-${Date.now()}`,
+      name: `Test ${type} Campaign`,
+      type,
+      startDate: new Date().toISOString(),
+      endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      discount: type === 'flash' ? 50 : 20,
+      products: [],
+      active: true,
+    }),
+    createMockPromotion: () => ({
+      code: `PROMO${Math.floor(Math.random() * 10000)}`,
+      discount: Math.floor(Math.random() * 50) + 10,
+      minPurchase: Math.floor(Math.random() * 100) + 20,
+      maxUses: 100,
+      usedCount: 0,
+    }),
+    mockCampaignMetrics: () => ({
+      impressions: Math.floor(Math.random() * 10000),
+      clicks: Math.floor(Math.random() * 1000),
+      conversions: Math.floor(Math.random() * 100),
+      revenue: Math.random() * 10000,
+      roi: Math.random() * 5,
+    }),
+  };
+  
+  // Mock marketing-specific services
+  jest.mock('../services/campaignService', () => ({
+    CampaignService: {
+      createCampaign: jest.fn(),
+      updateCampaign: jest.fn(),
+      getCampaignMetrics: jest.fn(),
+      getActiveCampaigns: jest.fn(),
+    }
+  }));
+}
+
+function setupInventoryUtilities() {
+  (global as any).inventoryTestUtils = {
+    createMockStockMovement: (type: 'in' | 'out' = 'in') => ({
+      id: `movement-${Date.now()}`,
+      productId: `product-${Math.floor(Math.random() * 100)}`,
+      type,
+      quantity: Math.floor(Math.random() * 50) + 1,
+      reason: type === 'in' ? 'restock' : 'sale',
+      timestamp: new Date().toISOString(),
+    }),
+    createMockBulkOperation: () => ({
+      operationId: `bulk-${Date.now()}`,
+      type: 'update',
+      items: Array.from({ length: 10 }, (_, i) => ({
+        productId: `product-${i}`,
+        quantity: Math.floor(Math.random() * 100),
+      })),
+      status: 'pending',
+    }),
+    mockInventoryAlerts: () => ({
+      lowStock: Array.from({ length: 5 }, (_, i) => ({
+        productId: `product-${i}`,
+        currentStock: Math.floor(Math.random() * 10),
+        threshold: 20,
+      })),
+      outOfStock: [],
+      expiringSoon: [],
+    }),
+  };
+  
+  // Mock inventory-specific services
+  jest.mock('../services/inventoryService', () => ({
+    InventoryService: {
+      updateStock: jest.fn(),
+      bulkUpdateStock: jest.fn(),
+      getStockLevels: jest.fn(),
+      getInventoryAlerts: jest.fn(),
+    }
+  }));
+}
+
+function setupExecutiveUtilities() {
+  (global as any).executiveTestUtils = {
+    createMockAnalytics: () => ({
+      revenue: {
+        daily: Math.random() * 10000,
+        weekly: Math.random() * 70000,
+        monthly: Math.random() * 300000,
+        yearly: Math.random() * 3600000,
+      },
+      orders: {
+        count: Math.floor(Math.random() * 1000),
+        averageValue: Math.random() * 200,
+        completionRate: 0.85 + Math.random() * 0.1,
+      },
+      customers: {
+        new: Math.floor(Math.random() * 100),
+        returning: Math.floor(Math.random() * 500),
+        churnRate: Math.random() * 0.1,
+      },
+    }),
+    createMockReport: (type: string = 'monthly') => ({
+      id: `report-${Date.now()}`,
+      type,
+      period: {
+        start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+        end: new Date().toISOString(),
+      },
+      metrics: {},
+      generated: new Date().toISOString(),
+    }),
+    mockForecast: () => ({
+      revenue: Array.from({ length: 12 }, (_, i) => ({
+        month: i + 1,
+        predicted: Math.random() * 400000,
+        confidence: 0.7 + Math.random() * 0.2,
+      })),
+      growth: Math.random() * 0.3,
+    }),
+  };
+  
+  // Mock analytics services
+  jest.mock('../services/analyticsService', () => ({
+    AnalyticsService: {
+      getMetrics: jest.fn(),
+      generateReport: jest.fn(),
+      getForecast: jest.fn(),
+      getKPIs: jest.fn(),
+    }
+  }));
+}
+
 // ============================================================================
 // ENVIRONMENT SETUP
 // ============================================================================
@@ -448,6 +582,27 @@ export function setupTests(mode?: TestMode) {
     case TestMode.NAVIGATION:
       mockReactQuery();
       mockSupabaseDefault();
+      break;
+      
+    case TestMode.MARKETING:
+      // Marketing campaign tests
+      mockSupabaseDefault();
+      mockServices();
+      setupMarketingUtilities();
+      break;
+      
+    case TestMode.INVENTORY:
+      // Inventory management tests
+      mockSupabaseDefault();
+      mockServices();
+      setupInventoryUtilities();
+      break;
+      
+    case TestMode.EXECUTIVE:
+      // Executive analytics tests
+      mockSupabaseDefault();
+      mockServices();
+      setupExecutiveUtilities();
       break;
       
     default:

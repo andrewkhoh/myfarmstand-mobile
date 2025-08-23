@@ -475,6 +475,111 @@ export const generalTestUtils = {
 };
 
 // ============================================================================
+// MARKETING TEST UTILITIES
+// ============================================================================
+
+export const marketingTestUtils = {
+  createCampaignScenario: (type: 'seasonal' | 'flash' | 'loyalty' = 'seasonal') => ({
+    campaign: {
+      id: `campaign-${Date.now()}`,
+      type,
+      name: `${type} Campaign Test`,
+      startDate: new Date(),
+      endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      rules: [],
+    },
+    expectedMetrics: {
+      reach: type === 'flash' ? 1000 : 5000,
+      engagement: type === 'flash' ? 0.15 : 0.08,
+      conversion: type === 'loyalty' ? 0.12 : 0.05,
+    },
+  }),
+  
+  simulateCampaignPerformance: async (campaignId: string, days: number = 7) => {
+    const metrics = [];
+    for (let i = 0; i < days; i++) {
+      metrics.push({
+        date: new Date(Date.now() - i * 24 * 60 * 60 * 1000),
+        impressions: Math.floor(Math.random() * 1000) + 500,
+        clicks: Math.floor(Math.random() * 100) + 20,
+        conversions: Math.floor(Math.random() * 20) + 5,
+      });
+    }
+    return metrics;
+  },
+};
+
+// ============================================================================
+// INVENTORY TEST UTILITIES  
+// ============================================================================
+
+export const inventoryTestUtils = {
+  createStockScenario: (scenario: 'low' | 'normal' | 'overstock' = 'normal') => {
+    const baseStock = scenario === 'low' ? 10 : scenario === 'overstock' ? 500 : 100;
+    return Array.from({ length: 20 }, (_, i) => ({
+      productId: `product-${i}`,
+      currentStock: Math.floor(baseStock * (0.5 + Math.random())),
+      minStock: 20,
+      maxStock: 200,
+      reorderPoint: 30,
+    }));
+  },
+  
+  simulateBulkStockUpdate: (items: number = 50) => {
+    const updates = Array.from({ length: items }, (_, i) => ({
+      productId: `product-${i}`,
+      adjustment: Math.floor(Math.random() * 100) - 50,
+      reason: ['sale', 'restock', 'damage', 'return'][Math.floor(Math.random() * 4)],
+    }));
+    
+    return {
+      batchId: `batch-${Date.now()}`,
+      updates,
+      timestamp: new Date().toISOString(),
+    };
+  },
+};
+
+// ============================================================================
+// EXECUTIVE/ANALYTICS TEST UTILITIES
+// ============================================================================
+
+export const executiveTestUtils = {
+  generateMockDashboard: () => ({
+    kpis: {
+      revenue: { value: 125000, change: 0.12, target: 130000 },
+      orders: { value: 850, change: 0.08, target: 900 },
+      customers: { value: 320, change: 0.15, target: 350 },
+      avgOrderValue: { value: 147, change: 0.03, target: 150 },
+    },
+    charts: {
+      revenueTimeline: Array.from({ length: 30 }, (_, i) => ({
+        date: new Date(Date.now() - i * 24 * 60 * 60 * 1000),
+        value: 3000 + Math.random() * 2000,
+      })),
+      categoryBreakdown: [
+        { category: 'Produce', value: 45000, percentage: 0.36 },
+        { category: 'Dairy', value: 30000, percentage: 0.24 },
+        { category: 'Meat', value: 25000, percentage: 0.20 },
+        { category: 'Other', value: 25000, percentage: 0.20 },
+      ],
+    },
+    alerts: [],
+  }),
+  
+  simulateBusinessMetrics: (period: 'daily' | 'weekly' | 'monthly' = 'daily') => {
+    const multiplier = period === 'daily' ? 1 : period === 'weekly' ? 7 : 30;
+    return {
+      revenue: 5000 * multiplier + Math.random() * 1000 * multiplier,
+      orders: 50 * multiplier + Math.floor(Math.random() * 10 * multiplier),
+      newCustomers: 10 * multiplier + Math.floor(Math.random() * 5 * multiplier),
+      churn: Math.random() * 0.05,
+      satisfaction: 4.2 + Math.random() * 0.5,
+    };
+  },
+};
+
+// ============================================================================
 // EXPORT ALL UTILITIES
 // ============================================================================
 
@@ -486,4 +591,7 @@ export const testUtils = {
   navigation: navigationTestUtils,
   raceCondition: raceConditionTestUtils,
   general: generalTestUtils,
+  marketing: marketingTestUtils,
+  inventory: inventoryTestUtils,
+  executive: executiveTestUtils,
 };
