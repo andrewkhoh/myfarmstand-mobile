@@ -546,7 +546,7 @@ describe('Cross-Role Workflow Integration Tests', () => {
   });
 
   // Helper methods for testing
-  private async collectSalesData(): Promise<any> {
+  async function collectSalesData(): Promise<any> {
     const { data } = await supabase
       .from('orders')
       .select('total, created_at, status')
@@ -555,7 +555,7 @@ describe('Cross-Role Workflow Integration Tests', () => {
     return data || [];
   }
 
-  private async collectInventoryData(): Promise<any> {
+  async function collectInventoryData(): Promise<any> {
     const { data } = await supabase
       .from('inventory_items')
       .select('product_id, quantity, low_stock_threshold');
@@ -563,7 +563,7 @@ describe('Cross-Role Workflow Integration Tests', () => {
     return data || [];
   }
 
-  private async collectMarketingData(): Promise<any> {
+  async function collectMarketingData(): Promise<any> {
     const { data } = await supabase
       .from('marketing_campaigns')
       .select('id, name, status, budget, start_date, end_date');
@@ -571,7 +571,7 @@ describe('Cross-Role Workflow Integration Tests', () => {
     return data || [];
   }
 
-  private async collectCustomerData(): Promise<any> {
+  async function collectCustomerData(): Promise<any> {
     const { data } = await supabase
       .from('users')
       .select(`
@@ -586,7 +586,7 @@ describe('Cross-Role Workflow Integration Tests', () => {
     return data || [];
   }
 
-  private async processAnalyticsData(data: any): Promise<any> {
+  async function processAnalyticsData(data: any): Promise<any> {
     // Simulate data processing
     return {
       totalSales: data.sales.reduce((sum: number, order: any) => sum + order.total, 0),
@@ -596,7 +596,7 @@ describe('Cross-Role Workflow Integration Tests', () => {
     };
   }
 
-  private async prepareExecutiveDashboard(metrics: any): Promise<any> {
+  async function prepareExecutiveDashboard(metrics: any): Promise<any> {
     return {
       sales_summary: {
         total_revenue: metrics.totalSales,
@@ -617,12 +617,12 @@ describe('Cross-Role Workflow Integration Tests', () => {
     };
   }
 
-  private async validateRealTimeUpdates(): Promise<{ success: boolean }> {
+  async function validateRealTimeUpdates(): Promise<{ success: boolean }> {
     // Simulate real-time update validation
     return { success: true };
   }
 
-  private async generateBusinessInsights(): Promise<any> {
+  async function generateBusinessInsights(): Promise<any> {
     return {
       revenue_trends: {
         current_month: 50000,
@@ -645,19 +645,19 @@ describe('Cross-Role Workflow Integration Tests', () => {
     };
   }
 
-  private async syncOfflineOperation(operation: any): Promise<boolean> {
+  async function syncOfflineOperation(operation: any): Promise<boolean> {
     // Simulate offline operation sync
     await new Promise(resolve => setTimeout(resolve, 100));
     return Math.random() > 0.2; // 80% success rate
   }
 
-  private async simulateUserSession(userId: string): Promise<boolean> {
+  async function simulateUserSession(userId: string): Promise<boolean> {
     // Simulate a complete user session
     const operations = [
-      () => this.simulateLogin(userId),
-      () => this.simulateBrowsing(userId),
-      () => this.simulateCartOperations(userId),
-      () => this.simulateCheckout(userId),
+      () => simulateLogin(userId),
+      () => simulateBrowsing(userId),
+      () => simulateCartOperations(userId),
+      () => simulateCheckout(userId),
     ];
 
     for (const operation of operations) {
@@ -668,40 +668,40 @@ describe('Cross-Role Workflow Integration Tests', () => {
     return true;
   }
 
-  private async simulateCustomerActivity(): Promise<boolean> {
+  async function simulateCustomerActivity(): Promise<boolean> {
     // Simulate typical customer activity
     await new Promise(resolve => setTimeout(resolve, Math.random() * 1000));
     return Math.random() > 0.1; // 90% success rate
   }
 
-  private async simulateStaffActivity(): Promise<boolean> {
+  async function simulateStaffActivity(): Promise<boolean> {
     // Simulate staff operations
     await new Promise(resolve => setTimeout(resolve, Math.random() * 500));
     return Math.random() > 0.05; // 95% success rate
   }
 
-  private async simulateAdminActivity(): Promise<boolean> {
+  async function simulateAdminActivity(): Promise<boolean> {
     // Simulate admin operations
     await new Promise(resolve => setTimeout(resolve, Math.random() * 300));
     return Math.random() > 0.02; // 98% success rate
   }
 
-  private async simulateLogin(userId: string): Promise<void> {
+  async function simulateLogin(userId: string): Promise<void> {
     // Simulate login process
     await new Promise(resolve => setTimeout(resolve, 100));
   }
 
-  private async simulateBrowsing(userId: string): Promise<void> {
+  async function simulateBrowsing(userId: string): Promise<void> {
     // Simulate browsing products
     await new Promise(resolve => setTimeout(resolve, 200));
   }
 
-  private async simulateCartOperations(userId: string): Promise<void> {
+  async function simulateCartOperations(userId: string): Promise<void> {
     // Simulate cart operations
     await new Promise(resolve => setTimeout(resolve, 150));
   }
 
-  private async simulateCheckout(userId: string): Promise<void> {
+  async function simulateCheckout(userId: string): Promise<void> {
     // Simulate checkout process
     await new Promise(resolve => setTimeout(resolve, 300));
   }

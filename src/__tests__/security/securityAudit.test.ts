@@ -648,7 +648,7 @@ describe('Security Audit Tests', () => {
   });
 
   // Helper methods for testing
-  private async checkRolePermission(role: string, resource: string, action: string): Promise<boolean> {
+  async function checkRolePermission(role: string, resource: string, action: string): Promise<boolean> {
     // Simulate permission check - in real implementation, this would call the actual permission system
     const permissions = {
       customer: {
@@ -694,13 +694,13 @@ describe('Security Audit Tests', () => {
     return resourcePermissions.includes(action);
   }
 
-  private async testPrivilegeEscalation(fromRole: string, toRole: string): Promise<boolean> {
+  async function testPrivilegeEscalation(fromRole: string, toRole: string): Promise<boolean> {
     // Test if a user can escalate from one role to another
     // This should always return false for security
     return false;
   }
 
-  private async testDataAccess(role: string, resource: string): Promise<boolean> {
+  async function testDataAccess(role: string, resource: string): Promise<boolean> {
     // Test if a role can access a resource they shouldn't
     // This would depend on the specific role and resource
     const forbiddenAccess = {
@@ -714,17 +714,17 @@ describe('Security Audit Tests', () => {
     return !forbidden?.includes(resource);
   }
 
-  private validateEmail(email: any): boolean {
+  function validateEmail(email: any): boolean {
     if (!email || typeof email !== 'string') return false;
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   }
 
-  private validateNumber(num: any): boolean {
+  function validateNumber(num: any): boolean {
     return typeof num === 'number' && !isNaN(num) && isFinite(num);
   }
 
-  private validatePasswordStrength(password: any): boolean {
+  function validatePasswordStrength(password: any): boolean {
     if (!password || typeof password !== 'string') return false;
     if (password.length < 8) return false;
     

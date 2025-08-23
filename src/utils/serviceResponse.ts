@@ -143,8 +143,7 @@ export abstract class BaseService {
       if (options?.includeMetadata) {
         (response as ServiceResultWithMeta<T>).meta = {
           timestamp: new Date().toISOString(),
-          context,
-          duration: Date.now() - startTime
+          source: context
         };
       }
       
@@ -321,12 +320,15 @@ export const createErrorResponse = (
   error: string, 
   code?: ServiceErrorCodeType, 
   details?: unknown
-): ServiceResult<never> => ({
-  success: false,
-  error,
-  ...(code && { code }),
-  ...(details && { details })
-});
+): ServiceResult<never> => {
+  const result: any = {
+    success: false,
+    error
+  };
+  if (code) result.code = code;
+  if (details) result.details = details;
+  return result;
+};
 
 /**
  * Legacy adapter to convert new ServiceResult to old response patterns

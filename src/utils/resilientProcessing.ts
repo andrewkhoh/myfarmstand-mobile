@@ -110,9 +110,8 @@ export class ResilientProcessor {
     // Record overall processing metrics
     ValidationMonitor.recordPatternSuccess({
       service: 'resilientProcessor',
-      pattern: 'resilient_item_processing',
-      operation: options.logContext,
-      metadata: summary
+      pattern: 'transformation_schema',
+      operation: options.logContext
     });
 
     return {

@@ -485,26 +485,14 @@ export const executiveAnalyticsKeys = {
     ['executive', 'benchmarks', category, period, userId] as const,
 
   // Phase 4: Business Analytics Query Keys
-  businessMetrics: (userId?: string, options?: any) => {
-    const key = ['executive', 'businessMetrics'];
-    if (userId) key.push(userId);
-    if (options) key.push(options);
-    return key as const;
-  },
+  businessMetrics: (userId?: string, options?: any) => 
+    ['executive', 'businessMetrics', ...(userId ? [userId] : []), ...(options ? [options] : [])] as const,
   
-  businessInsights: (userId?: string, options?: any) => {
-    const key = ['executive', 'businessInsights'];
-    if (userId) key.push(userId);
-    if (options) key.push(options);
-    return key as const;
-  },
+  businessInsights: (userId?: string, options?: any) =>
+    ['executive', 'businessInsights', ...(userId ? [userId] : []), ...(options ? [options] : [])] as const,
   
-  strategicReporting: (userId?: string, reportId?: string) => {
-    const key = ['executive', 'strategicReporting'];
-    if (userId) key.push(userId);
-    if (reportId) key.push(reportId);
-    return key as const;
-  },
+  strategicReporting: (userId?: string, reportId?: string) =>
+    ['executive', 'strategicReporting', ...(userId ? [userId] : []), ...(reportId ? [reportId] : [])] as const,
   
   predictiveAnalytics: (userId?: string, forecastType?: string) =>
     ['executive', 'predictiveAnalytics', userId, forecastType] as const,

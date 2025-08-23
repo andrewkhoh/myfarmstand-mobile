@@ -258,7 +258,7 @@ class OptimizedQueryExecutor {
 
     return {
       data: result.data,
-      count: result.data?.length || 0,
+      count: Array.isArray(result.data) ? result.data.length : 0,
       error: result.error,
       hasMore,
     };

@@ -554,7 +554,7 @@ describe('Database Migration Validation Tests', () => {
     return true;
   }
 
-  private startResourceMonitoring(): any {
+  function startResourceMonitoring(): any {
     const startTime = Date.now();
     return {
       stop: () => ({
