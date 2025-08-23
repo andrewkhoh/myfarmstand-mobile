@@ -20,6 +20,40 @@ import {
 import { ProductContentService } from '../../../services/marketing/productContentService';
 import { RolePermissionService } from '../../../services/role-based/rolePermissionService';
 
+// Mock useAuth hook - following proven pattern from scratchpad-hook-test-setup  
+jest.mock('../../useAuth', () => ({
+  useAuth: jest.fn()
+}));
+import { useAuth } from '../../useAuth';
+const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
+
+// Mock broadcast factory - following proven pattern from scratchpad-hook-test-setup
+jest.mock('../../../utils/broadcastFactory', () => {
+  const mockBroadcastHelper = {
+    send: jest.fn(),
+    getAuthorizedChannelNames: jest.fn(() => ['test-channel'])
+  };
+  
+  return {
+    createBroadcastHelper: jest.fn(() => mockBroadcastHelper),
+    executiveBroadcast: mockBroadcastHelper,
+    realtimeBroadcast: mockBroadcastHelper,
+  };
+});
+
+// Mock query key factory - following proven pattern
+jest.mock('../../../utils/queryKeyFactory', () => ({
+  contentKeys: {
+    detail: (id: string) => ['content', 'detail', id],
+    lists: (status?: string) => status ? ['content', 'lists', status] : ['content', 'lists'],
+    all: () => ['content', 'all'],
+    byStatusPaginated: (status: string, pagination: any) => ['content', 'status', status, 'paginated', pagination],
+    uploadProgress: (uploadId: string) => ['content', 'upload', uploadId],
+    workflow: (contentId: string) => ['content', 'workflow', contentId],
+    batch: (batchId: string) => ['content', 'batch', batchId],
+  },
+}));
+
 // Create test wrapper with React Query
 const createWrapper = () => {
   const queryClient = new QueryClient({
@@ -48,6 +82,15 @@ const mockRolePermissionService = RolePermissionService as jest.Mocked<typeof Ro
 describe('Product Content Hooks - Phase 3.3.1 (RED Phase)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    
+    // Setup useAuth mock - following proven pattern from scratchpad-hook-test-setup
+    mockUseAuth.mockReturnValue({
+      user: { id: 'test-user-123', email: 'test@example.com' },
+      loading: false,
+      error: null,
+      signOut: jest.fn(),
+    } as any);
+    
     mockRolePermissionService.hasPermission.mockResolvedValue(true);
   });
 

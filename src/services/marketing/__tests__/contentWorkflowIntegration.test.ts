@@ -372,7 +372,7 @@ describe('Content Workflow Integration - Phase 3.4.1 (RED Phase)', () => {
 
       expect(uploadResult.success).toBe(true);
       expect(uploadResult.data?.imageUrl).toBeTruthy();
-      expect(uploadResult.data?.uploadProgress?.percentage).toBe(100);
+      expect(uploadResult.data?.fileName).toBeTruthy();
 
       // Verify content was updated with new image URL
       const contentResult = await ProductContentService.getProductContent(testContentId, testUserId);

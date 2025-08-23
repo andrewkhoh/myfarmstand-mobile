@@ -95,17 +95,50 @@ describe('ProductBundleService - Phase 3.2 (Mock Pattern)', () => {
         is_active: true,
         is_featured: false,
         display_order: 10,
+        campaign_id: null,
         created_by: testUserId,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
 
-      mockSupabase.from.mockReturnValue({
-        insert: jest.fn().mockReturnThis(),
-        select: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({
-          data: mockCreatedBundle,
-          error: null
+      // Mock the bundle creation (first database call)
+      mockSupabase.from.mockReturnValueOnce({
+        insert: jest.fn().mockReturnValue({
+          select: jest.fn().mockReturnValue({
+            single: jest.fn().mockResolvedValue({
+              data: mockCreatedBundle,
+              error: null
+            })
+          })
+        })
+      });
+
+      // Mock the bundle products creation (second database call)
+      const mockBundleProducts = [
+        {
+          id: 'bundle-product-1',
+          bundle_id: 'bundle-created-123',
+          product_id: 'product-1',
+          quantity: 2,
+          display_order: 1,
+          created_at: new Date().toISOString()
+        },
+        {
+          id: 'bundle-product-2', 
+          bundle_id: 'bundle-created-123',
+          product_id: 'product-2',
+          quantity: 1,
+          display_order: 2,
+          created_at: new Date().toISOString()
+        }
+      ];
+
+      mockSupabase.from.mockReturnValueOnce({
+        insert: jest.fn().mockReturnValue({
+          select: jest.fn().mockResolvedValue({
+            data: mockBundleProducts,
+            error: null
+          })
         })
       });
 
@@ -113,6 +146,11 @@ describe('ProductBundleService - Phase 3.2 (Mock Pattern)', () => {
         bundleData,
         testUserId
       );
+
+      // Debug: log the result to see what's happening
+      if (!result.success) {
+        console.log('Create bundle failed with error:', result.error);
+      }
 
       expect(result.success).toBe(true);
       expect(result.data).toBeDefined();
@@ -247,28 +285,25 @@ describe('ProductBundleService - Phase 3.2 (Mock Pattern)', () => {
         { productId: 'test-product-updated-3', quantity: 2, displayOrder: 3 }
       ];
 
-      // Mock the queries for update operation
-      mockSupabase.from = jest.fn((table: string) => {
-        if (table === 'product_bundles') {
-          return {
-            select: jest.fn().mockReturnThis(),
-            eq: jest.fn().mockReturnThis(),
-            single: jest.fn().mockResolvedValue({ data: mockBundle, error: null })
-          };
-        }
-        if (table === 'bundle_products') {
-          return {
-            select: jest.fn().mockReturnThis(),
-            delete: jest.fn().mockReturnThis(),
-            insert: jest.fn().mockReturnThis(),
-            eq: jest.fn().mockResolvedValue({ data: initialBundleProducts, error: null })
-          };
-        }
-        return {
-          select: jest.fn().mockReturnThis(),
-          eq: jest.fn().mockReturnThis(),
-          single: jest.fn().mockResolvedValue({ data: null, error: null })
-        };
+      // Mock the delete and insert operations for bundle products update
+      mockSupabase.from.mockReturnValue({
+        delete: jest.fn().mockReturnValue({
+          eq: jest.fn().mockResolvedValue({ error: null })
+        }),
+        insert: jest.fn().mockReturnValue({
+          select: jest.fn().mockResolvedValue({ 
+            data: updatedProducts.map((p, index) => ({ 
+              id: `bundle-product-${index + 1}`,
+              bundle_id: testBundleId,
+              product_id: p.productId,
+              quantity: p.quantity,
+              display_order: p.displayOrder,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            })), 
+            error: null 
+          })
+        })
       });
 
       const result = await ProductBundleService.updateBundleProducts(
@@ -287,14 +322,16 @@ describe('ProductBundleService - Phase 3.2 (Mock Pattern)', () => {
     });
 
     it('should calculate inventory impact for bundle changes', async () => {
-      // Mock inventory service integration
-      mockInventoryService.checkAvailability = jest.fn().mockResolvedValue({
-        success: true,
-        data: {
-          'test-product-1': { available: 10, reserved: 2 },
-          'test-product-2': { available: 15, reserved: 5 }
-        }
-      });
+      // Mock inventory service integration for each product call
+      mockInventoryService.getInventoryByProduct = jest.fn()
+        .mockImplementation((productId) => {
+          if (productId === 'test-product-1') {
+            return { availableStock: 10 }; // Shortage: needs 15, has 10
+          } else if (productId === 'test-product-2') {
+            return { availableStock: 15 }; // No shortage: needs 10, has 15
+          }
+          return { availableStock: 0 };
+        });
 
       const bundleProducts: BundleProductInput[] = [
         { productId: 'test-product-1', quantity: 3 },
@@ -375,7 +412,7 @@ describe('ProductBundleService - Phase 3.2 (Mock Pattern)', () => {
       expect(result.data?.individualTotal).toBe(55.00); // (15*2) + (25*1)
       expect(result.data?.bundlePrice).toBe(45.99);
       expect(result.data?.finalPrice).toBe(40.99); // 45.99 - 5.00
-      expect(result.data?.totalSavings).toBe(14.01); // 55.00 - 40.99
+      expect(result.data?.totalSavings).toBeCloseTo(14.01, 2); // 55.00 - 40.99
       expect(result.data?.savingsPercentage).toBeCloseTo(25.47, 1); // (14.01/55.00)*100
       expect(result.data?.hasMeaningfulSavings).toBe(true); // > 5%
     });

@@ -537,10 +537,24 @@ export class ProductContentService {
         return { success: false, error: error.message };
       }
 
-      // Transform results
-      const transformedItems = (data || []).map(item => 
-        ProductContentTransformSchema.parse(item)
-      );
+      // Transform results with resilient item processing
+      const transformedItems: ProductContentTransform[] = [];
+      for (const item of (data || [])) {
+        try {
+          const transformed = ProductContentTransformSchema.parse(item);
+          transformedItems.push(transformed);
+        } catch (error) {
+          // Log for monitoring but continue processing
+          ValidationMonitor.recordValidationError({
+            context: 'ProductContentService.getContentByStatus',
+            errorCode: 'CONTENT_VALIDATION_FAILED',
+            validationPattern: 'content_transformation_schema',
+            errorMessage: error instanceof Error ? error.message : 'Unknown error'
+          });
+          console.warn('Invalid content data, skipping:', item.id || 'unknown');
+          // Continue with other content items - don't break the entire operation
+        }
+      }
 
       const totalCount = count || 0;
       const hasMore = offset + pagination.limit < totalCount;
@@ -921,7 +935,7 @@ export class ProductContentService {
       };
 
       ValidationMonitor.recordPatternSuccess({
-        service: 'ProductContentService',
+        service: 'productContentService',
         pattern: 'cross_role_integration',
         operation: 'associateContentWithCampaign'
       });
@@ -954,7 +968,7 @@ export class ProductContentService {
       // For now, return mock data that indicates successful activation
       
       ValidationMonitor.recordPatternSuccess({
-        service: 'ProductContentService',
+        service: 'productContentService',
         pattern: 'cross_role_integration',
         operation: 'activateContentForCampaign'
       });
@@ -970,6 +984,160 @@ export class ProductContentService {
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Content activation failed';
+      return { success: false, error: errorMessage };
+    }
+  }
+
+  /**
+   * Get content by product ID with user isolation
+   */
+  static async getContentByProductId(
+    productId: string,
+    userId: string
+  ): Promise<ServiceResponse<ProductContentTransform | null>> {
+    try {
+      // Validate permissions
+      const hasPermission = await RolePermissionService.hasPermission(
+        userId, 
+        'content_management'
+      );
+      if (!hasPermission) {
+        ValidationMonitor.recordValidationError({
+          context: 'ProductContentService.getContentByProductId',
+          errorCode: 'INSUFFICIENT_PERMISSIONS',
+          validationPattern: 'content_transformation_schema',
+          errorMessage: 'Insufficient permissions for content access'
+        });
+        return { success: false, error: 'Insufficient permissions for content access' };
+      }
+
+      // Query content by product ID
+      const { data, error } = await supabase
+        .from('product_content')
+        .select('*')
+        .eq('product_id', productId)
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // No content found for this product
+          return { success: true, data: null };
+        }
+        
+        ValidationMonitor.recordValidationError({
+          context: 'ProductContentService.getContentByProductId',
+          errorCode: 'CONTENT_QUERY_FAILED',
+          validationPattern: 'content_transformation_schema',
+          errorMessage: error.message
+        });
+        return { success: false, error: error.message };
+      }
+
+      // Transform result
+      try {
+        const transformed = ProductContentTransformSchema.parse(data);
+        
+        ValidationMonitor.recordPatternSuccess({
+          service: 'productContentService',
+          pattern: 'transformation_schema',
+          operation: 'getContentByProductId'
+        });
+
+        return { success: true, data: transformed };
+      } catch (validationError) {
+        ValidationMonitor.recordValidationError({
+          context: 'ProductContentService.getContentByProductId',
+          errorCode: 'CONTENT_VALIDATION_FAILED',
+          validationPattern: 'content_transformation_schema',
+          errorMessage: validationError instanceof Error ? validationError.message : 'Unknown error'
+        });
+        return { success: false, error: 'Content validation failed' };
+      }
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Query failed';
+      
+      ValidationMonitor.recordValidationError({
+        context: 'ProductContentService.getContentByProductId',
+        errorCode: 'CONTENT_QUERY_FAILED',
+        validationPattern: 'content_transformation_schema',
+        errorMessage
+      });
+
+      return { success: false, error: errorMessage };
+    }
+  }
+
+  /**
+   * Remove content image with security validation
+   */
+  static async removeContentImage(
+    imageUrl: string,
+    userId: string
+  ): Promise<ServiceResponse<{ removed: boolean }>> {
+    try {
+      // Validate permissions
+      const hasPermission = await RolePermissionService.hasPermission(
+        userId, 
+        'content_management'
+      );
+      if (!hasPermission) {
+        ValidationMonitor.recordValidationError({
+          context: 'ProductContentService.removeContentImage',
+          errorCode: 'INSUFFICIENT_PERMISSIONS',
+          validationPattern: 'simple_validation',
+          errorMessage: 'Insufficient permissions for image removal'
+        });
+        return { success: false, error: 'Insufficient permissions for image removal' };
+      }
+
+      // Validate image URL format and security
+      if (!imageUrl || typeof imageUrl !== 'string' || imageUrl.trim().length === 0) {
+        return { success: false, error: 'Invalid image URL provided' };
+      }
+
+      // Security check: Only allow removal of images from our domain
+      if (!imageUrl.startsWith('https://secure-cdn.farmstand.com/')) {
+        ValidationMonitor.recordValidationError({
+          context: 'ProductContentService.removeContentImage',
+          errorCode: 'INVALID_IMAGE_URL',
+          validationPattern: 'simple_validation',
+          errorMessage: 'Image URL must be from secure CDN domain'
+        });
+        return { success: false, error: 'Invalid image URL domain' };
+      }
+
+      // Simulate secure image removal process
+      // In production, this would call cloud storage API to delete the file
+      const fileName = imageUrl.split('/').pop();
+      if (!fileName) {
+        return { success: false, error: 'Could not extract filename from URL' };
+      }
+
+      // Simulate removal (would be actual storage deletion in production)
+      console.log(`Removing image: ${fileName}`);
+
+      ValidationMonitor.recordPatternSuccess({
+        service: 'productContentService',
+        pattern: 'simple_input_validation',
+        operation: 'removeContentImage'
+      });
+
+      return { 
+        success: true, 
+        data: { removed: true }
+      };
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Image removal failed';
+      
+      ValidationMonitor.recordValidationError({
+        context: 'ProductContentService.removeContentImage',
+        errorCode: 'IMAGE_REMOVAL_FAILED',
+        validationPattern: 'simple_validation',
+        errorMessage
+      });
+
       return { success: false, error: errorMessage };
     }
   }

@@ -20,6 +20,39 @@ import { ProductBundleService } from '../../../services/marketing/productBundleS
 import { RolePermissionService } from '../../../services/role-based/rolePermissionService';
 import { InventoryService } from '../../../services/inventory/inventoryService';
 
+// Mock useAuth hook - following proven pattern from scratchpad-hook-test-setup  
+jest.mock('../../useAuth', () => ({
+  useAuth: jest.fn()
+}));
+import { useAuth } from '../../useAuth';
+const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
+
+// Mock broadcast factory - following proven pattern from scratchpad-hook-test-setup
+jest.mock('../../../utils/broadcastFactory', () => {
+  const mockBroadcastHelper = {
+    send: jest.fn(),
+    getAuthorizedChannelNames: jest.fn(() => ['test-channel'])
+  };
+  
+  return {
+    createBroadcastHelper: jest.fn(() => mockBroadcastHelper),
+    executiveBroadcast: mockBroadcastHelper,
+    realtimeBroadcast: mockBroadcastHelper,
+  };
+});
+
+// Mock query key factory - following proven pattern
+jest.mock('../../../utils/queryKeyFactory', () => ({
+  bundleKeys: {
+    detail: (id: string) => ['bundles', 'detail', id],
+    lists: (status?: string) => status ? ['bundles', 'lists', status] : ['bundles', 'lists'],
+    all: () => ['bundles', 'all'],
+    performance: (bundleId: string) => ['bundles', 'performance', bundleId],
+    inventoryImpact: (bundleId: string) => ['bundles', 'inventory', bundleId],
+    pricing: (bundleId: string) => ['bundles', 'pricing', bundleId],
+  },
+}));
+
 // Create test wrapper with React Query
 const createWrapper = () => {
   const queryClient = new QueryClient({
@@ -50,6 +83,15 @@ const mockInventoryService = InventoryService as jest.Mocked<typeof InventorySer
 describe('Product Bundle Hooks - Phase 3.3.3 (RED Phase)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    
+    // Setup useAuth mock - following proven pattern from scratchpad-hook-test-setup
+    mockUseAuth.mockReturnValue({
+      user: { id: 'test-user-123', email: 'test@example.com' },
+      loading: false,
+      error: null,
+      signOut: jest.fn(),
+    } as any);
+    
     mockRolePermissionService.hasPermission.mockResolvedValue(true);
   });
 

@@ -217,9 +217,25 @@ export class ProductBundleService {
 
       // Transform responses
       const transformedBundle = ProductBundleTransformSchema.parse(bundleResult);
-      const transformedProducts = productsResult.map(product => 
-        BundleProductTransformSchema.parse(product)
-      );
+      
+      // Transform products with resilient item processing
+      const transformedProducts: BundleProductTransform[] = [];
+      for (const product of productsResult) {
+        try {
+          const transformed = BundleProductTransformSchema.parse(product);
+          transformedProducts.push(transformed);
+        } catch (error) {
+          // Log for monitoring but continue processing
+          ValidationMonitor.recordValidationError({
+            context: 'ProductBundleService.createBundle',
+            errorCode: 'BUNDLE_PRODUCT_VALIDATION_FAILED',
+            validationPattern: 'bundle_transformation_schema',
+            errorMessage: error instanceof Error ? error.message : 'Unknown error'
+          });
+          console.warn('Invalid bundle product data, skipping:', product.id || 'unknown');
+          // Continue with other products - don't break the entire operation
+        }
+      }
 
       const bundleWithProducts: BundleWithProducts = {
         ...transformedBundle,
@@ -321,10 +337,24 @@ export class ProductBundleService {
         return { success: false, error: insertError?.message || 'Failed to update bundle products' };
       }
 
-      // Transform products
-      const transformedProducts = productsResult.map(product => 
-        BundleProductTransformSchema.parse(product)
-      );
+      // Transform products with resilient item processing
+      const transformedProducts: BundleProductTransform[] = [];
+      for (const product of productsResult) {
+        try {
+          const transformed = BundleProductTransformSchema.parse(product);
+          transformedProducts.push(transformed);
+        } catch (error) {
+          // Log for monitoring but continue processing
+          ValidationMonitor.recordValidationError({
+            context: 'ProductBundleService.updateBundleProducts',
+            errorCode: 'BUNDLE_PRODUCT_VALIDATION_FAILED',
+            validationPattern: 'bundle_transformation_schema',
+            errorMessage: error instanceof Error ? error.message : 'Unknown error'
+          });
+          console.warn('Invalid bundle product data, skipping:', product.id || 'unknown');
+          // Continue with other products - don't break the entire operation
+        }
+      }
 
       const response: UpdateBundleProductsResponse = {
         bundleId,
@@ -681,10 +711,24 @@ export class ProductBundleService {
         return { success: false, error: error.message };
       }
 
-      // Transform results
-      const transformedItems = (data || []).map(item => 
-        ProductBundleTransformSchema.parse(item)
-      );
+      // Transform results with resilient item processing
+      const transformedItems: ProductBundleTransform[] = [];
+      for (const item of (data || [])) {
+        try {
+          const transformed = ProductBundleTransformSchema.parse(item);
+          transformedItems.push(transformed);
+        } catch (error) {
+          // Log for monitoring but continue processing
+          ValidationMonitor.recordValidationError({
+            context: 'ProductBundleService.getBundlesByStatus',
+            errorCode: 'BUNDLE_VALIDATION_FAILED',
+            validationPattern: 'bundle_transformation_schema',
+            errorMessage: error instanceof Error ? error.message : 'Unknown error'
+          });
+          console.warn('Invalid bundle data, skipping:', item.id || 'unknown');
+          // Continue with other bundles - don't break the entire operation
+        }
+      }
 
       const totalCount = count || 0;
       const hasMore = offset + pagination.limit < totalCount;
@@ -751,9 +795,25 @@ export class ProductBundleService {
 
       // Transform data
       const transformedBundle = ProductBundleTransformSchema.parse(bundleData);
-      const transformedProducts = (productsData || []).map(product => 
-        BundleProductTransformSchema.parse(product)
-      );
+      
+      // Transform products with resilient item processing
+      const transformedProducts: BundleProductTransform[] = [];
+      for (const product of (productsData || [])) {
+        try {
+          const transformed = BundleProductTransformSchema.parse(product);
+          transformedProducts.push(transformed);
+        } catch (error) {
+          // Log for monitoring but continue processing
+          ValidationMonitor.recordValidationError({
+            context: 'ProductBundleService.getBundleDetails',
+            errorCode: 'BUNDLE_PRODUCT_VALIDATION_FAILED',
+            validationPattern: 'bundle_transformation_schema',
+            errorMessage: error instanceof Error ? error.message : 'Unknown error'
+          });
+          console.warn('Invalid bundle product data, skipping:', product.id || 'unknown');
+          // Continue with other products - don't break the entire operation
+        }
+      }
 
       const bundleWithProducts: BundleWithProducts = {
         ...transformedBundle,
@@ -875,7 +935,7 @@ export class ProductBundleService {
       };
 
       ValidationMonitor.recordPatternSuccess({
-        service: 'ProductBundleService',
+        service: 'productBundleService',
         pattern: 'cross_role_integration',
         operation: 'associateBundleWithCampaign'
       });
@@ -928,7 +988,7 @@ export class ProductBundleService {
       };
 
       ValidationMonitor.recordPatternSuccess({
-        service: 'ProductBundleService',
+        service: 'productBundleService',
         pattern: 'cross_role_integration',
         operation: 'updateBundlesForCampaignStatus'
       });
@@ -970,7 +1030,7 @@ export class ProductBundleService {
       };
 
       ValidationMonitor.recordPatternSuccess({
-        service: 'ProductBundleService',
+        service: 'productBundleService',
         pattern: 'cross_role_integration',
         operation: 'syncBundleDiscountsWithCampaign'
       });
@@ -1018,7 +1078,7 @@ export class ProductBundleService {
       };
 
       ValidationMonitor.recordPatternSuccess({
-        service: 'ProductBundleService',
+        service: 'productBundleService',
         pattern: 'cross_role_integration',
         operation: 'getBundlePerformanceForCampaign'
       });
@@ -1074,7 +1134,7 @@ export class ProductBundleService {
       };
 
       ValidationMonitor.recordPatternSuccess({
-        service: 'ProductBundleService',
+        service: 'productBundleService',
         pattern: 'cross_role_integration',
         operation: 'createBundleWithInventoryValidation'
       });
@@ -1125,7 +1185,7 @@ export class ProductBundleService {
       };
 
       ValidationMonitor.recordPatternSuccess({
-        service: 'ProductBundleService',
+        service: 'productBundleService',
         pattern: 'cross_role_integration',
         operation: 'activateBundleWithInventoryCheck'
       });
@@ -1173,7 +1233,7 @@ export class ProductBundleService {
       };
 
       ValidationMonitor.recordPatternSuccess({
-        service: 'ProductBundleService',
+        service: 'productBundleService',
         pattern: 'cross_role_integration',
         operation: 'validateBundleCreationWithInventory'
       });
@@ -1229,7 +1289,7 @@ export class ProductBundleService {
       };
 
       ValidationMonitor.recordPatternSuccess({
-        service: 'ProductBundleService',
+        service: 'productBundleService',
         pattern: 'cross_role_integration',
         operation: 'createBundleWithExecutiveTracking'
       });
