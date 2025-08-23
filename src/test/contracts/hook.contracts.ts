@@ -53,30 +53,22 @@ import {
   OrderSchema,
   OrderStatusSchema,
   CreateOrderRequestSchema,
-  CreateOrderResponseSchema,
-  UpdateOrderStatusRequestSchema,
-  UpdateOrderResponseSchema,
-  OrderHistoryResponseSchema,
-  OrderSummarySchema
+  OrderArraySchema
 } from '../../schemas/order.schema';
 
 import {
-  PaymentSchema,
-  PaymentMethodSchema,
-  PaymentIntentSchema,
+  DbPaymentSchema,
+  DbPaymentMethodSchema,
+  DbPaymentIntentSchema,
   CreatePaymentRequestSchema,
-  CreatePaymentResponseSchema,
-  ConfirmPaymentRequestSchema,
-  ConfirmPaymentResponseSchema,
-  PaymentMethodListResponseSchema
+  PaymentOperationResponseSchema
 } from '../../schemas/payment.schema';
 
 import {
-  KioskSessionSchema,
-  KioskConfigSchema,
-  KioskStartSessionRequestSchema,
-  KioskEndSessionRequestSchema,
-  KioskActivityLogSchema
+  DbKioskSessionTransformSchema,
+  KioskAuthRequestSchema,
+  KioskAuthResponseSchema,
+  KioskSessionResponseSchema
 } from '../../schemas/kiosk.schema';
 
 // ================================
@@ -278,12 +270,15 @@ export const orderHookContracts = {
   // Mutations
   createOrder: {
     input: CreateOrderRequestSchema,
-    output: CreateOrderResponseSchema,
+    output: OrderSchema,
     invalidates: [['orders'], ['cart']],
   },
   updateOrderStatus: {
-    input: UpdateOrderStatusRequestSchema,
-    output: UpdateOrderResponseSchema,
+    input: z.object({
+      orderId: z.string(),
+      status: OrderStatusSchema,
+    }),
+    output: OrderSchema,
     invalidates: [['orders']],
   },
   cancelOrder: {
@@ -306,24 +301,27 @@ export const paymentHookContracts = {
   // Queries
   getPaymentMethods: {
     input: z.object({ userId: z.string() }),
-    output: PaymentMethodListResponseSchema,
+    output: z.array(DbPaymentMethodSchema),
     queryKey: (userId: string) => ['payment-methods', userId] as QueryKey,
   },
   getPaymentIntent: {
     input: z.string(),
-    output: PaymentIntentSchema,
+    output: DbPaymentIntentSchema,
     queryKey: (id: string) => ['payment-intent', id] as QueryKey,
   },
   
   // Mutations
   createPaymentIntent: {
     input: CreatePaymentRequestSchema,
-    output: CreatePaymentResponseSchema,
+    output: DbPaymentIntentSchema,
     invalidates: [],
   },
   confirmPayment: {
-    input: ConfirmPaymentRequestSchema,
-    output: ConfirmPaymentResponseSchema,
+    input: z.object({
+      paymentIntentId: z.string(),
+      paymentMethodId: z.string().optional(),
+    }),
+    output: PaymentOperationResponseSchema,
     invalidates: [['orders'], ['payment-intent']],
   },
   savePaymentMethod: {
@@ -332,7 +330,7 @@ export const paymentHookContracts = {
       paymentMethodId: z.string(),
       setAsDefault: z.boolean().optional(),
     }),
-    output: PaymentMethodSchema,
+    output: DbPaymentMethodSchema,
     invalidates: [['payment-methods']],
   },
   deletePaymentMethod: {
@@ -352,12 +350,16 @@ export const kioskHookContracts = {
   // Queries
   getKioskConfig: {
     input: z.void(),
-    output: KioskConfigSchema,
+    output: z.object({
+      kioskMode: z.boolean(),
+      autoLogoutMinutes: z.number(),
+      requirePin: z.boolean(),
+    }),
     queryKey: ['kiosk', 'config'] as QueryKey,
   },
   getKioskSession: {
     input: z.string().optional(),
-    output: KioskSessionSchema.nullable(),
+    output: DbKioskSessionTransformSchema.nullable(),
     queryKey: (sessionId?: string) => ['kiosk', 'session', sessionId] as QueryKey,
   },
   getKioskActivityLog: {
@@ -365,18 +367,23 @@ export const kioskHookContracts = {
       sessionId: z.string().optional(),
       limit: z.number().optional(),
     }),
-    output: z.array(KioskActivityLogSchema),
+    output: z.array(z.object({
+      id: z.string(),
+      sessionId: z.string(),
+      action: z.string(),
+      timestamp: z.string(),
+    })),
     queryKey: (filters?: any) => ['kiosk', 'activity', filters] as QueryKey,
   },
   
   // Mutations
   startKioskSession: {
-    input: KioskStartSessionRequestSchema,
-    output: KioskSessionSchema,
+    input: KioskAuthRequestSchema,
+    output: KioskAuthResponseSchema,
     invalidates: [['kiosk', 'session']],
   },
   endKioskSession: {
-    input: KioskEndSessionRequestSchema,
+    input: z.object({ sessionId: z.string() }),
     output: z.object({ success: z.boolean() }),
     invalidates: [['kiosk', 'session'], ['orders']],
   },
@@ -745,6 +752,9 @@ export const allHookContracts = {
   payment: paymentHookContracts,
   kiosk: kioskHookContracts,
 } as const;
+
+// Compatibility alias for tests expecting 'hookContracts'
+export const hookContracts = allHookContracts;
 
 // Type exports for TypeScript support
 export type AuthHookContracts = typeof authHookContracts;
