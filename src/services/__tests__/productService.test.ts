@@ -1,264 +1,212 @@
 /**
- * ProductService Test
- * Testing product management functionality
+ * ProductService Test - REFACTORED
+ * Testing product management functionality with simplified mocks and factories
  */
 
 import productService from '../productService';
+import { createSupabaseMock } from '../../test/mocks/supabase.simplified.mock';
+import { createProduct, createCategory, resetAllFactories } from '../../test/factories';
 
-// Mock the supabase module
-const mockSupabase = require('../../config/supabase').supabase;
+// Replace complex mock setup with simple data-driven mock
+jest.mock('../../config/supabase', () => ({
+  supabase: null // Will be set in beforeEach
+}));
 
 describe('ProductService', () => {
-  const mockProducts = [
-    {
-      id: 'product-1',
-      name: 'Test Product 1',
-      description: 'A test product for testing',
-      price: 10.00,
-      stock_quantity: 5,
-      category: 'Test Category',
-      is_available: true,
-      created_at: '2023-01-01T00:00:00Z',
-      updated_at: '2023-01-01T00:00:00Z'
-    },
-    {
-      id: 'product-2',
-      name: 'Test Product 2',
-      description: 'Another test product',
-      price: 15.00,
-      stock_quantity: 0,
-      category: 'Test Category',
-      is_available: false,
-      created_at: '2023-01-01T00:00:00Z',
-      updated_at: '2023-01-01T00:00:00Z'
-    }
-  ];
-
+  let supabaseMock: any;
+  let testProducts: any[];
+  let testCategory: any;
+  
   beforeEach(() => {
-    jest.clearAllMocks();
+    // Reset factory counter for consistent IDs
+    resetAllFactories();
     
-    // Reset Supabase mocks to prevent state contamination
-    if (global.resetSupabaseMocks) {
-      global.resetSupabaseMocks();
-    }
+    // Create test data using factories
+    testCategory = createCategory({
+      id: 'cat-1',
+      name: 'Test Category',
+      description: 'Test Description'
+    });
+    
+    testProducts = [
+      createProduct({ 
+        id: 'product-1',
+        name: 'Test Product 1',
+        description: 'A test product for testing',
+        price: 10.00,
+        stock_quantity: 5,
+        category_id: 'cat-1',
+        is_available: true
+      }),
+      createProduct({ 
+        id: 'product-2',
+        name: 'Test Product 2',
+        description: 'Another test product',
+        price: 15.00,
+        stock_quantity: 0,
+        category_id: 'cat-1',
+        is_available: false
+      })
+    ];
+    
+    // Create mock with initial data
+    supabaseMock = createSupabaseMock({
+      products: testProducts,
+      categories: [testCategory]
+    });
+    
+    // Inject mock
+    require('../../config/supabase').supabase = supabaseMock;
   });
 
-  it('should get all products successfully', async () => {
-    // Only return available products since service filters for is_available: true
-    const availableProducts = mockProducts.filter(p => p.is_available);
-    
-    mockSupabase.from.mockReturnValue({
-      select: jest.fn().mockReturnValue({
-        eq: jest.fn().mockReturnValue({
-          order: jest.fn().mockResolvedValue({
-            data: availableProducts.map(p => ({
-              ...p,
-              // Simplified structure - no categories join
-              category: 'Test Category' // Simple category name
-            })),
-            error: null
-          })
-        })
-      })
+  describe('getProducts', () => {
+    it('should get all available products successfully', async () => {
+      const result = await productService.getProducts();
+      
+      expect(result.success).toBe(true);
+      expect(result.products).toHaveLength(1); // Only available products
+      expect(result.products![0].name).toBe('Test Product 1');
+      expect(result.products![0].is_available).toBe(true);
     });
 
-    const result = await productService.getProducts();
-    
-    expect(result.success).toBe(true);
-    expect(result.products).toHaveLength(1); // Only one available product
-    expect(result.products![0].name).toBe('Test Product 1');
+    it('should handle database errors', async () => {
+      supabaseMock = createSupabaseMock();
+      supabaseMock.queueError(new Error('Database connection failed'));
+      require('../../config/supabase').supabase = supabaseMock;
+
+      const result = await productService.getProducts();
+      
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Failed to fetch products');
+    });
+
+    it('should return empty array when no products available', async () => {
+      supabaseMock = createSupabaseMock({
+        products: [] // No products
+      });
+      require('../../config/supabase').supabase = supabaseMock;
+
+      const result = await productService.getProducts();
+      
+      expect(result.success).toBe(true);
+      expect(result.products).toEqual([]);
+    });
   });
 
-  it('should handle get products error', async () => {
-    mockSupabase.from.mockReturnValue({
-      select: jest.fn().mockReturnValue({
-        eq: jest.fn().mockReturnValue({
-          eq: jest.fn().mockReturnValue({
-            order: jest.fn().mockResolvedValue({
-              data: null,
-              error: { message: 'Database error' }
-            })
-          })
-        })
-      })
+  describe('getProductById', () => {
+    it('should get product by ID successfully', async () => {
+      const result = await productService.getProductById('product-1');
+      
+      expect(result.success).toBe(true);
+      expect(result.product?.id).toBe('product-1');
+      expect(result.product?.name).toBe('Test Product 1');
     });
 
-    const result = await productService.getProducts();
-    
-    expect(result.success).toBe(false);
-    expect(result.error).toContain('Failed to fetch products');
+    it('should handle product not found', async () => {
+      const result = await productService.getProductById('invalid-id');
+      
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Product not found');
+    });
+
+    it('should handle database errors', async () => {
+      supabaseMock.queueError(new Error('Database error'));
+
+      const result = await productService.getProductById('product-1');
+      
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Failed to fetch product');
+    });
   });
 
-  it('should get product by ID', async () => {
-    mockSupabase.from.mockReturnValue({
-      select: jest.fn().mockReturnValue({
-        eq: jest.fn().mockReturnValue({
-          eq: jest.fn().mockReturnValue({
-            eq: jest.fn().mockReturnValue({
-              single: jest.fn().mockResolvedValue({
-                data: {
-                  ...mockProducts[0],
-                  categories: {
-                    id: mockProducts[0].category_id,
-                    name: 'Test Category',
-                    description: 'Test Description',
-                    image_url: null,
-                    sort_order: 1,
-                    is_available: true,
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString()
-                  }
-                },
-                error: null
-              })
-            })
-          })
-        })
-      })
+  describe('getProductsByCategory', () => {
+    it('should get products by category', async () => {
+      const result = await productService.getProductsByCategory('cat-1');
+      
+      expect(result.success).toBe(true);
+      expect(result.products).toHaveLength(1); // Only available products
+      expect(result.products![0].category_id).toBe('cat-1');
     });
 
-    const result = await productService.getProductById('product-1');
-    
-    expect(result.success).toBe(true);
-    expect(result.product?.id).toBe('product-1');
-    expect(result.product?.name).toBe('Test Product 1');
+    it('should return empty array for non-existent category', async () => {
+      const result = await productService.getProductsByCategory('invalid-cat');
+      
+      expect(result.success).toBe(true);
+      expect(result.products).toEqual([]);
+    });
+
+    it('should handle database errors', async () => {
+      supabaseMock.queueError(new Error('Database error'));
+
+      const result = await productService.getProductsByCategory('cat-1');
+      
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Failed to fetch products');
+    });
   });
 
-  it('should handle product not found', async () => {
-    mockSupabase.from.mockReturnValue({
-      select: jest.fn().mockReturnValue({
-        eq: jest.fn().mockReturnValue({
-          eq: jest.fn().mockReturnValue({
-            eq: jest.fn().mockReturnValue({
-              single: jest.fn().mockResolvedValue({
-                data: null,
-                error: { code: 'PGRST116' }
-              })
-            })
-          })
-        })
-      })
+  describe('searchProducts', () => {
+    it('should search products by name', async () => {
+      const result = await productService.searchProducts('Test Product 1');
+      
+      expect(result.success).toBe(true);
+      expect(result.products).toHaveLength(1);
+      expect(result.products![0].name).toBe('Test Product 1');
     });
 
-    const result = await productService.getProductById('invalid-id');
-    
-    expect(result.success).toBe(false);
-    expect(result.error).toContain('Product not found');
+    it('should search products case insensitively', async () => {
+      const result = await productService.searchProducts('test');
+      
+      expect(result.success).toBe(true);
+      expect(result.products).toHaveLength(1);
+    });
+
+    it('should return empty array for no matches', async () => {
+      const result = await productService.searchProducts('nonexistent');
+      
+      expect(result.success).toBe(true);
+      expect(result.products).toEqual([]);
+    });
+
+    it('should handle database errors', async () => {
+      supabaseMock.queueError(new Error('Search failed'));
+
+      const result = await productService.searchProducts('test');
+      
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Failed to search products');
+    });
   });
 
-  it('should get products by category', async () => {
-    const categoryProducts = [{
-      ...mockProducts[0],
-      categories: {
-        id: mockProducts[0].category_id,
-        name: 'Test Category',
-        description: 'Test Description',
-        image_url: null,
-        sort_order: 1,
-        is_available: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }
-    }];
-    
-    mockSupabase.from.mockReturnValue({
-      select: jest.fn().mockReturnValue({
-        eq: jest.fn().mockReturnValue({
-          eq: jest.fn().mockReturnValue({
-            eq: jest.fn().mockReturnValue({
-              order: jest.fn().mockResolvedValue({
-                data: categoryProducts,
-                error: null
-              })
-            })
-          })
-        })
-      })
+  describe('updateProductStock', () => {
+    it('should update product stock successfully', async () => {
+      const result = await productService.updateProductStock('product-1', 15);
+      
+      expect(result.success).toBe(true);
+      expect(result.message).toContain('Product stock updated to 15');
     });
 
-    const result = await productService.getProductsByCategory('cat-1');
-    
-    expect(result.success).toBe(true);
-    expect(result.products).toHaveLength(1);
-    expect(result.products![0].category_id).toBe('cat-1');
-  });
-
-  it('should search products', async () => {
-    mockSupabase.from.mockReturnValue({
-      select: jest.fn().mockReturnValue({
-        eq: jest.fn().mockReturnValue({
-          eq: jest.fn().mockReturnValue({
-            or: jest.fn().mockReturnValue({
-              order: jest.fn().mockResolvedValue({
-                data: [{
-                  ...mockProducts[0],
-                  categories: {
-                    id: mockProducts[0].category_id,
-                    name: 'Test Category',
-                    description: 'Test Description',
-                    image_url: null,
-                    sort_order: 1,
-                    is_available: true,
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString()
-                  }
-                }],
-                error: null
-              })
-            })
-          })
-        })
-      })
+    it('should handle invalid product ID', async () => {
+      const result = await productService.updateProductStock('invalid-id', 10);
+      
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Product not found');
     });
 
-    const result = await productService.searchProducts('Test');
-    
-    expect(result.success).toBe(true);
-    expect(result.products).toHaveLength(1);
-  });
-
-  // Note: These methods may not exist in the actual service
-  // Testing only the methods that actually exist
-
-  it('should update product stock', async () => {
-    const updatedProduct = { 
-      ...mockProducts[0], 
-      stock_quantity: 15,
-      // Ensure all required fields are present for validation
-      category: {
-        id: 'cat-1',
-        name: 'Test Category',
-        description: 'Test Description',
-        imageUrl: null,
-        sortOrder: 1,
-        isActive: true,
-        createdAt: '2023-01-01T00:00:00Z',
-        updatedAt: '2023-01-01T00:00:00Z'
-      }
-    };
-    
-    mockSupabase.from.mockReturnValue({
-      update: jest.fn().mockReturnValue({
-        eq: jest.fn().mockReturnValue({
-          select: jest.fn().mockReturnValue({
-            single: jest.fn().mockResolvedValue({
-              data: updatedProduct,
-              error: null
-            })
-          })
-        })
-      })
+    it('should validate stock quantity', async () => {
+      const result = await productService.updateProductStock('product-1', -1);
+      
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Stock quantity must be non-negative');
     });
 
-    // Mock getProductById to return a valid product
-    productService.getProductById = jest.fn().mockResolvedValue({
-      success: true,
-      product: updatedProduct
-    });
+    it('should handle database errors', async () => {
+      supabaseMock.queueError(new Error('Update failed'));
 
-    const result = await productService.updateProductStock('product-1', 15);
-    
-    expect(result.success).toBe(true);
-    expect(result.message).toContain('Product stock updated to 15');
+      const result = await productService.updateProductStock('product-1', 10);
+      
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Failed to update product stock');
+    });
   });
 });
