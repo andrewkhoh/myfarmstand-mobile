@@ -36,6 +36,11 @@ describe('Marketing Service Integration - Phase 3.2.7', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    
+    // Reset Supabase mocks to prevent state contamination
+    if (global.resetSupabaseMocks) {
+      global.resetSupabaseMocks();
+    }
     testContentIds.clear();
     testCampaignIds.clear();
     testBundleIds.clear();
@@ -373,18 +378,21 @@ describe('Marketing Service Integration - Phase 3.2.7', () => {
       expect(executionTime).toBeLessThan(2000); // 2 seconds for parallel operations
 
       // Individual service performance should be tracked
-      expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith(
-        'MarketingCampaignService.getCampaignsByStatus',
-        expect.any(Object)
-      );
-      expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith(
-        'ProductContentService.getContentByStatus',
-        expect.any(Object)
-      );
-      expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith(
-        'ProductBundleService.getBundlesByStatus',
-        expect.any(Object)
-      );
+      expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith({
+        service: 'marketingCampaignService',
+        pattern: 'transformation_schema',
+        operation: 'getCampaignsByStatus'
+      });
+      expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith({
+        service: 'productContentService',
+        pattern: 'transformation_schema',
+        operation: 'getContentByStatus'
+      });
+      expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith({
+        service: 'productBundleService',
+        pattern: 'direct_supabase_query',
+        operation: 'getBundlesByStatus'
+      });
     });
   });
 });

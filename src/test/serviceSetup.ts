@@ -3,59 +3,112 @@
  * Only mocks what services actually need
  */
 
-// Mock Supabase
-jest.mock('../config/supabase', () => ({
-  supabase: {
-    auth: {
-      signInWithPassword: jest.fn(),
-      signUp: jest.fn(),
-      signOut: jest.fn(),
-      getUser: jest.fn(),
-      getSession: jest.fn(),
-      updateUser: jest.fn(),
-      refreshSession: jest.fn(),
-    },
-    from: jest.fn(() => ({
-      select: jest.fn(() => ({
-        eq: jest.fn(() => ({
-          single: jest.fn(),
-          order: jest.fn(),
-          gte: jest.fn(),
-          lte: jest.fn(),
-          in: jest.fn(),
-        })),
-        or: jest.fn(),
+// Mock Supabase with proper isolation support
+const mockSupabaseBase = {
+  auth: {
+    signInWithPassword: jest.fn(),
+    signUp: jest.fn(),
+    signOut: jest.fn(),
+    getUser: jest.fn(),
+    getSession: jest.fn(),
+    updateUser: jest.fn(),
+    refreshSession: jest.fn(),
+  },
+  from: jest.fn(() => ({
+    select: jest.fn(() => ({
+      eq: jest.fn(() => ({
+        single: jest.fn(),
+        order: jest.fn(),
+        gte: jest.fn(),
+        lte: jest.fn(),
         in: jest.fn(),
       })),
-      insert: jest.fn(() => ({
+      or: jest.fn(),
+      in: jest.fn(),
+    })),
+    insert: jest.fn(() => ({
+      select: jest.fn(() => ({
+        single: jest.fn(),
+      })),
+    })),
+    update: jest.fn(() => ({
+      eq: jest.fn(() => ({
         select: jest.fn(() => ({
           single: jest.fn(),
         })),
       })),
-      update: jest.fn(() => ({
-        eq: jest.fn(() => ({
-          select: jest.fn(() => ({
-            single: jest.fn(),
-          })),
-        })),
-      })),
-      delete: jest.fn(() => ({
-        eq: jest.fn(),
-      })),
-      upsert: jest.fn(),
     })),
-    rpc: jest.fn(),
-    channel: jest.fn(() => ({
-      on: jest.fn().mockReturnThis(),
-      subscribe: jest.fn(),
-      unsubscribe: jest.fn(),
+    delete: jest.fn(() => ({
+      eq: jest.fn(),
     })),
-  },
+    upsert: jest.fn(),
+  })),
+  rpc: jest.fn(),
+  channel: jest.fn(() => ({
+    on: jest.fn().mockReturnThis(),
+    subscribe: jest.fn(),
+    unsubscribe: jest.fn(),
+  })),
+};
+
+jest.mock('../config/supabase', () => ({
+  supabase: mockSupabaseBase,
   TABLES: {
     PRODUCTS: 'products',
     CATEGORIES: 'categories',
   }
 }));
+
+// Export mock reset utility for test isolation
+global.resetSupabaseMocks = () => {
+  // Reset all Supabase method mocks to prevent state contamination
+  Object.values(mockSupabaseBase.auth).forEach(mockFn => {
+    if (jest.isMockFunction(mockFn)) {
+      mockFn.mockReset();
+    }
+  });
+  
+  mockSupabaseBase.from.mockReset();
+  mockSupabaseBase.rpc.mockReset();
+  mockSupabaseBase.channel.mockReset();
+  
+  // Restore default implementations
+  mockSupabaseBase.from.mockImplementation(() => ({
+    select: jest.fn(() => ({
+      eq: jest.fn(() => ({
+        single: jest.fn(),
+        order: jest.fn(),
+        gte: jest.fn(),
+        lte: jest.fn(),
+        in: jest.fn(),
+      })),
+      or: jest.fn(),
+      in: jest.fn(),
+    })),
+    insert: jest.fn(() => ({
+      select: jest.fn(() => ({
+        single: jest.fn(),
+      })),
+    })),
+    update: jest.fn(() => ({
+      eq: jest.fn(() => ({
+        select: jest.fn(() => ({
+          single: jest.fn(),
+        })),
+      })),
+    })),
+    delete: jest.fn(() => ({
+      eq: jest.fn(),
+    })),
+    upsert: jest.fn(),
+  }));
+  
+  mockSupabaseBase.channel.mockImplementation(() => ({
+    on: jest.fn().mockReturnThis(),
+    subscribe: jest.fn(),
+    unsubscribe: jest.fn(),
+  }));
+};
 
 // Mock storage - only what services actually use
 jest.mock('expo-secure-store', () => ({

@@ -14,11 +14,11 @@ import { useBatchUpdateStock } from '../../useInventoryOperations';
 import { useStockMovements, useMovementAnalytics } from '../../useStockMovements';
 
 // Services for mocking large datasets
-import { InventoryService } from '../../../services/inventory/inventoryService';
-import { StockMovementService } from '../../../services/inventory/stockMovementService';
+import { InventoryService } from '../../../../services/inventory/inventoryService';
+import { StockMovementService } from '../../../../services/inventory/stockMovementService';
 
-jest.mock('../../../services/inventory/inventoryService');
-jest.mock('../../../services/inventory/stockMovementService');
+jest.mock('../../../../services/inventory/inventoryService');
+jest.mock('../../../../services/inventory/stockMovementService');
 
 const mockInventoryService = InventoryService as jest.Mocked<typeof InventoryService>;
 const mockStockMovementService = StockMovementService as jest.Mocked<typeof StockMovementService>;

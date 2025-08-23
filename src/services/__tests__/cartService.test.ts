@@ -80,6 +80,11 @@ describe('CartService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    
+    // Reset Supabase mocks to prevent state contamination
+    if (global.resetSupabaseMocks) {
+      global.resetSupabaseMocks();
+    }
 
     // Setup default mocks
     mockMapProductFromDB.mockReturnValue(mockProduct);

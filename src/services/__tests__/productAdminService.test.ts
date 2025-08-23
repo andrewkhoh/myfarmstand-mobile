@@ -85,11 +85,21 @@ describe('ProductAdminService', () => {
   beforeEach(() => {
     // Reset all mocks before each test
     jest.clearAllMocks();
+    
+    // Reset Supabase mocks to prevent state contamination
+    if (global.resetSupabaseMocks) {
+      global.resetSupabaseMocks();
+    }
   });
 
   afterEach(() => {
     // Clean up after each test
     jest.clearAllMocks();
+    
+    // Reset Supabase mocks to prevent state contamination
+    if (global.resetSupabaseMocks) {
+      global.resetSupabaseMocks();
+    }
   });
 
   describe('Database Field Selection Validation', () => {

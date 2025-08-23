@@ -14,12 +14,12 @@ import { useUpdateStock, useUpdateVisibility, useBatchUpdateStock } from '../../
 import { useMovementHistory, useRecordMovement } from '../../useStockMovements';
 
 // Services (will be mocked but with realistic behaviors)
-import { InventoryService } from '../../../services/inventory/inventoryService';
-import { StockMovementService } from '../../../services/inventory/stockMovementService';
+import { InventoryService } from '../../../../services/inventory/inventoryService';
+import { StockMovementService } from '../../../../services/inventory/stockMovementService';
 
 // Mock services for integration testing
-jest.mock('../../../services/inventory/inventoryService');
-jest.mock('../../../services/inventory/stockMovementService');
+jest.mock('../../../../services/inventory/inventoryService');
+jest.mock('../../../../services/inventory/stockMovementService');
 
 const mockInventoryService = InventoryService as jest.Mocked<typeof InventoryService>;
 const mockStockMovementService = StockMovementService as jest.Mocked<typeof StockMovementService>;

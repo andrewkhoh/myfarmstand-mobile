@@ -548,6 +548,10 @@ export const contentKeys = {
     
   byStatusPaginated: (status: string, pagination: any, userId?: string) =>
     [...baseContentKeys.lists(userId), 'status', status, pagination] as const,
+    
+  // Product-based queries
+  byProduct: (productId: string, userId?: string) =>
+    [...baseContentKeys.lists(userId), 'product', productId] as const,
   
   // Content performance tracking
   performance: (contentId: string, userId?: string) =>
@@ -625,30 +629,37 @@ export const bundleKeys = {
 };
 
 // Marketing Cross-Entity Query Keys
+const baseMarketingKeys = createQueryKeyFactory({ entity: 'marketing', isolation: 'user-specific' });
+
 export const marketingKeys = {
+  ...baseMarketingKeys,
+  
   // Cross-entity marketing operations
   marketing: ['marketing'] as const,
   
   // Cross-entity analytics
-  analytics: () => [...marketingKeys.marketing, 'analytics'] as const,
+  analytics: (userId?: string) => 
+    [...baseMarketingKeys.all(userId), 'analytics'] as const,
   
   // Cross-entity performance tracking
-  performance: () => [...marketingKeys.marketing, 'performance'] as const,
+  performance: (userId?: string) => 
+    [...baseMarketingKeys.all(userId), 'performance'] as const,
   
   // Cross-entity workflow integration
-  crossEntity: () => [...marketingKeys.marketing, 'cross-entity'] as const,
+  crossEntity: (userId?: string) => 
+    [...baseMarketingKeys.all(userId), 'cross-entity'] as const,
   
   // Content-campaign associations
-  contentCampaigns: (contentId: string) =>
-    [...marketingKeys.marketing, 'content', contentId, 'campaigns'] as const,
+  contentCampaigns: (contentId: string, userId?: string) =>
+    [...baseMarketingKeys.all(userId), 'content', contentId, 'campaigns'] as const,
   
   // Campaign-bundle associations
-  campaignBundles: (campaignId: string) =>
-    [...marketingKeys.marketing, 'campaign', campaignId, 'bundles'] as const,
+  campaignBundles: (campaignId: string, userId?: string) =>
+    [...baseMarketingKeys.all(userId), 'campaign', campaignId, 'bundles'] as const,
   
   // Bundle-content associations
-  bundleContent: (bundleId: string) =>
-    [...marketingKeys.marketing, 'bundle', bundleId, 'content'] as const
+  bundleContent: (bundleId: string, userId?: string) =>
+    [...baseMarketingKeys.all(userId), 'bundle', bundleId, 'content'] as const
 };
 
 // Enhanced invalidation utility that handles offline/fallback scenarios

@@ -11,6 +11,11 @@ const mockSupabase = require('../../config/supabase').supabase;
 describe('AuthService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    
+    // Reset Supabase mocks to prevent state contamination
+    if (global.resetSupabaseMocks) {
+      global.resetSupabaseMocks();
+    }
   });
 
   it('should validate email format', async () => {

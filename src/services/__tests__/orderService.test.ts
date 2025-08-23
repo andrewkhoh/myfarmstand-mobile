@@ -126,6 +126,11 @@ describe('OrderService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    
+    // Reset Supabase mocks to prevent state contamination
+    if (global.resetSupabaseMocks) {
+      global.resetSupabaseMocks();
+    }
 
     // Setup default mocks
     mockGetProductStock.mockReturnValue(100);

@@ -27,6 +27,11 @@ describe('Campaign Management Integration - Phase 3.4.2', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     
+    // Reset Supabase mocks to prevent state contamination
+    if (global.resetSupabaseMocks) {
+      global.resetSupabaseMocks();
+    }
+    
     // Setup default mock responses for role permissions
     mockRolePermissionService.hasPermission = jest.fn().mockResolvedValue(true);
   });
@@ -476,13 +481,15 @@ describe('Campaign Management Integration - Phase 3.4.2', () => {
       );
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('validation');
+      expect(result.error).toContain('End date must be after start date');
 
       // Verify error was logged
-      expect(ValidationMonitor.recordValidationError).toHaveBeenCalledWith(
-        'MarketingCampaignService.createCampaign',
-        expect.any(Object)
-      );
+      expect(ValidationMonitor.recordValidationError).toHaveBeenCalledWith({
+        context: 'MarketingCampaignService.createCampaign',
+        errorCode: 'INVALID_DATE_RANGE',
+        validationPattern: 'simple_validation',
+        errorMessage: 'End date must be after start date'
+      });
     });
   });
 
@@ -519,7 +526,7 @@ describe('Campaign Management Integration - Phase 3.4.2', () => {
       const executionTime = endTime - startTime;
 
       expect(result.success).toBe(true);
-      expect(result.data).toHaveLength(100);
+      expect(result.data?.items).toHaveLength(100);
       expect(executionTime).toBeLessThan(1000); // Should complete in under 1 second
 
       // Verify performance was logged

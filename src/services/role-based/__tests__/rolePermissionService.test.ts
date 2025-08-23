@@ -20,6 +20,11 @@ const mockSupabase = supabase as jest.Mocked<typeof supabase>;
 describe('RolePermissionService - Phase 1', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    
+    // Reset Supabase mocks to prevent state contamination
+    if (global.resetSupabaseMocks) {
+      global.resetSupabaseMocks();
+    }
   });
   
   // Helper function to create proper mock chains

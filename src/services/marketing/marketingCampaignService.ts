@@ -563,10 +563,24 @@ export class MarketingCampaignService {
         return { success: false, error: error.message };
       }
 
-      // Transform results
-      const transformedItems = (data || []).map(item => 
-        MarketingCampaignTransformSchema.parse(item)
-      );
+      // Transform results with resilient item processing
+      const transformedItems: MarketingCampaignTransform[] = [];
+      for (const item of (data || [])) {
+        try {
+          const transformed = MarketingCampaignTransformSchema.parse(item);
+          transformedItems.push(transformed);
+        } catch (error) {
+          // Log for monitoring but continue processing
+          ValidationMonitor.recordValidationError({
+            context: 'MarketingCampaignService.getCampaignsByStatus',
+            errorCode: 'CAMPAIGN_VALIDATION_FAILED',
+            validationPattern: 'campaign_transformation_schema',
+            errorMessage: error instanceof Error ? error.message : 'Unknown error'
+          });
+          console.warn('Invalid campaign data, skipping:', item.id || 'unknown');
+          // Continue with other campaigns - don't break the entire operation
+        }
+      }
 
       const totalCount = count || 0;
       const hasMore = offset + pagination.limit < totalCount;
@@ -629,7 +643,7 @@ export class MarketingCampaignService {
           product_id: productId || null,
           created_at: new Date().toISOString()
         })
-        .select('id, campaign_name, campaign_type, description, start_date, end_date, discount_percentage, target_audience, campaign_status, created_by, created_at, updated_at')
+        .select('id, campaign_id, metric_date, metric_type, metric_value, product_id, created_at')
         .single();
 
       if (error || !data) {
