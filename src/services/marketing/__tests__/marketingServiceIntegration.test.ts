@@ -36,6 +36,11 @@ describe('Marketing Service Integration - Phase 3.2.7', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    
+    // Reset Supabase mocks to prevent state contamination
+    if (global.resetSupabaseMocks) {
+      global.resetSupabaseMocks();
+    }
     testContentIds.clear();
     testCampaignIds.clear();
     testBundleIds.clear();

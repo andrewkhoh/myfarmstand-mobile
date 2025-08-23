@@ -26,6 +26,11 @@ describe('MarketingCampaignService - Phase 3.2', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     
+    // Reset Supabase mocks to prevent state contamination
+    if (global.resetSupabaseMocks) {
+      global.resetSupabaseMocks();
+    }
+    
     // Setup default mock returns for chainable Supabase queries
     mockSupabase.from = jest.fn(() => ({
       select: jest.fn().mockReturnThis(),

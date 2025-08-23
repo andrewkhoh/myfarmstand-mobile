@@ -64,6 +64,11 @@ describe('BusinessMetricsService - Phase 4.2', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    
+    // Reset Supabase mocks to prevent state contamination
+    if (global.resetSupabaseMocks) {
+      global.resetSupabaseMocks();
+    }
   });
 
   // Debug test to verify basic mocking

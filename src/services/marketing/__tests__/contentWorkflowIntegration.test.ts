@@ -25,6 +25,11 @@ describe('Content Workflow Integration - Phase 3.4.1 (RED Phase)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     
+    // Reset Supabase mocks to prevent state contamination
+    if (global.resetSupabaseMocks) {
+      global.resetSupabaseMocks();
+    }
+    
     // Setup default mock returns for chainable Supabase queries
     mockSupabase.from = jest.fn(() => ({
       select: jest.fn().mockReturnThis(),

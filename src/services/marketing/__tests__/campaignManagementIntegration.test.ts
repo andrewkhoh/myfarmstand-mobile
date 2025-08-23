@@ -27,6 +27,11 @@ describe('Campaign Management Integration - Phase 3.4.2', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     
+    // Reset Supabase mocks to prevent state contamination
+    if (global.resetSupabaseMocks) {
+      global.resetSupabaseMocks();
+    }
+    
     // Setup default mock responses for role permissions
     mockRolePermissionService.hasPermission = jest.fn().mockResolvedValue(true);
   });

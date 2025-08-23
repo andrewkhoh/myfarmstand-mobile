@@ -41,6 +41,12 @@ describe('InventoryService - Phase 2.2 (Real Database)', () => {
   
   beforeEach(() => {
     jest.clearAllMocks();
+    
+    // Reset Supabase mocks to prevent state contamination
+    if (global.resetSupabaseMocks) {
+      global.resetSupabaseMocks();
+    }
+    
     // Track test data for cleanup
     testProductIds.clear();
     testInventoryIds.clear();

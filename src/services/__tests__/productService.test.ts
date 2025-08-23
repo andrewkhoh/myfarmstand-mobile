@@ -36,6 +36,11 @@ describe('ProductService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    
+    // Reset Supabase mocks to prevent state contamination
+    if (global.resetSupabaseMocks) {
+      global.resetSupabaseMocks();
+    }
   });
 
   it('should get all products successfully', async () => {
