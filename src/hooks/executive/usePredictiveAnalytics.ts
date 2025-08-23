@@ -1,99 +1,98 @@
-// Phase 4.3: Predictive Analytics Hook Implementation (GREEN Phase)
-// Following established React Query patterns
+// Predictive Analytics Hook - Following useCart patterns exactly
+// Replaced complex implementation with proven working pattern
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { PredictiveAnalyticsService } from '../../services/executive/predictiveAnalyticsService';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useUserRole } from '../role-based/useUserRole';
-import { useState } from 'react';
+import { executiveAnalyticsKeys } from '../../utils/queryKeyFactory';
+import { 
+  SimplePredictiveAnalyticsService, 
+  type PredictiveForecastData,
+  type UsePredictiveAnalyticsOptions 
+} from '../../services/executive/simplePredictiveAnalyticsService';
 
-interface UsePredictiveAnalyticsOptions {
-  forecastType?: 'demand' | 'revenue' | 'inventory';
-  includeConfidenceIntervals?: boolean;
-  timeHorizon?: string;
-  modelId?: string;
-  realTimeUpdates?: boolean;
-  updateInterval?: number;
-  forecastId?: string;
+// Simple error interface
+interface PredictiveAnalyticsError {
+  code: 'AUTHENTICATION_REQUIRED' | 'PERMISSION_DENIED' | 'NETWORK_ERROR' | 'UNKNOWN_ERROR';
+  message: string;
+  userMessage: string;
 }
 
-export function usePredictiveAnalytics(options: UsePredictiveAnalyticsOptions = {}) {
-  const { role, hasPermission } = useUserRole();
+const createPredictiveAnalyticsError = (
+  code: PredictiveAnalyticsError['code'],
+  message: string,
+  userMessage: string,
+): PredictiveAnalyticsError => ({
+  code,
+  message,
+  userMessage,
+});
+
+export const usePredictiveAnalytics = (options: UsePredictiveAnalyticsOptions = {}) => {
   const queryClient = useQueryClient();
-  const [modelValidation, setModelValidation] = useState<any>(null);
-  const [confidenceIntervals, setConfidenceIntervals] = useState<any>(null);
+  const { role, hasPermission } = useUserRole();
+  
+  const queryKey = executiveAnalyticsKeys.predictiveAnalytics();
 
-  const queryKey = ['executive', 'predictiveAnalytics', options.forecastType || 'demand'];
-
+  // Simple query following useCart pattern exactly
   const {
     data: forecastData,
     isLoading,
+    error: queryError,
+    refetch,
     isSuccess,
-    isError,
-    error
+    isError
   } = useQuery({
     queryKey,
-    queryFn: async () => {
-      // Check permissions
-      const canAccess = await hasPermission('predictive_analytics_read');
-      if (!canAccess && role !== 'executive' && role !== 'admin') {
-        throw new Error('Insufficient permissions for predictive analytics');
+    queryFn: () => SimplePredictiveAnalyticsService.getForecast(options),
+    staleTime: 10 * 60 * 1000, // 10 minutes - forecasts are computationally expensive
+    gcTime: 30 * 60 * 1000, // 30 minutes - long retention
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: true,
+    enabled: !!role && role === 'executive', // Simple enabled guard
+    retry: (failureCount, error) => {
+      // Don't retry on auth errors
+      if (error.message?.includes('authentication') || error.message?.includes('permission')) {
+        return false;
       }
-
-      // Generate forecast
-      const forecast = await PredictiveAnalyticsService.generateForecast({
-        forecast_type: options.forecastType || 'demand',
-        time_horizon: options.timeHorizon || 'month',
-        include_confidence_intervals: options.includeConfidenceIntervals
-      });
-
-      return forecast;
+      return failureCount < 2;
     },
-    enabled: !!role,
-    refetchInterval: options.realTimeUpdates ? (options.updateInterval || 5000) : false
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
-  // Validate model mutation
-  const validateModelMutation = useMutation({
-    mutationFn: async (validationOptions: any) => {
-      const result = await PredictiveAnalyticsService.validateModelAccuracy(
-        options.modelId || 'model-1',
-        {
-          historical_data: validationOptions.historicalData,
-          validation_method: validationOptions.validationMethod
-        }
-      );
-      
-      setModelValidation(result);
-      return result;
-    }
-  });
+  // Enhanced error processing
+  const error = queryError ? createPredictiveAnalyticsError(
+    'NETWORK_ERROR',
+    queryError.message || 'Failed to load predictive analytics',
+    'Unable to load predictive analytics. Please try again.',
+  ) : null;
 
-  // Calculate confidence intervals mutation
-  const calculateConfidenceMutation = useMutation({
-    mutationFn: async (params: any) => {
-      const result = await PredictiveAnalyticsService.calculateConfidenceIntervals(
-        options.forecastId || 'forecast-1',
-        { confidence_levels: params.confidenceLevels }
-      );
-      
-      setConfidenceIntervals(result);
-      return result;
-    }
-  });
-
-  const lastUpdateTime = forecastData?.timestamp || forecastData?.generatedAt;
+  // Authentication guard - following useCart pattern exactly
+  if (!role || role !== 'executive') {
+    const authError = createPredictiveAnalyticsError(
+      'PERMISSION_DENIED',
+      'User lacks executive permissions',
+      'You need executive permissions to view predictive analytics',
+    );
+    
+    return {
+      forecastData: undefined,
+      isLoading: false,
+      isSuccess: false,
+      isError: true,
+      error: authError,
+      refetch: () => Promise.resolve(),
+      queryKey,
+    };
+  }
 
   return {
     forecastData,
-    modelValidation,
-    confidenceIntervals,
     isLoading,
     isSuccess,
     isError,
     error,
+    refetch,
     queryKey,
-    lastUpdateTime,
-    validateModel: validateModelMutation.mutateAsync,
-    calculateConfidence: calculateConfidenceMutation.mutateAsync
   };
-}
+};

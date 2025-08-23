@@ -1,151 +1,100 @@
-// Phase 4.3: Business Intelligence Hook Implementation (GREEN Phase)
-// Following established React Query patterns
+// Business Insights Hook - Following useCart patterns exactly
+// Replaced complex implementation with proven working pattern
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { BusinessIntelligenceService } from '../../services/executive/businessIntelligenceService';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useUserRole } from '../role-based/useUserRole';
-import { useState } from 'react';
+import { executiveAnalyticsKeys } from '../../utils/queryKeyFactory';
+import { 
+  SimpleBusinessInsightsService, 
+  type BusinessInsightData,
+  type UseBusinessInsightsOptions 
+} from '../../services/executive/simpleBusinessInsightsService';
 
-interface UseBusinessInsightsOptions {
-  insightType?: 'correlation' | 'trend' | 'anomaly' | 'prediction';
-  dateRange?: string;
-  minConfidence?: number;
-  impactFilter?: string[];
-  sortByConfidence?: boolean;
-  realTimeEnabled?: boolean;
-  includeRecommendations?: boolean;
-  focusAreas?: string[];
-  trackInteractions?: boolean;
+// Simple error interface
+interface BusinessInsightsError {
+  code: 'AUTHENTICATION_REQUIRED' | 'PERMISSION_DENIED' | 'NETWORK_ERROR' | 'UNKNOWN_ERROR';
+  message: string;
+  userMessage: string;
 }
 
-export function useBusinessInsights(options: UseBusinessInsightsOptions = {}) {
-  const { role, hasPermission } = useUserRole();
+const createBusinessInsightsError = (
+  code: BusinessInsightsError['code'],
+  message: string,
+  userMessage: string,
+): BusinessInsightsError => ({
+  code,
+  message,
+  userMessage,
+});
+
+export const useBusinessInsights = (options: UseBusinessInsightsOptions = {}) => {
   const queryClient = useQueryClient();
-  const [insightMetrics, setInsightMetrics] = useState<Record<string, any>>({});
-  const [lastUpdatedInsight, setLastUpdatedInsight] = useState<any>(null);
+  const { role, hasPermission } = useUserRole();
+  
+  const queryKey = executiveAnalyticsKeys.businessInsights();
 
-  const queryKey = ['executive', 'businessInsights', options];
-
+  // Simple query following useCart pattern exactly
   const {
-    data,
+    data: insightsData,
     isLoading,
+    error: queryError,
+    refetch,
     isSuccess,
-    isError,
-    error
+    isError
   } = useQuery({
     queryKey,
-    queryFn: async () => {
-      // Check permissions
-      const canAccess = await hasPermission('business_insights_read');
-      if (!canAccess && role !== 'executive' && role !== 'admin') {
-        throw new Error('Insufficient permissions for business insights access');
+    queryFn: () => SimpleBusinessInsightsService.getInsights(options),
+    staleTime: 3 * 60 * 1000, // 3 minutes - insights change frequently
+    gcTime: 15 * 60 * 1000, // 15 minutes 
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: true,
+    enabled: !!role && role === 'executive', // Simple enabled guard
+    retry: (failureCount, error) => {
+      // Don't retry on auth errors
+      if (error.message?.includes('authentication') || error.message?.includes('permission')) {
+        return false;
       }
-
-      // Generate insights based on options
-      const insightsResult = await BusinessIntelligenceService.generateInsights({
-        insight_type: options.insightType,
-        date_range: options.dateRange,
-        min_confidence: options.minConfidence || 0.7,
-        include_recommendations: options.includeRecommendations
-      });
-
-      // Filter by impact if requested
-      if (options.impactFilter && options.impactFilter.length > 0) {
-        const filteredInsights = await BusinessIntelligenceService.getInsightsByImpact(
-          options.impactFilter as any,
-          { sort_by_confidence: options.sortByConfidence }
-        );
-        
-        return {
-          ...insightsResult,
-          insights: filteredInsights
-        };
-      }
-
-      return insightsResult;
+      return failureCount < 2;
     },
-    enabled: !!role,
-    refetchInterval: options.realTimeEnabled ? 5000 : false
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
-  // Get recommendations if included
-  const recommendations = options.includeRecommendations && data?.insights
-    ? data.insights.map((insight: any) => ({
-        insightId: insight.id,
-        actions: ['Increase inventory levels', 'Optimize marketing spend'],
-        priorityScore: 8.5
-      }))
-    : undefined;
+  // Enhanced error processing
+  const error = queryError ? createBusinessInsightsError(
+    'NETWORK_ERROR',
+    queryError.message || 'Failed to load business insights',
+    'Unable to load business insights. Please try again.',
+  ) : null;
 
-  // Update insight status mutation
-  const updateStatusMutation = useMutation({
-    mutationFn: async (params: { insightId: string; updates: any }) => {
-      const result = await BusinessIntelligenceService.updateInsightStatus(
-        params.insightId,
-        params.updates
-      );
-      setLastUpdatedInsight(result);
-      return result;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['executive', 'businessInsights'] });
-    }
-  });
-
-  // Track insight interactions
-  const markInsightViewed = (insightId: string) => {
-    if (options.trackInteractions) {
-      setInsightMetrics(prev => ({
-        ...prev,
-        [insightId]: {
-          ...prev[insightId],
-          viewed: true,
-          viewedAt: new Date()
-        }
-      }));
-    }
-  };
-
-  const markInsightActioned = (insightId: string, actionType: string) => {
-    if (options.trackInteractions) {
-      setInsightMetrics(prev => ({
-        ...prev,
-        [insightId]: {
-          ...prev[insightId],
-          actioned: true,
-          actionType
-        }
-      }));
-    }
-  };
-
-  // Invalidate related insights
-  const invalidateRelatedInsights = async (areas: string[]) => {
-    await queryClient.invalidateQueries({
-      queryKey: ['executive', 'businessInsights'],
-      predicate: (query) => {
-        const key = query.queryKey as any[];
-        return areas.some(area => JSON.stringify(key).includes(area));
-      }
-    });
-  };
+  // Authentication guard - following useCart pattern exactly
+  if (!role || role !== 'executive') {
+    const authError = createBusinessInsightsError(
+      'PERMISSION_DENIED',
+      'User lacks executive permissions',
+      'You need executive permissions to view business insights',
+    );
+    
+    return {
+      insights: [],
+      metadata: undefined,
+      isLoading: false,
+      isSuccess: false,
+      isError: true,
+      error: authError,
+      refetch: () => Promise.resolve(),
+      queryKey,
+    };
+  }
 
   return {
-    data,
-    insights: data?.insights,
-    metadata: data?.metadata,
-    recommendations,
+    insights: insightsData?.insights || [],
+    metadata: insightsData?.metadata,
     isLoading,
     isSuccess,
     isError,
     error,
+    refetch,
     queryKey,
-    updateInsightStatus: (insightId: string, updates: any) => 
-      updateStatusMutation.mutate({ insightId, updates }),
-    lastUpdatedInsight,
-    markInsightViewed,
-    markInsightActioned,
-    insightMetrics,
-    invalidateRelatedInsights
   };
-}
+};

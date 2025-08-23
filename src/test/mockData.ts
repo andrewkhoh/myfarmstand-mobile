@@ -262,3 +262,89 @@ export const createMockCreatePaymentMethodRequest = (overrides?: Partial<CreateP
   },
   ...overrides,
 });
+
+// Executive Analytics mocks
+export const createMockBusinessMetrics = (overrides?: any) => ({
+  revenue: {
+    total: 125000,
+    growth: 15.2,
+    trend: 'increasing' as const
+  },
+  orders: {
+    total: 450,
+    growth: 12.5,
+    trend: 'stable' as const
+  },
+  customers: {
+    total: 280,
+    growth: 8.3,
+    trend: 'increasing' as const
+  },
+  generatedAt: '2024-01-15T10:00:00Z',
+  ...overrides,
+});
+
+export const createMockBusinessInsight = (overrides?: any) => ({
+  id: 'insight-1',
+  insightType: 'correlation' as const,
+  insightTitle: 'Inventory-Marketing Correlation',
+  confidenceScore: 0.89,
+  impactLevel: 'high' as const,
+  affectedAreas: ['inventory', 'marketing'],
+  description: 'Strong correlation detected between inventory levels and marketing performance',
+  recommendations: ['Optimize inventory levels', 'Adjust marketing spend'],
+  generatedAt: '2024-01-15T10:00:00Z',
+  ...overrides,
+});
+
+export const createMockPredictiveForecast = (overrides?: any) => ({
+  forecastData: {
+    demandPrediction: {
+      nextMonth: 1500,
+      nextQuarter: 4200,
+      nextYear: 18000
+    },
+    confidenceIntervals: {
+      nextMonth: { lower: 1350, upper: 1650, confidence: 0.95 },
+      nextQuarter: { lower: 3800, upper: 4600, confidence: 0.95 }
+    },
+    seasonalFactors: {
+      january: 0.8,
+      july: 1.3,
+      december: 1.5
+    }
+  },
+  modelMetrics: {
+    accuracy: 0.89,
+    mape: 11.2,
+    rmse: 125.5
+  },
+  generatedAt: '2024-01-15T10:00:00Z',
+  ...overrides,
+});
+
+export const createMockStrategicReport = (overrides?: any) => ({
+  reportData: {
+    crossRoleAnalysis: {
+      correlationMatrix: {
+        'inventory-marketing': 0.75,
+        'marketing-sales': 0.82
+      }
+    },
+    predictiveInsights: {
+      demandForecast: { nextMonth: 1250, confidence: 0.87 }
+    },
+    performanceTrends: {
+      overallPerformance: 'above_target' as const,
+      keyMetrics: { revenue_growth: 15.2 }
+    }
+  },
+  reportMetadata: {
+    reportId: 'report-1',
+    reportType: 'executive_summary' as const,
+    generatedAt: '2024-01-15T10:00:00Z',
+    dataSourcesUsed: ['business_metrics', 'predictive_forecasts']
+  },
+  performanceMetrics: { generationTime: 1200 },
+  ...overrides,
+});

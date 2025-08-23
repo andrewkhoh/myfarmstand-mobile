@@ -1,41 +1,41 @@
-// Strategic Reporting Hook - Following useCart patterns exactly
-// Replaced complex implementation with proven working pattern
+// Simplified Business Metrics Hook - Following useCart patterns exactly
+// This demonstrates the correct testing approach for executive hooks
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useUserRole } from '../role-based/useUserRole';
 import { executiveAnalyticsKeys } from '../../utils/queryKeyFactory';
 import { 
-  SimpleStrategicReportingService, 
-  type StrategicReportData,
-  type UseStrategicReportingOptions 
-} from '../../services/executive/simpleStrategicReportingService';
+  SimpleBusinessMetricsService, 
+  type BusinessMetricsData,
+  type UseBusinessMetricsOptions 
+} from '../../services/executive/simpleBusinessMetricsService';
 
 // Simple error interface
-interface StrategicReportingError {
+interface BusinessMetricsError {
   code: 'AUTHENTICATION_REQUIRED' | 'PERMISSION_DENIED' | 'NETWORK_ERROR' | 'UNKNOWN_ERROR';
   message: string;
   userMessage: string;
 }
 
-const createStrategicReportingError = (
-  code: StrategicReportingError['code'],
+const createBusinessMetricsError = (
+  code: BusinessMetricsError['code'],
   message: string,
   userMessage: string,
-): StrategicReportingError => ({
+): BusinessMetricsError => ({
   code,
   message,
   userMessage,
 });
 
-export const useStrategicReporting = (options: UseStrategicReportingOptions = {}) => {
+export const useSimpleBusinessMetrics = (options: UseBusinessMetricsOptions = {}) => {
   const queryClient = useQueryClient();
   const { role, hasPermission } = useUserRole();
   
-  const queryKey = executiveAnalyticsKeys.strategicReporting();
+  const queryKey = executiveAnalyticsKeys.businessMetrics();
 
   // Simple query following useCart pattern exactly
   const {
-    data: reportsData,
+    data: metrics,
     isLoading,
     error: queryError,
     refetch,
@@ -43,9 +43,9 @@ export const useStrategicReporting = (options: UseStrategicReportingOptions = {}
     isError
   } = useQuery({
     queryKey,
-    queryFn: () => SimpleStrategicReportingService.getReports(options),
-    staleTime: 15 * 60 * 1000, // 15 minutes - strategic reports are less frequent
-    gcTime: 60 * 60 * 1000, // 1 hour - longer retention for strategic data
+    queryFn: () => SimpleBusinessMetricsService.getMetrics(options),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
     refetchOnMount: true,
     refetchOnWindowFocus: false,
     refetchOnReconnect: true,
@@ -61,23 +61,22 @@ export const useStrategicReporting = (options: UseStrategicReportingOptions = {}
   });
 
   // Enhanced error processing
-  const error = queryError ? createStrategicReportingError(
+  const error = queryError ? createBusinessMetricsError(
     'NETWORK_ERROR',
-    queryError.message || 'Failed to load strategic reports',
-    'Unable to load strategic reports. Please try again.',
+    queryError.message || 'Failed to load business metrics',
+    'Unable to load business metrics. Please try again.',
   ) : null;
 
   // Authentication guard - following useCart pattern exactly
   if (!role || role !== 'executive') {
-    const authError = createStrategicReportingError(
+    const authError = createBusinessMetricsError(
       'PERMISSION_DENIED',
       'User lacks executive permissions',
-      'You need executive permissions to view strategic reports',
+      'You need executive permissions to view business metrics',
     );
     
     return {
-      reports: [],
-      summary: undefined,
+      metrics: undefined,
       isLoading: false,
       isSuccess: false,
       isError: true,
@@ -88,8 +87,7 @@ export const useStrategicReporting = (options: UseStrategicReportingOptions = {}
   }
 
   return {
-    reports: reportsData?.reports || [],
-    summary: reportsData?.summary,
+    metrics,
     isLoading,
     isSuccess,
     isError,

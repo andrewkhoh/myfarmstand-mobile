@@ -11,6 +11,7 @@ import { StrategicReportingService } from '../../../services/executive/strategic
 
 // Mock the service
 jest.mock('../../../services/executive/strategicReportingService');
+const mockStrategicReportingService = StrategicReportingService as jest.Mocked<typeof StrategicReportingService>;
 
 // Mock the user role hook
 jest.mock('../../../hooks/role-based/useUserRole', () => ({
@@ -75,7 +76,7 @@ describe('useStrategicReporting Hook - Phase 4.3', () => {
         performanceMetrics: { generationTime: 1200 }
       };
 
-      (StrategicReportingService.generateReport as jest.Mock).mockResolvedValue(mockReport);
+      mockStrategicReportingService.generateReport.mockResolvedValue(mockReport);
 
       const { result } = renderHook(
         () => useStrategicReporting({
@@ -103,7 +104,7 @@ describe('useStrategicReporting Hook - Phase 4.3', () => {
         scheduleId: 'schedule-1'
       };
 
-      (StrategicReportingService.scheduleReport as jest.Mock).mockResolvedValue(mockScheduleResult);
+      mockStrategicReportingService.scheduleReport.mockResolvedValue(mockScheduleResult);
 
       const { result } = renderHook(
         () => useStrategicReporting({ reportId: 'report-1' }),
@@ -131,7 +132,7 @@ describe('useStrategicReporting Hook - Phase 4.3', () => {
         processingTime: 1500
       };
 
-      (StrategicReportingService.exportReportData as jest.Mock).mockResolvedValue(mockExportResult);
+      mockStrategicReportingService.exportReportData.mockResolvedValue(mockExportResult);
 
       const { result } = renderHook(
         () => useStrategicReporting({ reportId: 'report-1' }),
@@ -158,7 +159,7 @@ describe('useStrategicReporting Hook - Phase 4.3', () => {
         availableMetrics: ['inventory_only', 'inventory_turnover']
       };
 
-      (StrategicReportingService.getReportData as jest.Mock).mockResolvedValue(mockFilteredReport);
+      mockStrategicReportingService.getReportData.mockResolvedValue(mockFilteredReport);
 
       const { result } = renderHook(
         () => useStrategicReporting({

@@ -4,7 +4,10 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { PredictiveAnalyticsService } from '../../services/executive/predictiveAnalyticsService';
 import { useUserRole } from '../role-based/useUserRole';
+import { executiveAnalyticsKeys } from '../../utils/queryKeyFactory';
+import { ValidationMonitor } from '../../utils/validationMonitor';
 import { useState, useEffect } from 'react';
+import React from 'react';
 
 interface UseModelValidationOptions {
   modelId: string;
@@ -19,11 +22,11 @@ export function useModelValidation(options: UseModelValidationOptions) {
   const queryClient = useQueryClient();
   const [retrainingTriggered, setRetrainingTriggered] = useState(false);
 
-  const queryKey = ['executive', 'modelValidation', options.modelId];
+  const queryKey = executiveAnalyticsKeys.modelValidation(role, options.modelId);
 
   // Monitor model performance
   const { data: monitoringData } = useQuery({
-    queryKey: [...queryKey, 'monitoring'],
+    queryKey: executiveAnalyticsKeys.modelValidation(role, `${options.modelId}_monitoring`),
     queryFn: async () => {
       // Mock monitoring data - in real app would call service
       const mockData = {
@@ -43,12 +46,19 @@ export function useModelValidation(options: UseModelValidationOptions) {
 
       return mockData;
     },
-    enabled: options.continuousMonitoring
+    enabled: options.continuousMonitoring,
+    staleTime: options.continuousMonitoring ? 1 * 60 * 1000 : 10 * 60 * 1000, // 1min for monitoring, 10min otherwise
+    gcTime: 20 * 60 * 1000,   // 20 minutes - model data is expensive to compute
+    refetchOnMount: options.continuousMonitoring,
+    refetchOnWindowFocus: false, // Don't auto-refetch expensive model operations
+    retry: 1, // Only retry once for expensive model operations
+    retryDelay: 5000, // 5 second delay for model operations
+    throwOnError: false
   });
 
   // Compare model versions
   const { data: modelComparison } = useQuery({
-    queryKey: [...queryKey, 'comparison'],
+    queryKey: executiveAnalyticsKeys.modelValidation(role, `${options.modelId}_comparison`),
     queryFn: async () => {
       // Mock comparison data
       return {
@@ -61,7 +71,13 @@ export function useModelValidation(options: UseModelValidationOptions) {
         improvement: 0.06
       };
     },
-    enabled: options.compareVersions
+    enabled: options.compareVersions,
+    staleTime: 10 * 60 * 1000, // 10 minutes - model versions are very static
+    gcTime: 60 * 60 * 1000,    // 1 hour - model comparisons rarely change
+    refetchOnMount: false,      // Model versions don't need immediate refresh
+    refetchOnWindowFocus: false,
+    retry: 1,
+    throwOnError: false
   });
 
   // Check if retraining should be triggered
@@ -74,10 +90,38 @@ export function useModelValidation(options: UseModelValidationOptions) {
     }
   }, [monitoringData, options.autoRetrain, options.accuracyThreshold]);
 
+  // Smart invalidation for model operations
+  const invalidateModelData = React.useCallback(async () => {
+    const relatedKeys = [
+      executiveAnalyticsKeys.modelValidation(role, options.modelId),
+      executiveAnalyticsKeys.predictiveAnalytics(role)
+    ];
+    
+    await Promise.allSettled(
+      relatedKeys.map(queryKey => 
+        queryClient.invalidateQueries({ queryKey })
+      )
+    );
+  }, [queryClient, role, options.modelId]);
+
+  // Fallback model data
+  const fallbackModelData = React.useMemo(() => ({
+    modelHealth: 'unknown',
+    performanceMetrics: {
+      currentAccuracy: 0,
+      baselineAccuracy: 0,
+      degradation: 0
+    },
+    message: 'Model validation temporarily unavailable',
+    isFallback: true
+  }), []);
+
   return {
-    monitoringData,
+    monitoringData: monitoringData || (options.continuousMonitoring ? fallbackModelData : undefined),
     modelComparison,
     retrainingTriggered,
-    queryKey
+    queryKey,
+    invalidateModelData,
+    fallbackData: !monitoringData && options.continuousMonitoring ? fallbackModelData : undefined
   };
 }

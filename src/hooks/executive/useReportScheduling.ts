@@ -2,9 +2,12 @@
 // Following established React Query patterns
 
 import { useState } from 'react';
+import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { StrategicReportingService } from '../../services/executive/strategicReportingService';
 import { useUserRole } from '../role-based/useUserRole';
+import { executiveAnalyticsKeys } from '../../utils/queryKeyFactory';
+import { ValidationMonitor } from '../../utils/validationMonitor';
 
 interface UseReportSchedulingOptions {
   reportId?: string;
@@ -28,7 +31,7 @@ export function useReportScheduling(options: UseReportSchedulingOptions = {}) {
 
   // Get all schedules if managing multiple
   const { data: allSchedules } = useQuery({
-    queryKey: ['executive', 'reportSchedules', 'all'],
+    queryKey: executiveAnalyticsKeys.reportScheduling(role, 'all'),
     queryFn: async () => {
       // Mock implementation - in real app would fetch from service
       return [
@@ -37,7 +40,13 @@ export function useReportScheduling(options: UseReportSchedulingOptions = {}) {
         { scheduleId: 'sched-3', frequency: 'monthly', reportId: 'report-3' }
       ];
     },
-    enabled: options.manageMultiple
+    enabled: options.manageMultiple,
+    staleTime: 5 * 60 * 1000, // 5 minutes - schedules are relatively static
+    gcTime: 30 * 60 * 1000,   // 30 minutes - longer retention for schedule data
+    refetchOnMount: false,     // Don't auto-refetch schedule lists
+    refetchOnWindowFocus: false,
+    retry: 2, // Simple retry for schedule lists
+    throwOnError: false
   });
 
   // Create schedule mutation
@@ -63,8 +72,23 @@ export function useReportScheduling(options: UseReportSchedulingOptions = {}) {
       setActiveSchedule(schedule);
       return schedule;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['executive', 'reportSchedules'] });
+    onSuccess: (result) => {
+      ValidationMonitor.recordPatternSuccess({
+        pattern: 'report_scheduling_create',
+        context: 'useReportScheduling.createScheduleMutation',
+        description: `Successfully created schedule for report ${options.reportId}`
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: executiveAnalyticsKeys.reportScheduling(role) 
+      });
+    },
+    onError: (error: Error) => {
+      ValidationMonitor.recordValidationError({
+        context: 'useReportScheduling.createScheduleMutation',
+        errorCode: 'REPORT_SCHEDULE_CREATE_FAILED',
+        validationPattern: 'report_scheduling_mutation',
+        errorMessage: error.message
+      });
     }
   });
 
@@ -104,13 +128,37 @@ export function useReportScheduling(options: UseReportSchedulingOptions = {}) {
     monthly: allSchedules.filter((s: Schedule) => s.frequency === 'monthly').length
   } : undefined;
 
+  // Smart invalidation for schedule operations
+  const invalidateScheduleData = React.useCallback(async () => {
+    const relatedKeys = [
+      executiveAnalyticsKeys.reportScheduling(role),
+      executiveAnalyticsKeys.strategicReporting(role)
+    ];
+    
+    await Promise.allSettled(
+      relatedKeys.map(queryKey => 
+        queryClient.invalidateQueries({ queryKey })
+      )
+    );
+  }, [queryClient, role]);
+
+  // Fallback schedule data
+  const fallbackSchedules = React.useMemo(() => ({
+    schedules: [],
+    summary: { daily: 0, weekly: 0, monthly: 0 },
+    message: 'Schedule data temporarily unavailable',
+    isFallback: true
+  }), []);
+
   return {
     activeSchedule,
-    allSchedules,
+    allSchedules: allSchedules || (options.manageMultiple ? [] : undefined),
     scheduleSummary,
     scheduleHistory,
     createSchedule: createScheduleMutation.mutateAsync,
     updateSchedule: (scheduleId: string, updates: any) => 
-      updateScheduleMutation.mutateAsync({ scheduleId, updates })
+      updateScheduleMutation.mutateAsync({ scheduleId, updates }),
+    invalidateScheduleData,
+    fallbackData: !allSchedules && options.manageMultiple ? fallbackSchedules : undefined
   };
 }

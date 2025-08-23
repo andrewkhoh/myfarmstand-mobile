@@ -1,3 +1,23 @@
+// Mock broadcast factory BEFORE any other imports
+jest.mock('../../utils/broadcastFactory', () => {
+  const mockBroadcastHelper = {
+    send: jest.fn(),
+    getAuthorizedChannelNames: jest.fn(() => ['test-channel'])
+  };
+  
+  return {
+    createBroadcastHelper: jest.fn(() => mockBroadcastHelper),
+    cartBroadcast: mockBroadcastHelper,
+    orderBroadcast: {
+      send: jest.fn(),
+      user: mockBroadcastHelper,
+      admin: mockBroadcastHelper
+    },
+    productBroadcast: mockBroadcastHelper,
+    paymentBroadcast: mockBroadcastHelper
+  };
+});
+
 import { renderHook, waitFor } from '@testing-library/react-native';
 import { cartService } from '../../services/cartService';
 import { useCart } from '../useCart';
@@ -10,12 +30,6 @@ const mockCartService = cartService as jest.Mocked<typeof cartService>;
 
 jest.mock('../useAuth');
 const mockUseCurrentUser = useCurrentUser as jest.MockedFunction<typeof useCurrentUser>;
-
-jest.mock('../../utils/broadcastFactory', () => ({
-  cartBroadcast: {
-    send: jest.fn(),
-  },
-}));
 
 jest.mock('../../utils/queryKeyFactory', () => ({
   cartKeys: {

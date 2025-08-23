@@ -5,6 +5,8 @@ import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { BusinessIntelligenceService } from '../../services/executive/businessIntelligenceService';
 import { useUserRole } from '../role-based/useUserRole';
+import { executiveAnalyticsKeys } from '../../utils/queryKeyFactory';
+import { ValidationMonitor } from '../../utils/validationMonitor';
 
 interface UseInsightGenerationOptions {
   dataSource?: string[];
@@ -43,13 +45,26 @@ export function useInsightGeneration(options: UseInsightGenerationOptions = {}) 
 
       throw new Error('No insights generated');
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       setIsGenerating(false);
-      queryClient.invalidateQueries({ queryKey: ['executive', 'businessInsights'] });
+      ValidationMonitor.recordPatternSuccess({
+        pattern: 'insight_generation_single',
+        context: 'useInsightGeneration.generateInsightMutation',
+        description: `Successfully generated ${options.analysisType || 'general'} insight`
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: executiveAnalyticsKeys.businessInsights(role) 
+      });
     },
     onError: (error: Error) => {
       setIsGenerating(false);
       setGenerationError(error);
+      ValidationMonitor.recordValidationError({
+        context: 'useInsightGeneration.generateInsightMutation',
+        errorCode: 'INSIGHT_GENERATION_FAILED',
+        validationPattern: 'insight_generation_mutation',
+        errorMessage: error.message
+      });
     }
   });
 
@@ -80,8 +95,23 @@ export function useInsightGeneration(options: UseInsightGenerationOptions = {}) 
       setBatchResults(results);
       return results;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['executive', 'businessInsights'] });
+    onSuccess: (results) => {
+      ValidationMonitor.recordPatternSuccess({
+        pattern: 'insight_generation_batch',
+        context: 'useInsightGeneration.generateBatchMutation',
+        description: `Successfully generated ${results.length} batch insights`
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: executiveAnalyticsKeys.businessInsights(role) 
+      });
+    },
+    onError: (error: Error) => {
+      ValidationMonitor.recordValidationError({
+        context: 'useInsightGeneration.generateBatchMutation',
+        errorCode: 'BATCH_INSIGHT_GENERATION_FAILED',
+        validationPattern: 'insight_generation_mutation',
+        errorMessage: error.message
+      });
     }
   });
 

@@ -427,7 +427,69 @@ export const executiveAnalyticsKeys = {
   
   // Performance benchmarks
   benchmarks: (category: string, period: string, userId?: string) =>
-    ['executive', 'benchmarks', category, period, userId] as const
+    ['executive', 'benchmarks', category, period, userId] as const,
+
+  // Phase 4: Business Analytics Query Keys
+  businessMetrics: (userId?: string, options?: any) => {
+    const key = ['executive', 'businessMetrics'];
+    if (userId) key.push(userId);
+    if (options) key.push(options);
+    return key as const;
+  },
+  
+  businessInsights: (userId?: string, options?: any) => {
+    const key = ['executive', 'businessInsights'];
+    if (userId) key.push(userId);
+    if (options) key.push(options);
+    return key as const;
+  },
+  
+  strategicReporting: (userId?: string, reportId?: string) => {
+    const key = ['executive', 'strategicReporting'];
+    if (userId) key.push(userId);
+    if (reportId) key.push(reportId);
+    return key as const;
+  },
+  
+  predictiveAnalytics: (userId?: string, forecastType?: string) =>
+    ['executive', 'predictiveAnalytics', userId, forecastType] as const,
+  
+  metricTrends: (userId?: string, options?: any) =>
+    ['executive', 'metricTrends', userId, options] as const,
+  
+  crossRoleAnalytics: (userId?: string, options?: any) =>
+    ['executive', 'crossRoleAnalytics', userId, options] as const,
+  
+  insightGeneration: (userId?: string, options?: any) =>
+    ['executive', 'insightGeneration', userId, options] as const,
+  
+  anomalyDetection: (userId?: string, options?: any) =>
+    ['executive', 'anomalyDetection', userId, options] as const,
+  
+  reportGeneration: (userId?: string, options?: any) =>
+    ['executive', 'reportGeneration', userId, options] as const,
+  
+  reportScheduling: (userId?: string, type?: string) =>
+    ['executive', 'reportScheduling', userId, type] as const,
+  
+  forecastGeneration: (userId?: string, options?: any) =>
+    ['executive', 'forecastGeneration', userId, options] as const,
+  
+  modelValidation: (userId?: string, modelId?: string) =>
+    ['executive', 'modelValidation', userId, modelId] as const,
+
+  // Specialized sub-keys for complex scenarios
+  reportSchedulingAll: (userId?: string) =>
+    ['executive', 'reportScheduling', userId, 'all'] as const,
+  
+  modelValidationMonitoring: (userId?: string, modelId?: string) =>
+    ['executive', 'modelValidation', userId, modelId, 'monitoring'] as const,
+  
+  modelValidationComparison: (userId?: string, modelId?: string) =>
+    ['executive', 'modelValidation', userId, modelId, 'comparison'] as const,
+  
+  strategicReportingFiltered: (userId?: string, reportId?: string, userRole?: string) =>
+    ['executive', 'strategicReporting', userId, reportId, 'filtered', userRole] as const
 };
 
 // Phase 3: Marketing Query Key Factories

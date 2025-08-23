@@ -2,8 +2,11 @@
 // Following established React Query patterns
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import React from 'react';
 import { BusinessMetricsService } from '../../services/executive/businessMetricsService';
 import { useUserRole } from '../role-based/useUserRole';
+import { executiveAnalyticsKeys } from '../../utils/queryKeyFactory';
+import { ValidationMonitor } from '../../utils/validationMonitor';
 
 interface UseMetricTrendsOptions {
   metricType?: string;
@@ -17,7 +20,7 @@ export function useMetricTrends(options: UseMetricTrendsOptions = {}) {
   const { role, hasPermission } = useUserRole();
   const queryClient = useQueryClient();
 
-  const queryKey = ['executive', 'metricTrends', options];
+  const queryKey = executiveAnalyticsKeys.metricTrends(role, options);
 
   const {
     data,
@@ -69,12 +72,57 @@ export function useMetricTrends(options: UseMetricTrendsOptions = {}) {
 
       return trends;
     },
-    enabled: !!role
+    enabled: !!role,
+    staleTime: 3 * 60 * 1000, // 3 minutes - trends change moderately
+    gcTime: 15 * 60 * 1000,   // 15 minutes cache retention
+    refetchOnMount: false,     // Trends don't need immediate refresh
+    refetchOnWindowFocus: false,
+    retry: (failureCount, error) => {
+      if (error.message.includes('Insufficient permissions')) {
+        return false;
+      }
+      return failureCount < 2;
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    throwOnError: false
   });
 
+  // Fallback data for trends
+  const fallbackTrends = React.useMemo(() => ({
+    values: [],
+    averageValue: 0,
+    trend: 'stable',
+    message: 'Trend data temporarily unavailable',
+    isFallback: true
+  }), []);
+
+  // Safe data with fallback
+  const safeData = data || (isError ? fallbackTrends : undefined);
+
+  // Smart invalidation helper
+  const invalidateRelatedTrends = React.useCallback(async (metricTypes: string[] = []) => {
+    const relatedKeys = [
+      executiveAnalyticsKeys.metricTrends(role),
+      executiveAnalyticsKeys.businessMetrics(role),
+    ];
+    
+    // Add predictive analytics if trend includes forecasting
+    if (options.includeForecasts) {
+      relatedKeys.push(executiveAnalyticsKeys.predictiveAnalytics(role));
+    }
+    
+    await Promise.allSettled(
+      relatedKeys.map(queryKey => 
+        queryClient.invalidateQueries({ queryKey })
+      )
+    );
+  }, [queryClient, role, options.includeForecasts]);
+
   return {
-    data,
-    trends: data,
+    data: safeData,
+    trends: safeData,
+    fallbackData: isError ? fallbackTrends : undefined,
+    invalidateRelatedTrends,
     isLoading,
     isSuccess,
     isError,

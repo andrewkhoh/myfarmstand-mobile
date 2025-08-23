@@ -2,9 +2,12 @@
 // Following established React Query patterns
 
 import { useState } from 'react';
+import React from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { StrategicReportingService } from '../../services/executive/strategicReportingService';
 import { useUserRole } from '../role-based/useUserRole';
+import { executiveAnalyticsKeys } from '../../utils/queryKeyFactory';
+import { ValidationMonitor } from '../../utils/validationMonitor';
 
 interface UseReportGenerationOptions {
   reportType?: string;
@@ -52,12 +55,25 @@ export function useReportGeneration(options: UseReportGenerationOptions = {}) {
       setGeneratedReport(report);
       return report;
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       setIsGenerating(false);
-      queryClient.invalidateQueries({ queryKey: ['executive', 'strategicReporting'] });
+      ValidationMonitor.recordPatternSuccess({
+        pattern: 'report_generation_single',
+        context: 'useReportGeneration.generateReportMutation',
+        description: `Successfully generated ${options.reportType || 'operational_efficiency'} report`
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: executiveAnalyticsKeys.strategicReporting(role) 
+      });
     },
-    onError: () => {
+    onError: (error: Error) => {
       setIsGenerating(false);
+      ValidationMonitor.recordValidationError({
+        context: 'useReportGeneration.generateReportMutation',
+        errorCode: 'REPORT_GENERATION_FAILED',
+        validationPattern: 'report_generation_mutation',
+        errorMessage: error.message
+      });
     }
   });
 
@@ -101,6 +117,12 @@ export function useReportGeneration(options: UseReportGenerationOptions = {}) {
     },
     onError: (error: Error) => {
       setConfigurationError(error);
+      ValidationMonitor.recordValidationError({
+        context: 'useReportGeneration.updateConfigurationMutation',
+        errorCode: 'REPORT_CONFIGURATION_UPDATE_FAILED',
+        validationPattern: 'report_generation_mutation',
+        errorMessage: error.message
+      });
     }
   });
 
@@ -110,6 +132,21 @@ export function useReportGeneration(options: UseReportGenerationOptions = {}) {
     reportType: 'basic',
     data: 'Limited data available'
   };
+
+  // Smart invalidation for report generation
+  const invalidateRelatedReports = React.useCallback(async () => {
+    const relatedKeys = [
+      executiveAnalyticsKeys.strategicReporting(role),
+      executiveAnalyticsKeys.reportScheduling(role),
+      executiveAnalyticsKeys.businessMetrics(role)
+    ];
+    
+    await Promise.allSettled(
+      relatedKeys.map(queryKey => 
+        queryClient.invalidateQueries({ queryKey })
+      )
+    );
+  }, [queryClient, role]);
 
   return {
     generateReport: generateReportMutation.mutateAsync,
@@ -121,6 +158,7 @@ export function useReportGeneration(options: UseReportGenerationOptions = {}) {
     isGenerating,
     error: configurationError,
     configurationError,
-    fallbackData: configurationError ? fallbackData : undefined
+    fallbackData: configurationError ? fallbackData : undefined,
+    invalidateRelatedReports
   };
 }

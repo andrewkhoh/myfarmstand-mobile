@@ -4,7 +4,10 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { BusinessIntelligenceService } from '../../services/executive/businessIntelligenceService';
 import { useUserRole } from '../role-based/useUserRole';
+import { executiveAnalyticsKeys } from '../../utils/queryKeyFactory';
+import { ValidationMonitor } from '../../utils/validationMonitor';
 import { useState, useEffect } from 'react';
+import React from 'react';
 
 interface UseAnomalyDetectionOptions {
   category?: string;
@@ -21,7 +24,7 @@ export function useAnomalyDetection(options: UseAnomalyDetectionOptions = {}) {
   const queryClient = useQueryClient();
   const [newAnomalyDetected, setNewAnomalyDetected] = useState(false);
 
-  const queryKey = ['executive', 'anomalyDetection', options];
+  const queryKey = executiveAnalyticsKeys.anomalyDetection(role, options);
 
   const {
     data,
@@ -60,26 +63,81 @@ export function useAnomalyDetection(options: UseAnomalyDetectionOptions = {}) {
       return anomaliesResult;
     },
     enabled: !!role,
-    refetchInterval: options.realTimeMonitoring ? (options.pollingInterval || 5000) : false
+    staleTime: options.realTimeMonitoring ? 30 * 1000 : 2 * 60 * 1000, // 30s for real-time, 2min otherwise
+    gcTime: 10 * 60 * 1000,   // 10 minutes cache retention
+    refetchOnMount: options.realTimeMonitoring,
+    refetchOnWindowFocus: options.realTimeMonitoring,
+    refetchInterval: options.realTimeMonitoring ? (options.pollingInterval || 5000) : false,
+    retry: (failureCount, error) => {
+      if (error.message.includes('Insufficient permissions')) {
+        return false;
+      }
+      return failureCount < 2;
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    throwOnError: false
   });
 
-  // Track new anomalies
+  // Track new anomalies with error handling
   useEffect(() => {
-    if (data?.anomalies && data.anomalies.length > 0) {
-      const hasNewAnomaly = data.anomalies.some((a: any) => a.isNew);
-      setNewAnomalyDetected(hasNewAnomaly);
+    if (safeData?.anomalies && safeData.anomalies.length > 0) {
+      try {
+        const hasNewAnomaly = safeData.anomalies.some((a: any) => a.isNew);
+        setNewAnomalyDetected(hasNewAnomaly);
+        
+        if (hasNewAnomaly && options.alertingEnabled) {
+          ValidationMonitor.recordPatternSuccess({
+            pattern: 'anomaly_detection_new_anomaly',
+            context: 'useAnomalyDetection.newAnomalyTracking',
+            description: `Detected ${safeData.anomalies.filter((a: any) => a.isNew).length} new anomalies`
+          });
+        }
+      } catch (error) {
+        ValidationMonitor.recordValidationError({
+          context: 'useAnomalyDetection.newAnomalyTracking',
+          errorCode: 'ANOMALY_TRACKING_FAILED',
+          validationPattern: 'anomaly_detection_operation',
+          errorMessage: error.message
+        });
+        setNewAnomalyDetected(false);
+      }
     }
-  }, [data?.anomalies]);
+  }, [safeData?.anomalies, options.alertingEnabled]);
 
-  // Check for active alerts
-  const hasActiveAlerts = options.alertingEnabled && 
-    data?.anomalies?.some((a: any) => a.shouldAlert) || false;
+  // Fallback data for anomaly detection
+  const fallbackData = React.useMemo(() => ({
+    anomalies: [],
+    totalAnomalies: 0,
+    message: 'Anomaly detection temporarily unavailable',
+    isFallback: true,
+    alertingStatus: options.alertingEnabled ? 'disabled' : 'not_configured'
+  }), [options.alertingEnabled]);
+
+  // Safe data with error handling
+  const safeData = data || (isError ? fallbackData : undefined);
+
+  // Check for active alerts with error handling
+  const hasActiveAlerts = React.useMemo(() => {
+    if (!options.alertingEnabled || !safeData?.anomalies) return false;
+    try {
+      return safeData.anomalies.some((a: any) => a.shouldAlert);
+    } catch (error) {
+      ValidationMonitor.recordValidationError({
+        context: 'useAnomalyDetection.hasActiveAlerts',
+        errorCode: 'ALERT_CHECK_FAILED',
+        validationPattern: 'anomaly_detection_operation',
+        errorMessage: error.message
+      });
+      return false;
+    }
+  }, [options.alertingEnabled, safeData?.anomalies]);
 
   return {
-    data,
-    anomalies: data?.anomalies,
-    anomalyTrends: data?.anomalyTrends,
-    totalAnomalies: data?.totalAnomalies,
+    data: safeData,
+    anomalies: safeData?.anomalies,
+    anomalyTrends: safeData?.anomalyTrends,
+    totalAnomalies: safeData?.totalAnomalies,
+    fallbackData: isError ? fallbackData : undefined,
     hasActiveAlerts,
     newAnomalyDetected,
     isLoading,

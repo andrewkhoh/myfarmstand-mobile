@@ -2,9 +2,12 @@
 // Following established React Query patterns
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import React from 'react';
 import { BusinessMetricsService } from '../../services/executive/businessMetricsService';
 import { BusinessIntelligenceService } from '../../services/executive/businessIntelligenceService';
 import { useUserRole } from '../role-based/useUserRole';
+import { executiveAnalyticsKeys } from '../../utils/queryKeyFactory';
+import { ValidationMonitor } from '../../utils/validationMonitor';
 
 interface UseCrossRoleAnalyticsOptions {
   roles?: string[];
@@ -17,7 +20,7 @@ export function useCrossRoleAnalytics(options: UseCrossRoleAnalyticsOptions = {}
   const { role, hasPermission } = useUserRole();
   const queryClient = useQueryClient();
 
-  const queryKey = ['executive', 'crossRoleAnalytics', options];
+  const queryKey = executiveAnalyticsKeys.crossRoleAnalytics(undefined, options);
 
   const {
     data,
@@ -71,14 +74,55 @@ export function useCrossRoleAnalytics(options: UseCrossRoleAnalyticsOptions = {}
 
       return result;
     },
-    enabled: !!role
+    enabled: !!role,
+    staleTime: 5 * 60 * 1000, // 5 minutes - cross-role data changes less frequently
+    gcTime: 20 * 60 * 1000,   // 20 minutes - longer retention for complex analytics
+    refetchOnMount: false,     // Don't auto-refetch expensive cross-role queries
+    refetchOnWindowFocus: false,
+    retry: (failureCount, error) => {
+      // Don't retry permission errors
+      if (error.message.includes('Insufficient permissions')) {
+        return false;
+      }
+      return failureCount < 2;
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    throwOnError: false
   });
 
-  // Helper to refresh correlations
-  const refreshCorrelations = async () => {
-    await queryClient.invalidateQueries({ queryKey });
-    return refetch();
-  };
+  // Smart correlation refresh with related data invalidation
+  const refreshCorrelations = React.useCallback(async () => {
+    try {
+      // Invalidate related analytics that depend on cross-role data
+      const relatedKeys = [
+        executiveAnalyticsKeys.crossRoleAnalytics(),
+        executiveAnalyticsKeys.businessInsights(role),
+        executiveAnalyticsKeys.businessMetrics(role)
+      ];
+      
+      await Promise.allSettled(
+        relatedKeys.map(queryKey => 
+          queryClient.invalidateQueries({ queryKey })
+        )
+      );
+      
+      ValidationMonitor.recordPatternSuccess({
+        pattern: 'cross_role_analytics_refresh',
+        context: 'useCrossRoleAnalytics.refreshCorrelations',
+        description: 'Successfully refreshed cross-role correlations and related data'
+      });
+      
+      return await refetch();
+    } catch (error) {
+      ValidationMonitor.recordValidationError({
+        context: 'useCrossRoleAnalytics.refreshCorrelations',
+        errorCode: 'CORRELATION_REFRESH_FAILED',
+        validationPattern: 'cross_role_analytics_operation',
+        errorMessage: error.message
+      });
+      throw error;
+    }
+  }, [queryClient, role, refetch]);
 
   return {
     data,

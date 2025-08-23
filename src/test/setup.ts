@@ -1,5 +1,10 @@
 import '@testing-library/jest-native/extend-expect';
 
+// Load environment variables for test environment
+// This ensures EXPO_PUBLIC_CHANNEL_SECRET and other variables are available
+import * as dotenv from 'dotenv';
+dotenv.config();
+
 // Mock React Native modules
 // jest.mock('react-native/Libraries/Animated/NativeAnimatedHelper'); // Commented out - causing issues
 
@@ -38,58 +43,28 @@ jest.mock('@react-native-community/datetimepicker', () => {
   };
 });
 
-// Mock broadcast factory completely
-jest.mock('../utils/broadcastFactory', () => ({
-  createBroadcastHelper: jest.fn(() => ({
+// Mock broadcast factory completely - must be before any imports that use it
+jest.mock('../utils/broadcastFactory', () => {
+  const mockBroadcastHelper = {
     send: jest.fn(),
     getAuthorizedChannelNames: jest.fn(() => ['test-channel'])
-  })),
-  cartBroadcast: {
-    send: jest.fn(),
-    getAuthorizedChannelNames: jest.fn(() => ['cart-test'])
-  },
-  orderBroadcast: {
-    send: jest.fn(),
-    user: { getAuthorizedChannelNames: jest.fn(() => ['order-user-test']) },
-    admin: { getAuthorizedChannelNames: jest.fn(() => ['order-admin-test']) }
-  },
-  productBroadcast: {
-    send: jest.fn(),
-    getAuthorizedChannelNames: jest.fn(() => ['product-test'])
-  }
-}));
+  };
+  
+  return {
+    createBroadcastHelper: jest.fn(() => mockBroadcastHelper),
+    cartBroadcast: mockBroadcastHelper,
+    orderBroadcast: {
+      send: jest.fn(),
+      user: mockBroadcastHelper,
+      admin: mockBroadcastHelper
+    },
+    productBroadcast: mockBroadcastHelper,
+    paymentBroadcast: mockBroadcastHelper
+  };
+});
 
-// Mock React Query with proper mock objects
-jest.mock('@tanstack/react-query', () => ({
-  useQuery: jest.fn(() => ({
-    data: undefined,
-    isLoading: false,
-    error: null,
-    refetch: jest.fn(),
-  })),
-  useMutation: jest.fn(() => ({
-    mutate: jest.fn(),
-    mutateAsync: jest.fn(),
-    isPending: false,
-    isLoading: false,
-    error: null,
-    data: undefined,
-    reset: jest.fn(),
-  })),
-  useQueryClient: jest.fn(() => ({
-    invalidateQueries: jest.fn(),
-    setQueryData: jest.fn(),
-    getQueryData: jest.fn(),
-    clear: jest.fn(),
-  })),
-  QueryClient: jest.fn(() => ({
-    invalidateQueries: jest.fn(),
-    setQueryData: jest.fn(),
-    getQueryData: jest.fn(),
-    clear: jest.fn(),
-  })),
-  QueryClientProvider: (props: any) => props.children,
-}));
+// React Query is now enabled - no mocking needed for real execution
+// Individual tests can mock services as needed
 
 // Mock React Native components
 jest.mock('react-native', () => ({

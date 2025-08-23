@@ -2,9 +2,12 @@
 // Following established React Query patterns
 
 import { useState } from 'react';
+import React from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { PredictiveAnalyticsService } from '../../services/executive/predictiveAnalyticsService';
 import { useUserRole } from '../role-based/useUserRole';
+import { executiveAnalyticsKeys } from '../../utils/queryKeyFactory';
+import { ValidationMonitor } from '../../utils/validationMonitor';
 
 interface UseForecastGenerationOptions {
   scenarioAnalysis?: boolean;
@@ -48,8 +51,23 @@ export function useForecastGeneration(options: UseForecastGenerationOptions = {}
       setScenarios(scenarioData);
       return scenarioData;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['executive', 'predictiveAnalytics'] });
+    onSuccess: (result) => {
+      ValidationMonitor.recordPatternSuccess({
+        pattern: 'forecast_generation_scenarios',
+        context: 'useForecastGeneration.generateScenariosMutation',
+        description: `Successfully generated ${options.forecastType || 'revenue'} scenarios`
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: executiveAnalyticsKeys.predictiveAnalytics(role) 
+      });
+    },
+    onError: (error: Error) => {
+      ValidationMonitor.recordValidationError({
+        context: 'useForecastGeneration.generateScenariosMutation',
+        errorCode: 'FORECAST_SCENARIOS_GENERATION_FAILED',
+        validationPattern: 'forecast_generation_mutation',
+        errorMessage: error.message
+      });
     }
   });
 
@@ -93,6 +111,12 @@ export function useForecastGeneration(options: UseForecastGenerationOptions = {}
     },
     onError: (err: Error) => {
       setError(err);
+      ValidationMonitor.recordValidationError({
+        context: 'useForecastGeneration.generateForecastMutation',
+        errorCode: 'FORECAST_GENERATION_FAILED',
+        validationPattern: 'forecast_generation_mutation',
+        errorMessage: err.message
+      });
     }
   });
 
@@ -103,6 +127,33 @@ export function useForecastGeneration(options: UseForecastGenerationOptions = {}
     isFallback: true
   } : undefined;
 
+  // Smart invalidation for forecast operations
+  const invalidateForecastData = React.useCallback(async () => {
+    const relatedKeys = [
+      executiveAnalyticsKeys.predictiveAnalytics(role),
+      executiveAnalyticsKeys.businessInsights(role),
+      executiveAnalyticsKeys.metricTrends(role)
+    ];
+    
+    await Promise.allSettled(
+      relatedKeys.map(queryKey => 
+        queryClient.invalidateQueries({ queryKey })
+      )
+    );
+  }, [queryClient, role]);
+
+  // Enhanced fallback with error recovery
+  const enhancedFallbackData = React.useMemo(() => ({
+    ...fallbackData,
+    scenarios: null,
+    enhancedForecast: null,
+    canRetry: !error?.message.includes('validation'),
+    errorRecovery: {
+      suggestedAction: 'Try generating a simpler forecast type',
+      alternativeData: 'Historical averages available'
+    }
+  }), [fallbackData, error]);
+
   return {
     generateScenarios: generateScenariosMutation.mutateAsync,
     generateWithFactors: generateWithFactorsMutation.mutateAsync,
@@ -110,6 +161,7 @@ export function useForecastGeneration(options: UseForecastGenerationOptions = {}
     scenarios,
     enhancedForecast,
     error,
-    fallbackData
+    fallbackData: error ? enhancedFallbackData : fallbackData,
+    invalidateForecastData
   };
 }

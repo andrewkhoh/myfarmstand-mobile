@@ -1,5 +1,4 @@
-// Strategic Reporting Hook - Following useCart patterns exactly
-// Replaced complex implementation with proven working pattern
+// Simplified Strategic Reporting Hook - Following useCart patterns exactly
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useUserRole } from '../role-based/useUserRole';
@@ -27,7 +26,7 @@ const createStrategicReportingError = (
   userMessage,
 });
 
-export const useStrategicReporting = (options: UseStrategicReportingOptions = {}) => {
+export const useSimpleStrategicReporting = (options: UseStrategicReportingOptions = {}) => {
   const queryClient = useQueryClient();
   const { role, hasPermission } = useUserRole();
   

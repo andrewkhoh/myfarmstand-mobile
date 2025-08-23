@@ -1,41 +1,40 @@
-// Strategic Reporting Hook - Following useCart patterns exactly
-// Replaced complex implementation with proven working pattern
+// Simplified Predictive Analytics Hook - Following useCart patterns exactly
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useUserRole } from '../role-based/useUserRole';
 import { executiveAnalyticsKeys } from '../../utils/queryKeyFactory';
 import { 
-  SimpleStrategicReportingService, 
-  type StrategicReportData,
-  type UseStrategicReportingOptions 
-} from '../../services/executive/simpleStrategicReportingService';
+  SimplePredictiveAnalyticsService, 
+  type PredictiveForecastData,
+  type UsePredictiveAnalyticsOptions 
+} from '../../services/executive/simplePredictiveAnalyticsService';
 
 // Simple error interface
-interface StrategicReportingError {
+interface PredictiveAnalyticsError {
   code: 'AUTHENTICATION_REQUIRED' | 'PERMISSION_DENIED' | 'NETWORK_ERROR' | 'UNKNOWN_ERROR';
   message: string;
   userMessage: string;
 }
 
-const createStrategicReportingError = (
-  code: StrategicReportingError['code'],
+const createPredictiveAnalyticsError = (
+  code: PredictiveAnalyticsError['code'],
   message: string,
   userMessage: string,
-): StrategicReportingError => ({
+): PredictiveAnalyticsError => ({
   code,
   message,
   userMessage,
 });
 
-export const useStrategicReporting = (options: UseStrategicReportingOptions = {}) => {
+export const useSimplePredictiveAnalytics = (options: UsePredictiveAnalyticsOptions = {}) => {
   const queryClient = useQueryClient();
   const { role, hasPermission } = useUserRole();
   
-  const queryKey = executiveAnalyticsKeys.strategicReporting();
+  const queryKey = executiveAnalyticsKeys.predictiveAnalytics();
 
   // Simple query following useCart pattern exactly
   const {
-    data: reportsData,
+    data: forecastData,
     isLoading,
     error: queryError,
     refetch,
@@ -43,9 +42,9 @@ export const useStrategicReporting = (options: UseStrategicReportingOptions = {}
     isError
   } = useQuery({
     queryKey,
-    queryFn: () => SimpleStrategicReportingService.getReports(options),
-    staleTime: 15 * 60 * 1000, // 15 minutes - strategic reports are less frequent
-    gcTime: 60 * 60 * 1000, // 1 hour - longer retention for strategic data
+    queryFn: () => SimplePredictiveAnalyticsService.getForecast(options),
+    staleTime: 10 * 60 * 1000, // 10 minutes - forecasts are computationally expensive
+    gcTime: 30 * 60 * 1000, // 30 minutes - long retention
     refetchOnMount: true,
     refetchOnWindowFocus: false,
     refetchOnReconnect: true,
@@ -61,23 +60,22 @@ export const useStrategicReporting = (options: UseStrategicReportingOptions = {}
   });
 
   // Enhanced error processing
-  const error = queryError ? createStrategicReportingError(
+  const error = queryError ? createPredictiveAnalyticsError(
     'NETWORK_ERROR',
-    queryError.message || 'Failed to load strategic reports',
-    'Unable to load strategic reports. Please try again.',
+    queryError.message || 'Failed to load predictive analytics',
+    'Unable to load predictive analytics. Please try again.',
   ) : null;
 
   // Authentication guard - following useCart pattern exactly
   if (!role || role !== 'executive') {
-    const authError = createStrategicReportingError(
+    const authError = createPredictiveAnalyticsError(
       'PERMISSION_DENIED',
       'User lacks executive permissions',
-      'You need executive permissions to view strategic reports',
+      'You need executive permissions to view predictive analytics',
     );
     
     return {
-      reports: [],
-      summary: undefined,
+      forecastData: undefined,
       isLoading: false,
       isSuccess: false,
       isError: true,
@@ -88,8 +86,7 @@ export const useStrategicReporting = (options: UseStrategicReportingOptions = {}
   }
 
   return {
-    reports: reportsData?.reports || [],
-    summary: reportsData?.summary,
+    forecastData,
     isLoading,
     isSuccess,
     isError,
