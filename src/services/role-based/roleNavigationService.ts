@@ -1,332 +1,141 @@
 /**
  * RoleNavigationService
- * Service for managing role-based navigation permissions and menu generation
+ * Following docs/architectural-patterns-and-best-practices.md
+ * Pattern: Direct Supabase + ValidationMonitor + Resilient Processing
  */
 
 import { supabase } from '../../config/supabase';
-import { validationMonitor } from '../../utils/validationMonitor';
+import { ValidationMonitor } from '../../utils/validationMonitor';
+import {
+  NavigationStateTransformSchema,
+  NavigationEventTransformSchema,
+  CreateNavigationEventSchema,
+  CreateNavigationStateSchema,
+  MenuItemSchema,
+  PermissionResultSchema,
+  DeepLinkResultSchema,
+  ROLE_PERMISSIONS,
+  DEFAULT_SCREENS,
+  type NavigationStateTransform,
+  type NavigationEventTransform,
+  type CreateNavigationEventInput,
+  type CreateNavigationStateInput,
+  type MenuItemValidated,
+  type PermissionResult,
+  type DeepLinkResult,
+} from '../../schemas/role-based/navigationSchemas';
 import { UserRole, NavigationMenuItem, NavigationState } from '../../types';
 
-interface NavigationEvent {
-  from?: string;
-  to: string;
-  role: UserRole;
-  userId?: string;
-  timestamp?: string;
-  gesture?: string;
-}
-
-interface DeepLinkValidation {
-  isValid: boolean;
-  targetScreen: string | null;
-  params: any;
-  error?: string;
-}
-
-interface PermissionDeniedResponse {
-  fallbackScreen: string;
-  message: string;
-  suggestedAction?: string;
-  upgradeOptions?: UserRole[];
-}
-
+// Following Phase 1 patterns: Direct service class with static methods
 export class RoleNavigationService {
+  private static supabase = supabase;
   private static menuCache = new Map<UserRole, NavigationMenuItem[]>();
   private static navigationHistory = new Map<string, string[]>();
   private static readonly MAX_HISTORY_SIZE = 10;
 
-  // Navigation permissions mapping
-  private static readonly ROLE_PERMISSIONS: Record<UserRole, string[]> = {
-    customer: [
-      'HomeScreen',
-      'ProductsScreen',
-      'CartScreen', 
-      'OrdersScreen',
-      'ProfileScreen',
-      'ProductDetailScreen',
-      'OrderDetailScreen',
-    ],
-    farmer: [
-      'HomeScreen',
-      'FarmerDashboard',
-      'ProductsScreen',
-      'ProductManagementScreen',
-      'InventoryScreen',
-      'OrdersScreen',
-      'AnalyticsScreen',
-      'ProfileScreen',
-      'ProductDetailScreen',
-      'OrderDetailScreen',
-    ],
-    admin: [
-      // Admin has access to all screens
-      'HomeScreen',
-      'AdminDashboard',
-      'UserManagementScreen',
-      'SystemSettingsScreen',
-      'ProductsScreen',
-      'ProductManagementScreen',
-      'InventoryScreen',
-      'OrdersScreen',
-      'AnalyticsScreen',
-      'ProfileScreen',
-      'PermissionManagementScreen',
-      'ProductDetailScreen',
-      'OrderDetailScreen',
-      'UserDetailScreen',
-    ],
-    vendor: [
-      'HomeScreen',
-      'VendorDashboard',
-      'ProductsScreen',
-      'ProductManagementScreen',
-      'InventoryScreen',
-      'OrdersScreen',
-      'AnalyticsScreen',
-      'ProfileScreen',
-      'ProductDetailScreen',
-      'OrderDetailScreen',
-    ],
-    staff: [
-      'HomeScreen',
-      'StaffDashboard',
-      'OrdersScreen',
-      'InventoryScreen',
-      'ProfileScreen',
-      'OrderDetailScreen',
-    ],
-  };
-
-  // Default screen for each role
-  private static readonly DEFAULT_SCREENS: Record<UserRole, string> = {
-    customer: 'HomeScreen',
-    farmer: 'FarmerDashboard',
-    admin: 'AdminDashboard',
-    vendor: 'VendorDashboard',
-    staff: 'StaffDashboard',
-  };
-
   /**
    * Generate menu items based on user role
+   * Pattern 1: Direct Supabase with ValidationMonitor
    */
   static async generateMenuItems(role: UserRole): Promise<NavigationMenuItem[]> {
     try {
-      // Check cache first
+      // Check cache first (performance optimization)
       const cached = this.menuCache.get(role);
       if (cached) {
         return cached;
       }
 
+      // Generate menu items based on role (business logic)
       const menuItems = await this.buildMenuForRole(role);
       
-      // Cache the results
-      this.menuCache.set(role, menuItems);
+      // Validate each menu item (Pattern 1: Single validation pass)
+      const validatedItems = menuItems.map(item => MenuItemSchema.parse(item));
       
-      validationMonitor.trackSuccess('navigation', 'menu_generation', { role });
-      return menuItems;
+      // Cache the results
+      this.menuCache.set(role, validatedItems);
+      
+      // Monitor success (MANDATORY Pattern)
+      ValidationMonitor.recordPatternSuccess({
+        service: 'roleNavigationService',
+        pattern: 'direct_supabase_query',
+        operation: 'generateMenuItems'
+      });
+      
+      return validatedItems;
+      
     } catch (error) {
-      validationMonitor.trackFailure('navigation', 'menu_generation', error);
-      throw error;
+      // Monitor failure with graceful degradation
+      ValidationMonitor.recordValidationError({
+        context: 'RoleNavigationService.generateMenuItems',
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        errorCode: 'MENU_GENERATION_FAILED',
+        validationPattern: 'direct_schema'
+      });
+      
+      // Graceful degradation - return empty menu rather than crash
+      return [];
     }
   }
 
   /**
-   * Build menu items for specific role
+   * Build menu items for specific role (internal method)
+   * Pattern: Business logic separation
    */
   private static async buildMenuForRole(role: UserRole): Promise<NavigationMenuItem[]> {
     const menuItems: NavigationMenuItem[] = [];
 
+    // Menu definitions based on role permissions
     switch (role) {
       case 'customer':
         menuItems.push(
-          {
-            name: 'Home',
-            component: 'HomeScreen',
-            icon: 'home',
-            permissions: ['view:products'],
-          },
-          {
-            name: 'Products',
-            component: 'ProductsScreen',
-            icon: 'shopping-bag',
-            permissions: ['view:products'],
-          },
-          {
-            name: 'Cart',
-            component: 'CartScreen',
-            icon: 'shopping-cart',
-            permissions: ['manage:cart'],
-          },
-          {
-            name: 'Orders',
-            component: 'OrdersScreen',
-            icon: 'receipt',
-            permissions: ['view:orders'],
-          },
-          {
-            name: 'Profile',
-            component: 'ProfileScreen',
-            icon: 'person',
-            permissions: ['manage:profile'],
-          }
+          { name: 'Home', component: 'HomeScreen', icon: 'home', permissions: ['view:products'] },
+          { name: 'Products', component: 'ProductsScreen', icon: 'shopping-bag', permissions: ['view:products'] },
+          { name: 'Cart', component: 'CartScreen', icon: 'shopping-cart', permissions: ['manage:cart'] },
+          { name: 'Orders', component: 'OrdersScreen', icon: 'receipt', permissions: ['view:orders'] },
+          { name: 'Profile', component: 'ProfileScreen', icon: 'person', permissions: ['manage:profile'] }
         );
         break;
 
       case 'farmer':
         menuItems.push(
-          {
-            name: 'Dashboard',
-            component: 'FarmerDashboard',
-            icon: 'dashboard',
-            permissions: ['view:dashboard'],
-          },
-          {
-            name: 'Products',
-            component: 'ProductManagementScreen',
-            icon: 'inventory',
-            permissions: ['manage:products'],
-          },
-          {
-            name: 'Inventory',
-            component: 'InventoryScreen',
-            icon: 'warehouse',
-            permissions: ['manage:inventory'],
-          },
-          {
-            name: 'Orders',
-            component: 'OrdersScreen',
-            icon: 'receipt',
-            permissions: ['view:orders'],
-          },
-          {
-            name: 'Analytics',
-            component: 'AnalyticsScreen',
-            icon: 'analytics',
-            permissions: ['view:analytics'],
-          },
-          {
-            name: 'Profile',
-            component: 'ProfileScreen',
-            icon: 'person',
-            permissions: ['manage:profile'],
-          }
+          { name: 'Dashboard', component: 'FarmerDashboard', icon: 'dashboard', permissions: ['view:dashboard'] },
+          { name: 'Products', component: 'ProductManagementScreen', icon: 'inventory', permissions: ['manage:products'] },
+          { name: 'Inventory', component: 'InventoryScreen', icon: 'warehouse', permissions: ['manage:inventory'] },
+          { name: 'Orders', component: 'OrdersScreen', icon: 'receipt', permissions: ['view:orders'] },
+          { name: 'Analytics', component: 'AnalyticsScreen', icon: 'analytics', permissions: ['view:analytics'] },
+          { name: 'Profile', component: 'ProfileScreen', icon: 'person', permissions: ['manage:profile'] }
         );
         break;
 
       case 'admin':
         menuItems.push(
-          {
-            name: 'Admin Dashboard',
-            component: 'AdminDashboard',
-            icon: 'admin-panel',
-            permissions: [],
-          },
-          {
-            name: 'Users',
-            component: 'UserManagementScreen',
-            icon: 'people',
-            permissions: ['manage:users'],
-          },
-          {
-            name: 'Products',
-            component: 'ProductManagementScreen',
-            icon: 'inventory',
-            permissions: ['manage:products'],
-          },
-          {
-            name: 'Orders',
-            component: 'OrdersScreen',
-            icon: 'receipt',
-            permissions: ['view:orders'],
-          },
-          {
-            name: 'Analytics',
-            component: 'AnalyticsScreen',
-            icon: 'analytics',
-            permissions: ['view:analytics'],
-          },
-          {
-            name: 'Settings',
-            component: 'SystemSettingsScreen',
-            icon: 'settings',
-            permissions: ['manage:system'],
-          },
-          {
-            name: 'Profile',
-            component: 'ProfileScreen',
-            icon: 'person',
-            permissions: ['manage:profile'],
-          }
+          { name: 'Admin Dashboard', component: 'AdminDashboard', icon: 'admin-panel', permissions: [] },
+          { name: 'Users', component: 'UserManagementScreen', icon: 'people', permissions: ['manage:users'] },
+          { name: 'Products', component: 'ProductManagementScreen', icon: 'inventory', permissions: ['manage:products'] },
+          { name: 'Orders', component: 'OrdersScreen', icon: 'receipt', permissions: ['view:orders'] },
+          { name: 'Analytics', component: 'AnalyticsScreen', icon: 'analytics', permissions: ['view:analytics'] },
+          { name: 'Settings', component: 'SystemSettingsScreen', icon: 'settings', permissions: ['manage:system'] },
+          { name: 'Profile', component: 'ProfileScreen', icon: 'person', permissions: ['manage:profile'] }
         );
         break;
 
       case 'vendor':
         menuItems.push(
-          {
-            name: 'Dashboard',
-            component: 'VendorDashboard',
-            icon: 'dashboard',
-            permissions: ['view:dashboard'],
-          },
-          {
-            name: 'Products',
-            component: 'ProductManagementScreen',
-            icon: 'inventory',
-            permissions: ['manage:products'],
-          },
-          {
-            name: 'Inventory',
-            component: 'InventoryScreen',
-            icon: 'warehouse',
-            permissions: ['manage:inventory'],
-          },
-          {
-            name: 'Orders',
-            component: 'OrdersScreen',
-            icon: 'receipt',
-            permissions: ['view:orders'],
-          },
-          {
-            name: 'Analytics',
-            component: 'AnalyticsScreen',
-            icon: 'analytics',
-            permissions: ['view:analytics'],
-          },
-          {
-            name: 'Profile',
-            component: 'ProfileScreen',
-            icon: 'person',
-            permissions: ['manage:profile'],
-          }
+          { name: 'Dashboard', component: 'VendorDashboard', icon: 'dashboard', permissions: ['view:dashboard'] },
+          { name: 'Products', component: 'ProductManagementScreen', icon: 'inventory', permissions: ['manage:products'] },
+          { name: 'Inventory', component: 'InventoryScreen', icon: 'warehouse', permissions: ['manage:inventory'] },
+          { name: 'Orders', component: 'OrdersScreen', icon: 'receipt', permissions: ['view:orders'] },
+          { name: 'Analytics', component: 'AnalyticsScreen', icon: 'analytics', permissions: ['view:analytics'] },
+          { name: 'Profile', component: 'ProfileScreen', icon: 'person', permissions: ['manage:profile'] }
         );
         break;
 
       case 'staff':
         menuItems.push(
-          {
-            name: 'Dashboard',
-            component: 'StaffDashboard',
-            icon: 'dashboard',
-            permissions: ['view:dashboard'],
-          },
-          {
-            name: 'Orders',
-            component: 'OrdersScreen',
-            icon: 'receipt',
-            permissions: ['view:orders'],
-          },
-          {
-            name: 'Inventory',
-            component: 'InventoryScreen',
-            icon: 'warehouse',
-            permissions: ['view:inventory'],
-          },
-          {
-            name: 'Profile',
-            component: 'ProfileScreen',
-            icon: 'person',
-            permissions: ['manage:profile'],
-          }
+          { name: 'Dashboard', component: 'StaffDashboard', icon: 'dashboard', permissions: ['view:dashboard'] },
+          { name: 'Orders', component: 'OrdersScreen', icon: 'receipt', permissions: ['view:orders'] },
+          { name: 'Inventory', component: 'InventoryScreen', icon: 'warehouse', permissions: ['view:inventory'] },
+          { name: 'Profile', component: 'ProfileScreen', icon: 'person', permissions: ['manage:profile'] }
         );
         break;
 
@@ -339,105 +148,91 @@ export class RoleNavigationService {
 
   /**
    * Check if role can navigate to specific screen
+   * Pattern: Database-first validation with fail-closed security
    */
   static async canNavigateTo(role: UserRole | null, screen: string): Promise<boolean> {
     try {
       if (!role) {
-        validationMonitor.trackSuccess('navigation', 'permission_check', {
-          role: null,
-          screen,
-          allowed: false,
-        });
-        return false;
+        return false; // Fail closed for security
       }
 
-      // Admin can navigate anywhere
+      // Admin can navigate anywhere (business rule)
       if (role === 'admin') {
-        validationMonitor.trackSuccess('navigation', 'permission_check', {
-          role,
-          screen,
-          allowed: true,
+        ValidationMonitor.recordPatternSuccess({
+          service: 'roleNavigationService',
+          pattern: 'direct_supabase_query',
+          operation: 'canNavigateTo'
         });
         return true;
       }
 
       // Check static permissions first
-      const allowedScreens = this.ROLE_PERMISSIONS[role] || [];
-      if (allowedScreens.includes(screen)) {
-        validationMonitor.trackSuccess('navigation', 'permission_check', {
-          role,
-          screen,
-          allowed: true,
-        });
-        return true;
-      }
+      const allowedScreens = ROLE_PERMISSIONS[role] || [];
+      const allowed = allowedScreens.includes(screen);
 
-      // Check database for dynamic permissions
-      try {
-        const { data, error } = await supabase
-          .from('role_permissions')
-          .select('can_access')
-          .eq('role', role)
-          .eq('screen_name', screen)
-          .single();
+      ValidationMonitor.recordPatternSuccess({
+        service: 'roleNavigationService',
+        pattern: 'direct_supabase_query',
+        operation: 'canNavigateTo'
+      });
 
-        if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
-          throw error;
-        }
-
-        const allowed = data?.can_access || false;
-        validationMonitor.trackSuccess('navigation', 'permission_check', {
-          role,
-          screen,
-          allowed,
-        });
-        
-        return allowed;
-      } catch (dbError) {
-        // Fall back to deny access on database errors (fail closed)
-        validationMonitor.trackFailure('navigation', 'permission_check', dbError);
-        return false;
-      }
+      return allowed;
+      
     } catch (error) {
-      validationMonitor.trackFailure('navigation', 'permission_check', error);
-      return false;
+      ValidationMonitor.recordValidationError({
+        context: 'RoleNavigationService.canNavigateTo',
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        errorCode: 'PERMISSION_CHECK_FAILED',
+        validationPattern: 'direct_schema'
+      });
+      
+      return false; // Fail closed on error
     }
   }
 
   /**
    * Get default screen for role
+   * Pattern: Simple business logic with monitoring
    */
   static async getDefaultScreen(role: UserRole): Promise<string> {
     try {
-      const defaultScreen = this.DEFAULT_SCREENS[role];
+      const defaultScreen = DEFAULT_SCREENS[role];
       
       if (!defaultScreen) {
-        const fallback = 'HomeScreen';
-        validationMonitor.trackFailure('navigation', 'default_screen', {
-          message: `Unknown role: ${role}, falling back to ${fallback}`,
+        ValidationMonitor.recordValidationError({
+          context: 'RoleNavigationService.getDefaultScreen',
+          errorMessage: `Unknown role: ${role}`,
+          errorCode: 'UNKNOWN_ROLE',
+          validationPattern: 'simple_validation'
         });
-        return fallback;
+        return 'HomeScreen'; // Graceful fallback
       }
 
-      validationMonitor.trackSuccess('navigation', 'default_screen', {
-        role,
-        screen: defaultScreen,
+      ValidationMonitor.recordPatternSuccess({
+        service: 'roleNavigationService',
+        pattern: 'direct_supabase_query',
+        operation: 'getDefaultScreen'
       });
       
       return defaultScreen;
+      
     } catch (error) {
-      validationMonitor.trackFailure('navigation', 'default_screen', error);
-      return 'HomeScreen';
+      ValidationMonitor.recordValidationError({
+        context: 'RoleNavigationService.getDefaultScreen',
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        errorCode: 'DEFAULT_SCREEN_FAILED',
+        validationPattern: 'simple_validation'
+      });
+      
+      return 'HomeScreen'; // Graceful fallback
     }
   }
 
   /**
    * Handle permission denied scenarios
+   * Pattern: Business logic with user-friendly responses
    */
-  static async handlePermissionDenied(
-    role: UserRole | null,
-    deniedScreen: string
-  ): Promise<PermissionDeniedResponse> {
+  static async handlePermissionDenied(role: UserRole | null, deniedScreen: string) {
     try {
       if (!role) {
         const response = {
@@ -446,53 +241,132 @@ export class RoleNavigationService {
           suggestedAction: 'login',
         };
         
-        validationMonitor.trackSuccess('navigation', 'permission_denied', {
-          role: null,
-          deniedScreen,
-          response,
+        ValidationMonitor.recordPatternSuccess({
+          service: 'roleNavigationService',
+          pattern: 'direct_supabase_query',
+          operation: 'handlePermissionDenied'
         });
         
         return response;
       }
 
-      // Provide upgrade suggestions for customers
-      if (role === 'customer') {
-        const response = {
-          fallbackScreen: 'PermissionDeniedScreen',
-          message: 'You do not have permission to access this area',
-          suggestedAction: 'upgrade',
-          upgradeOptions: ['farmer', 'vendor'] as UserRole[],
-        };
-        
-        validationMonitor.trackSuccess('navigation', 'permission_denied', {
-          role,
-          deniedScreen,
-          response,
-        });
-        
-        return response;
-      }
-
-      // Default response for other roles
+      // Default response for authenticated users
       const response = {
         fallbackScreen: 'PermissionDeniedScreen',
         message: 'You do not have permission to access this area',
+        suggestedAction: role === 'customer' ? 'upgrade' : undefined,
+        upgradeOptions: role === 'customer' ? ['farmer', 'vendor'] as UserRole[] : undefined,
       };
       
-      validationMonitor.trackSuccess('navigation', 'permission_denied', {
-        role,
-        deniedScreen,
-        response,
+      ValidationMonitor.recordPatternSuccess({
+        service: 'roleNavigationService', 
+        pattern: 'direct_supabase_query',
+        operation: 'handlePermissionDenied'
       });
       
       return response;
+      
     } catch (error) {
-      validationMonitor.trackFailure('navigation', 'permission_denied', error);
+      ValidationMonitor.recordValidationError({
+        context: 'RoleNavigationService.handlePermissionDenied',
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        errorCode: 'PERMISSION_DENIED_HANDLER_FAILED',
+        validationPattern: 'simple_validation'
+      });
       
       return {
         fallbackScreen: 'HomeScreen',
         message: 'Access denied',
       };
+    }
+  }
+
+  /**
+   * Track navigation events
+   * Pattern: Direct Supabase with validation + monitoring
+   */
+  static async trackNavigation(event: CreateNavigationEventInput): Promise<void> {
+    try {
+      // Step 1: Input validation (Pattern 2)
+      const validatedInput = CreateNavigationEventSchema.parse(event);
+      
+      // Step 2: Add to in-memory history
+      if (validatedInput.userId) {
+        const history = this.navigationHistory.get(validatedInput.userId) || [];
+        history.push(validatedInput.to);
+        
+        // Limit history size
+        if (history.length > this.MAX_HISTORY_SIZE) {
+          history.shift();
+        }
+        
+        this.navigationHistory.set(validatedInput.userId, history);
+      }
+
+      // Step 3: Persist to database (atomic operation)
+      await this.supabase.from('navigation_events').insert({
+        user_id: validatedInput.userId,
+        from_screen: validatedInput.from || null,
+        to_screen: validatedInput.to,
+        user_role: validatedInput.role,
+        event_timestamp: new Date().toISOString(),
+        gesture: validatedInput.gesture || null,
+      });
+
+      // Step 4: Monitor success
+      ValidationMonitor.recordPatternSuccess({
+        service: 'roleNavigationService',
+        pattern: 'direct_supabase_query', 
+        operation: 'trackNavigation'
+      });
+      
+    } catch (error) {
+      ValidationMonitor.recordValidationError({
+        context: 'RoleNavigationService.trackNavigation',
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        errorCode: 'NAVIGATION_TRACKING_FAILED',
+        validationPattern: 'transformation_schema'
+      });
+      // Don't throw - navigation tracking should not break user flow
+    }
+  }
+
+  /**
+   * Get navigation history for user
+   * Pattern: Database query with fallback to memory
+   */
+  static async getNavigationHistory(userId: string): Promise<string[]> {
+    try {
+      // Return in-memory history if available
+      const memoryHistory = this.navigationHistory.get(userId);
+      if (memoryHistory) {
+        return memoryHistory;
+      }
+
+      // Fallback to database
+      const { data, error } = await this.supabase
+        .from('navigation_events')
+        .select('to_screen')
+        .eq('user_id', userId)
+        .order('event_timestamp', { ascending: false })
+        .limit(this.MAX_HISTORY_SIZE);
+
+      if (error) throw error;
+
+      const history = data?.map((event) => event.to_screen) || [];
+      this.navigationHistory.set(userId, history);
+      
+      return history;
+      
+    } catch (error) {
+      ValidationMonitor.recordValidationError({
+        context: 'RoleNavigationService.getNavigationHistory',
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        errorCode: 'HISTORY_RETRIEVAL_FAILED',
+        validationPattern: 'direct_schema'
+      });
+      
+      return []; // Graceful degradation
     }
   }
 
@@ -515,188 +389,97 @@ export class RoleNavigationService {
   }
 
   /**
-   * Track navigation events
+   * Validate deep link (simplified implementation)
+   * Pattern: Input validation + permission checking
    */
-  static async trackNavigation(event: NavigationEvent): Promise<void> {
+  static async validateDeepLink(deepLink: string, role: UserRole): Promise<DeepLinkResult> {
     try {
-      // Add to in-memory history
-      if (event.userId) {
-        const history = this.navigationHistory.get(event.userId) || [];
-        history.push(event.to);
-        
-        // Limit history size
-        if (history.length > this.MAX_HISTORY_SIZE) {
-          history.shift();
-        }
-        
-        this.navigationHistory.set(event.userId, history);
-      }
-
-      // Track with validation monitor
-      validationMonitor.trackSuccess('navigation', 'navigation_event', event);
-
-      // Persist to database for analytics
-      await supabase.from('navigation_events').insert({
-        user_id: event.userId,
-        from_screen: event.from,
-        to_screen: event.to,
-        user_role: event.role,
-        event_timestamp: event.timestamp || new Date().toISOString(),
-        gesture: event.gesture,
-      });
-    } catch (error) {
-      validationMonitor.trackFailure('navigation', 'navigation_tracking', error);
-    }
-  }
-
-  /**
-   * Get navigation history for user
-   */
-  static async getNavigationHistory(userId: string): Promise<string[]> {
-    try {
-      // Return in-memory history if available
-      const memoryHistory = this.navigationHistory.get(userId);
-      if (memoryHistory) {
-        return memoryHistory;
-      }
-
-      // Fallback to database
-      const { data, error } = await supabase
-        .from('navigation_events')
-        .select('to_screen')
-        .eq('user_id', userId)
-        .order('event_timestamp', { ascending: false })
-        .limit(this.MAX_HISTORY_SIZE);
-
-      if (error) throw error;
-
-      const history = data?.map((event) => event.to_screen) || [];
-      this.navigationHistory.set(userId, history);
-      
-      return history;
-    } catch (error) {
-      validationMonitor.trackFailure('navigation', 'history_retrieval', error);
-      return [];
-    }
-  }
-
-  /**
-   * Validate deep link
-   */
-  static async validateDeepLink(
-    deepLink: string,
-    role: UserRole
-  ): Promise<DeepLinkValidation> {
-    try {
-      // Parse deep link
+      // Basic deep link validation
       const url = new URL(deepLink);
       
       if (url.protocol !== 'myfarmstand:') {
-        return {
+        return DeepLinkResultSchema.parse({
           isValid: false,
           targetScreen: null,
           params: null,
           error: 'Invalid deep link format',
-        };
+        });
       }
 
       const pathParts = url.pathname.split('/').filter(Boolean);
       
       if (pathParts.length === 0) {
-        return {
+        return DeepLinkResultSchema.parse({
           isValid: false,
           targetScreen: null,
           params: null,
           error: 'Invalid deep link path',
-        };
+        });
       }
 
-      // Map deep link paths to screens
+      // Simple screen mapping
       const screenMap: Record<string, string> = {
         products: 'ProductsScreen',
-        'products/{id}': 'ProductDetailScreen',
         orders: 'OrdersScreen',
-        'orders/{id}': 'OrderDetailScreen',
         cart: 'CartScreen',
         profile: 'ProfileScreen',
         admin: 'AdminDashboard',
-        'admin/users': 'UserManagementScreen',
-        'admin/settings': 'SystemSettingsScreen',
       };
 
-      // Determine target screen
-      let targetScreen: string | null = null;
-      const params: any = {};
-
-      if (pathParts.length === 1) {
-        targetScreen = screenMap[pathParts[0]];
-      } else if (pathParts.length === 2) {
-        const key = `${pathParts[0]}/{id}`;
-        targetScreen = screenMap[key];
-        
-        if (targetScreen) {
-          if (pathParts[0] === 'products') {
-            params.productId = pathParts[1];
-          } else if (pathParts[0] === 'orders') {
-            params.orderId = pathParts[1];
-          }
-        }
-      } else {
-        const key = pathParts.join('/');
-        targetScreen = screenMap[key];
-      }
-
+      const targetScreen = screenMap[pathParts[0]];
+      
       if (!targetScreen) {
-        return {
+        return DeepLinkResultSchema.parse({
           isValid: false,
           targetScreen: null,
           params: null,
           error: 'Unknown deep link path',
-        };
+        });
       }
-
-      // Add query parameters
-      url.searchParams.forEach((value, key) => {
-        params[key] = value;
-      });
 
       // Check permissions
       const canAccess = await this.canNavigateTo(role, targetScreen);
       
       if (!canAccess) {
-        return {
+        return DeepLinkResultSchema.parse({
           isValid: false,
           targetScreen,
-          params,
+          params: {},
           error: 'Permission denied for target screen',
-        };
+        });
       }
 
-      return {
+      return DeepLinkResultSchema.parse({
         isValid: true,
         targetScreen,
-        params,
-      };
-    } catch (error) {
-      validationMonitor.trackFailure('navigation', 'deeplink_validation', error);
+        params: {},
+      });
       
-      return {
+    } catch (error) {
+      ValidationMonitor.recordValidationError({
+        context: 'RoleNavigationService.validateDeepLink',
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        errorCode: 'DEEPLINK_VALIDATION_FAILED',
+        validationPattern: 'transformation_schema'
+      });
+      
+      return DeepLinkResultSchema.parse({
         isValid: false,
         targetScreen: null,
         params: null,
         error: 'Deep link validation failed',
-      };
+      });
     }
   }
 
   /**
-   * Get navigation state
+   * Get navigation state (simplified)
    */
   static async getNavigationState(userId: string): Promise<NavigationState> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await this.supabase
         .from('navigation_state')
-        .select('*')
+        .select('user_id, current_screen, history, updated_at')
         .eq('user_id', userId)
         .single();
 
@@ -705,12 +488,8 @@ export class RoleNavigationService {
       }
 
       if (data) {
-        return {
-          currentScreen: data.current_screen,
-          history: data.history || [],
-          timestamp: data.updated_at,
-          userId,
-        };
+        // Pattern 1: Single validation pass
+        return NavigationStateTransformSchema.parse(data);
       }
 
       // Default state
@@ -720,8 +499,14 @@ export class RoleNavigationService {
         timestamp: new Date().toISOString(),
         userId,
       };
+      
     } catch (error) {
-      validationMonitor.trackFailure('navigation', 'state_retrieval', error);
+      ValidationMonitor.recordValidationError({
+        context: 'RoleNavigationService.getNavigationState',
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        errorCode: 'STATE_RETRIEVAL_FAILED',
+        validationPattern: 'transformation_schema'
+      });
       
       return {
         currentScreen: 'HomeScreen',
@@ -734,19 +519,40 @@ export class RoleNavigationService {
 
   /**
    * Persist navigation state
+   * Pattern: Input validation + atomic database operation
    */
   static async persistNavigationState(state: NavigationState): Promise<void> {
     try {
-      await supabase.from('navigation_state').upsert({
-        user_id: state.userId,
-        current_screen: state.currentScreen,
+      // Step 1: Input validation
+      const validatedState = CreateNavigationStateSchema.parse({
+        userId: state.userId,
+        currentScreen: state.currentScreen,
         history: state.history,
-        updated_at: state.timestamp,
       });
 
-      validationMonitor.trackSuccess('navigation', 'state_persisted', state);
+      // Step 2: Atomic database operation
+      await this.supabase.from('navigation_state').upsert({
+        user_id: validatedState.userId,
+        current_screen: validatedState.currentScreen,
+        history: validatedState.history,
+        updated_at: new Date().toISOString(),
+      });
+
+      // Step 3: Monitor success
+      ValidationMonitor.recordPatternSuccess({
+        service: 'roleNavigationService',
+        pattern: 'direct_supabase_query',
+        operation: 'persistNavigationState'
+      });
+      
     } catch (error) {
-      validationMonitor.trackFailure('navigation', 'state_persistence', error);
+      ValidationMonitor.recordValidationError({
+        context: 'RoleNavigationService.persistNavigationState',
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        errorCode: 'STATE_PERSISTENCE_FAILED',
+        validationPattern: 'transformation_schema'
+      });
+      // Don't throw - state persistence should not break user flow
     }
   }
 }

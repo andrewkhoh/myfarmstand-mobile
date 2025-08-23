@@ -5,20 +5,26 @@
 
 import { RoleNavigationService } from '../roleNavigationService';
 import { supabase } from '../../../config/supabase';
-import { validationMonitor } from '../../../utils/validationMonitor';
+import { ValidationMonitor } from '../../../utils/validationMonitor';
 import { UserRole, NavigationMenuItem, NavigationState } from '../../../types';
 
 // Mock dependencies
 jest.mock('../../../config/supabase');
 jest.mock('../../../utils/validationMonitor', () => ({
-  validationMonitor: {
-    trackSuccess: jest.fn(),
-    trackFailure: jest.fn(),
+  ValidationMonitor: {
+    recordPatternSuccess: jest.fn(),
+    recordValidationError: jest.fn(),
+    getMetrics: jest.fn(() => ({
+      validationErrors: 0,
+      calculationMismatches: 0,
+      dataQualityIssues: 0,
+      lastUpdated: new Date().toISOString()
+    })),
   },
 }));
 
 const mockSupabase = supabase as jest.Mocked<typeof supabase>;
-const mockValidationMonitor = validationMonitor as jest.Mocked<typeof validationMonitor>;
+const mockValidationMonitor = ValidationMonitor as jest.Mocked<typeof ValidationMonitor>;
 
 describe('RoleNavigationService', () => {
   beforeEach(() => {
@@ -66,7 +72,7 @@ describe('RoleNavigationService', () => {
         }),
       ]));
       
-      expect(mockValidationMonitor.trackSuccess).toHaveBeenCalledWith(
+      expect(mockValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith(
         'navigation',
         'menu_generation',
         expect.objectContaining({ role: customerRole })
@@ -140,12 +146,12 @@ describe('RoleNavigationService', () => {
       
       // First call - generates menu
       const result1 = await RoleNavigationService.generateMenuItems(role);
-      expect(mockValidationMonitor.trackSuccess).toHaveBeenCalledTimes(1);
+      expect(mockValidationMonitor.recordPatternSuccess).toHaveBeenCalledTimes(1);
       
       // Second call - should use cache
       const result2 = await RoleNavigationService.generateMenuItems(role);
       expect(result1).toEqual(result2);
-      expect(mockValidationMonitor.trackSuccess).toHaveBeenCalledTimes(1); // Not called again
+      expect(mockValidationMonitor.recordPatternSuccess).toHaveBeenCalledTimes(1); // Not called again
     });
 
     it('should handle menu generation errors', async () => {
@@ -160,7 +166,7 @@ describe('RoleNavigationService', () => {
         'Menu build failed'
       );
       
-      expect(mockValidationMonitor.trackFailure).toHaveBeenCalledWith(
+      expect(mockValidationMonitor.recordValidationError).toHaveBeenCalledWith(
         'navigation',
         'menu_generation',
         expect.any(Error)
@@ -176,7 +182,7 @@ describe('RoleNavigationService', () => {
       const result = await RoleNavigationService.canNavigateTo(role, screen);
       
       expect(result).toBe(true);
-      expect(mockValidationMonitor.trackSuccess).toHaveBeenCalledWith(
+      expect(mockValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith(
         'navigation',
         'permission_check',
         expect.objectContaining({ role, screen, allowed: true })
@@ -190,7 +196,7 @@ describe('RoleNavigationService', () => {
       const result = await RoleNavigationService.canNavigateTo(role, screen);
       
       expect(result).toBe(false);
-      expect(mockValidationMonitor.trackSuccess).toHaveBeenCalledWith(
+      expect(mockValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith(
         'navigation',
         'permission_check',
         expect.objectContaining({ role, screen, allowed: false })
@@ -247,7 +253,7 @@ describe('RoleNavigationService', () => {
       const result = await RoleNavigationService.canNavigateTo(role, screen);
       
       expect(result).toBe(false); // Fail closed on error
-      expect(mockValidationMonitor.trackFailure).toHaveBeenCalled();
+      expect(mockValidationMonitor.recordValidationError).toHaveBeenCalled();
     });
   });
 
@@ -271,7 +277,7 @@ describe('RoleNavigationService', () => {
       const result = await RoleNavigationService.getDefaultScreen('unknown' as UserRole);
       expect(result).toBe('HomeScreen');
       
-      expect(mockValidationMonitor.trackFailure).toHaveBeenCalledWith(
+      expect(mockValidationMonitor.recordValidationError).toHaveBeenCalledWith(
         'navigation',
         'default_screen',
         expect.objectContaining({ message: expect.stringContaining('unknown') })
@@ -283,7 +289,7 @@ describe('RoleNavigationService', () => {
       
       await RoleNavigationService.getDefaultScreen(role);
       
-      expect(mockValidationMonitor.trackSuccess).toHaveBeenCalledWith(
+      expect(mockValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith(
         'navigation',
         'default_screen',
         expect.objectContaining({ role, screen: 'HomeScreen' })
@@ -322,7 +328,7 @@ describe('RoleNavigationService', () => {
       
       await RoleNavigationService.handlePermissionDenied(role, deniedScreen);
       
-      expect(mockValidationMonitor.trackSuccess).toHaveBeenCalledWith(
+      expect(mockValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith(
         'navigation',
         'permission_denied',
         expect.objectContaining({ role, deniedScreen })
@@ -387,7 +393,7 @@ describe('RoleNavigationService', () => {
       
       await RoleNavigationService.trackNavigation(navigationEvent);
       
-      expect(mockValidationMonitor.trackSuccess).toHaveBeenCalledWith(
+      expect(mockValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith(
         'navigation',
         'navigation_event',
         navigationEvent
@@ -511,7 +517,7 @@ describe('RoleNavigationService', () => {
       
       await RoleNavigationService.persistNavigationState(state);
       
-      expect(mockValidationMonitor.trackSuccess).toHaveBeenCalledWith(
+      expect(mockValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith(
         'navigation',
         'state_persisted',
         state
@@ -564,7 +570,7 @@ describe('RoleNavigationService', () => {
         userId,
       });
       
-      expect(mockValidationMonitor.trackFailure).toHaveBeenCalled();
+      expect(mockValidationMonitor.recordValidationError).toHaveBeenCalled();
     });
   });
 });
