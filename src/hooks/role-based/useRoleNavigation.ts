@@ -8,20 +8,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { RoleNavigationService } from '../../services/role-based/roleNavigationService';
 import { useUserRole } from './useUserRole';
 import { NavigationMenuItem, NavigationState, UserRole } from '../../types';
-import { validationMonitor } from '../../utils/validationMonitor';
-
-// Centralized query key factory (following architectural patterns)
-export const navigationKeys = {
-  all: ['navigation'] as const,
-  menus: () => [...navigationKeys.all, 'menus'] as const,
-  menu: (role: UserRole) => [...navigationKeys.menus(), role] as const,
-  permissions: () => [...navigationKeys.all, 'permissions'] as const,
-  permission: (role: UserRole, screen: string) => [...navigationKeys.permissions(), role, screen] as const,
-  state: () => [...navigationKeys.all, 'state'] as const,
-  userState: (userId: string) => [...navigationKeys.state(), userId] as const,
-  history: () => [...navigationKeys.all, 'history'] as const,
-  userHistory: (userId: string) => [...navigationKeys.history(), userId] as const,
-};
+import { ValidationMonitor } from '../../utils/validationMonitor';
+import { navigationKeys } from '../../utils/queryKeyFactory';
 
 interface UseRoleNavigationOptions {
   enableCaching?: boolean;
@@ -49,7 +37,7 @@ export const useRoleNavigation = (options: UseRoleNavigationOptions = {}) => {
     error: menuError,
     refetch: refetchMenu,
   } = useQuery({
-    queryKey: navigationKeys.menu(userRole?.role || 'customer'),
+    queryKey: navigationKeys.menu(userRole?.role || 'customer', userRole?.userId),
     queryFn: async () => {
       if (!userRole?.role) {
         throw new Error('User role not available');
@@ -58,22 +46,13 @@ export const useRoleNavigation = (options: UseRoleNavigationOptions = {}) => {
     },
     enabled: !!userRole?.role,
     staleTime: enableCaching ? cacheDuration : 0,
-    cacheTime: enableCaching ? cacheDuration : 0,
+    gcTime: enableCaching ? cacheDuration : 0,
     retry: (failureCount, error) => {
       // Retry network errors, not permission errors
       if (error?.message?.includes('permission')) {
         return false;
       }
       return failureCount < 3;
-    },
-    onSuccess: (data) => {
-      validationMonitor.trackSuccess('navigation', 'menu_loaded', {
-        role: userRole?.role,
-        itemCount: data.length,
-      });
-    },
-    onError: (error) => {
-      validationMonitor.trackFailure('navigation', 'menu_load_error', error);
     },
   });
 
@@ -91,10 +70,6 @@ export const useRoleNavigation = (options: UseRoleNavigationOptions = {}) => {
     },
     enabled: !!userRole?.userId,
     staleTime: 30 * 1000, // 30 seconds
-    onSuccess: (state) => {
-      setNavigationState(state);
-      setCurrentScreen(state.currentScreen);
-    },
   });
 
   // Navigation history query
@@ -117,12 +92,19 @@ export const useRoleNavigation = (options: UseRoleNavigationOptions = {}) => {
       await RoleNavigationService.persistNavigationState(state);
     },
     onSuccess: () => {
-      validationMonitor.trackSuccess('navigation', 'state_persisted', {
-        userId: userRole?.userId,
+      ValidationMonitor.recordPatternSuccess({
+        service: 'roleNavigationService' as const,
+        pattern: 'direct_supabase_query' as const,
+        operation: 'persistNavigationState' as const
       });
     },
     onError: (error) => {
-      validationMonitor.trackFailure('navigation', 'state_persistence_error', error);
+      ValidationMonitor.recordValidationError({
+        context: 'useRoleNavigation.persistNavigationState',
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        errorCode: 'STATE_PERSISTENCE_FAILED',
+        validationPattern: 'transformation_schema'
+      });
     },
   });
 
@@ -139,12 +121,11 @@ export const useRoleNavigation = (options: UseRoleNavigationOptions = {}) => {
         ...event,
         role: userRole.role,
         userId: userRole.userId,
-        timestamp: new Date().toISOString(),
       });
     },
     onSuccess: () => {
       // Invalidate history to refresh
-      queryClient.invalidateQueries(navigationKeys.userHistory(userRole?.userId || ''));
+      queryClient.invalidateQueries({ queryKey: navigationKeys.userHistory(userRole?.userId || '') });
     },
   });
 
@@ -156,7 +137,12 @@ export const useRoleNavigation = (options: UseRoleNavigationOptions = {}) => {
       try {
         return await RoleNavigationService.canNavigateTo(userRole.role, screen);
       } catch (error) {
-        validationMonitor.trackFailure('navigation', 'permission_check_error', error);
+        ValidationMonitor.recordValidationError({
+          context: 'useRoleNavigation.checkPermission',
+          errorMessage: error instanceof Error ? error.message : 'Unknown error',
+          errorCode: 'PERMISSION_CHECK_FAILED',
+          validationPattern: 'simple_validation'
+        });
         return false;
       }
     },
@@ -205,7 +191,12 @@ export const useRoleNavigation = (options: UseRoleNavigationOptions = {}) => {
     try {
       return await RoleNavigationService.getDefaultScreen(userRole.role);
     } catch (error) {
-      validationMonitor.trackFailure('navigation', 'default_screen_error', error);
+      ValidationMonitor.recordValidationError({
+        context: 'useRoleNavigation.getDefaultScreen',
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        errorCode: 'DEFAULT_SCREEN_FAILED',
+        validationPattern: 'simple_validation'
+      });
       return 'HomeScreen';
     }
   }, [userRole?.role]);
@@ -243,7 +234,7 @@ export const useRoleNavigation = (options: UseRoleNavigationOptions = {}) => {
   const clearMenuCache = useCallback(() => {
     if (userRole?.role) {
       RoleNavigationService.clearMenuCache(userRole.role);
-      queryClient.invalidateQueries(navigationKeys.menu(userRole.role));
+      queryClient.invalidateQueries({ queryKey: navigationKeys.menu(userRole.role, userRole.userId) });
     }
   }, [userRole?.role, queryClient]);
 
@@ -260,7 +251,12 @@ export const useRoleNavigation = (options: UseRoleNavigationOptions = {}) => {
       try {
         return await RoleNavigationService.validateDeepLink(link, userRole.role);
       } catch (error) {
-        validationMonitor.trackFailure('navigation', 'deeplink_validation_error', error);
+        ValidationMonitor.recordValidationError({
+          context: 'useRoleNavigation.validateDeepLink',
+          errorMessage: error instanceof Error ? error.message : 'Unknown error',
+          errorCode: 'DEEPLINK_VALIDATION_FAILED',
+          validationPattern: 'transformation_schema'
+        });
         return {
           isValid: false,
           error: 'Deep link validation failed',
@@ -276,6 +272,14 @@ export const useRoleNavigation = (options: UseRoleNavigationOptions = {}) => {
       refetchMenu();
     }
   }, [userRole?.role, refetchOnRoleChange, refetchMenu]);
+
+  // Update navigation state when persisted state loads
+  useEffect(() => {
+    if (persistedState) {
+      setNavigationState(persistedState);
+      setCurrentScreen(persistedState.currentScreen);
+    }
+  }, [persistedState]);
 
   // Auto-persist state periodically
   useEffect(() => {
@@ -332,7 +336,7 @@ export const useRoleNavigation = (options: UseRoleNavigationOptions = {}) => {
     menuError,
     
     // Mutations
-    isTrackingNavigation: trackNavigationMutation.isLoading,
-    isPersistingState: persistStateMutation.isLoading,
+    isTrackingNavigation: trackNavigationMutation.isPending,
+    isPersistingState: persistStateMutation.isPending,
   };
 };

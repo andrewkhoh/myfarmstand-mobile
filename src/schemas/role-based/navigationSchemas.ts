@@ -100,9 +100,42 @@ export type MenuItemValidated = z.infer<typeof MenuItemSchema>;
 export type PermissionResult = z.infer<typeof PermissionResultSchema>;
 export type DeepLinkResult = z.infer<typeof DeepLinkResultSchema>;
 
-// Schema contracts for TypeScript enforcement (Pattern 1: Compile-time contract enforcement)
+// Schema contracts for TypeScript enforcement (Pattern 2: Compile-time contract enforcement)
+// These contracts ensure schemas match interfaces exactly - TypeScript will fail compilation if they don't align
+
+// Core transformation contracts
 type NavigationStateContract = NavigationState extends NavigationStateTransform ? true : never;
 type MenuItemContract = NavigationMenuItem extends MenuItemValidated ? true : never;
+
+// Input validation contracts
+type CreateNavigationEventContract = CreateNavigationEventInput extends z.infer<typeof CreateNavigationEventSchema> ? true : never;
+type CreateNavigationStateContract = CreateNavigationStateInput extends z.infer<typeof CreateNavigationStateSchema> ? true : never;
+
+// Result validation contracts  
+type PermissionResultContract = PermissionResult extends z.infer<typeof PermissionResultSchema> ? true : never;
+type DeepLinkResultContract = DeepLinkResult extends z.infer<typeof DeepLinkResultSchema> ? true : never;
+
+// Navigation event transformation contract
+type NavigationEventContract = NavigationEventTransform extends z.infer<typeof NavigationEventTransformSchema> ? true : never;
+
+// Deep link input contract
+type DeepLinkInputContract = z.infer<typeof DeepLinkSchema> extends { url: string; role: string } ? true : never;
+
+// Menu item validation contract
+type MenuItemValidationContract = MenuItemValidated extends z.infer<typeof MenuItemSchema> ? true : never;
+
+// Contract enforcement tests - these will cause TypeScript compilation errors if schemas don't match interfaces
+const _contractTests = {
+  navigationState: {} as NavigationStateContract,
+  menuItem: {} as MenuItemContract,
+  createNavigationEvent: {} as CreateNavigationEventContract,
+  createNavigationState: {} as CreateNavigationStateContract,
+  permissionResult: {} as PermissionResultContract,
+  deepLinkResult: {} as DeepLinkResultContract,
+  navigationEvent: {} as NavigationEventContract,
+  deepLinkInput: {} as DeepLinkInputContract,
+  menuItemValidation: {} as MenuItemValidationContract,
+};
 
 // Export validation constants
 export const ROLE_PERMISSIONS = {

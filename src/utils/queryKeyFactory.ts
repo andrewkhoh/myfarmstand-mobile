@@ -1,5 +1,5 @@
 // Centralized Query Key Factory with User Isolation Support and Fallback Strategies
-export type EntityType = 'cart' | 'orders' | 'products' | 'auth' | 'stock' | 'kiosk' | 'notifications' | 'payment' | 'roles' | 'inventory' | 'businessMetrics' | 'businessIntelligence' | 'strategicReports' | 'predictiveForecasts' | 'content' | 'campaigns' | 'bundles';
+export type EntityType = 'cart' | 'orders' | 'products' | 'auth' | 'stock' | 'kiosk' | 'notifications' | 'payment' | 'roles' | 'inventory' | 'businessMetrics' | 'businessIntelligence' | 'strategicReports' | 'predictiveForecasts' | 'content' | 'campaigns' | 'bundles' | 'navigation';
 export type UserIsolationLevel = 'user-specific' | 'admin-global' | 'global';
 
 interface QueryKeyConfig {
@@ -120,6 +120,48 @@ export const roleKeys = {
   // Role type queries
   roleType: (roleType: string) => 
     [...baseRoleKeys.all(), 'type', roleType] as const
+};
+
+// Navigation-specific query key factory with entity-specific methods
+const baseNavigationKeys = createQueryKeyFactory({ entity: 'navigation', isolation: 'user-specific' });
+
+export const navigationKeys = {
+  ...baseNavigationKeys,
+  
+  // Menu queries
+  menus: (userId?: string) => 
+    [...baseNavigationKeys.lists(userId), 'menus'] as const,
+  
+  menu: (role: string, userId?: string) => 
+    [...baseNavigationKeys.lists(userId), 'menus', role] as const,
+  
+  // Permission queries
+  permissions: (userId?: string) => 
+    [...baseNavigationKeys.lists(userId), 'permissions'] as const,
+  
+  permission: (role: string, screen: string, userId?: string) => 
+    [...baseNavigationKeys.lists(userId), 'permissions', role, screen] as const,
+  
+  // Navigation state queries
+  state: (userId?: string) => 
+    [...baseNavigationKeys.all(userId), 'state'] as const,
+  
+  userState: (userId: string) => 
+    [...baseNavigationKeys.all(userId), 'state', userId] as const,
+  
+  // Navigation history queries
+  history: (userId?: string) => 
+    [...baseNavigationKeys.all(userId), 'history'] as const,
+  
+  userHistory: (userId: string) => 
+    [...baseNavigationKeys.all(userId), 'history', userId] as const,
+  
+  // Deep link validation queries
+  deepLinks: (userId?: string) => 
+    [...baseNavigationKeys.all(userId), 'deep-links'] as const,
+  
+  deepLink: (link: string, role: string, userId?: string) => 
+    [...baseNavigationKeys.all(userId), 'deep-links', role, link] as const
 };
 
 // Inventory-specific query key factory with entity-specific methods

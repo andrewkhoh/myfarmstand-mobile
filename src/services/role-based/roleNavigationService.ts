@@ -49,19 +49,19 @@ export class RoleNavigationService {
       const menuItems = await this.buildMenuForRole(role);
       
       // Validate each menu item (Pattern 1: Single validation pass)
-      const validatedItems = menuItems.map(item => MenuItemSchema.parse(item));
+      const validatedItems = menuItems.map(item => MenuItemSchema.parse(item)) as NavigationMenuItem[];
       
       // Cache the results
       this.menuCache.set(role, validatedItems);
       
       // Monitor success (MANDATORY Pattern)
       ValidationMonitor.recordPatternSuccess({
-        service: 'roleNavigationService',
-        pattern: 'direct_supabase_query',
-        operation: 'generateMenuItems'
+        service: 'roleNavigationService' as const,
+        pattern: 'transformation_schema' as const,
+        operation: 'generateMenuItems' as const
       });
       
-      return validatedItems;
+      return validatedItems as NavigationMenuItem[];
       
     } catch (error) {
       // Monitor failure with graceful degradation
@@ -69,7 +69,7 @@ export class RoleNavigationService {
         context: 'RoleNavigationService.generateMenuItems',
         errorMessage: error instanceof Error ? error.message : 'Unknown error',
         errorCode: 'MENU_GENERATION_FAILED',
-        validationPattern: 'direct_schema'
+        validationPattern: 'transformation_schema' as const
       });
       
       // Graceful degradation - return empty menu rather than crash
@@ -115,6 +115,7 @@ export class RoleNavigationService {
           { name: 'Orders', component: 'OrdersScreen', icon: 'receipt', permissions: ['view:orders'] },
           { name: 'Analytics', component: 'AnalyticsScreen', icon: 'analytics', permissions: ['view:analytics'] },
           { name: 'Settings', component: 'SystemSettingsScreen', icon: 'settings', permissions: ['manage:system'] },
+          { name: 'Permissions', component: 'PermissionManagementScreen', icon: 'security', permissions: ['manage:permissions'] },
           { name: 'Profile', component: 'ProfileScreen', icon: 'person', permissions: ['manage:profile'] }
         );
         break;
@@ -159,31 +160,54 @@ export class RoleNavigationService {
       // Admin can navigate anywhere (business rule)
       if (role === 'admin') {
         ValidationMonitor.recordPatternSuccess({
-          service: 'roleNavigationService',
-          pattern: 'direct_supabase_query',
-          operation: 'canNavigateTo'
+          service: 'roleNavigationService' as const,
+          pattern: 'simple_input_validation' as const,
+          operation: 'canNavigateTo' as const
         });
         return true;
       }
 
       // Check static permissions first
       const allowedScreens = ROLE_PERMISSIONS[role] || [];
-      const allowed = allowedScreens.includes(screen);
+      const staticPermission = allowedScreens.includes(screen);
+      
+      if (staticPermission) {
+        ValidationMonitor.recordPatternSuccess({
+          service: 'roleNavigationService' as const,
+          pattern: 'simple_input_validation' as const,
+          operation: 'canNavigateTo' as const
+        });
+        return true;
+      }
+
+      // Check database permissions for dynamic screens not in static list
+      const { data, error } = await this.supabase
+        .from('role_permissions')
+        .select('can_access')
+        .eq('role_type', role)
+        .eq('screen_name', screen)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        throw error; // Will be caught by outer try-catch
+      }
+
+      const dynamicPermission = data?.can_access === true;
 
       ValidationMonitor.recordPatternSuccess({
-        service: 'roleNavigationService',
-        pattern: 'direct_supabase_query',
-        operation: 'canNavigateTo'
+        service: 'roleNavigationService' as const,
+        pattern: 'simple_input_validation' as const,
+        operation: 'canNavigateTo' as const
       });
 
-      return allowed;
+      return dynamicPermission;
       
     } catch (error) {
       ValidationMonitor.recordValidationError({
         context: 'RoleNavigationService.canNavigateTo',
         errorMessage: error instanceof Error ? error.message : 'Unknown error',
         errorCode: 'PERMISSION_CHECK_FAILED',
-        validationPattern: 'direct_schema'
+        validationPattern: 'transformation_schema' as const
       });
       
       return false; // Fail closed on error
@@ -203,15 +227,15 @@ export class RoleNavigationService {
           context: 'RoleNavigationService.getDefaultScreen',
           errorMessage: `Unknown role: ${role}`,
           errorCode: 'UNKNOWN_ROLE',
-          validationPattern: 'simple_validation'
+          validationPattern: 'simple_validation' as const
         });
         return 'HomeScreen'; // Graceful fallback
       }
 
       ValidationMonitor.recordPatternSuccess({
-        service: 'roleNavigationService',
-        pattern: 'direct_supabase_query',
-        operation: 'getDefaultScreen'
+        service: 'roleNavigationService' as const,
+        pattern: 'simple_input_validation' as const,
+        operation: 'getDefaultScreen' as const
       });
       
       return defaultScreen;
@@ -221,7 +245,7 @@ export class RoleNavigationService {
         context: 'RoleNavigationService.getDefaultScreen',
         errorMessage: error instanceof Error ? error.message : 'Unknown error',
         errorCode: 'DEFAULT_SCREEN_FAILED',
-        validationPattern: 'simple_validation'
+        validationPattern: 'simple_validation' as const
       });
       
       return 'HomeScreen'; // Graceful fallback
@@ -242,9 +266,9 @@ export class RoleNavigationService {
         };
         
         ValidationMonitor.recordPatternSuccess({
-          service: 'roleNavigationService',
-          pattern: 'direct_supabase_query',
-          operation: 'handlePermissionDenied'
+          service: 'roleNavigationService' as const,
+          pattern: 'simple_input_validation' as const,
+          operation: 'handlePermissionDenied' as const
         });
         
         return response;
@@ -259,9 +283,9 @@ export class RoleNavigationService {
       };
       
       ValidationMonitor.recordPatternSuccess({
-        service: 'roleNavigationService', 
-        pattern: 'direct_supabase_query',
-        operation: 'handlePermissionDenied'
+        service: 'roleNavigationService' as const, 
+        pattern: 'simple_input_validation' as const,
+        operation: 'handlePermissionDenied' as const
       });
       
       return response;
@@ -271,7 +295,7 @@ export class RoleNavigationService {
         context: 'RoleNavigationService.handlePermissionDenied',
         errorMessage: error instanceof Error ? error.message : 'Unknown error',
         errorCode: 'PERMISSION_DENIED_HANDLER_FAILED',
-        validationPattern: 'simple_validation'
+        validationPattern: 'simple_validation' as const
       });
       
       return {
@@ -315,9 +339,9 @@ export class RoleNavigationService {
 
       // Step 4: Monitor success
       ValidationMonitor.recordPatternSuccess({
-        service: 'roleNavigationService',
-        pattern: 'direct_supabase_query', 
-        operation: 'trackNavigation'
+        service: 'roleNavigationService' as const,
+        pattern: 'direct_supabase_query' as const,
+        operation: 'trackNavigation' as const
       });
       
     } catch (error) {
@@ -325,7 +349,7 @@ export class RoleNavigationService {
         context: 'RoleNavigationService.trackNavigation',
         errorMessage: error instanceof Error ? error.message : 'Unknown error',
         errorCode: 'NAVIGATION_TRACKING_FAILED',
-        validationPattern: 'transformation_schema'
+        validationPattern: 'transformation_schema' as const
       });
       // Don't throw - navigation tracking should not break user flow
     }
@@ -363,7 +387,7 @@ export class RoleNavigationService {
         context: 'RoleNavigationService.getNavigationHistory',
         errorMessage: error instanceof Error ? error.message : 'Unknown error',
         errorCode: 'HISTORY_RETRIEVAL_FAILED',
-        validationPattern: 'direct_schema'
+        validationPattern: 'transformation_schema' as const
       });
       
       return []; // Graceful degradation
@@ -388,8 +412,9 @@ export class RoleNavigationService {
     }
   }
 
+
   /**
-   * Validate deep link (simplified implementation)
+   * Validate deep link (enhanced implementation)
    * Pattern: Input validation + permission checking
    */
   static async validateDeepLink(deepLink: string, role: UserRole): Promise<DeepLinkResult> {
@@ -417,23 +442,50 @@ export class RoleNavigationService {
         });
       }
 
-      // Simple screen mapping
-      const screenMap: Record<string, string> = {
-        products: 'ProductsScreen',
-        orders: 'OrdersScreen',
-        cart: 'CartScreen',
-        profile: 'ProfileScreen',
-        admin: 'AdminDashboard',
+      // Enhanced screen mapping with parameter support
+      const screenMappings: Record<string, { screen: string; paramMap?: Record<number, string> }> = {
+        products: { 
+          screen: pathParts.length > 1 ? 'ProductDetailScreen' : 'ProductsScreen',
+          paramMap: { 1: 'productId' }
+        },
+        orders: { 
+          screen: pathParts.length > 1 ? 'OrderDetailScreen' : 'OrdersScreen',
+          paramMap: { 1: 'orderId' }
+        },
+        cart: { screen: 'CartScreen' },
+        profile: { screen: 'ProfileScreen' },
+        admin: { 
+          screen: pathParts[1] === 'users' ? 'UserManagementScreen' : 'AdminDashboard'
+        },
       };
 
-      const targetScreen = screenMap[pathParts[0]];
-      
-      if (!targetScreen) {
+      const mapping = screenMappings[pathParts[0]];
+      if (!mapping) {
         return DeepLinkResultSchema.parse({
           isValid: false,
           targetScreen: null,
           params: null,
           error: 'Unknown deep link path',
+        });
+      }
+
+      const targetScreen = mapping.screen;
+      
+      // Extract URL parameters and path parameters
+      const params: Record<string, any> = {};
+      
+      // Add query parameters
+      url.searchParams.forEach((value, key) => {
+        params[key] = value;
+      });
+      
+      // Add path parameters
+      if (mapping.paramMap) {
+        Object.entries(mapping.paramMap).forEach(([index, paramName]) => {
+          const pathIndex = parseInt(index);
+          if (pathParts[pathIndex]) {
+            params[paramName] = pathParts[pathIndex];
+          }
         });
       }
 
@@ -444,7 +496,7 @@ export class RoleNavigationService {
         return DeepLinkResultSchema.parse({
           isValid: false,
           targetScreen,
-          params: {},
+          params: Object.keys(params).length > 0 ? params : {},
           error: 'Permission denied for target screen',
         });
       }
@@ -452,7 +504,7 @@ export class RoleNavigationService {
       return DeepLinkResultSchema.parse({
         isValid: true,
         targetScreen,
-        params: {},
+        params: Object.keys(params).length > 0 ? params : {},
       });
       
     } catch (error) {
@@ -460,7 +512,7 @@ export class RoleNavigationService {
         context: 'RoleNavigationService.validateDeepLink',
         errorMessage: error instanceof Error ? error.message : 'Unknown error',
         errorCode: 'DEEPLINK_VALIDATION_FAILED',
-        validationPattern: 'transformation_schema'
+        validationPattern: 'transformation_schema' as const
       });
       
       return DeepLinkResultSchema.parse({
@@ -505,7 +557,7 @@ export class RoleNavigationService {
         context: 'RoleNavigationService.getNavigationState',
         errorMessage: error instanceof Error ? error.message : 'Unknown error',
         errorCode: 'STATE_RETRIEVAL_FAILED',
-        validationPattern: 'transformation_schema'
+        validationPattern: 'transformation_schema' as const
       });
       
       return {
@@ -540,9 +592,9 @@ export class RoleNavigationService {
 
       // Step 3: Monitor success
       ValidationMonitor.recordPatternSuccess({
-        service: 'roleNavigationService',
-        pattern: 'direct_supabase_query',
-        operation: 'persistNavigationState'
+        service: 'roleNavigationService' as const,
+        pattern: 'direct_supabase_query' as const,
+        operation: 'persistNavigationState' as const
       });
       
     } catch (error) {
@@ -550,7 +602,7 @@ export class RoleNavigationService {
         context: 'RoleNavigationService.persistNavigationState',
         errorMessage: error instanceof Error ? error.message : 'Unknown error',
         errorCode: 'STATE_PERSISTENCE_FAILED',
-        validationPattern: 'transformation_schema'
+        validationPattern: 'transformation_schema' as const
       });
       // Don't throw - state persistence should not break user flow
     }

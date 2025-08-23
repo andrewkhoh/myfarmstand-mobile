@@ -8,9 +8,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { RoleNavigationService } from '../../services/role-based/roleNavigationService';
 import { useUserRole } from './useUserRole';
 import { useNavigationPermissions } from './useNavigationPermissions';
-import { navigationKeys } from './useRoleNavigation';
+import { navigationKeys } from '../../utils/queryKeyFactory';
 import { NavigationMenuItem, UserRole } from '../../types';
-import { validationMonitor } from '../../utils/validationMonitor';
+import { ValidationMonitor } from '../../utils/validationMonitor';
 
 interface MenuSection {
   title: string;
@@ -53,7 +53,7 @@ export const useRoleMenu = (options: UseRoleMenuOptions = {}) => {
     error: menuError,
     refetch: refetchMenu,
   } = useQuery({
-    queryKey: [...navigationKeys.menu(userRole?.role || 'customer'), refreshTrigger],
+    queryKey: [...navigationKeys.menu(userRole?.role || 'customer', userRole?.userId), refreshTrigger],
     queryFn: async () => {
       if (!userRole?.role) {
         throw new Error('User role not available');
@@ -61,24 +61,22 @@ export const useRoleMenu = (options: UseRoleMenuOptions = {}) => {
       
       const items = await RoleNavigationService.generateMenuItems(userRole.role);
       
-      validationMonitor.trackSuccess('navigation', 'menu_items_loaded', {
-        role: userRole.role,
-        itemCount: items.length,
+      ValidationMonitor.recordPatternSuccess({
+        service: 'roleNavigationService' as const,
+        pattern: 'transformation_schema' as const,
+        operation: 'menu_items_loaded' as const
       });
       
       return items;
     },
     enabled: !!userRole?.role,
     staleTime: cacheTimeout,
-    cacheTime: cacheTimeout * 2,
-    onError: (error) => {
-      validationMonitor.trackFailure('navigation', 'menu_load_error', error);
-    },
+    gcTime: cacheTimeout * 2,
   });
 
   // Get permission information for menu items if filtering is enabled
   const menuScreens = useMemo(() => {
-    return rawMenuItems?.map(item => item.component) || [];
+    return (rawMenuItems as NavigationMenuItem[] | undefined)?.map(item => item.component) || [];
   }, [rawMenuItems]);
 
   const {
@@ -123,19 +121,25 @@ export const useRoleMenu = (options: UseRoleMenuOptions = {}) => {
         JSON.stringify(newCustomization)
       );
       
-      validationMonitor.trackSuccess('navigation', 'menu_customization_saved', {
-        userId: userRole.userId,
-        customization: newCustomization,
+      ValidationMonitor.recordPatternSuccess({
+        service: 'roleNavigationService' as const,
+        pattern: 'transformation_schema' as const,
+        operation: 'menu_customization_saved' as const
       });
       
       return newCustomization;
     },
     onSuccess: (savedCustomization) => {
       setCustomization(savedCustomization);
-      queryClient.invalidateQueries(['menu-customization', userRole?.userId]);
+      queryClient.invalidateQueries({ queryKey: ['menu-customization', userRole?.userId] });
     },
     onError: (error) => {
-      validationMonitor.trackFailure('navigation', 'menu_customization_save_error', error);
+      ValidationMonitor.recordValidationError({
+        context: 'useRoleMenu.saveCustomization',
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        errorCode: 'MENU_CUSTOMIZATION_SAVE_FAILED',
+        validationPattern: 'simple_validation'
+      });
     },
   });
 
@@ -148,11 +152,12 @@ export const useRoleMenu = (options: UseRoleMenuOptions = {}) => {
 
   // Filter menu items by permissions
   const filteredMenuItems = useMemo(() => {
-    if (!rawMenuItems) return [];
+    const items = rawMenuItems as NavigationMenuItem[] | undefined;
+    if (!items) return [];
     
-    if (!filterByPermissions) return rawMenuItems;
+    if (!filterByPermissions) return items;
     
-    return rawMenuItems.filter(item => {
+    return items.filter(item => {
       const permission = permissions.find(p => p.screen === item.component);
       return permission?.allowed !== false; // Allow if not explicitly denied
     });
@@ -329,7 +334,7 @@ export const useRoleMenu = (options: UseRoleMenuOptions = {}) => {
       setRefreshTrigger(prev => prev + 1);
       
       if (filterByPermissions) {
-        queryClient.invalidateQueries(navigationKeys.permissions());
+        queryClient.invalidateQueries({ queryKey: navigationKeys.permissions(userRole.userId) });
       }
     }
   }, [userRole?.role, filterByPermissions, queryClient]);
@@ -401,7 +406,7 @@ export const useRoleMenu = (options: UseRoleMenuOptions = {}) => {
     hasError: !!menuError,
     
     // Mutations
-    isSavingCustomization: saveCustomizationMutation.isLoading,
+    isSavingCustomization: saveCustomizationMutation.isPending,
     customizationSaveError: saveCustomizationMutation.error,
   };
 };

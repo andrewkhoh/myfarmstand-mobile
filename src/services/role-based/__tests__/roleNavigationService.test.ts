@@ -1,29 +1,18 @@
 /**
  * RoleNavigationService Tests
  * Tests for role-based navigation service functionality
+ * Following scratchpad-service-test-setup Pattern 1 (AuthService Pattern)
  */
 
+// Mock ValidationMonitor before importing service
+jest.mock('../../../utils/validationMonitor');
+
 import { RoleNavigationService } from '../roleNavigationService';
-import { supabase } from '../../../config/supabase';
 import { ValidationMonitor } from '../../../utils/validationMonitor';
 import { UserRole, NavigationMenuItem, NavigationState } from '../../../types';
 
-// Mock dependencies
-jest.mock('../../../config/supabase');
-jest.mock('../../../utils/validationMonitor', () => ({
-  ValidationMonitor: {
-    recordPatternSuccess: jest.fn(),
-    recordValidationError: jest.fn(),
-    getMetrics: jest.fn(() => ({
-      validationErrors: 0,
-      calculationMismatches: 0,
-      dataQualityIssues: 0,
-      lastUpdated: new Date().toISOString()
-    })),
-  },
-}));
-
-const mockSupabase = supabase as jest.Mocked<typeof supabase>;
+// Mock the supabase module at the service level (exact authService pattern)
+const mockSupabase = require('../../../config/supabase').supabase;
 const mockValidationMonitor = ValidationMonitor as jest.Mocked<typeof ValidationMonitor>;
 
 describe('RoleNavigationService', () => {
@@ -72,11 +61,11 @@ describe('RoleNavigationService', () => {
         }),
       ]));
       
-      expect(mockValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith(
-        'navigation',
-        'menu_generation',
-        expect.objectContaining({ role: customerRole })
-      );
+      expect(mockValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith({
+        service: 'roleNavigationService',
+        pattern: 'transformation_schema',
+        operation: 'generateMenuItems'
+      });
     });
 
     it('should generate menu items for farmer role', async () => {
@@ -162,15 +151,17 @@ describe('RoleNavigationService', () => {
         new Error('Menu build failed')
       );
       
-      await expect(RoleNavigationService.generateMenuItems(role)).rejects.toThrow(
-        'Menu build failed'
-      );
+      // Service should gracefully degrade and return empty array
+      const result = await RoleNavigationService.generateMenuItems(role);
       
-      expect(mockValidationMonitor.recordValidationError).toHaveBeenCalledWith(
-        'navigation',
-        'menu_generation',
-        expect.any(Error)
-      );
+      expect(result).toEqual([]);
+      
+      expect(mockValidationMonitor.recordValidationError).toHaveBeenCalledWith({
+        context: 'RoleNavigationService.generateMenuItems',
+        errorMessage: 'Menu build failed',
+        errorCode: 'MENU_GENERATION_FAILED',
+        validationPattern: 'transformation_schema'
+      });
     });
   });
 
@@ -182,11 +173,11 @@ describe('RoleNavigationService', () => {
       const result = await RoleNavigationService.canNavigateTo(role, screen);
       
       expect(result).toBe(true);
-      expect(mockValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith(
-        'navigation',
-        'permission_check',
-        expect.objectContaining({ role, screen, allowed: true })
-      );
+      expect(mockValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith({
+        service: 'roleNavigationService',
+        pattern: 'simple_input_validation',
+        operation: 'canNavigateTo'
+      });
     });
 
     it('should deny navigation to restricted screens', async () => {
@@ -196,11 +187,11 @@ describe('RoleNavigationService', () => {
       const result = await RoleNavigationService.canNavigateTo(role, screen);
       
       expect(result).toBe(false);
-      expect(mockValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith(
-        'navigation',
-        'permission_check',
-        expect.objectContaining({ role, screen, allowed: false })
-      );
+      expect(mockValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith({
+        service: 'roleNavigationService',
+        pattern: 'simple_input_validation',
+        operation: 'canNavigateTo'
+      });
     });
 
     it('should allow admin to navigate anywhere', async () => {
@@ -277,11 +268,12 @@ describe('RoleNavigationService', () => {
       const result = await RoleNavigationService.getDefaultScreen('unknown' as UserRole);
       expect(result).toBe('HomeScreen');
       
-      expect(mockValidationMonitor.recordValidationError).toHaveBeenCalledWith(
-        'navigation',
-        'default_screen',
-        expect.objectContaining({ message: expect.stringContaining('unknown') })
-      );
+      expect(mockValidationMonitor.recordValidationError).toHaveBeenCalledWith({
+        context: 'RoleNavigationService.getDefaultScreen',
+        errorMessage: 'Unknown role: unknown',
+        errorCode: 'UNKNOWN_ROLE',
+        validationPattern: 'simple_validation'
+      });
     });
 
     it('should track default screen retrieval', async () => {
@@ -289,11 +281,11 @@ describe('RoleNavigationService', () => {
       
       await RoleNavigationService.getDefaultScreen(role);
       
-      expect(mockValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith(
-        'navigation',
-        'default_screen',
-        expect.objectContaining({ role, screen: 'HomeScreen' })
-      );
+      expect(mockValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith({
+        service: 'roleNavigationService',
+        pattern: 'simple_input_validation',
+        operation: 'getDefaultScreen'
+      });
     });
   });
 
@@ -328,11 +320,11 @@ describe('RoleNavigationService', () => {
       
       await RoleNavigationService.handlePermissionDenied(role, deniedScreen);
       
-      expect(mockValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith(
-        'navigation',
-        'permission_denied',
-        expect.objectContaining({ role, deniedScreen })
-      );
+      expect(mockValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith({
+        service: 'roleNavigationService',
+        pattern: 'simple_input_validation',
+        operation: 'handlePermissionDenied'
+      });
     });
 
     it('should provide contextual upgrade suggestions', async () => {
@@ -393,11 +385,11 @@ describe('RoleNavigationService', () => {
       
       await RoleNavigationService.trackNavigation(navigationEvent);
       
-      expect(mockValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith(
-        'navigation',
-        'navigation_event',
-        navigationEvent
-      );
+      expect(mockValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith({
+        service: 'roleNavigationService',
+        pattern: 'direct_supabase_query',
+        operation: 'trackNavigation'
+      });
     });
 
     it('should maintain navigation history', async () => {
@@ -517,11 +509,11 @@ describe('RoleNavigationService', () => {
       
       await RoleNavigationService.persistNavigationState(state);
       
-      expect(mockValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith(
-        'navigation',
-        'state_persisted',
-        state
-      );
+      expect(mockValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith({
+        service: 'roleNavigationService',
+        pattern: 'direct_supabase_query',
+        operation: 'persistNavigationState'
+      });
     });
 
     it('should restore navigation state after app restart', async () => {

@@ -7,9 +7,9 @@ import { useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { RoleNavigationService } from '../../services/role-based/roleNavigationService';
 import { useUserRole } from './useUserRole';
-import { navigationKeys } from './useRoleNavigation';
+import { navigationKeys } from '../../utils/queryKeyFactory';
 import { UserRole } from '../../types';
-import { validationMonitor } from '../../utils/validationMonitor';
+import { ValidationMonitor } from '../../utils/validationMonitor';
 
 interface NavigationPermission {
   screen: string;
@@ -36,7 +36,7 @@ export const useNavigationPermissions = (options: UseNavigationPermissionsOption
   // Single permission check query factory
   const createPermissionQuery = useCallback(
     (screen: string) => ({
-      queryKey: navigationKeys.permission(userRole?.role || 'customer', screen),
+      queryKey: navigationKeys.permission(userRole?.role || 'customer', screen, userRole?.userId),
       queryFn: async () => {
         if (!userRole?.role) {
           throw new Error('User role not available');
@@ -44,10 +44,10 @@ export const useNavigationPermissions = (options: UseNavigationPermissionsOption
         
         const allowed = await RoleNavigationService.canNavigateTo(userRole.role, screen);
         
-        validationMonitor.trackSuccess('navigation', 'permission_checked', {
-          role: userRole.role,
-          screen,
-          allowed,
+        ValidationMonitor.recordPatternSuccess({
+          service: 'roleNavigationService' as const,
+          pattern: 'simple_input_validation' as const,
+          operation: 'permission_checked' as const
         });
         
         return {
@@ -58,10 +58,15 @@ export const useNavigationPermissions = (options: UseNavigationPermissionsOption
       },
       enabled: !!userRole?.role,
       staleTime: cacheResults ? 5 * 60 * 1000 : 0, // 5 minutes if caching enabled
-      cacheTime: cacheResults ? 10 * 60 * 1000 : 0, // 10 minutes if caching enabled
+      gcTime: cacheResults ? 10 * 60 * 1000 : 0, // 10 minutes if caching enabled
       retry: false, // Don't retry permission checks
       onError: (error: any) => {
-        validationMonitor.trackFailure('navigation', 'permission_check_error', error);
+        ValidationMonitor.recordValidationError({
+          context: 'useNavigationPermissions.createPermissionQuery',
+          errorMessage: error instanceof Error ? error.message : 'Unknown error',
+          errorCode: 'PERMISSION_CHECK_FAILED',
+          validationPattern: 'simple_validation'
+        });
       },
     }),
     [userRole?.role, cacheResults]
@@ -73,7 +78,7 @@ export const useNavigationPermissions = (options: UseNavigationPermissionsOption
     isLoading: isBatchLoading,
     error: batchError,
   } = useQuery({
-    queryKey: [...navigationKeys.permissions(), userRole?.role, 'batch', ...screens.sort()],
+    queryKey: [...navigationKeys.permissions(userRole?.userId), userRole?.role, 'batch', ...screens.sort()],
     queryFn: async () => {
       if (!userRole?.role || screens.length === 0) {
         return [] as NavigationPermission[];
@@ -97,24 +102,26 @@ export const useNavigationPermissions = (options: UseNavigationPermissionsOption
             error: error instanceof Error ? error.message : 'Unknown error',
           });
           
-          validationMonitor.trackFailure('navigation', 'batch_permission_error', {
-            screen,
-            error,
+          ValidationMonitor.recordValidationError({
+            context: 'useNavigationPermissions.batchPermissionCheck',
+            errorMessage: error instanceof Error ? error.message : 'Unknown error',
+            errorCode: 'BATCH_PERMISSION_FAILED',
+            validationPattern: 'simple_validation'
           });
         }
       }
 
-      validationMonitor.trackSuccess('navigation', 'batch_permissions_checked', {
-        role: userRole.role,
-        screenCount: screens.length,
-        allowedCount: results.filter(r => r.allowed).length,
+      ValidationMonitor.recordPatternSuccess({
+        service: 'roleNavigationService' as const,
+        pattern: 'simple_input_validation' as const,
+        operation: 'batch_permissions_checked' as const
       });
 
       return results;
     },
     enabled: enableBatchCheck && !!userRole?.role && screens.length > 0,
     staleTime: cacheResults ? 5 * 60 * 1000 : 0,
-    cacheTime: cacheResults ? 10 * 60 * 1000 : 0,
+    gcTime: cacheResults ? 10 * 60 * 1000 : 0,
   });
 
   // Individual permission checkers
@@ -138,7 +145,12 @@ export const useNavigationPermissions = (options: UseNavigationPermissionsOption
           checked: true,
         };
       } catch (error) {
-        validationMonitor.trackFailure('navigation', 'permission_check_error', error);
+        ValidationMonitor.recordValidationError({
+          context: 'useNavigationPermissions.checkPermission',
+          errorMessage: error instanceof Error ? error.message : 'Unknown error',
+          errorCode: 'PERMISSION_CHECK_FAILED',
+          validationPattern: 'simple_validation'
+        });
         
         return {
           screen,
@@ -309,6 +321,19 @@ export const useNavigationPermissions = (options: UseNavigationPermissionsOption
           'OrdersScreen',
           'InventoryScreen',
           'ProfileScreen',
+          'OrderDetailScreen',
+        ],
+        manager: [
+          'HomeScreen',
+          'ManagerDashboard',
+          'UserManagementScreen',
+          'ProductsScreen',
+          'ProductManagementScreen',
+          'InventoryScreen',
+          'OrdersScreen',
+          'AnalyticsScreen',
+          'ProfileScreen',
+          'ProductDetailScreen',
           'OrderDetailScreen',
         ],
       };
