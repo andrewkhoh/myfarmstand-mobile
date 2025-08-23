@@ -535,14 +535,8 @@ export class InventoryService {
 
       ValidationMonitor.recordPatternSuccess({
         service: 'inventoryService',
-        pattern: 'resilient_processing',
-        operation: 'getAllInventoryItems',
-        metadata: {
-          totalItems: data.length,
-          successCount,
-          failureCount,
-          successRate: successCount / data.length
-        }
+        pattern: 'transformation_schema',
+        operation: 'getAllInventoryItems'
       });
 
       return transformedItems;

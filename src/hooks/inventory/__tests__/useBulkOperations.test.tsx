@@ -4,8 +4,18 @@
  */
 
 import React from 'react';
-import { renderHook, waitFor, act } from '@testing-library/react';
+import { renderHook, waitFor, act } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+// Mock services and hooks BEFORE importing them
+jest.mock('../../../services/inventory/inventoryService');
+jest.mock('../../useAuth', () => ({
+  useAuth: jest.fn(() => ({
+    user: { id: 'test-user-1' },
+    isAuthenticated: true
+  }))
+}));
+
 import {
   useBulkStockUpdate,
   useCSVImport,
@@ -14,10 +24,6 @@ import {
 } from '../useBulkOperations';
 import { InventoryService } from '../../../services/inventory/inventoryService';
 import { useAuth } from '../../useAuth';
-
-// Mock services
-jest.mock('../../../services/inventory/inventoryService');
-jest.mock('../../useAuth');
 
 const mockInventoryService = InventoryService as jest.Mocked<typeof InventoryService>;
 const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
@@ -36,11 +42,6 @@ describe('Bulk Operations Hooks', () => {
         mutations: { retry: false },
       },
     });
-
-    mockUseAuth.mockReturnValue({
-      user: { id: 'test-user-1' },
-      isAuthenticated: true,
-    } as any);
 
     jest.clearAllMocks();
   });
@@ -80,16 +81,25 @@ describe('Bulk Operations Hooks', () => {
     };
 
     beforeEach(() => {
-      mockInventoryService.batchUpdateStock.mockResolvedValue(mockBulkResult as any);
+      // Setup proper mock responses for service methods
+      mockInventoryService.batchUpdateStock = jest.fn().mockResolvedValue(mockBulkResult as any);
     });
 
     it('should execute bulk stock update successfully', async () => {
       const { result } = renderHook(() => useBulkStockUpdate(), { wrapper });
 
       await act(async () => {
-        await result.current.mutateAsync(mockBulkUpdates);
+        try {
+          await result.current.mutateAsync(mockBulkUpdates);
+        } catch (error) {
+          console.log('Mutation error:', error);
+        }
       });
 
+      // Debug: Check what was actually called
+      console.log('Mock calls:', mockInventoryService.batchUpdateStock.mock.calls);
+      console.log('Result data:', result.current.data);
+      
       expect(mockInventoryService.batchUpdateStock).toHaveBeenCalledWith(mockBulkUpdates);
       expect(result.current.data).toEqual(mockBulkResult);
     });
@@ -188,13 +198,12 @@ describe('Bulk Operations Hooks', () => {
 
     beforeEach(() => {
       // Mock getInventoryByProduct for valid products
-      mockInventoryService.getInventoryByProduct
-        .mockImplementation((productId: string) => {
-          const item = mockInventoryItems.find(item => item.productId === productId);
-          return Promise.resolve(item as any || null);
-        });
+      mockInventoryService.getInventoryByProduct = jest.fn().mockImplementation((productId: string) => {
+        const item = mockInventoryItems.find(item => item.productId === productId);
+        return Promise.resolve(item as any || null);
+      });
 
-      mockInventoryService.batchUpdateStock.mockResolvedValue({
+      mockInventoryService.batchUpdateStock = jest.fn().mockResolvedValue({
         success: mockInventoryItems,
         failures: []
       } as any);
@@ -291,7 +300,7 @@ describe('Bulk Operations Hooks', () => {
     ];
 
     beforeEach(() => {
-      mockInventoryService.getAllInventoryItems.mockResolvedValue(mockInventoryItems as any);
+      mockInventoryService.getAllInventoryItems = jest.fn().mockResolvedValue(mockInventoryItems as any);
     });
 
     it('should export inventory data as CSV by default', async () => {
@@ -414,7 +423,7 @@ describe('Bulk Operations Hooks', () => {
     ];
 
     beforeEach(() => {
-      mockInventoryService.getAllInventoryItems.mockResolvedValue(mockTemplateItems as any);
+      mockInventoryService.getAllInventoryItems = jest.fn().mockResolvedValue(mockTemplateItems as any);
     });
 
     it('should generate stock update template', async () => {

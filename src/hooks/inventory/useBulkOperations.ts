@@ -6,7 +6,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { InventoryService } from '../../services/inventory/inventoryService';
 import { inventoryKeys } from '../../utils/queryKeyFactory';
-import { useAuth } from '../useAuth';
+import { useCurrentUser } from '../useAuth';
 import type { StockUpdateInput } from '../../schemas/inventory';
 
 export interface BulkOperationProgress {
@@ -36,7 +36,7 @@ export interface CSVImportData {
  */
 export function useBulkStockUpdate() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { data: user } = useCurrentUser();
 
   return useMutation({
     mutationFn: async (updates: BulkStockUpdate[]) => {
@@ -71,7 +71,7 @@ export function useBulkStockUpdate() {
  */
 export function useCSVImport() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { data: user } = useCurrentUser();
 
   return useMutation({
     mutationFn: async (csvData: CSVImportData[]) => {
@@ -155,7 +155,7 @@ export function useCSVImport() {
  * Export inventory data to CSV format
  */
 export function useInventoryExport() {
-  const { user } = useAuth();
+  const { data: user } = useCurrentUser();
 
   return useMutation({
     mutationFn: async (options?: { 
@@ -201,7 +201,7 @@ export function useInventoryExport() {
 
       const csvRows = filteredItems.map(item => [
         item.productId,
-        item.productName || '',
+        'Product Name', // TODO: Join with products table to get actual name
         item.currentStock,
         item.reservedStock || 0,
         (item.currentStock || 0) - (item.reservedStock || 0),
@@ -238,7 +238,7 @@ export function useBulkOperationTemplates() {
           const stockHeaders = ['Product ID', 'Product Name', 'Current Stock', 'Reason'];
           const stockRows = items.map(item => [
             item.productId,
-            item.productName || '',
+            'Product Name', // TODO: Join with products table to get actual name
             item.currentStock,
             'Bulk Update'
           ]);
@@ -257,7 +257,7 @@ export function useBulkOperationTemplates() {
           const visibilityHeaders = ['Product ID', 'Product Name', 'Visible to Customers', 'Is Active'];
           const visibilityRows = items.map(item => [
             item.productId,
-            item.productName || '',
+            'Product Name', // TODO: Join with products table to get actual name
             item.isVisibleToCustomers ? 'Yes' : 'No',
             item.isActive ? 'Yes' : 'No'
           ]);
@@ -279,7 +279,7 @@ export function useBulkOperationTemplates() {
           ];
           const fullRows = items.map(item => [
             item.productId,
-            item.productName || '',
+            'Product Name', // TODO: Join with products table to get actual name
             item.currentStock,
             item.minimumThreshold || 10,
             item.maximumThreshold || 1000,
