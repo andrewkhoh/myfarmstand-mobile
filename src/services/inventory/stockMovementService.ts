@@ -33,10 +33,7 @@ export class StockMovementService {
         .select()
         .single();
 
-      console.log('[DEBUG] DB Insert result:', { data, error });
-
       if (error || !data) {
-        console.log('[DEBUG] Insert failed - error:', error);
         ValidationMonitor.recordValidationError({
           context: 'StockMovementService.recordMovement',
           errorCode: 'MOVEMENT_RECORDING_FAILED',
@@ -46,11 +43,16 @@ export class StockMovementService {
         return null;
       }
 
-      console.log('[DEBUG] Raw movement data from DB:', JSON.stringify(data, null, 2));
-      const transformResult = StockMovementTransformSchema.safeParse(data);
+      // Ensure all required fields are present before transformation
+      const enrichedData = {
+        ...data,
+        performed_at: data.performed_at || new Date().toISOString(),
+        created_at: data.created_at || new Date().toISOString()
+      };
+
+      const transformResult = StockMovementTransformSchema.safeParse(enrichedData);
       
       if (!transformResult.success) {
-        console.log('[DEBUG] Transformation failed:', transformResult.error.message);
         ValidationMonitor.recordValidationError({
           context: 'StockMovementService.recordMovement',
           errorCode: 'MOVEMENT_TRANSFORMATION_FAILED',
@@ -59,8 +61,6 @@ export class StockMovementService {
         });
         return null;
       }
-      
-      console.log('[DEBUG] Transformed movement data:', JSON.stringify(transformResult.data, null, 2));
 
       ValidationMonitor.recordPatternSuccess({
         service: 'stockMovementService',
@@ -429,7 +429,7 @@ export class StockMovementService {
           context: 'StockMovementService.recordMovementWithInventoryUpdate',
           errorCode: 'INVENTORY_UPDATE_FAILED',
           validationPattern: 'transformation_schema',
-          errorData: 'Failed to update inventory after movement'
+          errorMessage: 'Failed to update inventory after movement'
         });
         return null;
       }
@@ -470,7 +470,7 @@ export class StockMovementService {
         ValidationMonitor.recordValidationError({
           context: 'StockMovementService.checkMovementPermission',
           errorCode: 'PERMISSION_CHECK_FAILED',
-          validationPattern: 'simple_input_validation',
+          validationPattern: 'transformation_schema',
           errorMessage: error?.message || 'Database operation failed'
         });
         return false;
@@ -483,7 +483,7 @@ export class StockMovementService {
           if (['marketing_staff', 'executive', 'admin'].includes(role.role_type)) {
             ValidationMonitor.recordPatternSuccess({
               service: 'stockMovementService',
-              pattern: 'simple_input_validation',
+              pattern: 'transformation_schema',
               operation: 'checkMovementPermission'
             });
             return true;
@@ -495,7 +495,7 @@ export class StockMovementService {
           if (['inventory_staff', 'admin'].includes(role.role_type)) {
             ValidationMonitor.recordPatternSuccess({
               service: 'stockMovementService',
-              pattern: 'simple_input_validation',
+              pattern: 'transformation_schema',
               operation: 'checkMovementPermission'
             });
             return true;
@@ -506,7 +506,7 @@ export class StockMovementService {
         if (role.permissions && (role.permissions as string[]).includes(permission)) {
           ValidationMonitor.recordPatternSuccess({
             service: 'stockMovementService',
-            pattern: 'simple_input_validation',
+            pattern: 'transformation_schema',
             operation: 'checkMovementPermission'
           });
           return true;
@@ -515,7 +515,7 @@ export class StockMovementService {
 
       ValidationMonitor.recordPatternSuccess({
         service: 'stockMovementService',
-        pattern: 'simple_input_validation',
+        pattern: 'transformation_schema',
         operation: 'checkMovementPermission'
       });
 
@@ -524,7 +524,7 @@ export class StockMovementService {
       ValidationMonitor.recordValidationError({
         context: 'StockMovementService.checkMovementPermission',
         errorCode: 'PERMISSION_CHECK_FAILED',
-        validationPattern: 'simple_input_validation',
+        validationPattern: 'transformation_schema',
         errorMessage: error instanceof Error ? error.message : 'Unknown error'
       });
       return false;

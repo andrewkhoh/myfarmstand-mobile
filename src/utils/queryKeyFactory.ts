@@ -214,7 +214,20 @@ export const inventoryKeys = {
     [...baseInventoryKeys.stats(userId), 'analytics', filters] as const,
   
   stockAnalytics: (filters?: any, userId?: string) => 
-    [...baseInventoryKeys.stats(userId), 'stock', filters] as const
+    [...baseInventoryKeys.stats(userId), 'stock', filters] as const,
+  
+  // Dashboard-specific keys
+  dashboard: (userId?: string) => 
+    [...baseInventoryKeys.stats(userId), 'dashboard'] as const,
+  
+  alerts: (userId?: string) => 
+    [...baseInventoryKeys.lists(userId), 'alerts'] as const,
+  
+  performanceMetrics: (userId?: string) => 
+    [...baseInventoryKeys.stats(userId), 'performance'] as const,
+  
+  realtimeStatus: (userId?: string) => 
+    [...baseInventoryKeys.stats(userId), 'realtime-status'] as const
 };
 // Kiosk-specific query key factory with entity-specific methods
 const baseKioskKeys = createQueryKeyFactory({ entity: 'kiosk', isolation: 'user-specific' });
