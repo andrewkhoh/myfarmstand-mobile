@@ -1,23 +1,28 @@
-// Phase 4.4.3: Predictive Analytics Integration Tests (RED Phase)
-// Testing end-to-end forecasting pipeline with model validation
-
-import { supabase } from '../../../config/supabase';
+import { createSupabaseMock } from '../../../test/mocks/supabase.simplified.mock';
+import { createUser, resetAllFactories } from '../../../test/factories';
 import { PredictiveAnalyticsService } from '../predictiveAnalyticsService';
 import { BusinessMetricsService } from '../businessMetricsService';
 import { BusinessIntelligenceService } from '../businessIntelligenceService';
 import { InventoryService } from '../../inventory/inventoryService';
 import { MarketingCampaignService } from '../../marketing/marketingCampaignService';
-import { ValidationMonitor } from '../../../utils/validationMonitor';
 
-// Mock dependencies
-jest.mock('../../../config/supabase');
+// Mock ValidationMonitor
 jest.mock('../../../utils/validationMonitor');
+const { ValidationMonitor } = require('../../../utils/validationMonitor');
 
-describe('Predictive Analytics Integration - Phase 4.4.3', () => {
-  const mockSupabase = supabase as jest.Mocked<typeof supabase>;
+// Mock Supabase
+jest.mock('../../../config/supabase');
+const { supabase } = require('../../../config/supabase');
+
+describe('Predictive Analytics Integration', () => {
+  const testUser = createUser();
   
   beforeEach(() => {
     jest.clearAllMocks();
+    resetAllFactories();
+    
+    const mockClient = createSupabaseMock();
+    Object.assign(supabase, mockClient);
     
     mockSupabase.from = jest.fn().mockReturnValue({
       select: jest.fn().mockReturnThis(),

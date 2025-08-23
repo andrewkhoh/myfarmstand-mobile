@@ -1,14 +1,26 @@
-// Mock ValidationMonitor before importing service (exact authService pattern)
-jest.mock('../../../utils/validationMonitor');
-
+import { createSupabaseMock } from '../../../test/mocks/supabase.simplified.mock';
+import { createUser, resetAllFactories } from '../../../test/factories';
 import { PredictiveAnalyticsService } from '../predictiveAnalyticsService';
-import { ValidationMonitor } from '../../../utils/validationMonitor';
 
-// Mock the supabase module at the service level (exact authService pattern)
-const mockSupabase = require('../../../config/supabase').supabase;
+// Mock ValidationMonitor
+jest.mock('../../../utils/validationMonitor');
+const { ValidationMonitor } = require('../../../utils/validationMonitor');
 
-// Mock-based service testing (following successful pattern)
-describe('PredictiveAnalyticsService - Phase 4.2', () => {
+// Mock Supabase
+jest.mock('../../../config/supabase');
+const { supabase } = require('../../../config/supabase');
+
+describe('PredictiveAnalyticsService', () => {
+  const testUser = createUser();
+  
+  beforeEach(() => {
+    jest.clearAllMocks();
+    resetAllFactories();
+    
+    // Reset to simplified mock
+    const mockClient = createSupabaseMock();
+    Object.assign(supabase, mockClient);
+  });
   
   // Helper function to create complete predictive forecast data
   const createMockForecast = (overrides: Partial<any> = {}) => ({
