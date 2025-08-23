@@ -1,3 +1,6 @@
+import { createSupabaseMock } from '../../../test/mocks/supabase.simplified.mock';
+import { hookContracts } from '../../../test/contracts/hook.contracts';
+
 /**
  * Phase 2.3.1: Inventory Hooks Tests (RED Phase)
  * Following TDD - these tests will FAIL until hooks are implemented

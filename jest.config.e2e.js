@@ -20,8 +20,11 @@ module.exports = {
     'node_modules/(?!(react-native|@react-native|@supabase|@tanstack/react-query)/)',
   ],
   setupFilesAfterEnv: [
-    '<rootDir>/src/test/e2e-setup.ts',
+    '<rootDir>/src/test/test-setup.ts',
   ],
+  globals: {
+    TEST_MODE: 'e2e'
+  },
   testTimeout: 120000, // 2 minutes for E2E tests
   forceExit: true, // Force exit to prevent hanging
   detectOpenHandles: true,

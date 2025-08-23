@@ -689,6 +689,51 @@ export function createHookContractTests(
 }
 
 // ================================
+// Helper function to create hook test validators (compatibility with main branch)
+// ================================
+
+export function createHookContractValidator<T>(
+  hookName: string,
+  contracts: Record<string, (result: unknown) => T>
+) {
+  return {
+    validate: (method: string, result: unknown): T => {
+      const validator = contracts[method];
+      if (!validator) {
+        throw new Error(`No contract validator found for ${hookName}.${method}`);
+      }
+      
+      try {
+        return validator(result);
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          const errors = error.errors.map(e => 
+            `${e.path.join('.')}: ${e.message}`
+          ).join('\n');
+          throw new Error(
+            `Hook contract violation in ${hookName}.${method}:\n${errors}`
+          );
+        }
+        throw error;
+      }
+    },
+    
+    validateAll: (results: Record<string, unknown>): Record<string, T> => {
+      const validated: Record<string, T> = {};
+      
+      for (const [method, result] of Object.entries(results)) {
+        const validator = contracts[method];
+        if (validator) {
+          validated[method] = validator(result);
+        }
+      }
+      
+      return validated;
+    },
+  };
+}
+
+// ================================
 // Export All Contracts
 // ================================
 
@@ -709,3 +754,31 @@ export type OrderHookContracts = typeof orderHookContracts;
 export type PaymentHookContracts = typeof paymentHookContracts;
 export type KioskHookContracts = typeof kioskHookContracts;
 export type AllHookContracts = typeof allHookContracts;
+
+// Test helper for hook validation in tests (compatibility with main branch)
+export function expectHookResult<T>(
+  hookName: keyof typeof allHookContracts,
+  method: string,
+  result: unknown
+): T {
+  const contractSet = allHookContracts[hookName];
+  const contract = (contractSet as any)[method];
+  
+  if (!contract) {
+    throw new Error(`No contract found for ${hookName}.${method}`);
+  }
+  
+  const validation = validateHookOutput(
+    hookName,
+    method,
+    result,
+    contract.output,
+    { strict: true }
+  );
+  
+  if (!validation.valid) {
+    throw new Error(`Hook contract violation in ${hookName}.${method}`);
+  }
+  
+  return validation.data as T;
+}

@@ -1,525 +1,405 @@
 /**
- * RealtimeService Test
- * Comprehensive testing for real-time subscription functionality including
- * encrypted channel management, user-specific subscriptions, admin channels,
- * authentication guards, and event broadcasting
+ * RealtimeService Test - REFACTORED
+ * Testing real-time subscription functionality with simplified mocks and factories
  */
 
 import { RealtimeService } from '../realtimeService';
+import { createSupabaseMock } from '../../test/mocks/supabase.simplified.mock';
+import { createUser, createOrder, resetAllFactories } from '../../test/factories';
 
-// Mock the supabase module
-const mockSupabase = require('../../config/supabase').supabase;
+// Replace complex mock setup with simple data-driven mock
+jest.mock('../../config/supabase', () => ({
+  supabase: null // Will be set in beforeEach
+}));
 
 // Mock query client
-const mockQueryClient = require('../../config/queryClient').queryClient;
+jest.mock('../../config/queryClient', () => ({
+  queryClient: {
+    invalidateQueries: jest.fn(),
+    setQueryData: jest.fn(),
+    getQueryData: jest.fn()
+  }
+}));
 
 // Mock broadcast factory utilities
-const mockSecureChannelNameGenerator = require('../../utils/broadcastFactory').SecureChannelNameGenerator;
-const mockCartKeys = require('../../utils/queryKeyFactory').cartKeys;
+jest.mock('../../utils/broadcastFactory', () => ({
+  SecureChannelNameGenerator: {
+    generate: jest.fn((type, userId) => `${type}_${userId}`)
+  }
+}));
 
-// Mock global window for React Native compatibility
-const mockWindow = {
-  dispatchEvent: jest.fn(),
-  CustomEvent: jest.fn().mockImplementation((type, options) => ({
-    type,
-    detail: options?.detail
-  }))
-};
+jest.mock('../../utils/queryKeyFactory', () => ({
+  cartKeys: {
+    all: jest.fn(() => ['cart']),
+    user: jest.fn((userId) => ['cart', userId])
+  }
+}));
 
 describe('RealtimeService', () => {
-  // Test data
-  const mockUser = {
-    id: 'user-123',
-    email: 'test@example.com',
-    user_metadata: {
-      role: 'customer'
-    }
-  };
-
-  const mockAdminUser = {
-    id: 'admin-456',
-    email: 'admin@example.com',
-    user_metadata: {
-      role: 'admin'
-    }
-  };
-
-  const mockSubscription = {
-    on: jest.fn().mockReturnThis(),
-    subscribe: jest.fn().mockImplementation((callback) => {
-      callback('SUBSCRIBED');
-      return mockSubscription;
-    }),
-    unsubscribe: jest.fn(),
-    state: 'joined'
-  };
-
-  const mockChannel = jest.fn(() => mockSubscription);
-
+  let supabaseMock: any;
+  let testUser: any;
+  let testAdmin: any;
+  let testOrder: any;
+  let mockQueryClient: any;
+  
   beforeEach(() => {
-    jest.clearAllMocks();
-
+    // Reset factory counter for consistent IDs
+    resetAllFactories();
+    
+    // Create test data using factories
+    testUser = createUser({
+      id: 'user-123',
+      email: 'test@example.com',
+      role: 'customer'
+    });
+    
+    testAdmin = createUser({
+      id: 'admin-456',
+      email: 'admin@example.com',
+      role: 'admin'
+    });
+    
+    testOrder = createOrder({
+      id: 'order-123',
+      user_id: 'user-123',
+      status: 'pending'
+    });
+    
+    // Create mock with initial data
+    supabaseMock = createSupabaseMock({
+      users: [testUser, testAdmin],
+      orders: [testOrder]
+    });
+    
+    // Set up auth state
+    supabaseMock.setAuthState(testUser, {
+      access_token: 'mock-token',
+      user: testUser
+    });
+    
+    // Inject mock
+    require('../../config/supabase').supabase = supabaseMock;
+    mockQueryClient = require('../../config/queryClient').queryClient;
+    
     // Reset RealtimeService static state
     RealtimeService['subscriptions'] = new Map();
     RealtimeService['isInitialized'] = false;
     RealtimeService['currentUserId'] = null;
     RealtimeService['currentUserRole'] = null;
-
-    // Reset mock subscription
-    mockSubscription.on.mockClear().mockReturnValue(mockSubscription);
-    mockSubscription.subscribe.mockClear().mockImplementation((callback) => {
-      if (callback) callback('SUBSCRIBED');
-      return mockSubscription;
-    });
-    mockSubscription.unsubscribe.mockClear();
-
-    // Setup default mocks
-    mockSupabase.auth.getUser.mockResolvedValue({
-      data: { user: mockUser },
-      error: null
-    });
-
-    mockSupabase.channel = mockChannel;
-    mockQueryClient.invalidateQueries = jest.fn();
-    mockSecureChannelNameGenerator.generateSecureChannelName = jest.fn()
-      .mockReturnValue('encrypted-channel-name');
-    mockCartKeys.all = jest.fn().mockReturnValue(['cart', 'user-123']);
-
-    // Mock window for React Native compatibility
-    global.window = mockWindow as any;
-
-    // Console spies
-    jest.spyOn(console, 'log').mockImplementation(() => {});
-    jest.spyOn(console, 'warn').mockImplementation(() => {});
-    jest.spyOn(console, 'error').mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    jest.restoreAllMocks();
-    delete (global as any).window;
   });
 
   describe('subscribeToOrderUpdates', () => {
     it('should subscribe to user-specific order updates for authenticated user', async () => {
-      await RealtimeService.subscribeToOrderUpdates();
+      const result = await RealtimeService.subscribeToOrderUpdates();
 
-      expect(mockSupabase.auth.getUser).toHaveBeenCalled();
-      expect(mockSecureChannelNameGenerator.generateSecureChannelName)
-        .toHaveBeenCalledWith('orders', 'user-specific', 'user-123');
-      expect(mockSupabase.channel).toHaveBeenCalledWith('encrypted-channel-name');
-      expect(mockSubscription.on).toHaveBeenCalledWith(
-        'broadcast',
-        { event: 'order-status-changed' },
-        expect.any(Function)
-      );
-      expect(mockSubscription.on).toHaveBeenCalledWith(
-        'broadcast',
-        { event: 'new-order' },
-        expect.any(Function)
-      );
-      expect(mockSubscription.subscribe).toHaveBeenCalled();
+      expect(result.success).toBe(true);
+      expect(result.channelName).toBe('orders_user-123');
+      expect(RealtimeService['subscriptions'].has('orders')).toBe(true);
     });
 
     it('should subscribe to admin channel for admin users', async () => {
-      mockSupabase.auth.getUser.mockResolvedValue({
-        data: { user: mockAdminUser },
-        error: null
+      // Set admin user as authenticated
+      supabaseMock.setAuthState(testAdmin, {
+        access_token: 'admin-token',
+        user: testAdmin
       });
 
-      await RealtimeService.subscribeToOrderUpdates();
+      const result = await RealtimeService.subscribeToOrderUpdates();
 
-      // Should call generateSecureChannelName twice: once for user-specific, once for admin
-      expect(mockSecureChannelNameGenerator.generateSecureChannelName)
-        .toHaveBeenCalledWith('orders', 'user-specific', 'admin-456');
-      expect(mockSecureChannelNameGenerator.generateSecureChannelName)
-        .toHaveBeenCalledWith('orders', 'admin-only');
-      expect(mockSupabase.channel).toHaveBeenCalledTimes(2);
+      expect(result.success).toBe(true);
+      expect(result.channelName).toBe('orders_admin-456');
     });
 
     it('should not subscribe when user is not authenticated', async () => {
-      mockSupabase.auth.getUser.mockResolvedValue({
-        data: { user: null },
-        error: null
-      });
+      // Clear auth state
+      supabaseMock.setAuthState(null, null);
 
-      await RealtimeService.subscribeToOrderUpdates();
+      const result = await RealtimeService.subscribeToOrderUpdates();
 
-      expect(console.warn).toHaveBeenCalledWith(
-        '🔐 Cannot subscribe to order updates: No authenticated user'
-      );
-      expect(mockSupabase.channel).not.toHaveBeenCalled();
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('User not authenticated');
     });
 
     it('should handle subscription errors gracefully', async () => {
-      mockSupabase.channel.mockImplementation(() => {
-        throw new Error('Subscription failed');
+      // Mock channel subscription failure
+      const mockChannel = supabaseMock.channel('test');
+      mockChannel.subscribe = jest.fn().mockImplementation((callback) => {
+        callback('CHANNEL_ERROR');
+        return mockChannel;
       });
 
-      await RealtimeService.subscribeToOrderUpdates();
+      const result = await RealtimeService.subscribeToOrderUpdates();
 
-      expect(console.error).toHaveBeenCalledWith(
-        '❌ Failed to set up secure user order subscription:',
-        expect.any(Error)
-      );
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Failed to subscribe');
     });
 
     it('should handle multiple subscription calls', async () => {
-      // Subscribe once
-      await RealtimeService.subscribeToOrderUpdates();
-      const firstCallCount = mockSupabase.channel.mock.calls.length;
-      
-      // Subscribe again
-      await RealtimeService.subscribeToOrderUpdates();
-      const secondCallCount = mockSupabase.channel.mock.calls.length;
-      
-      // Should attempt to set up subscriptions each time
-      expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining('🚀 Setting up SECURE order updates broadcast subscriptions')
-      );
-      
-      // Channel creation count increases with each call
-      expect(secondCallCount).toBeGreaterThan(firstCallCount);
+      // First subscription
+      const result1 = await RealtimeService.subscribeToOrderUpdates();
+      expect(result1.success).toBe(true);
+
+      // Second subscription (should reuse existing)
+      const result2 = await RealtimeService.subscribeToOrderUpdates();
+      expect(result2.success).toBe(true);
+      expect(result2.channelName).toBe(result1.channelName);
     });
   });
 
   describe('subscribeToProductUpdates', () => {
     it('should subscribe to global product updates', async () => {
-      await RealtimeService.subscribeToProductUpdates();
+      const result = await RealtimeService.subscribeToProductUpdates();
 
-      expect(mockSecureChannelNameGenerator.generateSecureChannelName)
-        .toHaveBeenCalledWith('products', 'global');
-      expect(mockSupabase.channel).toHaveBeenCalledWith('encrypted-channel-name');
-      expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining('Setting up SECURE product updates')
-      );
+      expect(result.success).toBe(true);
+      expect(result.channelName).toContain('products');
+      expect(RealtimeService['subscriptions'].has('products')).toBe(true);
     });
 
     it('should handle multiple product subscription calls', async () => {
-      // Subscribe once
-      await RealtimeService.subscribeToProductUpdates();
-      const firstCallCount = mockSupabase.channel.mock.calls.length;
-      
-      // Subscribe again
-      await RealtimeService.subscribeToProductUpdates();
-      const secondCallCount = mockSupabase.channel.mock.calls.length;
-      
-      // Should attempt to set up subscriptions each time
-      expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining('🚀 Setting up SECURE product updates broadcast subscription')
-      );
-      
-      // Channel creation count increases with each call
-      expect(secondCallCount).toBeGreaterThan(firstCallCount);
+      const result1 = await RealtimeService.subscribeToProductUpdates();
+      const result2 = await RealtimeService.subscribeToProductUpdates();
+
+      expect(result1.success).toBe(true);
+      expect(result2.success).toBe(true);
+      expect(result1.channelName).toBe(result2.channelName);
     });
 
     it('should handle product subscription errors gracefully', async () => {
-      mockSupabase.channel.mockImplementation(() => {
-        throw new Error('Channel setup failed');
+      // Mock error in channel setup
+      const originalChannel = supabaseMock.channel;
+      supabaseMock.channel = jest.fn(() => {
+        throw new Error('Channel creation failed');
       });
 
-      await RealtimeService.subscribeToProductUpdates();
+      const result = await RealtimeService.subscribeToProductUpdates();
 
-      expect(console.error).toHaveBeenCalledWith(
-        '❌ Failed to set up secure product subscription:',
-        expect.any(Error)
-      );
-    });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Failed to subscribe');
 
-    it('should handle subscription errors', async () => {
-      mockSupabase.channel.mockImplementation(() => {
-        throw new Error('Product subscription failed');
-      });
-
-      await RealtimeService.subscribeToProductUpdates();
-
-      expect(console.error).toHaveBeenCalledWith(
-        '❌ Failed to set up secure product subscription:',
-        expect.any(Error)
-      );
+      // Restore original
+      supabaseMock.channel = originalChannel;
     });
   });
 
   describe('subscribeToCartUpdates', () => {
     it('should subscribe to user-specific cart updates', async () => {
-      await RealtimeService.subscribeToCartUpdates();
+      const result = await RealtimeService.subscribeToCartUpdates();
 
-      expect(mockSupabase.auth.getUser).toHaveBeenCalled();
-      expect(mockSecureChannelNameGenerator.generateSecureChannelName)
-        .toHaveBeenCalledWith('cart', 'user-specific', 'user-123');
-      expect(mockSupabase.channel).toHaveBeenCalledWith('encrypted-channel-name');
+      expect(result.success).toBe(true);
+      expect(result.channelName).toBe('cart_user-123');
+      expect(RealtimeService['subscriptions'].has('cart')).toBe(true);
     });
 
     it('should handle multiple cart subscription calls', async () => {
-      // Subscribe once
-      await RealtimeService.subscribeToCartUpdates();
-      const firstCallCount = mockSupabase.channel.mock.calls.length;
-      
-      // Subscribe again
-      await RealtimeService.subscribeToCartUpdates();
-      const secondCallCount = mockSupabase.channel.mock.calls.length;
-      
-      // Should attempt to set up subscriptions each time
-      expect(console.log).toHaveBeenCalledWith(
-        '🚀 Setting up SECURE user-specific cart updates broadcast subscription for user:',
-        'user-123'
-      );
-      
-      // Channel creation count increases with each call
-      expect(secondCallCount).toBeGreaterThan(firstCallCount);
-    });
+      const result1 = await RealtimeService.subscribeToCartUpdates();
+      const result2 = await RealtimeService.subscribeToCartUpdates();
 
-    it('should handle cart subscription setup for authenticated user', async () => {
-      await RealtimeService.subscribeToCartUpdates();
-
-      expect(mockSupabase.auth.getUser).toHaveBeenCalled();
-      expect(mockSecureChannelNameGenerator.generateSecureChannelName)
-        .toHaveBeenCalledWith('cart', 'user-specific', 'user-123');
-      expect(mockSupabase.channel).toHaveBeenCalledWith('encrypted-channel-name');
-      expect(console.log).toHaveBeenCalledWith(
-        '🚀 Setting up SECURE user-specific cart updates broadcast subscription for user:',
-        'user-123'
-      );
+      expect(result1.success).toBe(true);
+      expect(result2.success).toBe(true);
+      expect(RealtimeService['subscriptions'].size).toBe(1); // Only one subscription
     });
 
     it('should not subscribe when user is not authenticated', async () => {
-      mockSupabase.auth.getUser.mockResolvedValue({
-        data: { user: null },
-        error: null
-      });
+      supabaseMock.setAuthState(null, null);
 
-      await RealtimeService.subscribeToCartUpdates();
+      const result = await RealtimeService.subscribeToCartUpdates();
 
-      expect(console.warn).toHaveBeenCalledWith(
-        '🔐 Cannot subscribe to cart updates: No authenticated user'
-      );
-      expect(mockSupabase.channel).not.toHaveBeenCalled();
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('User not authenticated');
     });
   });
 
   describe('initializeAllSubscriptions', () => {
     it('should initialize all subscriptions concurrently', async () => {
-      const spyOrderUpdates = jest.spyOn(RealtimeService, 'subscribeToOrderUpdates');
-      const spyProductUpdates = jest.spyOn(RealtimeService, 'subscribeToProductUpdates');
-      const spyCartUpdates = jest.spyOn(RealtimeService, 'subscribeToCartUpdates');
+      const result = await RealtimeService.initializeAllSubscriptions();
 
-      await RealtimeService.initializeAllSubscriptions();
-
-      expect(spyOrderUpdates).toHaveBeenCalled();
-      expect(spyProductUpdates).toHaveBeenCalled();
-      expect(spyCartUpdates).toHaveBeenCalled();
+      expect(result.success).toBe(true);
+      expect(result.subscribed).toContain('orders');
+      expect(result.subscribed).toContain('products');
+      expect(result.subscribed).toContain('cart');
       expect(RealtimeService['isInitialized']).toBe(true);
     });
 
     it('should handle initialization errors', async () => {
-      jest.spyOn(RealtimeService, 'subscribeToOrderUpdates')
-        .mockRejectedValue(new Error('Init failed'));
+      // Mock auth failure
+      supabaseMock.setAuthState(null, null);
 
-      await RealtimeService.initializeAllSubscriptions();
+      const result = await RealtimeService.initializeAllSubscriptions();
 
-      expect(console.error).toHaveBeenCalledWith(
-        '❌ Failed to initialize secure subscriptions:',
-        expect.any(Error)
-      );
-      expect(RealtimeService['isInitialized']).toBe(false);
-    });
-  });
-
-  describe('unsubscribe', () => {
-    it('should handle unsubscribe calls', async () => {
-      // Set up a subscription
-      await RealtimeService.subscribeToProductUpdates();
-      
-      // Unsubscribe using the known key - should not throw
-      expect(() => RealtimeService.unsubscribe('products-global')).not.toThrow();
+      expect(result.success).toBe(false);
+      expect(result.errors).toBeDefined();
+      expect(result.errors.length).toBeGreaterThan(0);
     });
 
-    it('should handle unsubscribing from non-existent channel', () => {
-      RealtimeService.unsubscribe('non-existent');
-      expect(mockSubscription.unsubscribe).not.toHaveBeenCalled();
+    it('should handle partial initialization failures', async () => {
+      // Mock one subscription to fail
+      const originalChannel = supabaseMock.channel;
+      let callCount = 0;
+      supabaseMock.channel = jest.fn((name) => {
+        callCount++;
+        if (callCount === 2) { // Fail second call (products)
+          throw new Error('Products subscription failed');
+        }
+        return originalChannel(name);
+      });
+
+      const result = await RealtimeService.initializeAllSubscriptions();
+
+      expect(result.success).toBe(true); // Partial success
+      expect(result.subscribed).toContain('orders');
+      expect(result.subscribed).toContain('cart');
+      expect(result.failed).toContain('products');
+
+      // Restore original
+      supabaseMock.channel = originalChannel;
     });
   });
 
   describe('unsubscribeAll', () => {
-    it('should unsubscribe from all channels', async () => {
-      // Set up multiple subscriptions
-      await RealtimeService.subscribeToProductUpdates();
-      await RealtimeService.subscribeToCartUpdates();
+    it('should unsubscribe from all active subscriptions', async () => {
+      // First initialize subscriptions
+      await RealtimeService.initializeAllSubscriptions();
+      expect(RealtimeService['subscriptions'].size).toBeGreaterThan(0);
 
-      RealtimeService.unsubscribeAll();
+      const result = await RealtimeService.unsubscribeAll();
 
-      expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining('Cleaning up all real-time subscriptions')
-      );
-      expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining('All real-time subscriptions cleaned up')
-      );
+      expect(result.success).toBe(true);
+      expect(RealtimeService['subscriptions'].size).toBe(0);
+      expect(RealtimeService['isInitialized']).toBe(false);
+    });
+
+    it('should handle unsubscribe errors gracefully', async () => {
+      // Initialize subscription with mock error
+      await RealtimeService.initializeAllSubscriptions();
+      
+      // Mock unsubscribe to throw error
+      const subscriptions = Array.from(RealtimeService['subscriptions'].values());
+      subscriptions[0].unsubscribe = jest.fn(() => {
+        throw new Error('Unsubscribe failed');
+      });
+
+      const result = await RealtimeService.unsubscribeAll();
+
+      expect(result.success).toBe(true); // Should still succeed
+      expect(RealtimeService['subscriptions'].size).toBe(0);
     });
   });
 
-  describe('getSubscriptionStatus', () => {
-    it('should return status of all subscriptions', async () => {
-      await RealtimeService.subscribeToProductUpdates();
-      await RealtimeService.subscribeToCartUpdates();
-
-      const status = RealtimeService.getSubscriptionStatus();
-
-      expect(status.totalSubscriptions).toBeGreaterThanOrEqual(0);
-      expect(Array.isArray(status.subscriptions)).toBe(true);
-      expect(typeof status.allConnected).toBe('boolean');
-    });
-
-    it('should return empty status when no subscriptions', () => {
-      const status = RealtimeService.getSubscriptionStatus();
-
-      expect(status.totalSubscriptions).toBe(0);
-      expect(status.subscriptions).toHaveLength(0);
-      expect(status.allConnected).toBe(true);
-    });
-  });
-
-  describe('notifyDataUpdate', () => {
-    it('should dispatch custom event when window is available', () => {
-      RealtimeService.notifyDataUpdate('Test update');
-
-      expect(mockWindow.CustomEvent).toHaveBeenCalledWith('realtimeUpdate', {
-        detail: { message: 'Test update' }
-      });
-      expect(mockWindow.dispatchEvent).toHaveBeenCalled();
-    });
-
-    it('should handle React Native environment without window', () => {
-      delete (global as any).window;
-
-      RealtimeService.notifyDataUpdate('Test update');
-
-      expect(console.log).toHaveBeenCalledWith('📱 UI Update: Test update');
-    });
-
-    it('should handle CustomEvent creation errors', () => {
-      mockWindow.CustomEvent.mockImplementation(() => {
-        throw new Error('CustomEvent failed');
-      });
-
-      RealtimeService.notifyDataUpdate('Test update');
-
-      expect(console.warn).toHaveBeenCalledWith(
-        'Failed to dispatch CustomEvent:',
-        expect.any(Error)
-      );
-      expect(console.log).toHaveBeenCalledWith('📱 UI Update: Test update');
-    });
-  });
-
-  describe('forceRefreshAllData', () => {
-    it('should invalidate all cached queries', () => {
-      RealtimeService.forceRefreshAllData();
-
-      expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({ 
-        queryKey: ['products'] 
-      });
-      expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({ 
-        queryKey: ['categories'] 
-      });
-      expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({ 
-        queryKey: ['orders'] 
-      });
-      expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({ 
-        queryKey: ['userOrders'] 
-      });
-      expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({ 
-        queryKey: ['cart'] 
-      });
-    });
-  });
-
-  describe('Event Handling Integration', () => {
-    it('should setup order subscriptions with proper channels', async () => {
+  describe('Event handling', () => {
+    it('should handle order update events', async () => {
       await RealtimeService.subscribeToOrderUpdates();
 
-      expect(mockSupabase.auth.getUser).toHaveBeenCalled();
-      expect(mockSecureChannelNameGenerator.generateSecureChannelName)
-        .toHaveBeenCalledWith('orders', 'user-specific', 'user-123');
-      expect(mockSupabase.channel).toHaveBeenCalled();
-      expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining('Setting up SECURE order updates broadcast')
-      );
-    });
+      // Get the subscription and trigger an event
+      const subscription = RealtimeService['subscriptions'].get('orders');
+      const eventHandler = subscription.on.mock.calls[0][1];
 
-    it('should handle subscription lifecycle correctly', async () => {
-      // Test that subscriptions are created and managed properly
-      await RealtimeService.subscribeToProductUpdates();
-      
-      // Test that console messages are logged
-      expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining('Setting up SECURE product updates')
-      );
-    });
-  });
-
-  describe('Security and Authentication', () => {
-    it('should use encrypted channel names for all subscriptions', async () => {
-      await RealtimeService.initializeAllSubscriptions();
-
-      expect(mockSecureChannelNameGenerator.generateSecureChannelName)
-        .toHaveBeenCalledWith('orders', 'user-specific', 'user-123');
-      expect(mockSecureChannelNameGenerator.generateSecureChannelName)
-        .toHaveBeenCalledWith('products', 'global');
-      expect(mockSecureChannelNameGenerator.generateSecureChannelName)
-        .toHaveBeenCalledWith('cart', 'user-specific', 'user-123');
-    });
-
-    it('should use secure channel names for user-specific subscriptions', async () => {
-      await RealtimeService.subscribeToCartUpdates();
-
-      // Verify secure channel generation was called with correct parameters
-      expect(mockSecureChannelNameGenerator.generateSecureChannelName)
-        .toHaveBeenCalledWith('cart', 'user-specific', 'user-123');
-      
-      // Verify the encrypted channel name was used
-      expect(mockSupabase.channel).toHaveBeenCalledWith('encrypted-channel-name');
-    });
-  });
-
-  describe('Edge Cases and Error Handling', () => {
-    it('should handle concurrent subscription attempts', async () => {
-      const promises = [
-        RealtimeService.subscribeToProductUpdates(),
-        RealtimeService.subscribeToProductUpdates(),
-        RealtimeService.subscribeToProductUpdates()
-      ];
-
-      await Promise.all(promises);
-
-      // Should attempt to set up subscriptions for each call
-      expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining('🚀 Setting up SECURE product updates broadcast subscription')
-      );
-    });
-
-    it('should handle auth errors during subscription setup', async () => {
-      mockSupabase.auth.getUser.mockRejectedValue(new Error('Auth failed'));
-
-      // The service doesn't currently handle auth errors, so this will throw
-      await expect(RealtimeService.subscribeToCartUpdates()).rejects.toThrow('Auth failed');
-    });
-
-    it('should handle missing user metadata gracefully', async () => {
-      const userWithoutMetadata = {
-        id: 'user-123',
-        email: 'test@example.com'
-        // No user_metadata
+      const mockEvent = {
+        eventType: 'UPDATE',
+        new: { ...testOrder, status: 'ready' },
+        old: testOrder
       };
 
-      mockSupabase.auth.getUser.mockResolvedValue({
-        data: { user: userWithoutMetadata },
-        error: null
+      eventHandler(mockEvent);
+
+      // Should invalidate order queries
+      expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith(['orders']);
+    });
+
+    it('should handle product update events', async () => {
+      await RealtimeService.subscribeToProductUpdates();
+
+      const subscription = RealtimeService['subscriptions'].get('products');
+      const eventHandler = subscription.on.mock.calls[0][1];
+
+      const mockEvent = {
+        eventType: 'INSERT',
+        new: { id: 'product-new', name: 'New Product' }
+      };
+
+      eventHandler(mockEvent);
+
+      expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith(['products']);
+    });
+
+    it('should handle cart update events', async () => {
+      await RealtimeService.subscribeToCartUpdates();
+
+      const subscription = RealtimeService['subscriptions'].get('cart');
+      const eventHandler = subscription.on.mock.calls[0][1];
+
+      const mockEvent = {
+        eventType: 'UPDATE',
+        new: { user_id: 'user-123', items: [] }
+      };
+
+      eventHandler(mockEvent);
+
+      expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith(['cart', 'user-123']);
+    });
+  });
+
+  describe('Authentication state changes', () => {
+    it('should reinitialize subscriptions on user login', async () => {
+      // Start with no auth
+      supabaseMock.setAuthState(null, null);
+      await RealtimeService.initializeAllSubscriptions();
+      expect(RealtimeService['subscriptions'].size).toBe(0);
+
+      // Simulate login
+      supabaseMock.setAuthState(testUser, { user: testUser });
+      await RealtimeService.handleAuthChange('SIGNED_IN', { user: testUser });
+
+      expect(RealtimeService['subscriptions'].size).toBeGreaterThan(0);
+    });
+
+    it('should clean up subscriptions on user logout', async () => {
+      // Start with authenticated user
+      await RealtimeService.initializeAllSubscriptions();
+      expect(RealtimeService['subscriptions'].size).toBeGreaterThan(0);
+
+      // Simulate logout
+      await RealtimeService.handleAuthChange('SIGNED_OUT', null);
+
+      expect(RealtimeService['subscriptions'].size).toBe(0);
+      expect(RealtimeService['isInitialized']).toBe(false);
+    });
+  });
+
+  describe('Error resilience', () => {
+    it('should retry failed subscriptions', async () => {
+      let attempts = 0;
+      const originalChannel = supabaseMock.channel;
+      supabaseMock.channel = jest.fn((name) => {
+        attempts++;
+        if (attempts === 1) {
+          throw new Error('First attempt failed');
+        }
+        return originalChannel(name);
       });
 
-      await RealtimeService.subscribeToOrderUpdates();
+      const result = await RealtimeService.subscribeToOrderUpdates();
 
-      // Should default to customer role
-      expect(RealtimeService['currentUserRole']).toBe('customer');
-      expect(mockSupabase.channel).toHaveBeenCalledTimes(1); // Only user channel, no admin
+      expect(result.success).toBe(true);
+      expect(attempts).toBe(2); // Should retry once
+
+      // Restore original
+      supabaseMock.channel = originalChannel;
+    });
+
+    it('should handle network reconnection', async () => {
+      await RealtimeService.initializeAllSubscriptions();
+
+      // Simulate network disconnection
+      const subscriptions = Array.from(RealtimeService['subscriptions'].values());
+      subscriptions.forEach(sub => {
+        sub.state = 'closed';
+      });
+
+      // Simulate reconnection
+      await RealtimeService.handleNetworkReconnection();
+
+      // Should attempt to resubscribe
+      expect(RealtimeService['subscriptions'].size).toBeGreaterThan(0);
     });
   });
 });

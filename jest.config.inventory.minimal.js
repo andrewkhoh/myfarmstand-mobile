@@ -1,7 +1,10 @@
 module.exports = {
   displayName: 'inventory-minimal',
   testEnvironment: 'node',
-  setupFilesAfterEnv: ['<rootDir>/src/test/inventory-minimal-setup.js'],
+  setupFilesAfterEnv: ['<rootDir>/src/test/test-setup.ts'],
+  globals: {
+    TEST_MODE: 'default'
+  },
   testMatch: [
     '<rootDir>/src/hooks/inventory/__tests__/useBulkOperations.test.tsx'
   ],

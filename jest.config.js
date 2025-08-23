@@ -1,6 +1,6 @@
 module.exports = {
   preset: 'jest-expo',
-  setupFilesAfterEnv: ['<rootDir>/src/test/setup.ts'],
+  setupFilesAfterEnv: ['<rootDir>/src/test/test-setup.ts'],
   testMatch: [
     '**/__tests__/**/*.(ts|tsx|js)',
     '**/*.(test|spec).(ts|tsx|js)'

@@ -13,7 +13,8 @@ import {
 } from '../useAuth';
 import { authKeys } from '../../utils/queryKeyFactory';
 import { createWrapper } from '../../test/test-utils';
-import { createMockUser, createMockLoginResponse, createMockRegisterResponse, createMockLogoutResponse } from '../../test/mockData';
+import { createSupabaseMock } from '../../test/mocks/supabase.simplified.mock';
+import { hookContracts } from '../../test/contracts/hook.contracts';
 
 jest.mock('../../services/authService');
 const mockAuthService = AuthService as jest.Mocked<typeof AuthService>;
@@ -24,7 +25,17 @@ jest.mock('../../utils/broadcastFactory', () => ({
   }),
 }));
 
-const mockUser = createMockUser({ id: '1' });
+// Create test user with simplified mock
+const mockUser = {
+  id: '1',
+  email: 'test@example.com',
+  name: 'Test User',
+  role: 'customer' as const,
+  phone: '555-0123',
+  address: '123 Test St',
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+};
 
 describe('useAuth hooks', () => {
   beforeEach(() => {
@@ -33,7 +44,15 @@ describe('useAuth hooks', () => {
 
   describe('useLoginMutation', () => {
     it('should successfully login a user', async () => {
-      mockAuthService.login.mockResolvedValue(createMockLoginResponse({ user: mockUser }));
+      const loginResponse = {
+        user: mockUser,
+        session: {
+          access_token: 'test-token',
+          refresh_token: 'refresh-token',
+          expires_at: new Date(Date.now() + 3600000).toISOString(),
+        },
+      };
+      mockAuthService.login.mockResolvedValue(loginResponse);
 
       const { result } = renderHook(() => useLoginMutation(), {
         wrapper: createWrapper(),
@@ -46,6 +65,9 @@ describe('useAuth hooks', () => {
       });
 
       expect(mockAuthService.login).toHaveBeenCalledWith('test@example.com', 'password123');
+      
+      // Validate contract
+      hookContracts.auth.validate('validateLogin', loginResponse);
     });
 
     it('should handle login errors', async () => {
@@ -67,7 +89,14 @@ describe('useAuth hooks', () => {
 
   describe('useRegisterMutation', () => {
     it('should successfully register a user', async () => {
-      mockAuthService.register.mockResolvedValue(createMockRegisterResponse({ user: mockUser }));
+      const registerResponse = {
+        user: mockUser,
+        session: {
+          access_token: 'test-token',
+          refresh_token: 'refresh-token',
+        },
+      };
+      mockAuthService.register.mockResolvedValue(registerResponse);
 
       const { result } = renderHook(() => useRegisterMutation(), {
         wrapper: createWrapper(),
@@ -92,6 +121,9 @@ describe('useAuth hooks', () => {
         '555-0123',
         '123 Test St'
       );
+      
+      // Validate contract
+      hookContracts.auth.validate('validateRegister', registerResponse);
     });
   });
 

@@ -9,6 +9,9 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
+import { createSupabaseMock } from '../../test/mocks/supabase.simplified.mock';
+import { hookContracts } from '../../test/contracts/hook.contracts';
+import { createProduct } from '../../test/factories/product.factory';
 
 // Mock ValidationMonitor before importing hooks
 const mockValidationMonitor = {

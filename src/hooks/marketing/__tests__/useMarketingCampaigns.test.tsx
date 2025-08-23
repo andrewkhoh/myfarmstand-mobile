@@ -1,10 +1,12 @@
-// Phase 3.3.2: Marketing Campaign Hooks Tests (RED Phase)
-// Following TDD pattern: RED → GREEN → REFACTOR  
-// 15+ comprehensive tests for campaign management hooks
+// Marketing Campaign Hooks Tests - MIGRATED TO NEW ARCHITECTURE
+// Using SimplifiedSupabaseMock and hook contracts
+// Preserving TDD test structure for future implementation
 
 import { renderHook, waitFor, act } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
+import { createSupabaseMock } from '../../../test/mocks/supabase.simplified.mock';
+import { hookContracts } from '../../../test/contracts/hook.contracts';
 
 // Import hooks to test (these don't exist yet - RED phase)
 import {
@@ -20,12 +22,20 @@ import {
 import { MarketingCampaignService } from '../../../services/marketing/marketingCampaignService';
 import { RolePermissionService } from '../../../services/role-based/rolePermissionService';
 
-// Mock useAuth hook - following proven pattern from scratchpad-hook-test-setup  
+// Mock useAuth hook - migrated to new pattern
 jest.mock('../../useAuth', () => ({
   useAuth: jest.fn()
 }));
 import { useAuth } from '../../useAuth';
 const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
+
+// Create test user with simplified mock pattern
+const mockUser = {
+  id: 'user-1',
+  email: 'marketing@example.com',
+  name: 'Marketing Manager',
+  role: 'admin' as const,
+};
 
 // Mock broadcast factory - following proven pattern from scratchpad-hook-test-setup
 jest.mock('../../../utils/broadcastFactory', () => {

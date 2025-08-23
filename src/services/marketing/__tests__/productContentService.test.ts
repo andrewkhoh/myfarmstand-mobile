@@ -1,81 +1,43 @@
-// Mock ValidationMonitor before importing service (Pattern 1)
-jest.mock('../../../utils/validationMonitor');
-
+import { createSupabaseMock } from '../../../test/mocks/supabase.simplified.mock';
+import { createUser, createProduct, resetAllFactories } from '../../../test/factories';
 import { ProductContentService } from '../productContentService';
-import { ValidationMonitor } from '../../../utils/validationMonitor';
 import type { 
   UpdateProductContentInput,
   CreateProductContentInput
 } from '../../../schemas/marketing';
 
-// Mock the supabase module at the service level (exact authService pattern)
-const mockSupabase = require('../../../config/supabase').supabase;
+// Mock ValidationMonitor
+jest.mock('../../../utils/validationMonitor');
+const { ValidationMonitor } = require('../../../utils/validationMonitor');
 
 // Mock role permissions
 jest.mock('../../role-based/rolePermissionService');
-const mockRolePermissionService = require('../../role-based/rolePermissionService').RolePermissionService;
+const { RolePermissionService } = require('../../role-based/rolePermissionService');
 
-// ProductContentService Tests - Pattern 1 Compliance
-describe('ProductContentService - Phase 3.1.2', () => {
-  const testUserId = 'test-user-123';
-  const testProductId = 'test-product-456';
+// Mock Supabase
+jest.mock('../../../config/supabase');
+const { supabase } = require('../../../config/supabase');
+
+describe('ProductContentService', () => {
+  const testUser = createUser();
+  const testProduct = createProduct();
 
   beforeEach(() => {
     jest.clearAllMocks();
+    resetAllFactories();
     
-    // Reset Supabase mocks to prevent state contamination
-    if (global.resetSupabaseMocks) {
-      global.resetSupabaseMocks();
-    }
+    // Reset to simplified mock
+    const mockClient = createSupabaseMock();
+    Object.assign(supabase, mockClient);
     
-    // Setup default mock responses for role permissions
-    mockRolePermissionService.hasPermission = jest.fn().mockResolvedValue(true);
-    
-    // Add storage mock for file upload tests
-    mockSupabase.storage = {
-      from: jest.fn(() => ({
-        upload: jest.fn(() => Promise.resolve({
-          data: { path: 'content-images/test-file.jpg' },
-          error: null
-        })),
-        remove: jest.fn(() => Promise.resolve({
-          data: null,
-          error: null
-        }))
-      }))
-    };
+    // Setup default mock responses
+    RolePermissionService.hasPermission.mockResolvedValue(true);
   });
 
   describe('Content Creation', () => {
     it('should create product content with complete field validation', async () => {
-      // Setup successful content creation mock (Pattern 1)
-      mockSupabase.from.mockReturnValue({
-        insert: jest.fn().mockReturnValue({
-          select: jest.fn().mockReturnValue({
-            single: jest.fn().mockResolvedValue({
-              data: {
-                id: 'content-123',
-                product_id: testProductId,
-                marketing_title: 'Test Product Marketing',
-                marketing_description: 'Complete test description for product',
-                marketing_highlights: ['Quality', 'Organic', 'Fresh'],
-                seo_keywords: ['test', 'product', 'marketing'],
-                featured_image_url: null,
-                gallery_urls: null,
-                content_status: 'draft',
-                content_priority: 5,
-                last_updated_by: testUserId,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-              },
-              error: null
-            })
-          })
-        })
-      });
-
       const contentInput: CreateProductContentInput = {
-        productId: testProductId,
+        productId: testProduct.id,
         marketingTitle: 'Test Product Marketing',
         marketingDescription: 'Complete test description for product',
         marketingHighlights: ['Quality', 'Organic', 'Fresh'],
@@ -84,23 +46,35 @@ describe('ProductContentService - Phase 3.1.2', () => {
         contentPriority: 5
       };
 
+      const mockClient = createSupabaseMock({
+        product_content: [{
+          id: 'content-123',
+          product_id: testProduct.id,
+          marketing_title: 'Test Product Marketing',
+          marketing_description: 'Complete test description for product',
+          marketing_highlights: ['Quality', 'Organic', 'Fresh'],
+          seo_keywords: ['test', 'product', 'marketing'],
+          featured_image_url: null,
+          gallery_urls: null,
+          content_status: 'draft',
+          content_priority: 5,
+          last_updated_by: testUser.id,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }]
+      });
+      Object.assign(supabase, mockClient);
+
       const result = await ProductContentService.createProductContent(
         contentInput,
-        testUserId
+        testUser.id
       );
 
-      // Debug: log the result to see what's happening
-      if (!result.success) {
-        console.log('Create content failed with error:', result.error);
-      }
-
       expect(result.success).toBe(true);
-      expect(result.data).toBeDefined();
-      expect(result.data?.productId).toBe(testProductId);
+      expect(result.data?.productId).toBe(testProduct.id);
       expect(result.data?.marketingTitle).toBe('Test Product Marketing');
       expect(result.data?.contentStatus).toBe('draft');
 
-      // Verify ValidationMonitor was called
       expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith({
         service: 'productContentService',
         pattern: 'transformation_schema',
@@ -109,45 +83,38 @@ describe('ProductContentService - Phase 3.1.2', () => {
     });
 
     it('should handle content creation with minimal required fields', async () => {
-      // Setup mock for minimal content creation
-      mockSupabase.from.mockReturnValue({
-        insert: jest.fn().mockReturnValue({
-          select: jest.fn().mockReturnValue({
-            single: jest.fn().mockResolvedValue({
-              data: {
-                id: 'content-minimal-123',
-                product_id: testProductId,
-                marketing_title: 'Minimal Product',
-                marketing_description: null,
-                marketing_highlights: null,
-                seo_keywords: null,
-                featured_image_url: null,
-                gallery_urls: null,
-                content_status: 'draft',
-                content_priority: null,
-                last_updated_by: testUserId,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-              },
-              error: null
-            })
-          })
-        })
-      });
-
       const minimalInput: CreateProductContentInput = {
-        productId: testProductId,
+        productId: testProduct.id,
         marketingTitle: 'Minimal Product',
         contentStatus: 'draft'
       };
 
+      const mockClient = createSupabaseMock({
+        product_content: [{
+          id: 'content-minimal-123',
+          product_id: testProduct.id,
+          marketing_title: 'Minimal Product',
+          marketing_description: null,
+          marketing_highlights: null,
+          seo_keywords: null,
+          featured_image_url: null,
+          gallery_urls: null,
+          content_status: 'draft',
+          content_priority: null,
+          last_updated_by: testUser.id,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }]
+      });
+      Object.assign(supabase, mockClient);
+
       const result = await ProductContentService.createProductContent(
         minimalInput,
-        testUserId
+        testUser.id
       );
 
       expect(result.success).toBe(true);
-      expect(result.data?.productId).toBe(testProductId);
+      expect(result.data?.productId).toBe(testProduct.id);
       expect(result.data?.marketingTitle).toBe('Minimal Product');
 
       expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith({
@@ -160,59 +127,26 @@ describe('ProductContentService - Phase 3.1.2', () => {
 
   describe('Content Updates', () => {
     it('should update product content with field validation', async () => {
-      // Mock the getProductContent call (first database operation)
-      mockSupabase.from.mockReturnValueOnce({
-        select: jest.fn().mockReturnValue({
-          eq: jest.fn().mockReturnValue({
-            single: jest.fn().mockResolvedValue({
-              data: {
-                id: 'content-update-123',
-                product_id: testProductId,
-                marketing_title: 'Original Product Title',
-                marketing_description: 'Original description',
-                marketing_highlights: ['Original'],
-                seo_keywords: ['original'],
-                featured_image_url: null,
-                gallery_urls: null,
-                content_status: 'draft',
-                content_priority: 1,
-                last_updated_by: testUserId,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-              },
-              error: null
-            })
-          })
-        })
-      });
+      const existingContent = {
+        id: 'content-update-123',
+        product_id: testProduct.id,
+        marketing_title: 'Original Product Title',
+        marketing_description: 'Original description',
+        marketing_highlights: ['Original'],
+        seo_keywords: ['original'],
+        featured_image_url: null,
+        gallery_urls: null,
+        content_status: 'draft',
+        content_priority: 1,
+        last_updated_by: testUser.id,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
 
-      // Setup mock for content update (second database operation)
-      mockSupabase.from.mockReturnValueOnce({
-        update: jest.fn().mockReturnValue({
-          eq: jest.fn().mockReturnValue({
-            select: jest.fn().mockReturnValue({
-              single: jest.fn().mockResolvedValue({
-                data: {
-                  id: 'content-update-123',
-                  product_id: testProductId,
-                  marketing_title: 'Updated Product Title',
-                  marketing_description: 'Updated description',
-                  marketing_highlights: null,
-                  seo_keywords: null,
-                  featured_image_url: null,
-                  gallery_urls: null,
-                  content_status: 'review',
-                  content_priority: null,
-                  last_updated_by: testUserId,
-                  created_at: new Date().toISOString(),
-                  updated_at: new Date().toISOString()
-                },
-                error: null
-              })
-            })
-          })
-        })
+      const mockClient = createSupabaseMock({
+        product_content: [existingContent]
       });
+      Object.assign(supabase, mockClient);
 
       const updateInput: UpdateProductContentInput = {
         marketingTitle: 'Updated Product Title',
@@ -223,13 +157,8 @@ describe('ProductContentService - Phase 3.1.2', () => {
       const result = await ProductContentService.updateProductContent(
         'content-update-123',
         updateInput,
-        testUserId
+        testUser.id
       );
-
-      // Debug: log the result to see what's happening
-      if (!result.success) {
-        console.log('Update content failed with error:', result.error);
-      }
 
       expect(result.success).toBe(true);
       expect(result.data?.marketingTitle).toBe('Updated Product Title');
@@ -243,38 +172,22 @@ describe('ProductContentService - Phase 3.1.2', () => {
     });
 
     it('should update content status with workflow validation', async () => {
-      // Setup mock for status update
-      mockSupabase.from.mockReturnValue({
-        update: jest.fn().mockReturnValue({
-          eq: jest.fn().mockReturnValue({
-            select: jest.fn().mockReturnValue({
-              single: jest.fn().mockResolvedValue({
-                data: {
-                  id: 'content-status-123',
-                  product_id: testProductId,
-                  marketing_title: 'Status Update Content',
-                  marketing_description: null,
-                  marketing_highlights: null,
-                  seo_keywords: null,
-                  featured_image_url: null,
-                  gallery_urls: null,
-                  content_status: 'approved',
-                  content_priority: null,
-                  last_updated_by: testUserId,
-                  created_at: new Date().toISOString(),
-                  updated_at: new Date().toISOString()
-                },
-                error: null
-              })
-            })
-          })
-        })
+      const contentForStatus = {
+        id: 'content-status-123',
+        product_id: testProduct.id,
+        marketing_title: 'Status Update Content',
+        content_status: 'draft'
+      };
+
+      const mockClient = createSupabaseMock({
+        product_content: [contentForStatus]
       });
+      Object.assign(supabase, mockClient);
 
       const result = await ProductContentService.updateContentStatus(
         'content-status-123',
         'approved',
-        testUserId
+        testUser.id
       );
 
       expect(result.success).toBe(true);
@@ -567,15 +480,15 @@ describe('ProductContentService - Phase 3.1.2', () => {
   describe('Permission Integration', () => {
     it('should enforce role-based access for content operations', async () => {
       // Setup mock for permission failure
-      mockRolePermissionService.hasPermission = jest.fn().mockResolvedValue(false);
+      RolePermissionService.hasPermission.mockResolvedValue(false);
 
       const result = await ProductContentService.createProductContent(
         {
-          productId: testProductId,
+          productId: testProduct.id,
           marketingTitle: 'Test Content',
           contentStatus: 'draft'
         },
-        testUserId
+        testUser.id
       );
 
       expect(result.success).toBe(false);
