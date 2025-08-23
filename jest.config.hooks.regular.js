@@ -9,7 +9,8 @@ module.exports = {
     '<rootDir>/node_modules/',
     '.*\\.race\\.test\\.(ts|tsx|js)$',
     'usePayment\\.test\\.(ts|tsx|js)$',
-    'useKiosk\\.test\\.(ts|tsx|js)$'
+    'useKiosk\\.test\\.(ts|tsx|js)$',
+    '/src/services/'
   ],
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',

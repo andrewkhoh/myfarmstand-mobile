@@ -42,7 +42,7 @@ const createWrapper = () => {
 // Mock the services
 jest.mock('../../../services/marketing/productContentService');
 jest.mock('../../../services/role-based/rolePermissionService');
-jest.mock('../useAuth', () => ({
+jest.mock('../../useAuth', () => ({
   useAuth: () => ({ user: { id: 'test-user-123' } })
 }));
 

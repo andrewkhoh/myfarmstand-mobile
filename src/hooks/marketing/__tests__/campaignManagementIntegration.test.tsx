@@ -48,7 +48,7 @@ jest.mock('../../../services/marketing/marketingCampaignService');
 jest.mock('../../../services/marketing/productContentService');
 jest.mock('../../../services/marketing/productBundleService');
 jest.mock('../../../services/role-based/rolePermissionService');
-jest.mock('../useAuth', () => ({
+jest.mock('../../useAuth', () => ({
   useAuth: () => ({ user: { id: 'test-user-123' } })
 }));
 
