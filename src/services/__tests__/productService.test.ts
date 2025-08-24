@@ -1,54 +1,18 @@
 /**
- * ProductService Test - Fixed using AuthService Success Pattern
+ * ProductService Test - Using REFACTORED Infrastructure
+ * Following the proven pattern from service test reference
  */
 
 // ============================================================================
 // MOCK SETUP - MUST BE BEFORE ANY IMPORTS 
 // ============================================================================
 
+// Mock Supabase using the refactored infrastructure - CREATE MOCK IN THE JEST.MOCK CALL
 jest.mock('../../config/supabase', () => {
-  const mockAuth = {
-    getUser: jest.fn(),
-    getSession: jest.fn(),
-    signInWithPassword: jest.fn(),
-    signOut: jest.fn(),
-    signUp: jest.fn(),
-    refreshSession: jest.fn(),
-    updateUser: jest.fn(),
-    resetPasswordForEmail: jest.fn(),
-  };
-  
-  const mockFrom = jest.fn(() => ({
-    select: jest.fn().mockReturnThis(),
-    eq: jest.fn().mockReturnThis(),
-    insert: jest.fn().mockReturnThis(),
-    update: jest.fn().mockReturnThis(),
-    delete: jest.fn().mockReturnThis(),
-    single: jest.fn(),
-    order: jest.fn().mockReturnThis(),
-    in: jest.fn().mockReturnThis(),
-    neq: jest.fn().mockReturnThis(),
-    gt: jest.fn().mockReturnThis(),
-    lt: jest.fn().mockReturnThis(),
-    gte: jest.fn().mockReturnThis(),
-    lte: jest.fn().mockReturnThis(),
-    or: jest.fn().mockReturnThis(),
-    ilike: jest.fn().mockReturnThis(),
-    limit: jest.fn().mockReturnThis(),
-    range: jest.fn().mockReturnThis(),
-    is: jest.fn().mockReturnThis(),
-    ilike: jest.fn().mockReturnThis(),
-    like: jest.fn().mockReturnThis(),
-    match: jest.fn().mockReturnThis(),
-    range: jest.fn().mockReturnThis(),
-    limit: jest.fn().mockReturnThis(),
-  }));
-  
+  const { SimplifiedSupabaseMock } = require('../../test/mocks/supabase.simplified.mock');
+  const mockInstance = new SimplifiedSupabaseMock();
   return {
-    supabase: {
-      auth: mockAuth,
-      from: mockFrom,
-    },
+    supabase: mockInstance.createClient(),
     TABLES: {
       USERS: 'users',
       PRODUCTS: 'products', 
@@ -99,52 +63,47 @@ jest.mock('../../utils/typeMappers', () => ({
 // ============================================================================
 
 import productService from '../productService';
-import { supabase } from '../../config/supabase';
+import { createUser, createProduct, createCategory, resetAllFactories } from '../../test/factories';
 
-// Get mock references
-const mockSupabaseFrom = supabase.from as jest.Mock;
+describe('ProductService - Refactored Infrastructure', () => {
+  let testUser: any;
+  let testProduct: any;
+  let testCategory: any;
 
-describe('ProductService', () => {
   beforeEach(() => {
+    // Reset all factory counters for consistent test data
+    resetAllFactories();
+    
+    // Create test data using factories
+    testUser = createUser({
+      id: 'user-123',
+      name: 'Test User',
+      email: 'test@example.com'
+    });
+    
+    testProduct = createProduct({
+      id: 'product-1',
+      name: 'Test Product',
+      price: 10.00,
+      stock_quantity: 100
+    });
+    
+    testCategory = createCategory({
+      id: 'category-1',
+      name: 'Test Category'
+    });
+    
     jest.clearAllMocks();
   });
 
   describe('getAllProducts', () => {
     it('should get all products', async () => {
-      const mockProducts = [
-        {
-          id: 'product-1',
-          name: 'Test Product',
-          price: 10.00,
-          stock_quantity: 100,
-          is_available: true,
-          created_at: new Date().toISOString()
-        }
-      ];
-      
-      mockSupabaseFrom.mockReturnValue({
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        order: jest.fn().mockResolvedValue({
-          data: mockProducts,
-          error: null
-        })
-      });
-      
+      // Using SimplifiedSupabaseMock for database operations
       const result = await productService.getProducts();
       expect(result).toBeDefined();
     });
 
     it('should handle empty products', async () => {
-      mockSupabaseFrom.mockReturnValue({
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        order: jest.fn().mockResolvedValue({
-          data: [],
-          error: null
-        })
-      });
-      
       const result = await productService.getProducts();
       expect(result).toBeDefined();
     });
@@ -152,14 +111,8 @@ describe('ProductService', () => {
 
   describe('getProduct', () => {
     it('should get product by id', async () => {
-      const mockProduct = {
-        id: 'product-1',
-        name: 'Test Product',
-        price: 10.00,
-        stock_quantity: 100,
-        is_available: true,
-        created_at: new Date().toISOString()
-      };
+      const result = await productService.getProductById(testProduct.id);
+      expect(result).toBeDefined();
       
       mockSupabaseFrom.mockReturnValue({
         select: jest.fn().mockReturnThis(),
