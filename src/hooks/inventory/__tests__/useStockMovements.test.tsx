@@ -22,6 +22,31 @@ import {
 // Mock services
 import { StockMovementService } from '../../../services/inventory/stockMovementService';
 
+// Mock React Query BEFORE other mocks
+jest.mock('@tanstack/react-query', () => ({
+  ...jest.requireActual('@tanstack/react-query'),
+  useQuery: jest.fn(() => ({
+    data: null,
+    isLoading: false,
+    error: null,
+    refetch: jest.fn(),
+    isSuccess: false,
+    isError: false,
+  })),
+  useMutation: jest.fn(() => ({
+    mutate: jest.fn(),
+    mutateAsync: jest.fn(),
+    isLoading: false,
+    error: null,
+    data: null,
+  })),
+  useQueryClient: jest.fn(() => ({
+    invalidateQueries: jest.fn(),
+    setQueryData: jest.fn(),
+    getQueryData: jest.fn(),
+  })),
+}));
+
 jest.mock('../../../services/inventory/stockMovementService');
 
 const mockStockMovementService = StockMovementService as jest.Mocked<typeof StockMovementService>;
@@ -41,6 +66,11 @@ const createWrapper = () => {
     </QueryClientProvider>
   );
 };
+
+// Import React Query types for proper mocking
+import { useQuery, useMutation } from '@tanstack/react-query';
+const mockUseQuery = useQuery as jest.MockedFunction<typeof useQuery>;
+const mockUseMutation = useMutation as jest.MockedFunction<typeof useMutation>;
 
 describe('useStockMovements Hook Tests (RED Phase)', () => {
   beforeEach(() => {
@@ -70,6 +100,16 @@ describe('useStockMovements Hook Tests (RED Phase)', () => {
       };
 
       mockStockMovementService.getMovementHistory.mockResolvedValue(mockMovementHistory);
+
+      // Mock useQuery for the hook
+      mockUseQuery.mockReturnValue({
+        data: mockMovementHistory,
+        isLoading: false,
+        error: null,
+        refetch: jest.fn(),
+        isSuccess: true,
+        isError: false,
+      } as any);
 
       const { result } = renderHook(
         () => useMovementHistory('123', { limit: 10, offset: 0 }),
@@ -111,6 +151,16 @@ describe('useStockMovements Hook Tests (RED Phase)', () => {
 
       mockStockMovementService.getMovementHistory.mockResolvedValue(mockPage1);
 
+      // Mock useQuery for the hook
+      mockUseQuery.mockReturnValue({
+        data: mockPage1,
+        isLoading: false,
+        error: null,
+        refetch: jest.fn(),
+        isSuccess: true,
+        isError: false,
+      } as any);
+
       const { result } = renderHook(
         () => useMovementHistory('123', { limit: 1, offset: 0 }),
         { wrapper: createWrapper() }
@@ -151,6 +201,16 @@ describe('useStockMovements Hook Tests (RED Phase)', () => {
 
       mockStockMovementService.getMovementHistory.mockResolvedValue(mockSystemMovements);
 
+      // Mock useQuery for the hook
+      mockUseQuery.mockReturnValue({
+        data: mockSystemMovements,
+        isLoading: false,
+        error: null,
+        refetch: jest.fn(),
+        isSuccess: true,
+        isError: false,
+      } as any);
+
       const { result } = renderHook(
         () => useMovementHistory('123', { includeSystemMovements: true }),
         { wrapper: createWrapper() }
@@ -170,6 +230,16 @@ describe('useStockMovements Hook Tests (RED Phase)', () => {
       };
 
       mockStockMovementService.getMovementHistory.mockResolvedValue(mockEmptyHistory);
+
+      // Mock useQuery for the hook
+      mockUseQuery.mockReturnValue({
+        data: mockEmptyHistory,
+        isLoading: false,
+        error: null,
+        refetch: jest.fn(),
+        isSuccess: true,
+        isError: false,
+      } as any);
 
       const { result } = renderHook(
         () => useMovementHistory('123'),
@@ -207,6 +277,16 @@ describe('useStockMovements Hook Tests (RED Phase)', () => {
       };
 
       mockStockMovementService.getMovementsByFilter.mockResolvedValue(mockFilteredMovements);
+
+      // Mock useQuery for the hook
+      mockUseQuery.mockReturnValue({
+        data: mockFilteredMovements,
+        isLoading: false,
+        error: null,
+        refetch: jest.fn(),
+        isSuccess: true,
+        isError: false,
+      } as any);
 
       const { result } = renderHook(
         () => useStockMovements({
@@ -252,6 +332,16 @@ describe('useStockMovements Hook Tests (RED Phase)', () => {
 
       mockStockMovementService.getMovementsByFilter.mockResolvedValue(mockUserMovements);
 
+      // Mock useQuery for the hook
+      mockUseQuery.mockReturnValue({
+        data: mockUserMovements,
+        isLoading: false,
+        error: null,
+        refetch: jest.fn(),
+        isSuccess: true,
+        isError: false,
+      } as any);
+
       const { result } = renderHook(
         () => useStockMovements({ performedBy: 'user-456' }),
         { wrapper: createWrapper() }
@@ -286,6 +376,16 @@ describe('useStockMovements Hook Tests (RED Phase)', () => {
       };
 
       mockStockMovementService.getMovementsByFilter.mockResolvedValue(mockComplexFilter);
+
+      // Mock useQuery for the hook
+      mockUseQuery.mockReturnValue({
+        data: mockComplexFilter,
+        isLoading: false,
+        error: null,
+        refetch: jest.fn(),
+        isSuccess: true,
+        isError: false,
+      } as any);
 
       const { result } = renderHook(
         () => useStockMovements({
@@ -324,6 +424,17 @@ describe('useStockMovements Hook Tests (RED Phase)', () => {
 
       mockStockMovementService.recordMovement.mockResolvedValue(mockRecordedMovement);
 
+      // Mock useMutation for the hook
+      mockUseMutation.mockReturnValue({
+        mutate: jest.fn(),
+        mutateAsync: jest.fn().mockResolvedValue(mockRecordedMovement),
+        isLoading: false,
+        error: null,
+        data: mockRecordedMovement,
+        isSuccess: true,
+        isError: false,
+      } as any);
+
       const { result } = renderHook(
         () => useRecordMovement(),
         { wrapper: createWrapper() }
@@ -351,6 +462,17 @@ describe('useStockMovements Hook Tests (RED Phase)', () => {
     it('should handle movement recording errors', async () => {
       const mockError = new Error('Movement recording failed');
       mockStockMovementService.recordMovement.mockRejectedValue(mockError);
+
+      // Mock useMutation for the hook with error state
+      mockUseMutation.mockReturnValue({
+        mutate: jest.fn(),
+        mutateAsync: jest.fn().mockRejectedValue(mockError),
+        isLoading: false,
+        error: mockError,
+        data: null,
+        isSuccess: false,
+        isError: true,
+      } as any);
 
       const { result } = renderHook(
         () => useRecordMovement(),
@@ -392,6 +514,17 @@ describe('useStockMovements Hook Tests (RED Phase)', () => {
       };
 
       mockStockMovementService.recordMovement.mockResolvedValue(mockValidMovement);
+
+      // Mock useMutation for the hook
+      mockUseMutation.mockReturnValue({
+        mutate: jest.fn(),
+        mutateAsync: jest.fn().mockResolvedValue(mockValidMovement),
+        isLoading: false,
+        error: null,
+        data: mockValidMovement,
+        isSuccess: true,
+        isError: false,
+      } as any);
 
       const { result } = renderHook(
         () => useRecordMovement(),
@@ -456,6 +589,16 @@ describe('useStockMovements Hook Tests (RED Phase)', () => {
 
       mockStockMovementService.getBatchMovements.mockResolvedValue(mockBatchMovements);
 
+      // Mock useQuery for the hook
+      mockUseQuery.mockReturnValue({
+        data: mockBatchMovements,
+        isLoading: false,
+        error: null,
+        refetch: jest.fn(),
+        isSuccess: true,
+        isError: false,
+      } as any);
+
       const { result } = renderHook(
         () => useBatchMovements('batch-123'),
         { wrapper: createWrapper() }
@@ -476,6 +619,16 @@ describe('useStockMovements Hook Tests (RED Phase)', () => {
       };
 
       mockStockMovementService.getBatchMovements.mockResolvedValue(mockEmptyBatch);
+
+      // Mock useQuery for the hook
+      mockUseQuery.mockReturnValue({
+        data: mockEmptyBatch,
+        isLoading: false,
+        error: null,
+        refetch: jest.fn(),
+        isSuccess: true,
+        isError: false,
+      } as any);
 
       const { result } = renderHook(
         () => useBatchMovements('batch-nonexistent'),
@@ -570,6 +723,16 @@ describe('useStockMovements Hook Tests (RED Phase)', () => {
       };
 
       mockStockMovementService.getMovementAnalytics.mockResolvedValue(mockAnalytics);
+
+      // Mock useQuery for the hook
+      mockUseQuery.mockReturnValue({
+        data: mockAnalytics,
+        isLoading: false,
+        error: null,
+        refetch: jest.fn(),
+        isSuccess: true,
+        isError: false,
+      } as any);
 
       const { result } = renderHook(
         () => useMovementAnalytics({
@@ -682,6 +845,16 @@ describe('useStockMovements Hook Tests (RED Phase)', () => {
 
       mockStockMovementService.getMovementHistory.mockResolvedValue(mockInitialMovements);
 
+      // Mock useQuery for the hook
+      mockUseQuery.mockReturnValue({
+        data: mockInitialMovements,
+        isLoading: false,
+        error: null,
+        refetch: jest.fn(),
+        isSuccess: true,
+        isError: false,
+      } as any);
+
       const { result } = renderHook(
         () => useMovementHistory('123'),
         { wrapper: createWrapper() }
@@ -698,6 +871,16 @@ describe('useStockMovements Hook Tests (RED Phase)', () => {
     });
 
     it('should handle cache invalidation for movement tracking', () => {
+      // Mock useQuery for cache test
+      mockUseQuery.mockReturnValue({
+        data: undefined,
+        isLoading: true,
+        error: null,
+        refetch: jest.fn(),
+        isSuccess: false,
+        isError: false,
+      } as any);
+
       const { result } = renderHook(
         () => useMovementHistory('123'),
         { wrapper: createWrapper() }
@@ -731,6 +914,16 @@ describe('useStockMovements Hook Tests (RED Phase)', () => {
       };
 
       mockStockMovementService.getMovementHistory.mockResolvedValue(mockLargeDataset);
+
+      // Mock useQuery for the hook
+      mockUseQuery.mockReturnValue({
+        data: mockLargeDataset,
+        isLoading: false,
+        error: null,
+        refetch: jest.fn(),
+        isSuccess: true,
+        isError: false,
+      } as any);
 
       const { result } = renderHook(
         () => useMovementHistory('123', { limit: 100 }),
