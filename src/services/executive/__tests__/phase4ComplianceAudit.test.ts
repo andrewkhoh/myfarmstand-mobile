@@ -1,6 +1,40 @@
 // Phase 4.5: Comprehensive Pattern Compliance Audit
 // Validating all Phase 4 implementations against architectural patterns
 
+// Setup all mocks BEFORE any imports
+jest.mock('../../../config/supabase', () => {
+  const mockFrom = jest.fn(() => ({
+    select: jest.fn().mockReturnThis(),
+    eq: jest.fn().mockReturnThis(),
+    gte: jest.fn().mockReturnThis(),
+    lte: jest.fn().mockReturnThis(),
+    order: jest.fn().mockReturnThis(),
+    limit: jest.fn().mockReturnThis(),
+    single: jest.fn(),
+    range: jest.fn().mockReturnThis()
+  }));
+
+  return {
+    supabase: {
+      from: mockFrom,
+      auth: {
+        getUser: jest.fn().mockResolvedValue({
+          data: { user: { id: 'user-123', role: 'executive' } },
+          error: null
+        })
+      }
+    }
+  };
+});
+
+jest.mock('../../../utils/validationMonitor', () => ({
+  ValidationMonitor: {
+    recordPatternSuccess: jest.fn(),
+    recordValidationError: jest.fn()
+  }
+}));
+
+// Import AFTER mocks are setup
 import { BusinessMetricsService } from '../businessMetricsService';
 import { BusinessIntelligenceService } from '../businessIntelligenceService';
 import { StrategicReportingService } from '../strategicReportingService';
@@ -17,12 +51,16 @@ import {
 } from '../../../schemas/executive';
 import { ValidationMonitor } from '../../../utils/validationMonitor';
 import { queryKeyFactory } from '../../../utils/queryKeyFactory';
+import { supabase } from '../../../config/supabase';
 
-// Mock dependencies
-jest.mock('../../../config/supabase');
-jest.mock('../../../utils/validationMonitor');
+// Get mock references for use in tests
+const mockSupabaseFrom = supabase.from as jest.Mock;
 
 describe('Phase 4.5: Pattern Compliance Audit', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   describe('Zod Validation Patterns Compliance', () => {
     describe('Single Validation Pass Principle', () => {
       it('should validate BusinessMetrics schemas follow single-pass validation', () => {

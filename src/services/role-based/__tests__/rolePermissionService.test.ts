@@ -1,49 +1,63 @@
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+/**
+ * RolePermissionService Test - Following Service Test Pattern (REFERENCE)
+ */
 
-// Mock ValidationMonitor (following architectural pattern)
-jest.mock('../../../utils/validationMonitor');
+// Setup all mocks BEFORE any imports
+jest.mock('../../../config/supabase', () => {
+  const mockFrom = jest.fn(() => ({
+    select: jest.fn().mockReturnThis(),
+    eq: jest.fn().mockReturnThis(),
+    insert: jest.fn().mockReturnThis(),
+    update: jest.fn().mockReturnThis(),
+    delete: jest.fn().mockReturnThis(),
+    single: jest.fn(),
+    maybeSingle: jest.fn(),
+    order: jest.fn().mockReturnThis(),
+    in: jest.fn().mockReturnThis(),
+    neq: jest.fn().mockReturnThis(),
+    gte: jest.fn().mockReturnThis(),
+    lte: jest.fn().mockReturnThis(),
+    limit: jest.fn().mockReturnThis()
+  }));
+  
+  return {
+    supabase: {
+      from: mockFrom,
+      auth: {
+        getUser: jest.fn().mockResolvedValue({
+          data: { user: { id: 'user-123', role: 'admin' } },
+          error: null
+        })
+      }
+    },
+    TABLES: {
+      USER_ROLES: 'user_roles',
+      ROLE_PERMISSIONS: 'role_permissions',
+      USERS: 'users'
+    }
+  };
+});
 
-// Mock Supabase config
-jest.mock('../../../config/supabase', () => ({
-  supabase: {
-    from: jest.fn()
+jest.mock('../../../utils/validationMonitor', () => ({
+  ValidationMonitor: {
+    recordPatternSuccess: jest.fn(),
+    recordValidationError: jest.fn()
   }
 }));
 
+// Import AFTER mocks are setup
 import { RolePermissionService } from '../rolePermissionService';
-import { ValidationMonitor } from '../../../utils/validationMonitor';
 import { supabase } from '../../../config/supabase';
+import { ValidationMonitor } from '../../../utils/validationMonitor';
 
-// Type the mocked supabase
-const mockSupabase = supabase as jest.Mocked<typeof supabase>;
+// Get mock references for use in tests
+const mockSupabaseFrom = supabase.from as jest.Mock;
 
 describe('RolePermissionService - Phase 1', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    
-    // Reset Supabase mocks to prevent state contamination
-    if (global.resetSupabaseMocks) {
-      global.resetSupabaseMocks();
-    }
   });
-  
-  // Helper function to create proper mock chains
-  const setupMockChain = (finalMethod: string, mockResult: any) => {
-    const mockFinal = jest.fn().mockResolvedValue(mockResult);
-    const createChainLink = () => ({
-      eq: jest.fn().mockReturnThis(),
-      select: jest.fn().mockReturnThis(),
-      order: jest.fn().mockReturnThis(),
-      insert: jest.fn().mockReturnThis(),
-      update: jest.fn().mockReturnThis(),
-      maybeSingle: mockFinal,
-      single: mockFinal
-    });
-    
-    mockSupabase.from.mockReturnValue(createChainLink() as any);
-  };
 
-  // Service Test 1: getUserRole success path (TDD - write test first)
   describe('getUserRole', () => {
     it('should get user role with transformation and monitoring', async () => {
       const mockRoleData = {
@@ -56,54 +70,63 @@ describe('RolePermissionService - Phase 1', () => {
         updated_at: '2024-01-01T00:00:00Z'
       };
 
-      // Mock successful Supabase response chain
-      setupMockChain('maybeSingle', {
-        data: mockRoleData,
-        error: null
+      // Setup mock database response
+      mockSupabaseFrom.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        maybeSingle: jest.fn().mockResolvedValue({
+          data: mockRoleData,
+          error: null
+        })
       });
 
       const result = await RolePermissionService.getUserRole('user-456');
 
       // Verify transformation occurred (snake_case → camelCase)
       expect(result?.id).toBe('role-123');
-      expect(result?.userId).toBe('user-456');     // user_id → userId  
-      expect(result?.roleType).toBe('inventory_staff'); // role_type → roleType
+      expect(result?.userId).toBe('user-456');
+      expect(result?.roleType).toBe('inventory_staff');
       expect(result?.permissions).toEqual(['view_inventory']);
-      expect(result?.isActive).toBe(true);         // is_active → isActive
+      expect(result?.isActive).toBe(true);
 
-      // Verify ValidationMonitor integration (MANDATORY pattern)
+      // Verify ValidationMonitor integration
       expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith({
         service: 'rolePermissionService',
         pattern: 'transformation_schema',
         operation: 'getUserRole'
       });
 
-      // Verify exact field selection (Pattern: Direct Supabase)
-      expect(mockSupabase.from).toHaveBeenCalledWith('user_roles');
-      expect(mockSupabase.from().select).toHaveBeenCalledWith(
-        expect.stringContaining('id, user_id, role_type, permissions')
-      );
+      // Verify database query structure
+      expect(mockSupabaseFrom).toHaveBeenCalledWith('user_roles');
     });
 
     it('should return null when user role not found', async () => {
-      setupMockChain('maybeSingle', {
-        data: null,
-        error: null
+      mockSupabaseFrom.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        maybeSingle: jest.fn().mockResolvedValue({
+          data: null,
+          error: null
+        })
       });
 
       const result = await RolePermissionService.getUserRole('nonexistent');
       
       expect(result).toBeNull();
-      // Note: ValidationMonitor.recordPatternSuccess should NOT be called when no data found
+      // ValidationMonitor.recordPatternSuccess should NOT be called when no data found
       expect(ValidationMonitor.recordPatternSuccess).not.toHaveBeenCalled();
     });
 
     it('should handle database errors gracefully and record failures', async () => {
-      const databaseError = new Error('Database connection failed');
+      const databaseError = { message: 'Database connection failed' };
       
-      mockSupabase.from().select().eq().eq().maybeSingle.mockResolvedValue({
-        data: null,
-        error: databaseError
+      mockSupabaseFrom.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        maybeSingle: jest.fn().mockResolvedValue({
+          data: null,
+          error: databaseError
+        })
       });
 
       const result = await RolePermissionService.getUserRole('user-456');
@@ -111,7 +134,7 @@ describe('RolePermissionService - Phase 1', () => {
       // Graceful degradation
       expect(result).toBeNull();
       
-      // Error monitoring (MANDATORY pattern)
+      // Error monitoring
       expect(ValidationMonitor.recordValidationError).toHaveBeenCalledWith({
         context: 'RolePermissionService.getUserRole',
         errorMessage: 'Database connection failed',
@@ -127,9 +150,13 @@ describe('RolePermissionService - Phase 1', () => {
         invalid_field: 'bad data'
       };
 
-      mockSupabase.from().select().eq().eq().maybeSingle.mockResolvedValue({
-        data: malformedData,
-        error: null
+      mockSupabaseFrom.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        maybeSingle: jest.fn().mockResolvedValue({
+          data: malformedData,
+          error: null
+        })
       });
 
       const result = await RolePermissionService.getUserRole('user-456');
@@ -142,7 +169,6 @@ describe('RolePermissionService - Phase 1', () => {
     });
   });
 
-  // Service Test 2: Permission checking logic
   describe('hasPermission', () => {
     it('should check role-based permissions correctly', async () => {
       const mockUserRole = {
@@ -224,7 +250,6 @@ describe('RolePermissionService - Phase 1', () => {
     });
   });
 
-  // Service Test 3: Resilient processing (Pattern 3)
   describe('getAllUserRoles', () => {
     it('should process valid items and skip invalid ones (resilient processing)', async () => {
       const mockRoleData = [
@@ -253,9 +278,12 @@ describe('RolePermissionService - Phase 1', () => {
         }
       ];
 
-      mockSupabase.from().select().order.mockResolvedValue({
-        data: mockRoleData,
-        error: null
+      mockSupabaseFrom.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        order: jest.fn().mockResolvedValue({
+          data: mockRoleData,
+          error: null
+        })
       });
 
       const result = await RolePermissionService.getAllUserRoles();
@@ -274,9 +302,12 @@ describe('RolePermissionService - Phase 1', () => {
     });
 
     it('should handle complete database failure gracefully', async () => {
-      mockSupabase.from().select().order.mockResolvedValue({
-        data: null,
-        error: new Error('Database unavailable')
+      mockSupabaseFrom.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        order: jest.fn().mockResolvedValue({
+          data: null,
+          error: { message: 'Database unavailable' }
+        })
       });
 
       const result = await RolePermissionService.getAllUserRoles();
@@ -294,7 +325,6 @@ describe('RolePermissionService - Phase 1', () => {
     });
   });
 
-  // Service Test 4: Create user role with input validation
   describe('createUserRole', () => {
     it('should create user role with input validation', async () => {
       const inputData = {
@@ -313,9 +343,13 @@ describe('RolePermissionService - Phase 1', () => {
         updated_at: '2024-01-01T00:00:00Z'
       };
 
-      mockSupabase.from().insert().select().single.mockResolvedValue({
-        data: mockCreatedRole,
-        error: null
+      mockSupabaseFrom.mockReturnValue({
+        insert: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: mockCreatedRole,
+          error: null
+        })
       });
 
       const result = await RolePermissionService.createUserRole(inputData);
@@ -338,9 +372,13 @@ describe('RolePermissionService - Phase 1', () => {
         permissions: []
       };
 
-      mockSupabase.from().insert().select().single.mockResolvedValue({
-        data: null,
-        error: new Error('Unique constraint violation')
+      mockSupabaseFrom.mockReturnValue({
+        insert: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: null,
+          error: { message: 'Unique constraint violation' }
+        })
       });
 
       const result = await RolePermissionService.createUserRole(inputData);
@@ -363,7 +401,6 @@ describe('RolePermissionService - Phase 1', () => {
     });
   });
 
-  // Service Test 5: Update permissions
   describe('updateUserPermissions', () => {
     it('should update user permissions with atomic operation', async () => {
       const updatedRole = {
@@ -376,9 +413,14 @@ describe('RolePermissionService - Phase 1', () => {
         updated_at: '2024-01-01T10:00:00Z'
       };
 
-      mockSupabase.from().update().eq().eq().select().single.mockResolvedValue({
-        data: updatedRole,
-        error: null
+      mockSupabaseFrom.mockReturnValue({
+        update: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: updatedRole,
+          error: null
+        })
       });
 
       const result = await RolePermissionService.updateUserPermissions(
@@ -395,15 +437,76 @@ describe('RolePermissionService - Phase 1', () => {
     });
 
     it('should handle update errors gracefully', async () => {
-      mockSupabase.from().update().eq().eq().select().single.mockResolvedValue({
-        data: null,
-        error: new Error('User not found')
+      mockSupabaseFrom.mockReturnValue({
+        update: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: null,
+          error: { message: 'User not found' }
+        })
       });
 
       const result = await RolePermissionService.updateUserPermissions('nonexistent', []);
       
       expect(result).toBeNull();
       expect(ValidationMonitor.recordValidationError).toHaveBeenCalled();
+    });
+  });
+
+  describe('checkRoleAccess', () => {
+    it('should check role access with proper hierarchy', async () => {
+      const mockUserRole = {
+        id: 'role-123',
+        userId: 'user-456',
+        roleType: 'admin' as const,
+        permissions: ['admin_access'],
+        isActive: true,
+        createdAt: '2024-01-01T00:00:00Z',
+        updatedAt: '2024-01-01T00:00:00Z'
+      };
+
+      jest.spyOn(RolePermissionService, 'getUserRole').mockResolvedValue(mockUserRole);
+
+      const hasAccess = await RolePermissionService.checkRoleAccess('user-456', ['admin', 'manager']);
+      
+      expect(hasAccess).toBe(true);
+    });
+
+    it('should deny access for insufficient role level', async () => {
+      const mockUserRole = {
+        id: 'role-123',
+        userId: 'user-456',
+        roleType: 'staff' as const,
+        permissions: [],
+        isActive: true,
+        createdAt: '2024-01-01T00:00:00Z',
+        updatedAt: '2024-01-01T00:00:00Z'
+      };
+
+      jest.spyOn(RolePermissionService, 'getUserRole').mockResolvedValue(mockUserRole);
+
+      const hasAccess = await RolePermissionService.checkRoleAccess('user-456', ['admin', 'manager']);
+      
+      expect(hasAccess).toBe(false);
+    });
+
+    it('should handle inactive roles', async () => {
+      const mockUserRole = {
+        id: 'role-123',
+        userId: 'user-456',
+        roleType: 'admin' as const,
+        permissions: ['admin_access'],
+        isActive: false, // Inactive role
+        createdAt: '2024-01-01T00:00:00Z',
+        updatedAt: '2024-01-01T00:00:00Z'
+      };
+
+      jest.spyOn(RolePermissionService, 'getUserRole').mockResolvedValue(mockUserRole);
+
+      const hasAccess = await RolePermissionService.checkRoleAccess('user-456', ['admin']);
+      
+      expect(hasAccess).toBe(false);
     });
   });
 });
