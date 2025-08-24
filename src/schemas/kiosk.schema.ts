@@ -279,3 +279,9 @@ export type StaffPin = z.infer<typeof DbStaffPinTransformSchema>;
 
 // ✅ PATTERN: Export raw schemas for service layer usage
 export { RawDbKioskSessionSchema, RawDbStaffPinSchema, RawDbKioskTransactionSchema };
+
+// Legacy aliases for backward compatibility
+export const DbKioskSessionSchema = RawDbKioskSessionSchema;
+export const DbStaffPinSchema = RawDbStaffPinSchema;
+export const DbKioskTransactionSchema = RawDbKioskTransactionSchema;
+export const KioskTransactionSchema = DbKioskTransactionTransformSchema;
