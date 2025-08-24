@@ -1,37 +1,15 @@
 /**
- * ErrorRecoveryService Test - Following Service Test Pattern (REFERENCE)
+ * ErrorRecoveryService Test - Using REFACTORED Infrastructure
+ * Following the proven pattern from service test reference
  */
 
 // Setup all mocks BEFORE any imports
+// Mock Supabase using the refactored infrastructure - CREATE MOCK IN THE JEST.MOCK CALL
 jest.mock('../../config/supabase', () => {
-  const mockRpc = jest.fn();
-  const mockFrom = jest.fn(() => ({
-    select: jest.fn().mockReturnThis(),
-    eq: jest.fn().mockReturnThis(),
-    insert: jest.fn().mockReturnThis(),
-    update: jest.fn().mockReturnThis(),
-    delete: jest.fn().mockReturnThis(),
-    single: jest.fn(),
-    order: jest.fn().mockReturnThis(),
-    in: jest.fn().mockReturnThis(),
-    neq: jest.fn().mockReturnThis(),
-  }));
-  
+  const { SimplifiedSupabaseMock } = require('../../test/mocks/supabase.simplified.mock');
+  const mockInstance = new SimplifiedSupabaseMock();
   return {
-    supabase: {
-      auth: {
-        signInWithPassword: jest.fn(),
-        signOut: jest.fn(),
-        signUp: jest.fn(),
-        getSession: jest.fn(),
-        getUser: jest.fn(),
-        refreshSession: jest.fn(),
-        updateUser: jest.fn(),
-        resetPasswordForEmail: jest.fn(),
-      },
-      from: mockFrom,
-      rpc: mockRpc,
-    },
+    supabase: mockInstance.createClient(),
     TABLES: {
       USERS: 'users',
       PRODUCTS: 'products', 
@@ -67,23 +45,40 @@ jest.mock('../../utils/validationMonitor', () => ({
 
 // Import AFTER mocks are setup
 import { ErrorRecoveryService, ErrorContext, ErrorRecoveryConfig } from '../errorRecoveryService';
+import { createUser, createOrder, resetAllFactories } from '../../test/factories';
 import { supabase } from '../../config/supabase';
 
 // Get mock references for use in tests
 const mockSupabaseRpc = supabase.rpc as jest.Mock;
-const mockSupabaseFrom = supabase.from as jest.Mock;
 
-describe('ErrorRecoveryService', () => {
+describe('ErrorRecoveryService - Refactored Infrastructure', () => {
   let mockErrorContext: ErrorContext;
+  let testUser: any;
+  let testOrder: any;
 
   beforeEach(() => {
+    // Reset all factory counters for consistent test data
+    resetAllFactories();
+    
+    // Create test data using factories
+    testUser = createUser({
+      id: 'user-456',
+      name: 'Test User',
+      email: 'test@example.com'
+    });
+    
+    testOrder = createOrder({
+      id: 'order-123',
+      user_id: testUser.id
+    });
+    
     jest.clearAllMocks();
     
     // Setup default error context
     mockErrorContext = {
       errorType: 'payment_failed',
-      orderId: 'order-123',
-      userId: 'user-456',
+      orderId: testOrder.id,
+      userId: testUser.id,
       operation: 'payment_processing',
       originalError: new Error('Payment gateway timeout'),
       timestamp: new Date().toISOString(),
@@ -120,8 +115,8 @@ describe('ErrorRecoveryService', () => {
       // Verify RPC was called with correct parameters
       expect(mockSupabaseRpc).toHaveBeenCalledWith('recover_from_error_atomic', {
         input_error_type: 'payment_failed',
-        input_order_id: 'order-123',
-        input_user_id: 'user-456',
+        input_order_id: testOrder.id,
+        input_user_id: testUser.id,
         input_operation: 'payment_processing',
         input_original_error: 'Payment gateway timeout',
         input_retry_count: 0,
