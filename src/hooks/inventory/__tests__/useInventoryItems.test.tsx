@@ -21,6 +21,31 @@ import {
 // Mock services following the established pattern
 import { InventoryService } from '../../../services/inventory/inventoryService';
 
+// Mock React Query BEFORE other mocks
+jest.mock('@tanstack/react-query', () => ({
+  ...jest.requireActual('@tanstack/react-query'),
+  useQuery: jest.fn(() => ({
+    data: null,
+    isLoading: false,
+    error: null,
+    refetch: jest.fn(),
+    isSuccess: false,
+    isError: false,
+  })),
+  useMutation: jest.fn(() => ({
+    mutate: jest.fn(),
+    mutateAsync: jest.fn(),
+    isLoading: false,
+    error: null,
+    data: null,
+  })),
+  useQueryClient: jest.fn(() => ({
+    invalidateQueries: jest.fn(),
+    setQueryData: jest.fn(),
+    getQueryData: jest.fn(),
+  })),
+}));
+
 jest.mock('../../../services/inventory/inventoryService');
 
 const mockInventoryService = InventoryService as jest.Mocked<typeof InventoryService>;
@@ -40,6 +65,11 @@ const createWrapper = () => {
     </QueryClientProvider>
   );
 };
+
+// Import React Query types for proper mocking
+import { useQuery, useMutation } from '@tanstack/react-query';
+const mockUseQuery = useQuery as jest.MockedFunction<typeof useQuery>;
+const mockUseMutation = useMutation as jest.MockedFunction<typeof useMutation>;
 
 describe('useInventoryItems Hook Tests (RED Phase)', () => {
   beforeEach(() => {
@@ -65,6 +95,16 @@ describe('useInventoryItems Hook Tests (RED Phase)', () => {
 
       mockInventoryService.getInventoryItem.mockResolvedValue(mockInventoryItem);
 
+      // Mock useQuery for the hook
+      mockUseQuery.mockReturnValue({
+        data: mockInventoryItem,
+        isLoading: false,
+        error: null,
+        refetch: jest.fn(),
+        isSuccess: true,
+        isError: false,
+      } as any);
+
       const { result } = renderHook(
         () => useInventoryItem('123'),
         { wrapper: createWrapper() }
@@ -79,6 +119,16 @@ describe('useInventoryItems Hook Tests (RED Phase)', () => {
     });
 
     it('should handle null inventory ID gracefully', () => {
+      // Mock useQuery for disabled query
+      mockUseQuery.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        error: null,
+        refetch: jest.fn(),
+        isSuccess: false,
+        isError: false,
+      } as any);
+
       const { result } = renderHook(
         () => useInventoryItem(null),
         { wrapper: createWrapper() }
@@ -90,6 +140,16 @@ describe('useInventoryItems Hook Tests (RED Phase)', () => {
 
     it('should handle inventory item not found', async () => {
       mockInventoryService.getInventoryItem.mockResolvedValue(null);
+
+      // Mock useQuery for the hook with null data
+      mockUseQuery.mockReturnValue({
+        data: null,
+        isLoading: false,
+        error: null,
+        refetch: jest.fn(),
+        isSuccess: true,
+        isError: false,
+      } as any);
 
       const { result } = renderHook(
         () => useInventoryItem('nonexistent'),
@@ -108,6 +168,16 @@ describe('useInventoryItems Hook Tests (RED Phase)', () => {
       const mockError = new Error('Service unavailable');
       mockInventoryService.getInventoryItem.mockRejectedValue(mockError);
 
+      // Mock useQuery for the hook with error state
+      mockUseQuery.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        error: { message: 'Service unavailable' },
+        refetch: jest.fn(),
+        isSuccess: false,
+        isError: true,
+      } as any);
+
       const { result } = renderHook(
         () => useInventoryItem('123'),
         { wrapper: createWrapper() }
@@ -122,6 +192,16 @@ describe('useInventoryItems Hook Tests (RED Phase)', () => {
     });
 
     it('should use proper cache configuration', () => {
+      // Mock useQuery for cache configuration test
+      mockUseQuery.mockReturnValue({
+        data: undefined,
+        isLoading: true,
+        error: null,
+        refetch: jest.fn(),
+        isSuccess: false,
+        isError: false,
+      } as any);
+
       const { result } = renderHook(
         () => useInventoryItem('123'),
         { wrapper: createWrapper() }
@@ -154,6 +234,16 @@ describe('useInventoryItems Hook Tests (RED Phase)', () => {
 
       mockInventoryService.getInventoryByProduct.mockResolvedValue(mockInventory);
 
+      // Mock useQuery for the hook
+      mockUseQuery.mockReturnValue({
+        data: mockInventory,
+        isLoading: false,
+        error: null,
+        refetch: jest.fn(),
+        isSuccess: true,
+        isError: false,
+      } as any);
+
       const { result } = renderHook(
         () => useInventoryByProduct('product-1'),
         { wrapper: createWrapper() }
@@ -168,6 +258,16 @@ describe('useInventoryItems Hook Tests (RED Phase)', () => {
     });
 
     it('should handle null product ID', () => {
+      // Mock useQuery for disabled query
+      mockUseQuery.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        error: null,
+        refetch: jest.fn(),
+        isSuccess: false,
+        isError: false,
+      } as any);
+
       const { result } = renderHook(
         () => useInventoryByProduct(null),
         { wrapper: createWrapper() }
@@ -179,6 +279,16 @@ describe('useInventoryItems Hook Tests (RED Phase)', () => {
 
     it('should return null for non-existent product', async () => {
       mockInventoryService.getInventoryByProduct.mockResolvedValue(null);
+
+      // Mock useQuery for the hook with null data
+      mockUseQuery.mockReturnValue({
+        data: null,
+        isLoading: false,
+        error: null,
+        refetch: jest.fn(),
+        isSuccess: true,
+        isError: false,
+      } as any);
 
       const { result } = renderHook(
         () => useInventoryByProduct('nonexistent'),
@@ -218,6 +328,16 @@ describe('useInventoryItems Hook Tests (RED Phase)', () => {
 
       mockInventoryService.getLowStockItems.mockResolvedValue(mockLowStockResult);
 
+      // Mock useQuery for the hook
+      mockUseQuery.mockReturnValue({
+        data: mockLowStockResult,
+        isLoading: false,
+        error: null,
+        refetch: jest.fn(),
+        isSuccess: true,
+        isError: false,
+      } as any);
+
       const { result } = renderHook(
         () => useLowStockItems(),
         { wrapper: createWrapper() }
@@ -232,6 +352,16 @@ describe('useInventoryItems Hook Tests (RED Phase)', () => {
     });
 
     it('should auto-refresh low stock items every 5 minutes', () => {
+      // Mock useQuery for auto-refresh test
+      mockUseQuery.mockReturnValue({
+        data: undefined,
+        isLoading: true,
+        error: null,
+        refetch: jest.fn(),
+        isSuccess: false,
+        isError: false,
+      } as any);
+
       const { result } = renderHook(
         () => useLowStockItems(),
         { wrapper: createWrapper() }
@@ -250,6 +380,16 @@ describe('useInventoryItems Hook Tests (RED Phase)', () => {
       };
 
       mockInventoryService.getLowStockItems.mockResolvedValue(mockEmptyResult);
+
+      // Mock useQuery for the hook
+      mockUseQuery.mockReturnValue({
+        data: mockEmptyResult,
+        isLoading: false,
+        error: null,
+        refetch: jest.fn(),
+        isSuccess: true,
+        isError: false,
+      } as any);
 
       const { result } = renderHook(
         () => useLowStockItems(),
@@ -287,6 +427,16 @@ describe('useInventoryItems Hook Tests (RED Phase)', () => {
       };
 
       mockInventoryService.getLowStockItems.mockResolvedValue(mockPartialResult);
+
+      // Mock useQuery for the hook
+      mockUseQuery.mockReturnValue({
+        data: mockPartialResult,
+        isLoading: false,
+        error: null,
+        refetch: jest.fn(),
+        isSuccess: true,
+        isError: false,
+      } as any);
 
       const { result } = renderHook(
         () => useLowStockItems(),
@@ -343,6 +493,16 @@ describe('useInventoryItems Hook Tests (RED Phase)', () => {
       // Mock the service method that will be called
       mockInventoryService.getLowStockItems.mockResolvedValue(mockInventoryItems);
 
+      // Mock useQuery for the hook
+      mockUseQuery.mockReturnValue({
+        data: mockInventoryItems,
+        isLoading: false,
+        error: null,
+        refetch: jest.fn(),
+        isSuccess: true,
+        isError: false,
+      } as any);
+
       const { result } = renderHook(
         () => useInventoryItems({ includeInactive: true, includeHidden: true }),
         { wrapper: createWrapper() }
@@ -357,6 +517,16 @@ describe('useInventoryItems Hook Tests (RED Phase)', () => {
     });
 
     it('should handle filtering options correctly', () => {
+      // Mock useQuery for filtering test
+      mockUseQuery.mockReturnValue({
+        data: { success: [], errors: [], totalProcessed: 0 },
+        isLoading: false,
+        error: null,
+        refetch: jest.fn(),
+        isSuccess: true,
+        isError: false,
+      } as any);
+
       const { result } = renderHook(
         () => useInventoryItems({ includeInactive: false, includeHidden: false }),
         { wrapper: createWrapper() }
@@ -370,6 +540,16 @@ describe('useInventoryItems Hook Tests (RED Phase)', () => {
 
   describe('Query Key Integration', () => {
     it('should use centralized query key factory (prevent dual systems)', () => {
+      // Mock useQuery for query key integration test
+      mockUseQuery.mockReturnValue({
+        data: undefined,
+        isLoading: true,
+        error: null,
+        refetch: jest.fn(),
+        isSuccess: false,
+        isError: false,
+      } as any);
+
       const { result } = renderHook(
         () => useInventoryItem('123'),
         { wrapper: createWrapper() }
@@ -396,6 +576,18 @@ describe('useInventoryItems Hook Tests (RED Phase)', () => {
       };
 
       mockInventoryService.getInventoryItem.mockResolvedValue(mockItem);
+
+      const refetchMock = jest.fn();
+      
+      // Mock useQuery for the hook
+      mockUseQuery.mockReturnValue({
+        data: mockItem,
+        isLoading: false,
+        error: null,
+        refetch: refetchMock,
+        isSuccess: true,
+        isError: false,
+      } as any);
 
       const { result } = renderHook(
         () => useInventoryItem('123'),

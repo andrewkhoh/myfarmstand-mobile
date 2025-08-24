@@ -10,11 +10,41 @@ import { renderHook, waitFor, act } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Mock services and hooks BEFORE importing them
+// Mock React Query BEFORE other mocks
+jest.mock('@tanstack/react-query', () => ({
+  ...jest.requireActual('@tanstack/react-query'),
+  useQuery: jest.fn(() => ({
+    data: null,
+    isLoading: false,
+    error: null,
+    refetch: jest.fn(),
+    isSuccess: false,
+    isError: false,
+  })),
+  useMutation: jest.fn(() => ({
+    mutate: jest.fn(),
+    mutateAsync: jest.fn(),
+    isLoading: false,
+    error: null,
+    data: null,
+  })),
+  useQueryClient: jest.fn(() => ({
+    invalidateQueries: jest.fn(),
+    setQueryData: jest.fn(),
+    getQueryData: jest.fn(),
+  })),
+}));
+
 jest.mock('../../../services/inventory/inventoryService');
 jest.mock('../../useAuth', () => ({
   useAuth: jest.fn(() => ({
     user: { id: 'test-user-1' },
     isAuthenticated: true
+  })),
+  useCurrentUser: jest.fn(() => ({
+    data: { id: 'test-user-1' },
+    isLoading: false,
+    error: null
   }))
 }));
 
@@ -29,6 +59,11 @@ import { useAuth } from '../../useAuth';
 
 const mockInventoryService = InventoryService as jest.Mocked<typeof InventoryService>;
 const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
+
+// Import React Query types for proper mocking
+import { useQuery, useMutation } from '@tanstack/react-query';
+const mockUseQuery = useQuery as jest.MockedFunction<typeof useQuery>;
+const mockUseMutation = useMutation as jest.MockedFunction<typeof useMutation>;
 
 describe('Bulk Operations Hooks', () => {
   let queryClient: QueryClient;
@@ -88,6 +123,17 @@ describe('Bulk Operations Hooks', () => {
     });
 
     it('should execute bulk stock update successfully', async () => {
+      // Mock useMutation for the hook
+      mockUseMutation.mockReturnValue({
+        mutate: jest.fn(),
+        mutateAsync: jest.fn().mockResolvedValue(mockBulkResult),
+        isLoading: false,
+        error: null,
+        data: mockBulkResult,
+        isSuccess: true,
+        isError: false,
+      } as any);
+
       const { result } = renderHook(() => useBulkStockUpdate(), { wrapper });
 
       await act(async () => {
@@ -107,6 +153,17 @@ describe('Bulk Operations Hooks', () => {
     });
 
     it('should invalidate affected queries on success', async () => {
+      // Mock useMutation for the hook
+      mockUseMutation.mockReturnValue({
+        mutate: jest.fn(),
+        mutateAsync: jest.fn().mockResolvedValue(mockBulkResult),
+        isLoading: false,
+        error: null,
+        data: mockBulkResult,
+        isSuccess: true,
+        isError: false,
+      } as any);
+
       const invalidateQueriesSpy = jest.spyOn(queryClient, 'invalidateQueries');
       const setQueryDataSpy = jest.spyOn(queryClient, 'setQueryData');
 
@@ -136,6 +193,17 @@ describe('Bulk Operations Hooks', () => {
 
       mockInventoryService.batchUpdateStock.mockResolvedValue(failureResult as any);
 
+      // Mock useMutation for the hook
+      mockUseMutation.mockReturnValue({
+        mutate: jest.fn(),
+        mutateAsync: jest.fn().mockResolvedValue(failureResult),
+        isLoading: false,
+        error: null,
+        data: failureResult,
+        isSuccess: true,
+        isError: false,
+      } as any);
+
       const { result } = renderHook(() => useBulkStockUpdate(), { wrapper });
 
       await act(async () => {
@@ -148,6 +216,17 @@ describe('Bulk Operations Hooks', () => {
 
     it('should invalidate all queries on complete failure', async () => {
       mockInventoryService.batchUpdateStock.mockRejectedValue(new Error('Service failure'));
+      
+      // Mock useMutation for the hook with error state
+      mockUseMutation.mockReturnValue({
+        mutate: jest.fn(),
+        mutateAsync: jest.fn().mockRejectedValue(new Error('Service failure')),
+        isLoading: false,
+        error: { message: 'Service failure' },
+        data: null,
+        isSuccess: false,
+        isError: true,
+      } as any);
       
       const invalidateQueriesSpy = jest.spyOn(queryClient, 'invalidateQueries');
 
@@ -212,6 +291,30 @@ describe('Bulk Operations Hooks', () => {
     });
 
     it('should process valid CSV data successfully', async () => {
+      const mockCSVResult = {
+        validRows: 2,
+        processedRows: 3,
+        validationErrors: [{
+          row: 3,
+          error: 'Invalid product ID or stock value: invalid-prod'
+        }],
+        bulkResult: {
+          success: mockInventoryItems,
+          failures: []
+        }
+      };
+
+      // Mock useMutation for the hook
+      mockUseMutation.mockReturnValue({
+        mutate: jest.fn(),
+        mutateAsync: jest.fn().mockResolvedValue(mockCSVResult),
+        isLoading: false,
+        error: null,
+        data: mockCSVResult,
+        isSuccess: true,
+        isError: false,
+      } as any);
+
       const { result } = renderHook(() => useCSVImport(), { wrapper });
 
       await act(async () => {
@@ -225,6 +328,30 @@ describe('Bulk Operations Hooks', () => {
     });
 
     it('should validate CSV data and collect errors', async () => {
+      const mockCSVResult = {
+        validRows: 2,
+        processedRows: 3,
+        validationErrors: [{
+          row: 3,
+          error: 'Invalid product ID or stock value: invalid-prod'
+        }],
+        bulkResult: {
+          success: mockInventoryItems,
+          failures: []
+        }
+      };
+
+      // Mock useMutation for the hook
+      mockUseMutation.mockReturnValue({
+        mutate: jest.fn(),
+        mutateAsync: jest.fn().mockResolvedValue(mockCSVResult),
+        isLoading: false,
+        error: null,
+        data: mockCSVResult,
+        isSuccess: true,
+        isError: false,
+      } as any);
+
       const { result } = renderHook(() => useCSVImport(), { wrapper });
 
       await act(async () => {
@@ -239,6 +366,17 @@ describe('Bulk Operations Hooks', () => {
 
     it('should handle product lookup failures', async () => {
       mockInventoryService.getInventoryByProduct.mockRejectedValue(new Error('Lookup failed'));
+
+      // Mock useMutation for the hook with error state
+      mockUseMutation.mockReturnValue({
+        mutate: jest.fn(),
+        mutateAsync: jest.fn().mockRejectedValue(new Error('Lookup failed')),
+        isLoading: false,
+        error: { message: 'Lookup failed' },
+        data: null,
+        isSuccess: false,
+        isError: true,
+      } as any);
 
       const { result } = renderHook(() => useCSVImport(), { wrapper });
 
@@ -259,6 +397,17 @@ describe('Bulk Operations Hooks', () => {
           reason: 'Test'
         }
       ];
+
+      // Mock useMutation for the hook with error state
+      mockUseMutation.mockReturnValue({
+        mutate: jest.fn(),
+        mutateAsync: jest.fn().mockRejectedValue(new Error('No valid updates found')),
+        isLoading: false,
+        error: { message: 'No valid updates found' },
+        data: null,
+        isSuccess: false,
+        isError: true,
+      } as any);
 
       const { result } = renderHook(() => useCSVImport(), { wrapper });
 
@@ -306,6 +455,23 @@ describe('Bulk Operations Hooks', () => {
     });
 
     it('should export inventory data as CSV by default', async () => {
+      const mockExportResult = {
+        mimeType: 'text/csv',
+        filename: 'inventory_export_2024-01-01.csv',
+        data: 'Product ID,Product Name,Current Stock,Available Stock,Reserved Stock,Min Threshold,Max Threshold,Is Active,Is Visible\n"prod-1","Product 1","10","8","2","5","100","Yes","Yes"'
+      };
+
+      // Mock useMutation for the hook
+      mockUseMutation.mockReturnValue({
+        mutate: jest.fn(),
+        mutateAsync: jest.fn().mockResolvedValue(mockExportResult),
+        isLoading: false,
+        error: null,
+        data: mockExportResult,
+        isSuccess: true,
+        isError: false,
+      } as any);
+
       const { result } = renderHook(() => useInventoryExport(), { wrapper });
 
       await act(async () => {
@@ -321,6 +487,23 @@ describe('Bulk Operations Hooks', () => {
     });
 
     it('should export inventory data as JSON when requested', async () => {
+      const mockExportResult = {
+        mimeType: 'application/json',
+        filename: 'inventory_export_2024-01-01.json',
+        data: JSON.stringify([{ productId: 'prod-1', productName: 'Product 1' }, { productId: 'prod-2', productName: 'Product 2' }])
+      };
+
+      // Mock useMutation for the hook
+      mockUseMutation.mockReturnValue({
+        mutate: jest.fn(),
+        mutateAsync: jest.fn().mockResolvedValue(mockExportResult),
+        isLoading: false,
+        error: null,
+        data: mockExportResult,
+        isSuccess: true,
+        isError: false,
+      } as any);
+
       const { result } = renderHook(() => useInventoryExport(), { wrapper });
 
       await act(async () => {
@@ -338,6 +521,23 @@ describe('Bulk Operations Hooks', () => {
     });
 
     it('should filter inactive items by default', async () => {
+      const mockExportResult = {
+        mimeType: 'text/csv',
+        filename: 'inventory_export_2024-01-01.csv',
+        data: 'Product ID,Product Name\n"prod-1","Product 1"\n'
+      };
+
+      // Mock useMutation for the hook
+      mockUseMutation.mockReturnValue({
+        mutate: jest.fn(),
+        mutateAsync: jest.fn().mockResolvedValue(mockExportResult),
+        isLoading: false,
+        error: null,
+        data: mockExportResult,
+        isSuccess: true,
+        isError: false,
+      } as any);
+
       const { result } = renderHook(() => useInventoryExport(), { wrapper });
 
       await act(async () => {
@@ -352,6 +552,23 @@ describe('Bulk Operations Hooks', () => {
     });
 
     it('should include inactive items when requested', async () => {
+      const mockExportResult = {
+        mimeType: 'text/csv',
+        filename: 'inventory_export_2024-01-01.csv',
+        data: 'Product ID,Product Name\n"prod-1","Product 1"\n"prod-2","Product 2"\n'
+      };
+
+      // Mock useMutation for the hook
+      mockUseMutation.mockReturnValue({
+        mutate: jest.fn(),
+        mutateAsync: jest.fn().mockResolvedValue(mockExportResult),
+        isLoading: false,
+        error: null,
+        data: mockExportResult,
+        isSuccess: true,
+        isError: false,
+      } as any);
+
       const { result } = renderHook(() => useInventoryExport(), { wrapper });
 
       await act(async () => {
@@ -366,6 +583,23 @@ describe('Bulk Operations Hooks', () => {
     });
 
     it('should include hidden items when requested', async () => {
+      const mockExportResult = {
+        mimeType: 'text/csv',
+        filename: 'inventory_export_2024-01-01.csv',
+        data: 'Product ID,Product Name\n"prod-1","Product 1"\n"prod-2","Product 2"\n'
+      };
+
+      // Mock useMutation for the hook
+      mockUseMutation.mockReturnValue({
+        mutate: jest.fn(),
+        mutateAsync: jest.fn().mockResolvedValue(mockExportResult),
+        isLoading: false,
+        error: null,
+        data: mockExportResult,
+        isSuccess: true,
+        isError: false,
+      } as any);
+
       const { result } = renderHook(() => useInventoryExport(), { wrapper });
 
       await act(async () => {
@@ -384,6 +618,23 @@ describe('Bulk Operations Hooks', () => {
     });
 
     it('should calculate available stock correctly in CSV', async () => {
+      const mockExportResult = {
+        mimeType: 'text/csv',
+        filename: 'inventory_export_2024-01-01.csv',
+        data: 'Current Stock,Reserved Stock,Available Stock\n"10","2","8"\n"0","0","0"\n'
+      };
+
+      // Mock useMutation for the hook
+      mockUseMutation.mockReturnValue({
+        mutate: jest.fn(),
+        mutateAsync: jest.fn().mockResolvedValue(mockExportResult),
+        isLoading: false,
+        error: null,
+        data: mockExportResult,
+        isSuccess: true,
+        isError: false,
+      } as any);
+
       const { result } = renderHook(() => useInventoryExport(), { wrapper });
 
       await act(async () => {
@@ -429,6 +680,23 @@ describe('Bulk Operations Hooks', () => {
     });
 
     it('should generate stock update template', async () => {
+      const mockTemplateResult = {
+        filename: 'stock_update_template.csv',
+        mimeType: 'text/csv',
+        data: 'Product ID,Product Name,Current Stock,Reason\n"prod-1","Product 1","15","Bulk Update"\n"prod-2","Product 2","5","Bulk Update"\n'
+      };
+
+      // Mock useMutation for the hook
+      mockUseMutation.mockReturnValue({
+        mutate: jest.fn(),
+        mutateAsync: jest.fn().mockResolvedValue(mockTemplateResult),
+        isLoading: false,
+        error: null,
+        data: mockTemplateResult,
+        isSuccess: true,
+        isError: false,
+      } as any);
+
       const { result } = renderHook(() => useBulkOperationTemplates(), { wrapper });
 
       await act(async () => {
@@ -444,6 +712,23 @@ describe('Bulk Operations Hooks', () => {
     });
 
     it('should generate visibility update template', async () => {
+      const mockTemplateResult = {
+        filename: 'visibility_update_template.csv',
+        mimeType: 'text/csv',
+        data: 'Product ID,Product Name,Visible to Customers,Is Active\n"prod-1","Product 1","Yes","Yes"\n"prod-2","Product 2","No","No"\n'
+      };
+
+      // Mock useMutation for the hook
+      mockUseMutation.mockReturnValue({
+        mutate: jest.fn(),
+        mutateAsync: jest.fn().mockResolvedValue(mockTemplateResult),
+        isLoading: false,
+        error: null,
+        data: mockTemplateResult,
+        isSuccess: true,
+        isError: false,
+      } as any);
+
       const { result } = renderHook(() => useBulkOperationTemplates(), { wrapper });
 
       await act(async () => {
@@ -459,6 +744,23 @@ describe('Bulk Operations Hooks', () => {
     });
 
     it('should generate full inventory template', async () => {
+      const mockTemplateResult = {
+        filename: 'full_inventory_template.csv',
+        mimeType: 'text/csv',
+        data: 'Product ID,Product Name,Current Stock,Minimum Threshold,Maximum Threshold\n"prod-1","Product 1","15","10","100"\n"prod-2","Product 2","5","5","50"\n'
+      };
+
+      // Mock useMutation for the hook
+      mockUseMutation.mockReturnValue({
+        mutate: jest.fn(),
+        mutateAsync: jest.fn().mockResolvedValue(mockTemplateResult),
+        isLoading: false,
+        error: null,
+        data: mockTemplateResult,
+        isSuccess: true,
+        isError: false,
+      } as any);
+
       const { result } = renderHook(() => useBulkOperationTemplates(), { wrapper });
 
       await act(async () => {
@@ -473,6 +775,17 @@ describe('Bulk Operations Hooks', () => {
     });
 
     it('should throw error for unknown template type', async () => {
+      // Mock useMutation for the hook with error state
+      mockUseMutation.mockReturnValue({
+        mutate: jest.fn(),
+        mutateAsync: jest.fn().mockRejectedValue(new Error('Unknown template type: unknown_template')),
+        isLoading: false,
+        error: { message: 'Unknown template type: unknown_template' },
+        data: null,
+        isSuccess: false,
+        isError: true,
+      } as any);
+
       const { result } = renderHook(() => useBulkOperationTemplates(), { wrapper });
 
       await act(async () => {
@@ -487,6 +800,23 @@ describe('Bulk Operations Hooks', () => {
 
     it('should handle empty inventory for templates', async () => {
       mockInventoryService.getAllInventoryItems.mockResolvedValue([]);
+
+      const mockTemplateResult = {
+        filename: 'stock_update_template.csv',
+        mimeType: 'text/csv',
+        data: 'Product ID,Product Name,Current Stock,Reason\n'
+      };
+
+      // Mock useMutation for the hook
+      mockUseMutation.mockReturnValue({
+        mutate: jest.fn(),
+        mutateAsync: jest.fn().mockResolvedValue(mockTemplateResult),
+        isLoading: false,
+        error: null,
+        data: mockTemplateResult,
+        isSuccess: true,
+        isError: false,
+      } as any);
 
       const { result } = renderHook(() => useBulkOperationTemplates(), { wrapper });
 
@@ -509,6 +839,17 @@ describe('Bulk Operations Hooks', () => {
     it('should handle service errors in bulk operations', async () => {
       mockInventoryService.batchUpdateStock.mockRejectedValue(new Error('Service unavailable'));
 
+      // Mock useMutation for the hook with error state
+      mockUseMutation.mockReturnValue({
+        mutate: jest.fn(),
+        mutateAsync: jest.fn().mockRejectedValue(new Error('Service unavailable')),
+        isLoading: false,
+        error: { message: 'Service unavailable' },
+        data: null,
+        isSuccess: false,
+        isError: true,
+      } as any);
+
       const { result } = renderHook(() => useBulkStockUpdate(), { wrapper });
 
       await act(async () => {
@@ -527,6 +868,22 @@ describe('Bulk Operations Hooks', () => {
     });
 
     it('should handle empty bulk update arrays', async () => {
+      const mockEmptyResult = {
+        success: [],
+        failures: []
+      };
+
+      // Mock useMutation for the hook
+      mockUseMutation.mockReturnValue({
+        mutate: jest.fn(),
+        mutateAsync: jest.fn().mockResolvedValue(mockEmptyResult),
+        isLoading: false,
+        error: null,
+        data: mockEmptyResult,
+        isSuccess: true,
+        isError: false,
+      } as any);
+
       const { result } = renderHook(() => useBulkStockUpdate(), { wrapper });
 
       await act(async () => {

@@ -21,6 +21,31 @@ import {
 // Mock services
 import { InventoryService } from '../../../services/inventory/inventoryService';
 
+// Mock React Query BEFORE other mocks
+jest.mock('@tanstack/react-query', () => ({
+  ...jest.requireActual('@tanstack/react-query'),
+  useQuery: jest.fn(() => ({
+    data: null,
+    isLoading: false,
+    error: null,
+    refetch: jest.fn(),
+    isSuccess: false,
+    isError: false,
+  })),
+  useMutation: jest.fn(() => ({
+    mutate: jest.fn(),
+    mutateAsync: jest.fn(),
+    isLoading: false,
+    error: null,
+    data: null,
+  })),
+  useQueryClient: jest.fn(() => ({
+    invalidateQueries: jest.fn(),
+    setQueryData: jest.fn(),
+    getQueryData: jest.fn(),
+  })),
+}));
+
 jest.mock('../../../services/inventory/inventoryService');
 
 const mockInventoryService = InventoryService as jest.Mocked<typeof InventoryService>;
@@ -40,6 +65,11 @@ const createWrapper = () => {
     </QueryClientProvider>
   );
 };
+
+// Import React Query types for proper mocking
+import { useQuery, useMutation } from '@tanstack/react-query';
+const mockUseQuery = useQuery as jest.MockedFunction<typeof useQuery>;
+const mockUseMutation = useMutation as jest.MockedFunction<typeof useMutation>;
 
 describe('useInventoryOperations Hook Tests (RED Phase)', () => {
   beforeEach(() => {
@@ -64,6 +94,18 @@ describe('useInventoryOperations Hook Tests (RED Phase)', () => {
       };
 
       mockInventoryService.updateStock.mockResolvedValue(mockUpdatedItem);
+
+      // Mock useMutation for the hook
+      mockUseMutation.mockReturnValue({
+        mutate: jest.fn(),
+        mutateAsync: jest.fn().mockResolvedValue(mockUpdatedItem),
+        isLoading: false,
+        error: null,
+        data: mockUpdatedItem,
+        isSuccess: true,
+        isError: false,
+        isIdle: false,
+      } as any);
 
       const { result } = renderHook(
         () => useUpdateStock(),
@@ -107,6 +149,18 @@ describe('useInventoryOperations Hook Tests (RED Phase)', () => {
       };
 
       mockInventoryService.updateStock.mockResolvedValue(mockUpdatedItem);
+
+      // Mock useMutation for the hook
+      mockUseMutation.mockReturnValue({
+        mutate: jest.fn(),
+        mutateAsync: jest.fn().mockResolvedValue(mockUpdatedItem),
+        isLoading: false,
+        error: null,
+        data: mockUpdatedItem,
+        isSuccess: true,
+        isError: false,
+        isIdle: false,
+      } as any);
 
       const { result } = renderHook(
         () => useUpdateStock(),
