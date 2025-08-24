@@ -179,8 +179,11 @@ describe('useKiosk Hook Tests - Refactored Infrastructure', () => {
       const { result } = renderHook(() => useKiosk(), { wrapper });
 
       await waitFor(() => {
+        expect(result.current).toBeDefined();
       });
 
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.error).toBeFalsy();
     });
 
     it('should handle kiosk errors gracefully', async () => {
@@ -196,9 +199,10 @@ describe('useKiosk Hook Tests - Refactored Infrastructure', () => {
       const { result } = renderHook(() => useKiosk(), { wrapper });
 
       await waitFor(() => {
+        expect(result.current.error).toBeTruthy();
       });
 
-      // Should handle errors gracefully without crashing
+      expect(result.current.isLoading).toBe(false);
     });
   });
 
@@ -231,6 +235,7 @@ describe('useKiosk Hook Tests - Refactored Infrastructure', () => {
       const { result } = renderHook(() => useKioskSession('kiosk-001'), { wrapper });
 
       await waitFor(() => {
+        expect(result.current.data).toBeDefined();
       });
 
       expect(result.current.data).toEqual(mockKioskSession);
@@ -267,15 +272,14 @@ describe('useKiosk Hook Tests - Refactored Infrastructure', () => {
       const { result } = renderHook(() => useKioskPINValidation(), { wrapper });
 
       await waitFor(() => {
+        expect(result.current).toBeDefined();
       });
 
       // Check that validation function is available (if hook provides it)
       if (result.current.validatePIN) {
-        if (result.current.validatePIN) {
         expect(typeof result.current.validatePIN).toBe('function');
       } else {
         console.log('result.current.validatePIN not available - graceful degradation');
-      }
       }
     });
   });
@@ -309,6 +313,7 @@ describe('useKiosk Hook Tests - Refactored Infrastructure', () => {
       const { result } = renderHook(() => useKioskOrders('kiosk-001'), { wrapper });
 
       await waitFor(() => {
+        expect(result.current.data).toBeDefined();
       });
 
       expect(result.current.data).toEqual([mockKioskOrder]);
