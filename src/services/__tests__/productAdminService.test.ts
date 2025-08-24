@@ -4,29 +4,12 @@
  */
 
 // Setup all mocks BEFORE any imports
+// Mock Supabase using the refactored infrastructure - CREATE MOCK IN THE JEST.MOCK CALL
 jest.mock('../../config/supabase', () => {
-  const mockFrom = jest.fn(() => ({
-    select: jest.fn().mockReturnThis(),
-    eq: jest.fn().mockReturnThis(),
-    in: jest.fn().mockReturnThis(),
-    gte: jest.fn().mockReturnThis(),
-    lte: jest.fn().mockReturnThis(),
-    order: jest.fn().mockReturnThis(),
-    limit: jest.fn().mockReturnThis(),
-    single: jest.fn().mockResolvedValue({ data: null, error: null }),
-    delete: jest.fn().mockResolvedValue({ data: null, error: null }),
-    insert: jest.fn().mockResolvedValue({ data: null, error: null }),
-    update: jest.fn().mockResolvedValue({ data: null, error: null }),
-    upsert: jest.fn().mockResolvedValue({ data: null, error: null })
-  }));
-
+  const { SimplifiedSupabaseMock } = require('../../test/mocks/supabase.simplified.mock');
+  const mockInstance = new SimplifiedSupabaseMock();
   return {
-    supabase: {
-      from: mockFrom,
-      auth: {
-        getUser: jest.fn().mockResolvedValue({ data: { user: null }, error: null })
-      }
-    },
+    supabase: mockInstance.createClient(),
     TABLES: {
       USERS: 'users',
       PRODUCTS: 'products',

@@ -1,50 +1,18 @@
 /**
- * OrderService Test - Fixed using AuthService Success Pattern
+ * OrderService Test - Using REFACTORED Infrastructure
+ * Following the proven pattern from service test reference
  */
 
 // ============================================================================
 // MOCK SETUP - MUST BE BEFORE ANY IMPORTS 
 // ============================================================================
 
+// Mock Supabase using the refactored infrastructure - CREATE MOCK IN THE JEST.MOCK CALL
 jest.mock('../../config/supabase', () => {
-  const mockAuth = {
-    getUser: jest.fn(),
-    getSession: jest.fn(),
-    signInWithPassword: jest.fn(),
-    signOut: jest.fn(),
-    signUp: jest.fn(),
-    refreshSession: jest.fn(),
-    updateUser: jest.fn(),
-    resetPasswordForEmail: jest.fn(),
-  };
-  
-  const mockFrom = jest.fn(() => ({
-    select: jest.fn().mockReturnThis(),
-    eq: jest.fn().mockReturnThis(),
-    insert: jest.fn().mockReturnThis(),
-    update: jest.fn().mockReturnThis(),
-    delete: jest.fn().mockReturnThis(),
-    single: jest.fn(),
-    order: jest.fn().mockReturnThis(),
-    in: jest.fn().mockReturnThis(),
-    neq: jest.fn().mockReturnThis(),
-    gt: jest.fn().mockReturnThis(),
-    lt: jest.fn().mockReturnThis(),
-    gte: jest.fn().mockReturnThis(),
-    lte: jest.fn().mockReturnThis(),
-    is: jest.fn().mockReturnThis(),
-    ilike: jest.fn().mockReturnThis(),
-    like: jest.fn().mockReturnThis(),
-    match: jest.fn().mockReturnThis(),
-    range: jest.fn().mockReturnThis(),
-    limit: jest.fn().mockReturnThis(),
-  }));
-  
+  const { SimplifiedSupabaseMock } = require('../../test/mocks/supabase.simplified.mock');
+  const mockInstance = new SimplifiedSupabaseMock();
   return {
-    supabase: {
-      auth: mockAuth,
-      from: mockFrom,
-    },
+    supabase: mockInstance.createClient(),
     TABLES: {
       USERS: 'users',
       PRODUCTS: 'products', 
@@ -118,24 +86,46 @@ import {
   getAllOrders,
   getOrderStats
 } from '../orderService';
-import { supabase } from '../../config/supabase';
+import { createUser, createOrder, createOrderItem, resetAllFactories } from '../../test/factories';
 import { AuthService } from '../authService';
 
 // Get mock references
-const mockSupabaseAuth = supabase.auth as any;
-const mockSupabaseFrom = supabase.from as jest.Mock;
 const mockAuthService = AuthService as jest.Mocked<typeof AuthService>;
 
-describe('OrderService', () => {
+describe('OrderService - Refactored Infrastructure', () => {
+  let testUser: any;
+  let testOrder: any;
+  let testOrderItem: any;
+
   beforeEach(() => {
+    // Reset all factory counters for consistent test data
+    resetAllFactories();
+    
+    // Create test data using factories
+    testUser = createUser({
+      id: 'user-123',
+      name: 'Test User',
+      email: 'test@example.com'
+    });
+    
+    testOrder = createOrder({
+      id: 'order-123',
+      user_id: testUser.id,
+      status: 'pending',
+      total_amount: 20.00
+    });
+    
+    testOrderItem = createOrderItem({
+      id: 'item-123',
+      order_id: testOrder.id,
+      product_id: 'product-1',
+      quantity: 2,
+      unit_price: 10.00
+    });
+    
     jest.clearAllMocks();
     
     // Default mocks
-    mockSupabaseAuth.getUser.mockResolvedValue({
-      data: { user: null },
-      error: null
-    });
-    
     mockAuthService.isAuthenticated.mockResolvedValue(false);
     mockAuthService.getCurrentUser.mockResolvedValue(null);
   });
@@ -200,53 +190,19 @@ describe('OrderService', () => {
 
   describe('getOrder', () => {
     it('should get order by id', async () => {
-      const mockOrder = {
-        id: 'order-123',
-        user_id: 'user-123',
-        status: 'pending',
-        total: 20.00,
-        created_at: new Date().toISOString()
-      };
-      
-      mockSupabaseFrom.mockReturnValue({
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({
-          data: mockOrder,
-          error: null
-        })
-      });
-      
-      const result = await getOrder('order-123');
+      const result = await getOrder(testOrder.id);
       expect(result).toBeDefined();
     });
 
     it('should handle order not found', async () => {
-      mockSupabaseFrom.mockReturnValue({
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({
-          data: null,
-          error: { message: 'Order not found' }
-        })
-      });
-      
       await expect(getOrder('nonexistent')).toBeDefined();
     });
   });
 
   describe('getCustomerOrders', () => {
     it('should get orders for customer', async () => {
-      const mockUser = {
-        id: 'user-123',
-        email: 'test@example.com'
-      };
-      
-      const mockOrders = [
-        {
-          id: 'order-1',
-          user_id: 'user-123',
-          status: 'pending',
+      const result = await getCustomerOrders(testUser.id);
+      expect(result).toBeDefined();
           total: 20.00,
           created_at: new Date().toISOString()
         }
@@ -276,72 +232,24 @@ describe('OrderService', () => {
 
   describe('updateOrderStatus', () => {
     it('should update order status', async () => {
-      const mockOrder = {
-        id: 'order-123',
-        status: 'completed',
-        updated_at: new Date().toISOString()
-      };
-      
-      mockSupabaseFrom.mockReturnValue({
-        update: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({
-          data: mockOrder,
-          error: null
-        })
-      });
-      
-      const result = await updateOrderStatus('order-123', 'completed');
+      const result = await updateOrderStatus(testOrder.id, 'completed');
       expect(result).toBeDefined();
     });
 
     it('should handle update error', async () => {
-      mockSupabaseFrom.mockReturnValue({
-        update: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({
-          data: null,
-          error: { message: 'Update failed' }
-        })
-      });
-      
-      await expect(updateOrderStatus('order-123', 'completed')).toBeDefined();
+      await expect(updateOrderStatus('invalid-order', 'completed')).toBeDefined();
     });
   });
 
   describe('bulkUpdateOrderStatus', () => {
     it('should update multiple orders', async () => {
-      mockSupabaseFrom.mockReturnValue({
-        update: jest.fn().mockReturnThis(),
-        in: jest.fn().mockResolvedValue({
-          data: [{ id: 'order-1' }, { id: 'order-2' }],
-          error: null
-        })
-      });
-      
-      const result = await bulkUpdateOrderStatus(['order-1', 'order-2'], 'completed');
+      const result = await bulkUpdateOrderStatus([testOrder.id], 'completed');
       expect(result).toBeDefined();
     });
   });
 
   describe('getAllOrders', () => {
     it('should get all orders', async () => {
-      const mockOrders = [
-        {
-          id: 'order-1',
-          status: 'pending',
-          created_at: new Date().toISOString()
-        }
-      ];
-      
-      mockSupabaseFrom.mockReturnValue({
-        select: jest.fn().mockReturnThis(),
-        order: jest.fn().mockResolvedValue({
-          data: mockOrders,
-          error: null
-        })
-      });
-      
       const result = await getAllOrders();
       expect(result).toBeDefined();
     });
@@ -349,20 +257,6 @@ describe('OrderService', () => {
 
   describe('getOrderStats', () => {
     it('should get order statistics', async () => {
-      const mockStats = {
-        total_orders: 100,
-        pending_orders: 10,
-        completed_orders: 80,
-        cancelled_orders: 10
-      };
-      
-      mockSupabaseFrom.mockReturnValue({
-        select: jest.fn().mockResolvedValue({
-          data: [mockStats],
-          error: null
-        })
-      });
-      
       const result = await getOrderStats();
       expect(result).toBeDefined();
     });
