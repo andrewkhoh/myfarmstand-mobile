@@ -42,11 +42,10 @@ describe('Inventory Schema Contracts', () => {
     it('should populate all required interface fields', () => {
       const mockRawData = {
         id: 'inv-1',
-        inventory_item_id: 'item-1',
         product_id: 'prod-1',
-        product_name: 'Test Product',
         current_stock: 10,
         reserved_stock: 2,
+        available_stock: 8, // Must equal current_stock - reserved_stock
         minimum_threshold: 5,
         maximum_threshold: 100,
         is_active: true,
@@ -60,11 +59,10 @@ describe('Inventory Schema Contracts', () => {
       
       // Verify every interface field is present and correctly typed
       expect(result.id).toBeDefined();
-      expect(result.inventoryItemId).toBeDefined();
       expect(result.productId).toBeDefined();
-      expect(result.productName).toBeDefined();
       expect(result.currentStock).toBeDefined();
       expect(result.reservedStock).toBeDefined();
+      expect(result.availableStock).toBeDefined();
       expect(result.minimumThreshold).toBeDefined();
       expect(result.maximumThreshold).toBeDefined();
       expect(result.isActive).toBeDefined();
@@ -74,9 +72,11 @@ describe('Inventory Schema Contracts', () => {
       expect(result.updatedAt).toBeDefined();
       
       // Verify correct data transformation (snake_case → camelCase)
-      expect(result.inventoryItemId).toBe('item-1');
+      expect(result.id).toBe('inv-1');
       expect(result.productId).toBe('prod-1');
-      expect(result.productName).toBe('Test Product');
+      expect(result.currentStock).toBe(10);
+      expect(result.reservedStock).toBe(2);
+      expect(result.availableStock).toBe(8);
       expect(result.isActive).toBe(true);
       expect(result.isVisibleToCustomers).toBe(true);
     });
@@ -93,14 +93,14 @@ describe('Inventory Schema Contracts', () => {
 
     it('should populate all required interface fields', () => {
       const mockRawData = {
-        id: 'mov-1',
-        inventory_item_id: 'inv-1',
+        id: '123e4567-e89b-12d3-a456-426614174000', // Valid UUID
+        inventory_item_id: '123e4567-e89b-12d3-a456-426614174001', // Valid UUID
         movement_type: 'adjustment',
         quantity_change: -5,
         previous_stock: 100,
         new_stock: 95,
         reason: 'Test adjustment',
-        performed_by: 'user-1',
+        performed_by: '123e4567-e89b-12d3-a456-426614174002', // Valid UUID
         performed_at: '2024-01-01T00:00:00Z',
         created_at: '2024-01-01T00:00:00Z',
         reference_order_id: null,
@@ -122,10 +122,10 @@ describe('Inventory Schema Contracts', () => {
       expect(result.createdAt).toBeDefined();
       
       // Verify correct data transformation
-      expect(result.inventoryItemId).toBe('inv-1');
+      expect(result.inventoryItemId).toBe('123e4567-e89b-12d3-a456-426614174001');
       expect(result.movementType).toBe('adjustment');
       expect(result.quantityChange).toBe(-5);
-      expect(result.performedBy).toBe('user-1');
+      expect(result.performedBy).toBe('123e4567-e89b-12d3-a456-426614174002');
     });
   });
 

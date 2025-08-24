@@ -74,3 +74,12 @@ export const FailureTests = {
   wrongType: WrongTypeSchema,
   extraField: ExtraFieldSchema
 };
+
+// Add a minimal Jest test so the file doesn't fail
+describe('Failure Simulation', () => {
+  it('should have failure test schemas defined', () => {
+    expect(FailureTests.brokenProduct).toBeDefined();
+    expect(FailureTests.wrongType).toBeDefined();
+    expect(FailureTests.extraField).toBeDefined();
+  });
+});

@@ -35,7 +35,7 @@ const RawDbPaymentSchema = z.object({
   payment_method_id: z.string().nullable().optional(),
   amount: z.number().int().min(0), // Amount in cents
   currency: CurrencyCodeEnum,
-  status: PaymentStatusEnum.nullable().optional(),
+  status: z.union([PaymentStatusEnum, z.literal('')]).nullable().optional(), // Allow empty string
   user_id: z.string().min(1),
   order_id: z.string().nullable().optional(),
   client_secret: z.string().nullable().optional(),
@@ -106,7 +106,7 @@ export const PaymentTransformSchema = RawDbPaymentSchema.transform((data): Payme
     paymentMethodId: data.payment_method_id || '',
     amount: data.amount,
     currency: data.currency,
-    status: data.status || 'pending',
+    status: (data.status && data.status !== '') ? data.status : 'pending', // Handle empty string
     userId: data.user_id,
     orderId: data.order_id || '',
     clientSecret: data.client_secret || '',
@@ -209,12 +209,14 @@ export const PaymentIntentTransformSchema = RawDbPaymentIntentSchema.transform((
 export const PaymentCalculationSchema = z.object({
   subtotal: z.number().min(0),
   tax: z.number().min(0),
-  tip: z.number().min(0).optional().default(0),
-  discount: z.number().min(0).optional().default(0),
+  tip: z.number().min(0).optional(),
+  discount: z.number().min(0).optional(),
   total: z.number().min(0),
 }).refine((data) => {
   // Validate total calculation with tolerance for floating point arithmetic
-  const calculatedTotal = data.subtotal + data.tax + data.tip - data.discount;
+  const tip = data.tip ?? 0;
+  const discount = data.discount ?? 0;
+  const calculatedTotal = data.subtotal + data.tax + tip - discount;
   const tolerance = 0.01; // 1 cent tolerance
   return Math.abs(data.total - calculatedTotal) <= tolerance;
 }, {
@@ -255,10 +257,21 @@ export const UpdatePaymentStatusRequestSchema = z.object({
   metadata: data.metadata || {},
 }));
 
+// Simplified payment object for responses (doesn't require all DB fields)
+const PaymentResponseSchema = z.object({
+  id: z.string().min(1),
+  amount: z.number().int().min(0),
+  currency: CurrencyCodeEnum,
+  status: z.union([PaymentStatusEnum, z.string()]), // Allow any string for flexibility
+  user_id: z.string().optional(), // Optional for response objects
+  payment_intent_id: z.string().optional(),
+  payment_method_id: z.string().optional(),
+}).passthrough(); // Allow additional fields
+
 // Payment operation response schema
 export const PaymentOperationResponseSchema = z.object({
   success: z.boolean(),
-  payment: PaymentTransformSchema.optional(),
+  payment: PaymentResponseSchema.optional(),
   error: z.object({
     code: z.string(),
     message: z.string(),

@@ -154,11 +154,79 @@ export const transformProductWithCategory = (
   return result;
 };
 
+// Schema for product with joined category data (from Supabase JOINs)
+const RawProductWithCategorySchema = RawProductSchema.extend({
+  categories: z.object({
+    id: z.string().min(1),
+    name: z.string().min(1),
+    description: z.string().nullable().optional(),
+    image_url: z.string().url().nullable().optional(),
+    sort_order: z.number().nullable().optional(),
+    is_available: z.boolean().nullable().optional(),
+    created_at: z.string().nullable().optional(),
+    updated_at: z.string().nullable().optional(),
+  }).nullable().optional(),
+});
+
 // ✅ COMPREHENSIVE FIX: Create proper Zod schema with category support
 // ✅ SAFETY NET 1: TypeScript return annotation catches incomplete transformations
-export const ProductSchema = RawProductSchema.transform((data): Product => {
-  // Default transformation without categories for backward compatibility
-  return transformProductWithCategory(data, []);
+export const ProductSchema = RawProductWithCategorySchema.transform((data): Product => {
+  const trimmedName = data.name.trim();
+  
+  // Validate name is not empty after trimming
+  if (!trimmedName) {
+    throw new Error('Product name cannot be empty');
+  }
+  
+  // Handle category from JOIN data if present
+  const category = data.categories ? CategorySchema.parse(data.categories) : undefined;
+  
+  // Output transformation (App format - mixed snake + camel for compatibility)
+  const result: Product = {
+    // Core fields (keep snake_case for API compatibility)
+    id: data.id,
+    name: trimmedName,
+    description: data.description,
+    price: data.price,
+    stock_quantity: data.stock_quantity,
+    category_id: data.category_id,
+    category: category,
+    image_url: data.image_url,
+    images: data.images || undefined,
+    is_weekly_special: data.is_weekly_special,
+    is_bundle: data.is_bundle,
+    seasonal_availability: data.seasonal_availability,
+    unit: data.unit,
+    weight: data.weight,
+    sku: data.sku,
+    tags: data.tags,
+    nutrition_info: data.nutrition_info,
+    is_available: data.is_available,
+    is_pre_order: data.is_pre_order,
+    pre_order_available_date: data.pre_order_available_date,
+    min_pre_order_quantity: data.min_pre_order_quantity,
+    max_pre_order_quantity: data.max_pre_order_quantity,
+    created_at: data.created_at,
+    updated_at: data.updated_at,
+    
+    // Legacy camelCase mappings for backward compatibility
+    stock: data.stock_quantity ?? 0,
+    categoryId: data.category_id,
+    imageUrl: data.image_url || undefined,
+    isWeeklySpecial: data.is_weekly_special ?? false,
+    isBundle: data.is_bundle ?? false,
+    seasonalAvailability: data.seasonal_availability ?? false,
+    nutritionInfo: data.nutrition_info || undefined,
+    isActive: data.is_available ?? true,
+    isPreOrder: data.is_pre_order ?? false,
+    preOrderAvailableDate: data.pre_order_available_date || undefined,
+    minPreOrderQuantity: data.min_pre_order_quantity || undefined,
+    maxPreOrderQuantity: data.max_pre_order_quantity || undefined,
+    createdAt: data.created_at || '',
+    updatedAt: data.updated_at || '',
+  };
+  
+  return result;
 });
 
 // ✅ NEW: Enhanced transformation function for use with categories

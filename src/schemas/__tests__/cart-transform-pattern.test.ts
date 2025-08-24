@@ -25,7 +25,7 @@ describe('Cart Transform Pattern Tests', () => {
     description: 'A test product',
     price: 19.99,
     stock_quantity: 10,
-    category: 'category-1', // Raw DB field name
+    category_id: 'category-1', // Fixed to use correct DB field name
     image_url: 'https://example.com/image.jpg',
     is_weekly_special: false,
     is_bundle: false,
