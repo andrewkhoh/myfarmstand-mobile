@@ -20,19 +20,7 @@ jest.mock('../../config/supabase', () => ({
   supabase: null // Will be set in beforeEach
 }));
 
-// Mock Stripe
-const mockStripe = {
-  createPaymentIntent: jest.fn(),
-  confirmPaymentIntent: jest.fn(),
-  createPaymentMethod: jest.fn(),
-  attachPaymentMethod: jest.fn(),
-  createCustomer: jest.fn(),
-  retrievePaymentIntent: jest.fn(),
-  capturePaymentIntent: jest.fn(),
-  refundPayment: jest.fn(),
-};
-
-jest.mock('stripe', () => () => mockStripe);
+// Note: Stripe is handled internally by paymentService, no direct mock needed
 
 // Mock ValidationMonitor
 jest.mock('../../utils/validationMonitor', () => ({

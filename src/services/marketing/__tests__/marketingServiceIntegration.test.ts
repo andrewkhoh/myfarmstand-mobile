@@ -8,6 +8,13 @@ import { ProductBundleService } from '../productBundleService';
 jest.mock('../../../utils/validationMonitor');
 const { ValidationMonitor } = require('../../../utils/validationMonitor');
 
+// Mock QueryClient
+jest.mock('../../../config/queryClient', () => ({
+  queryClient: {
+    invalidateQueries: jest.fn().mockResolvedValue(undefined)
+  }
+}));
+
 // Mock role permissions
 jest.mock('../../role-based/rolePermissionService');
 const { RolePermissionService } = require('../../role-based/rolePermissionService');

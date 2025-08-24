@@ -1,13 +1,17 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 
-// Real Supabase configuration for testing
-import { supabase } from '../../../config/supabase';
-
-// Mock ValidationMonitor (following architectural pattern)
+// Mock ValidationMonitor (following architectural pattern)  
 jest.mock('../../../utils/validationMonitor');
+
+// Mock Supabase
+jest.mock('../../../config/supabase', () => ({
+  supabase: null // Will be set in beforeEach
+}));
 
 import { StockMovementService } from '../stockMovementService';
 import { ValidationMonitor } from '../../../utils/validationMonitor';
+import { SimplifiedSupabaseMock } from '../../../test/mocks/supabase.simplified.mock';
+import { resetAllFactories } from '../../../test/factories';
 import type { 
   StockMovementTransform,
   CreateStockMovementInput,
@@ -18,6 +22,7 @@ import type {
 
 // Real database testing against test tables
 describe('StockMovementService - Phase 2.2 (Real Database)', () => {
+  let supabaseMock: SimplifiedSupabaseMock;
   
   // Test data cleanup IDs
   const testMovementIds = new Set<string>();
@@ -26,9 +31,9 @@ describe('StockMovementService - Phase 2.2 (Real Database)', () => {
     jest.clearAllMocks();
     resetAllFactories();
     
-    // Reset to simplified mock
-    const mockClient = createSupabaseMock();
-    Object.assign(supabase, mockClient);
+    // Create and inject mock
+    supabaseMock = new SimplifiedSupabaseMock();
+    require('../../../config/supabase').supabase = supabaseMock.createClient();
   });
 
   describe('recordMovement', () => {

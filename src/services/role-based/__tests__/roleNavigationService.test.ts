@@ -7,17 +7,28 @@
 // Mock ValidationMonitor before importing service
 jest.mock('../../../utils/validationMonitor');
 
+// Mock Supabase
+jest.mock('../../../config/supabase', () => ({
+  supabase: null // Will be set in beforeEach
+}));
+
 import { RoleNavigationService } from '../roleNavigationService';
 import { ValidationMonitor } from '../../../utils/validationMonitor';
+import { SimplifiedSupabaseMock } from '../../../test/mocks/supabase.simplified.mock';
 import { UserRole, NavigationMenuItem, NavigationState } from '../../../types';
 
-// Mock the supabase module at the service level (exact authService pattern)
-const mockSupabase = require('../../../config/supabase').supabase;
 const mockValidationMonitor = ValidationMonitor as jest.Mocked<typeof ValidationMonitor>;
 
 describe('RoleNavigationService', () => {
+  let supabaseMock: SimplifiedSupabaseMock;
+  
   beforeEach(() => {
     jest.clearAllMocks();
+    
+    // Create and inject mock
+    supabaseMock = new SimplifiedSupabaseMock();
+    require('../../../config/supabase').supabase = supabaseMock.createClient();
+    
     // Clear any caches
     RoleNavigationService.clearMenuCache();
   });

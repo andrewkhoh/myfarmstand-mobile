@@ -1,4 +1,4 @@
-import { createSupabaseMock } from '../../../test/mocks/supabase.simplified.mock';
+import { SimplifiedSupabaseMock } from '../../../test/mocks/supabase.simplified.mock';
 import { createUser, resetAllFactories } from '../../../test/factories';
 import { BusinessIntelligenceService } from '../businessIntelligenceService';
 
@@ -7,18 +7,21 @@ jest.mock('../../../utils/validationMonitor');
 const { ValidationMonitor } = require('../../../utils/validationMonitor');
 
 // Mock Supabase
-jest.mock('../../../config/supabase');
-const { supabase } = require('../../../config/supabase');
+jest.mock('../../../config/supabase', () => ({
+  supabase: null // Will be set in beforeEach
+}));
 
 describe('BusinessIntelligenceService', () => {
+  let supabaseMock: SimplifiedSupabaseMock;
   const testUser = createUser();
   
   beforeEach(() => {
     jest.clearAllMocks();
     resetAllFactories();
     
-    const mockClient = createSupabaseMock();
-    Object.assign(supabase, mockClient);
+    // Create and inject mock
+    supabaseMock = new SimplifiedSupabaseMock();
+    require('../../../config/supabase').supabase = supabaseMock.createClient();
   });
   
   // Helper function to create complete business insight data
@@ -40,62 +43,17 @@ describe('BusinessIntelligenceService', () => {
     ...overrides
   });
 
-  // Helper function to create complete query chain mocks
-  const createQueryChainMock = (data: any[], error: any = null) => {
-    const mockMethods = {
-      select: jest.fn(),
-      in: jest.fn(),
-      eq: jest.fn(),
-      gte: jest.fn(),
-      lte: jest.fn(),
-      order: jest.fn(),
-      update: jest.fn(),
-      insert: jest.fn(),
-      single: jest.fn(),
-      range: jest.fn()
-    };
 
-    // Chain all methods to return the next method in the chain
-    mockMethods.select.mockReturnValue(mockMethods);
-    mockMethods.in.mockReturnValue(mockMethods);
-    mockMethods.eq.mockReturnValue(mockMethods);
-    mockMethods.gte.mockReturnValue(mockMethods);
-    mockMethods.lte.mockReturnValue(mockMethods);
-    mockMethods.update.mockReturnValue(mockMethods);
-    mockMethods.insert.mockReturnValue(mockMethods);
-    mockMethods.range.mockReturnValue(mockMethods);
-    
-    // Terminal methods return the data
-    mockMethods.order.mockResolvedValue({ data, error });
-    mockMethods.single.mockResolvedValue({ data: data[0] || null, error });
-    
-    // Also handle direct resolution (in case .order() isn't called)
-    Object.assign(mockMethods, { 
-      then: (resolve: any) => resolve({ data, error }),
-      catch: (reject: any) => error ? reject(error) : Promise.resolve({ data, error })
-    });
-
-    return mockMethods;
-  };
-
-  beforeEach(() => {
-    jest.clearAllMocks();
-    
-    // Reset Supabase mocks to prevent state contamination
-    if (global.resetSupabaseMocks) {
-      global.resetSupabaseMocks();
-    }
-  });
 
   // Debug test to verify basic mocking
   it('should verify supabase mock is working', async () => {
     const testData = [{ id: 'test-123', insight_type: 'correlation' }];
-    mockSupabase.from.mockReturnValue(createQueryChainMock(testData));
+    supabaseMock.setTableData('business_insights', testData);
     
     // Direct call to verify mock
-    const mockResult = await mockSupabase.from('business_insights').select('*').order('id');
+    const { supabase } = require('../../../config/supabase');
+    const mockResult = await supabase.from('business_insights').select('*').order('id');
     
-    expect(mockSupabase.from).toHaveBeenCalledWith('business_insights');
     expect(mockResult.data).toEqual(testData);
   });
 
@@ -131,7 +89,7 @@ describe('BusinessIntelligenceService', () => {
         })
       ];
 
-      mockSupabase.from.mockReturnValue(createQueryChainMock(mockInsights));
+      supabaseMock.setTableData('business_insights', mockInsights);
 
       const result = await BusinessIntelligenceService.generateInsights(
         'correlation',
@@ -161,7 +119,7 @@ describe('BusinessIntelligenceService', () => {
         })
       ];
 
-      mockSupabase.from.mockReturnValue(createQueryChainMock(mockCorrelationData));
+      supabaseMock.setTableData('business_insights', mockCorrelationData);
 
       const result = await BusinessIntelligenceService.generateInsights(
         'correlation',
@@ -199,7 +157,7 @@ describe('BusinessIntelligenceService', () => {
         })
       ];
 
-      mockSupabase.from.mockReturnValue(createQueryChainMock(mockHighImpactInsights));
+      supabaseMock.setTableData('business_insights', mockHighImpactInsights);
 
       const result = await BusinessIntelligenceService.getInsightsByImpact(
         'high',
@@ -246,7 +204,7 @@ describe('BusinessIntelligenceService', () => {
         })
       ];
 
-      mockSupabase.from.mockReturnValue(createQueryChainMock(mockCorrelationData));
+      supabaseMock.setTableData('business_insights', mockCorrelationData);
 
       const result = await BusinessIntelligenceService.correlateBusinessData(
         'inventory_turnover',
@@ -262,8 +220,7 @@ describe('BusinessIntelligenceService', () => {
     });
 
     it('should handle correlation analysis with insufficient data', async () => {
-      const mockError = { message: 'Insufficient data points for correlation analysis', code: 'INSUFFICIENT_DATA' };
-      mockSupabase.from.mockReturnValue(createQueryChainMock([], mockError));
+      supabaseMock.queueError(new Error('Insufficient data points for correlation analysis'));
 
       await expect(
         BusinessIntelligenceService.correlateBusinessData(
@@ -288,7 +245,7 @@ describe('BusinessIntelligenceService', () => {
         })
       ];
 
-      mockSupabase.from.mockReturnValue(createQueryChainMock(mockUpdatedInsight));
+      supabaseMock.setTableData('business_insights', mockUpdatedInsight);
 
       const result = await BusinessIntelligenceService.updateInsightStatus(
         'insight-update-1',
@@ -301,8 +258,7 @@ describe('BusinessIntelligenceService', () => {
     });
 
     it('should validate status update permissions', async () => {
-      const mockError = { message: 'Permission denied for insight status update', code: 'PERMISSION_DENIED' };
-      mockSupabase.from.mockReturnValue(createQueryChainMock([], mockError));
+      supabaseMock.queueError(new Error('Permission denied for insight status update'));
 
       await expect(
         BusinessIntelligenceService.updateInsightStatus(
@@ -332,7 +288,7 @@ describe('BusinessIntelligenceService', () => {
         })
       ];
 
-      mockSupabase.from.mockReturnValue(createQueryChainMock(mockRecommendationInsights));
+      supabaseMock.setTableData('business_insights', mockRecommendationInsights);
 
       const result = await BusinessIntelligenceService.getInsightRecommendations(
         'high',
@@ -368,7 +324,7 @@ describe('BusinessIntelligenceService', () => {
         })
       ];
 
-      mockSupabase.from.mockReturnValue(createQueryChainMock(mockPrioritizedInsights));
+      supabaseMock.setTableData('business_insights', mockPrioritizedInsights);
 
       const result = await BusinessIntelligenceService.getInsightRecommendations(
         'all',
@@ -401,7 +357,7 @@ describe('BusinessIntelligenceService', () => {
         })
       ];
 
-      mockSupabase.from.mockReturnValue(createQueryChainMock(mockAnomalyInsights));
+      supabaseMock.setTableData('business_insights', mockAnomalyInsights);
 
       const result = await BusinessIntelligenceService.detectAnomalies(
         'sales',
@@ -420,7 +376,7 @@ describe('BusinessIntelligenceService', () => {
     it('should handle anomaly detection with configurable thresholds', async () => {
       const mockLowSensitivityData = [];
 
-      mockSupabase.from.mockReturnValue(createQueryChainMock(mockLowSensitivityData));
+      supabaseMock.setTableData('business_insights', mockLowSensitivityData);
 
       const result = await BusinessIntelligenceService.detectAnomalies(
         'inventory',
@@ -457,7 +413,7 @@ describe('BusinessIntelligenceService', () => {
         })
       ];
 
-      mockSupabase.from.mockReturnValue(createQueryChainMock(mockIntegratedInsights));
+      supabaseMock.setTableData('business_insights', mockIntegratedInsights);
 
       const result = await BusinessIntelligenceService.generateInsights(
         'correlation',
@@ -488,7 +444,7 @@ describe('BusinessIntelligenceService', () => {
         })
       ];
 
-      mockSupabase.from.mockReturnValue(createQueryChainMock(mockCrossRoleInsights));
+      supabaseMock.setTableData('business_insights', mockCrossRoleInsights);
 
       const result = await BusinessIntelligenceService.generateInsights(
         'correlation',
@@ -515,7 +471,7 @@ describe('BusinessIntelligenceService', () => {
         })
       );
 
-      mockSupabase.from.mockReturnValue(createQueryChainMock(largeInsightDataset));
+      supabaseMock.setTableData('business_insights', largeInsightDataset);
 
       const startTime = Date.now();
       const result = await BusinessIntelligenceService.generateInsights(
