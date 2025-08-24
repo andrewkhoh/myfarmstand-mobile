@@ -16,6 +16,71 @@ import {
 // Load environment variables
 dotenv.config();
 
+// Mock React Query at the module level for DEFAULT mode
+// This must be done before any imports that use React Query
+const testMode = process.env.TEST_MODE || 'default';
+if (testMode === 'default') {
+  jest.mock('@tanstack/react-query', () => ({
+    useQuery: jest.fn().mockReturnValue({
+      data: undefined,
+      error: null,
+      isLoading: false,
+      isError: false,
+      isSuccess: true,
+      isFetching: false,
+      refetch: jest.fn(),
+      status: 'success',
+    }),
+    useMutation: jest.fn().mockReturnValue({
+      mutate: jest.fn(),
+      mutateAsync: jest.fn().mockResolvedValue(undefined),
+      isLoading: false,
+      isError: false,
+      isSuccess: false,
+      isPending: false,
+      error: null,
+      data: undefined,
+      reset: jest.fn(),
+      status: 'idle',
+    }),
+    useQueryClient: jest.fn().mockReturnValue({
+      invalidateQueries: jest.fn().mockResolvedValue(undefined),
+      setQueryData: jest.fn(),
+      getQueryData: jest.fn(),
+      cancelQueries: jest.fn().mockResolvedValue(undefined),
+      refetchQueries: jest.fn().mockResolvedValue(undefined),
+      removeQueries: jest.fn(),
+      resetQueries: jest.fn().mockResolvedValue(undefined),
+      clear: jest.fn(),
+    }),
+    useInfiniteQuery: jest.fn().mockReturnValue({
+      data: undefined,
+      error: null,
+      isLoading: false,
+      isError: false,
+      isSuccess: true,
+      isFetching: false,
+      hasNextPage: false,
+      fetchNextPage: jest.fn(),
+      isFetchingNextPage: false,
+      refetch: jest.fn(),
+      status: 'success',
+    }),
+    useQueries: jest.fn().mockReturnValue([]),
+    QueryClient: jest.fn().mockImplementation(() => ({
+      invalidateQueries: jest.fn(),
+      setQueryData: jest.fn(),
+      getQueryData: jest.fn(),
+      cancelQueries: jest.fn(),
+      refetchQueries: jest.fn(),
+      removeQueries: jest.fn(),
+      resetQueries: jest.fn(),
+      clear: jest.fn(),
+    })),
+    QueryClientProvider: ({ children }: any) => children,
+  }));
+}
+
 // ============================================================================
 // TEST MODE CONFIGURATION
 // ============================================================================
@@ -138,19 +203,12 @@ function mockSupabaseForRaceCondition() {
 }
 
 // ============================================================================
-// REACT QUERY MOCK
+// REACT QUERY MOCK (moved to top of file for proper hoisting)
 // ============================================================================
 
 function mockReactQuery() {
-  jest.mock('@tanstack/react-query', () => ({
-    useQuery: jest.fn(),
-    useMutation: jest.fn(),
-    useQueryClient: jest.fn(),
-    QueryClient: jest.fn(),
-    QueryClientProvider: function QueryClientProvider(props: any) {
-      return props.children;
-    },
-  }));
+  // React Query is already mocked at the module level for DEFAULT mode
+  // This function is kept for compatibility but doesn't need to do anything
 }
 
 // ============================================================================
