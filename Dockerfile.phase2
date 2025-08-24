@@ -1,0 +1,51 @@
+# Phase 2 Multi-Agent Test Fix Container
+FROM node:18-alpine
+
+# Install git and other dependencies
+RUN apk add --no-cache git bash curl jq
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files first for better caching
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci --only=production=false
+
+# Install additional tools for multi-agent orchestration
+RUN npm install -g @anthropic/claude-cli
+RUN npm install --save-dev jest-json-reporter
+RUN npm install --save-dev jest-junit
+
+# Copy source code
+COPY . .
+
+# Create directories for multi-agent communication
+RUN mkdir -p /app/phase2-communication/{agents,progress,results,coordination}
+RUN mkdir -p /app/phase2-workspaces/{critical-hooks,service-polish,core-polish}
+
+# Set up git configuration for container
+RUN git config --global user.name "Phase2 MultiAgent"
+RUN git config --global user.email "phase2@myfarmstand.local"
+RUN git config --global init.defaultBranch main
+
+# Create agent execution scripts
+COPY docker/scripts/ /app/scripts/
+RUN chmod +x /app/scripts/*.sh
+
+# Set up environment variables
+ENV NODE_ENV=test
+ENV JEST_TIMEOUT=30000
+ENV AGENT_MODE=container
+ENV COMMUNICATION_DIR=/app/phase2-communication
+
+# Expose ports for monitoring
+EXPOSE 3000 3001 3002
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:3000/health || exit 1
+
+# Default command - start orchestration API
+CMD ["npm", "run", "phase2:orchestrate"]

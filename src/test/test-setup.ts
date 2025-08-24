@@ -158,16 +158,19 @@ function mockSupabaseDefault() {
     })),
   };
 
-  jest.mock('../config/supabase', () => ({
-    supabase: mockSupabaseBase,
-    TABLES: {
-      PRODUCTS: 'products',
-      CATEGORIES: 'categories',
+  jest.mock('../config/supabase', () => {
+    const { createUnifiedSupabaseMock } = require('./mocks/unified-supabase.mock');
+    return {
+      supabase: createUnifiedSupabaseMock(),
+      TABLES: {
+        PRODUCTS: 'products',
+        CATEGORIES: 'categories',
       ORDERS: 'orders',
       USERS: 'users',
       CART: 'cart',
     }
-  }));
+  };
+  });
 
   // Export for test access
   (global as any).mockSupabase = mockSupabaseBase;
@@ -216,49 +219,12 @@ function mockReactQuery() {
 // ============================================================================
 
 function mockServices() {
-  // Mock CartService
-  jest.mock('../services/cartService', () => ({
-    cartService: {
-      getCart: jest.fn(),
-      addItem: jest.fn(),
-      removeItem: jest.fn(),
-      updateQuantity: jest.fn(),
-      clearCart: jest.fn(),
-    }
-  }));
-
-  // Mock AuthService
-  jest.mock('../services/authService', () => ({
-    AuthService: {
-      getCurrentUser: jest.fn().mockResolvedValue({
-        id: 'test-user-123',
-        email: 'test@example.com',
-        name: 'Test User',
-        phone: '+1234567890',
-        address: '123 Test St',
-        role: 'customer'
-      }),
-      isAuthenticated: jest.fn().mockResolvedValue(true),
-      login: jest.fn(),
-      logout: jest.fn(),
-      register: jest.fn(),
-      updateProfile: jest.fn(),
-      refreshToken: jest.fn(),
-      changePassword: jest.fn(),
-    }
-  }));
-
-  // Mock OrderService
-  jest.mock('../services/orderService', () => ({
-    getAllOrders: jest.fn(),
-    getOrder: jest.fn(),
-    getCustomerOrders: jest.fn(),
-    getOrderStats: jest.fn(),
-    updateOrderStatus: jest.fn(),
-    bulkUpdateOrderStatus: jest.fn(),
-    createOrder: jest.fn(),
-    cancelOrder: jest.fn(),
-  }));
+  // NOTE: In SERVICE mode, we should NOT mock the services themselves
+  // as we're testing the actual service implementations.
+  // Only mock services when testing hooks or components that use services.
+  
+  // This function is now a no-op for SERVICE mode
+  // Services should mock their own dependencies in their test files
 }
 
 // ============================================================================
@@ -584,6 +550,23 @@ export function setupTests(mode?: TestMode) {
   
   // Always apply base mocks
   applyBaseMocks();
+  
+  // Mock auth hooks globally
+  jest.mock('../hooks/useAuth', () => ({
+    useAuth: jest.fn(() => ({
+      user: null,
+      login: jest.fn(),
+      logout: jest.fn(),
+      register: jest.fn(),
+      loading: false,
+      error: null,
+    })),
+    useCurrentUser: jest.fn(() => ({
+      data: { id: 'test-user-123', email: 'test@example.com', name: 'Test User' },
+      isLoading: false,
+      error: null,
+    })),
+  }));
   
   // Configure based on test mode
   switch(testMode) {

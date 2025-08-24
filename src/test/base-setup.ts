@@ -310,6 +310,9 @@ export const mockMonitoring = {
 // ============================================================================
 
 export function applyBaseMocks() {
+  // Apply simple fixes first
+  require('./simple-fixes');
+  
   // React Native
   jest.mock('react-native', () => mockReactNative);
   

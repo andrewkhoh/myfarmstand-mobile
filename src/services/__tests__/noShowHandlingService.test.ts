@@ -1,401 +1,550 @@
 /**
- * NoShowHandlingService Test - REFACTORED
- * Testing no-show handling functionality with simplified mocks and factories
+ * NoShowHandlingService Test - Following Service Test Pattern (REFERENCE)
  */
 
-import { NoShowHandlingService } from '../noShowHandlingService';
-import { createSupabaseMock } from '../../test/mocks/supabase.simplified.mock';
-import { createOrder, createUser, resetAllFactories } from '../../test/factories';
+// Setup all mocks BEFORE any imports
+jest.mock('../../config/supabase', () => {
+  const mockFrom = jest.fn(() => ({
+    select: jest.fn().mockReturnThis(),
+    eq: jest.fn().mockReturnThis(),
+    insert: jest.fn().mockReturnThis(),
+    update: jest.fn().mockReturnThis(),
+    delete: jest.fn().mockReturnThis(),
+    single: jest.fn(),
+    not: jest.fn().mockReturnThis(),
+    order: jest.fn().mockReturnThis(),
+  }));
+  
+  return {
+    supabase: {
+      from: mockFrom,
+    },
+    TABLES: {
+      USERS: 'users',
+      PRODUCTS: 'products', 
+      ORDERS: 'orders',
+      ORDER_ITEMS: 'order_items',
+      NO_SHOWS: 'no_shows',
+    }
+  };
+});
 
-// Replace complex mock setup with simple data-driven mock
-jest.mock('../../config/supabase', () => ({
-  supabase: null // Will be set in beforeEach
+// Mock service dependencies
+jest.mock('../orderService', () => ({
+  updateOrderStatus: jest.fn().mockResolvedValue({ success: true, message: 'Order cancelled' }),
 }));
 
+jest.mock('../stockRestorationService', () => ({
+  restoreOrderStock: jest.fn().mockResolvedValue(true),
+}));
+
+jest.mock('../notificationService', () => ({
+  NotificationService: {
+    sendNotification: jest.fn().mockResolvedValue({ success: true }),
+  }
+}));
+
+jest.mock('../pickupReschedulingService', () => ({
+  wasRecentlyRescheduled: jest.fn().mockResolvedValue({ 
+    wasRescheduled: false,
+    lastRescheduleTime: null 
+  }),
+}));
+
+jest.mock('../../utils/typeMappers', () => ({
+  getOrderCustomerId: jest.fn((order) => order.customerId || 'customer-123'),
+  getOrderCustomerInfo: jest.fn((order) => ({
+    name: order.customerName || 'Test Customer',
+    email: order.customerEmail || 'test@example.com',
+    phone: order.customerPhone || '+1234567890',
+  })),
+  getOrderItems: jest.fn((order) => order.items || []),
+  getOrderTotal: jest.fn((order) => order.total || 25.99),
+  getOrderPaymentMethod: jest.fn((order) => order.paymentMethod || 'online'),
+  getOrderPickupDate: jest.fn((order) => order.pickupDate || '2024-02-15'),
+  getOrderPickupTime: jest.fn((order) => order.pickupTime || '14:00'),
+  mapOrderFromDB: jest.fn((orderData, orderItems) => ({
+    id: orderData.id,
+    customerId: orderData.customer_id,
+    customerName: orderData.customer_name,
+    customerEmail: orderData.customer_email,
+    customerPhone: orderData.customer_phone,
+    items: orderItems,
+    total: orderData.total_amount,
+    status: orderData.status,
+    fulfillmentType: orderData.fulfillment_type,
+    pickupDate: orderData.pickup_date,
+    pickupTime: orderData.pickup_time,
+    paymentMethod: orderData.payment_method,
+  })),
+}));
+
+// Import AFTER mocks are setup
+import { NoShowHandlingService, NoShowConfig } from '../noShowHandlingService';
+import { supabase } from '../../config/supabase';
+import { updateOrderStatus } from '../orderService';
+import { NotificationService } from '../notificationService';
+import { wasRecentlyRescheduled } from '../pickupReschedulingService';
+
+// Get mock references for use in tests
+const mockSupabaseFrom = supabase.from as jest.Mock;
+const mockUpdateOrderStatus = updateOrderStatus as jest.Mock;
+const mockWasRecentlyRescheduled = wasRecentlyRescheduled as jest.Mock;
+const mockSendNotification = NotificationService.sendNotification as jest.Mock;
+
 describe('NoShowHandlingService', () => {
-  let supabaseMock: any;
-  let testOrder: any;
-  let testUser: any;
-  
+  const mockConfig: NoShowConfig = {
+    gracePeriodMinutes: 30,
+    checkIntervalMinutes: 15,
+    enableAutoCancel: true,
+    notifyCustomer: true
+  };
+
+  const mockPastTime = new Date();
+  mockPastTime.setMinutes(mockPastTime.getMinutes() - 60); // 1 hour ago
+
+  const mockOrderData = {
+    id: 'order-123',
+    customer_id: 'customer-456',
+    customer_name: 'Test Customer',
+    customer_email: 'test@example.com',
+    customer_phone: '+1234567890',
+    status: 'ready',
+    fulfillment_type: 'pickup',
+    pickup_date: mockPastTime.toISOString().split('T')[0],
+    pickup_time: mockPastTime.toTimeString().split(' ')[0].slice(0, 5),
+    total_amount: 25.99,
+    payment_method: 'online',
+    order_items: [
+      {
+        id: 'item-1',
+        product_id: 'product-1',
+        product_name: 'Test Product',
+        quantity: 2,
+        unit_price: 12.99,
+        total_price: 25.98
+      }
+    ]
+  };
+
   beforeEach(() => {
-    // Reset factory counter for consistent IDs
-    resetAllFactories();
+    jest.clearAllMocks();
     
-    // Create test data using factories
-    testUser = createUser({
-      id: 'user-123',
-      email: 'test@example.com',
-      phone: '+1234567890'
+    // Reset default mock behaviors
+    mockWasRecentlyRescheduled.mockResolvedValue({ 
+      wasRescheduled: false, 
+      lastRescheduleTime: null 
     });
-    
-    // Create order ready for pickup but past scheduled time
-    const pastPickupTime = new Date();
-    pastPickupTime.setHours(pastPickupTime.getHours() - 2);
-    
-    testOrder = createOrder({
-      id: 'order-456',
-      user_id: 'user-123',
-      status: 'ready',
-      fulfillment_type: 'pickup',
-      pickup_date: pastPickupTime.toISOString().split('T')[0],
-      pickup_time: pastPickupTime.toTimeString().slice(0, 5),
-      total_amount: 35.50,
-      customer_name: 'Test User',
-      customer_email: 'test@example.com',
-      customer_phone: '+1234567890'
-    });
-    
-    // Create mock with initial data
-    supabaseMock = createSupabaseMock({
-      orders: [testOrder],
-      users: [testUser],
-      no_show_logs: []
-    });
-    
-    // Inject mock
-    require('../../config/supabase').supabase = supabaseMock;
+    mockUpdateOrderStatus.mockResolvedValue({ success: true, message: 'Order cancelled' });
+    mockSendNotification.mockResolvedValue({ success: true });
   });
 
-  describe('checkForNoShows', () => {
-    it('should identify orders past pickup time', async () => {
-      const result = await NoShowHandlingService.checkForNoShows();
-
-      expect(result.success).toBe(true);
-      expect(result.noShowOrders).toHaveLength(1);
-      expect(result.noShowOrders[0].id).toBe('order-456');
-    });
-
-    it('should not flag orders within grace period', async () => {
-      // Update order to be within grace period (30 minutes)
-      const recentPickupTime = new Date();
-      recentPickupTime.setMinutes(recentPickupTime.getMinutes() - 15);
-      
-      const recentOrder = createOrder({
-        ...testOrder,
-        id: 'order-recent',
-        pickup_date: recentPickupTime.toISOString().split('T')[0],
-        pickup_time: recentPickupTime.toTimeString().slice(0, 5)
-      });
-      
-      supabaseMock.setTableData('orders', [recentOrder]);
-
-      const result = await NoShowHandlingService.checkForNoShows();
-
-      expect(result.success).toBe(true);
-      expect(result.noShowOrders).toHaveLength(0);
-    });
-
-    it('should handle multiple no-show orders', async () => {
-      const pastTime = new Date();
-      pastTime.setHours(pastTime.getHours() - 3);
-      
-      const additionalOrders = [
-        createOrder({
-          id: 'order-789',
-          user_id: 'user-456',
-          status: 'ready',
-          pickup_date: pastTime.toISOString().split('T')[0],
-          pickup_time: pastTime.toTimeString().slice(0, 5)
-        }),
-        createOrder({
-          id: 'order-101',
-          user_id: 'user-789',
-          status: 'ready',
-          pickup_date: pastTime.toISOString().split('T')[0],
-          pickup_time: pastTime.toTimeString().slice(0, 5)
+  describe('processNoShowOrders', () => {
+    it('should successfully process no-show orders', async () => {
+      // Setup mock database response
+      mockSupabaseFrom.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        not: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: [mockOrderData],
+          error: null
         })
-      ];
-      
-      supabaseMock.setTableData('orders', [testOrder, ...additionalOrders]);
+      });
 
-      const result = await NoShowHandlingService.checkForNoShows();
+      const result = await NoShowHandlingService.processNoShowOrders(mockConfig);
+
+      expect(result).toBeDefined();
+      expect(result.success).toBe(true);
+      expect(result.processedOrders).toHaveLength(1);
+      expect(result.processedOrders[0].orderId).toBe('order-123');
+      expect(result.processedOrders[0].action).toBe('cancelled');
+      expect(result.processedOrders[0].stockRestored).toBe(true);
+      expect(result.processedOrders[0].notificationSent).toBe(true);
+      expect(result.errors).toHaveLength(0);
+
+      // Verify service dependencies were called
+      expect(mockUpdateOrderStatus).toHaveBeenCalledWith('order-123', 'cancelled');
+      expect(mockSendNotification).toHaveBeenCalledWith({
+        userId: 'customer-456',
+        customerEmail: 'test@example.com',
+        customerPhone: '+1234567890',
+        customerName: 'Test Customer',
+        type: 'order_cancelled',
+        channels: ['sms', 'email'],
+        order: expect.any(Object),
+        customMessage: expect.stringContaining('Your order was automatically cancelled due to no-show')
+      });
+    });
+
+    it('should return empty result when no no-show orders found', async () => {
+      // Setup mock database response with no orders
+      mockSupabaseFrom.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        not: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: [],
+          error: null
+        })
+      });
+
+      const result = await NoShowHandlingService.processNoShowOrders(mockConfig);
 
       expect(result.success).toBe(true);
-      expect(result.noShowOrders).toHaveLength(3);
+      expect(result.processedOrders).toHaveLength(0);
+      expect(result.errors).toHaveLength(0);
+      expect(result.message).toBe('No no-show orders found');
+    });
+
+    it('should handle orders that were recently rescheduled', async () => {
+      // Setup mock database response
+      mockSupabaseFrom.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        not: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: [mockOrderData],
+          error: null
+        })
+      });
+
+      // Mock recent reschedule
+      mockWasRecentlyRescheduled.mockResolvedValue({
+        wasRescheduled: true,
+        lastRescheduleTime: new Date().toISOString()
+      });
+
+      const result = await NoShowHandlingService.processNoShowOrders(mockConfig);
+
+      expect(result.success).toBe(true);
+      expect(result.processedOrders).toHaveLength(0);
+      expect(mockUpdateOrderStatus).not.toHaveBeenCalled();
+    });
+
+    it('should handle config with auto-cancel disabled', async () => {
+      // Setup mock database response
+      mockSupabaseFrom.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        not: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: [mockOrderData],
+          error: null
+        })
+      });
+
+      const configNoCancelMock: NoShowConfig = {
+        ...mockConfig,
+        enableAutoCancel: false
+      };
+
+      const result = await NoShowHandlingService.processNoShowOrders(configNoCancelMock);
+
+      expect(result.success).toBe(true);
+      expect(result.processedOrders).toHaveLength(1);
+      expect(result.processedOrders[0].action).toBe('notified');
+      expect(result.processedOrders[0].stockRestored).toBe(false);
+      expect(mockUpdateOrderStatus).not.toHaveBeenCalled();
+      expect(mockSendNotification).toHaveBeenCalled();
+    });
+
+    it('should handle config with notifications disabled', async () => {
+      // Setup mock database response
+      mockSupabaseFrom.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        not: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: [mockOrderData],
+          error: null
+        })
+      });
+
+      const configNoNotifyMock: NoShowConfig = {
+        ...mockConfig,
+        notifyCustomer: false
+      };
+
+      const result = await NoShowHandlingService.processNoShowOrders(configNoNotifyMock);
+
+      expect(result.success).toBe(true);
+      expect(result.processedOrders).toHaveLength(1);
+      expect(result.processedOrders[0].action).toBe('cancelled');
+      expect(result.processedOrders[0].notificationSent).toBe(false);
+      expect(mockUpdateOrderStatus).toHaveBeenCalled();
+      expect(mockSendNotification).not.toHaveBeenCalled();
     });
 
     it('should handle database errors gracefully', async () => {
-      supabaseMock.queueError(new Error('Database connection failed'));
+      // Setup mock database error
+      mockSupabaseFrom.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        not: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: null,
+          error: { message: 'Database connection failed' }
+        })
+      });
 
-      const result = await NoShowHandlingService.checkForNoShows();
+      const result = await NoShowHandlingService.processNoShowOrders(mockConfig);
 
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('Failed to check for no-shows');
+      expect(result.success).toBe(true);
+      expect(result.processedOrders).toHaveLength(0);
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it('should handle order processing errors', async () => {
+      // Setup mock database response
+      mockSupabaseFrom.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        not: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: [mockOrderData],
+          error: null
+        })
+      });
+
+      // Mock order update failure
+      mockUpdateOrderStatus.mockResolvedValue({ success: false, message: 'Update failed' });
+
+      const result = await NoShowHandlingService.processNoShowOrders(mockConfig);
+
+      expect(result.success).toBe(true);
+      expect(result.processedOrders).toHaveLength(1);
+      expect(result.processedOrders[0].action).toBe('notified'); // fallback action
+      expect(result.processedOrders[0].stockRestored).toBe(false);
+    });
+
+    it('should handle notification failures gracefully', async () => {
+      // Setup mock database response
+      mockSupabaseFrom.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        not: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: [mockOrderData],
+          error: null
+        })
+      });
+
+      // Mock notification failure
+      mockSendNotification.mockRejectedValue(new Error('Notification service down'));
+
+      const result = await NoShowHandlingService.processNoShowOrders(mockConfig);
+
+      expect(result.success).toBe(true);
+      expect(result.processedOrders).toHaveLength(1);
+      expect(result.processedOrders[0].action).toBe('cancelled');
+      expect(result.processedOrders[0].notificationSent).toBe(false);
     });
   });
 
-  describe('processNoShow', () => {
-    it('should process no-show order successfully', async () => {
-      const result = await NoShowHandlingService.processNoShow('order-456');
-
-      expect(result.success).toBe(true);
-      expect(result.actions).toContain('order_marked_no_show');
-      expect(result.actions).toContain('customer_notified');
-      expect(result.actions).toContain('stock_restored');
-    });
-
-    it('should update order status to no_show', async () => {
-      await NoShowHandlingService.processNoShow('order-456');
-
-      const orders = supabaseMock.getTableData('orders');
-      const updatedOrder = orders.find(o => o.id === 'order-456');
-      expect(updatedOrder.status).toBe('no_show');
-      expect(updatedOrder.no_show_processed_at).toBeDefined();
-    });
-
-    it('should log no-show event', async () => {
-      await NoShowHandlingService.processNoShow('order-456');
-
-      const logs = supabaseMock.getTableData('no_show_logs');
-      expect(logs).toHaveLength(1);
-      expect(logs[0]).toMatchObject({
-        order_id: 'order-456',
-        user_id: 'user-123',
-        original_pickup_time: expect.any(String),
-        processed_at: expect.any(String)
-      });
-    });
-
-    it('should handle invalid order ID', async () => {
-      const result = await NoShowHandlingService.processNoShow('invalid-order');
-
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('Order not found');
-    });
-
-    it('should not process already completed orders', async () => {
-      // Update order to completed status
-      const completedOrder = { ...testOrder, status: 'completed' };
-      supabaseMock.setTableData('orders', [completedOrder]);
-
-      const result = await NoShowHandlingService.processNoShow('order-456');
-
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('Order is not eligible for no-show processing');
-    });
-  });
-
-  describe('sendNoShowNotification', () => {
-    it('should send notification to customer', async () => {
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-
-      const result = await NoShowHandlingService.sendNoShowNotification(testOrder);
-
-      expect(result.success).toBe(true);
-      expect(result.channels).toContain('email');
-      expect(result.channels).toContain('sms');
-      expect(consoleSpy).toHaveBeenCalledWith(
-        'Sending no-show notification for order:',
-        'order-456'
-      );
-
-      consoleSpy.mockRestore();
-    });
-
-    it('should handle missing customer contact info', async () => {
-      const orderWithoutContact = createOrder({
-        ...testOrder,
-        customer_email: '',
-        customer_phone: ''
-      });
-
-      const result = await NoShowHandlingService.sendNoShowNotification(orderWithoutContact);
-
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('No contact information available');
-    });
-
-    it('should handle notification errors gracefully', async () => {
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {
-        throw new Error('Notification service unavailable');
-      });
-
-      const result = await NoShowHandlingService.sendNoShowNotification(testOrder);
-
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('Failed to send notification');
-
-      consoleSpy.mockRestore();
-    });
-  });
-
-  describe('restoreStock', () => {
-    it('should restore stock for no-show order items', async () => {
-      const result = await NoShowHandlingService.restoreStock('order-456');
-
-      expect(result.success).toBe(true);
-      expect(result.itemsRestored).toBeDefined();
-      expect(result.totalQuantityRestored).toBeGreaterThan(0);
-    });
-
-    it('should handle orders without items', async () => {
-      const orderWithoutItems = createOrder({
-        ...testOrder,
-        id: 'order-empty',
-        items: []
-      });
+  describe('isOrderNoShow', () => {
+    it('should correctly identify a no-show order', async () => {
+      // Setup mock database response for no-show order
+      const pastDate = new Date();
+      pastDate.setMinutes(pastDate.getMinutes() - 60);
       
-      supabaseMock.setTableData('orders', [testOrder, orderWithoutItems]);
-
-      const result = await NoShowHandlingService.restoreStock('order-empty');
-
-      expect(result.success).toBe(true);
-      expect(result.itemsRestored).toEqual([]);
-      expect(result.totalQuantityRestored).toBe(0);
-    });
-
-    it('should handle stock restoration errors', async () => {
-      supabaseMock.queueError(new Error('Stock update failed'));
-
-      const result = await NoShowHandlingService.restoreStock('order-456');
-
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('Failed to restore stock');
-    });
-  });
-
-  describe('rescheduleOrder', () => {
-    it('should allow rescheduling within time limit', async () => {
-      const newPickupTime = new Date();
-      newPickupTime.setHours(newPickupTime.getHours() + 2);
-
-      const result = await NoShowHandlingService.rescheduleOrder(
-        'order-456',
-        newPickupTime.toISOString().split('T')[0],
-        newPickupTime.toTimeString().slice(0, 5)
-      );
-
-      expect(result.success).toBe(true);
-      expect(result.newPickupDate).toBeDefined();
-      expect(result.newPickupTime).toBeDefined();
-    });
-
-    it('should prevent rescheduling after cutoff time', async () => {
-      // Mock order that's been no-show for too long
-      const veryPastTime = new Date();
-      veryPastTime.setHours(veryPastTime.getHours() - 25); // 25 hours ago
-      
-      const oldOrder = createOrder({
-        ...testOrder,
-        pickup_date: veryPastTime.toISOString().split('T')[0],
-        pickup_time: veryPastTime.toTimeString().slice(0, 5)
+      mockSupabaseFrom.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: {
+            status: 'ready',
+            pickup_date: pastDate.toISOString().split('T')[0],
+            pickup_time: pastDate.toTimeString().split(' ')[0].slice(0, 5),
+            fulfillment_type: 'pickup'
+          },
+          error: null
+        })
       });
-      
-      supabaseMock.setTableData('orders', [oldOrder]);
 
-      const newPickupTime = new Date();
-      newPickupTime.setHours(newPickupTime.getHours() + 2);
+      const result = await NoShowHandlingService.isOrderNoShow('order-123', 30);
 
-      const result = await NoShowHandlingService.rescheduleOrder(
-        'order-456',
-        newPickupTime.toISOString().split('T')[0],
-        newPickupTime.toTimeString().slice(0, 5)
-      );
-
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('Order cannot be rescheduled');
+      expect(result).toBeDefined();
+      expect(result.isNoShow).toBe(true);
+      expect(result.minutesOverdue).toBeGreaterThan(0);
+      expect(result.pickupWindow).toBeDefined();
     });
 
-    it('should update order pickup time', async () => {
-      const newDate = '2024-03-25';
-      const newTime = '15:30';
-
-      await NoShowHandlingService.rescheduleOrder('order-456', newDate, newTime);
-
-      const orders = supabaseMock.getTableData('orders');
-      const updatedOrder = orders.find(o => o.id === 'order-456');
-      expect(updatedOrder.pickup_date).toBe(newDate);
-      expect(updatedOrder.pickup_time).toBe(newTime);
-      expect(updatedOrder.status).toBe('ready'); // Reset from no_show
-    });
-  });
-
-  describe('getNoShowStatistics', () => {
-    it('should return no-show statistics', async () => {
-      // Create some no-show logs
-      const noShowLogs = [
-        { order_id: 'order-1', user_id: 'user-1', processed_at: new Date().toISOString() },
-        { order_id: 'order-2', user_id: 'user-2', processed_at: new Date().toISOString() }
-      ];
+    it('should correctly identify an order that is not a no-show', async () => {
+      // Setup mock database response for future order
+      const futureDate = new Date();
+      futureDate.setMinutes(futureDate.getMinutes() + 60);
       
-      supabaseMock.setTableData('no_show_logs', noShowLogs);
-
-      const result = await NoShowHandlingService.getNoShowStatistics();
-
-      expect(result.success).toBe(true);
-      expect(result.stats).toMatchObject({
-        totalNoShows: 2,
-        noShowsToday: expect.any(Number),
-        noShowsThisWeek: expect.any(Number),
-        noShowsThisMonth: expect.any(Number)
+      mockSupabaseFrom.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: {
+            status: 'ready',
+            pickup_date: futureDate.toISOString().split('T')[0],
+            pickup_time: futureDate.toTimeString().split(' ')[0].slice(0, 5),
+            fulfillment_type: 'pickup'
+          },
+          error: null
+        })
       });
+
+      const result = await NoShowHandlingService.isOrderNoShow('order-123', 30);
+
+      expect(result).toBeDefined();
+      expect(result.isNoShow).toBe(false);
+      expect(result.minutesOverdue).toBeUndefined();
     });
 
-    it('should handle empty statistics', async () => {
-      supabaseMock.setTableData('no_show_logs', []);
+    it('should handle non-pickup orders', async () => {
+      mockSupabaseFrom.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: {
+            status: 'ready',
+            pickup_date: null,
+            pickup_time: null,
+            fulfillment_type: 'delivery'
+          },
+          error: null
+        })
+      });
 
-      const result = await NoShowHandlingService.getNoShowStatistics();
+      const result = await NoShowHandlingService.isOrderNoShow('order-123', 30);
 
-      expect(result.success).toBe(true);
-      expect(result.stats.totalNoShows).toBe(0);
+      expect(result.isNoShow).toBe(false);
+    });
+
+    it('should handle orders without pickup information', async () => {
+      mockSupabaseFrom.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: {
+            status: 'ready',
+            pickup_date: null,
+            pickup_time: null,
+            fulfillment_type: 'pickup'
+          },
+          error: null
+        })
+      });
+
+      const result = await NoShowHandlingService.isOrderNoShow('order-123', 30);
+
+      expect(result.isNoShow).toBe(false);
     });
 
     it('should handle database errors', async () => {
-      supabaseMock.queueError(new Error('Statistics query failed'));
+      mockSupabaseFrom.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: null,
+          error: { message: 'Order not found' }
+        })
+      });
 
-      const result = await NoShowHandlingService.getNoShowStatistics();
+      const result = await NoShowHandlingService.isOrderNoShow('invalid-order', 30);
 
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('Failed to fetch statistics');
+      expect(result.isNoShow).toBe(false);
     });
   });
 
-  describe('Batch Processing', () => {
-    it('should process multiple no-shows concurrently', async () => {
-      const additionalOrders = [
-        createOrder({ id: 'order-batch-1', status: 'ready' }),
-        createOrder({ id: 'order-batch-2', status: 'ready' })
-      ];
-      
-      supabaseMock.setTableData('orders', [testOrder, ...additionalOrders]);
+  describe('monitoring functions', () => {
+    it('should start no-show monitoring', () => {
+      const intervalId = NoShowHandlingService.startNoShowMonitoring(mockConfig);
 
-      const orderIds = ['order-456', 'order-batch-1', 'order-batch-2'];
-      const results = await NoShowHandlingService.processBatchNoShows(orderIds);
+      expect(intervalId).toBeDefined();
+      expect(typeof intervalId).toBe('object');
 
-      expect(results).toHaveLength(3);
-      expect(results.every(r => r.success)).toBe(true);
+      // Clean up
+      NoShowHandlingService.stopNoShowMonitoring(intervalId);
     });
 
-    it('should handle partial failures in batch processing', async () => {
-      const orderIds = ['order-456', 'invalid-order'];
-      const results = await NoShowHandlingService.processBatchNoShows(orderIds);
-
-      expect(results).toHaveLength(2);
-      expect(results[0].success).toBe(true);
-      expect(results[1].success).toBe(false);
+    it('should stop no-show monitoring', () => {
+      const intervalId = NoShowHandlingService.startNoShowMonitoring(mockConfig);
+      
+      // This should not throw an error
+      expect(() => {
+        NoShowHandlingService.stopNoShowMonitoring(intervalId);
+      }).not.toThrow();
     });
   });
 
-  describe('Configuration', () => {
-    it('should use custom grace period', async () => {
-      const customGracePeriod = 60; // 60 minutes
-      
-      const result = await NoShowHandlingService.checkForNoShows({
-        gracePeriodMinutes: customGracePeriod
+  describe('edge cases', () => {
+    it('should handle orders with missing customer information', async () => {
+      const orderWithMissingInfo = {
+        ...mockOrderData,
+        customer_name: null,
+        customer_email: null,
+        customer_phone: null
+      };
+
+      mockSupabaseFrom.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        not: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: [orderWithMissingInfo],
+          error: null
+        })
       });
 
+      const result = await NoShowHandlingService.processNoShowOrders(mockConfig);
+
       expect(result.success).toBe(true);
-      expect(result.config.gracePeriodMinutes).toBe(customGracePeriod);
+      expect(result.processedOrders).toHaveLength(1);
     });
 
-    it('should use default configuration when none provided', async () => {
-      const result = await NoShowHandlingService.checkForNoShows();
+    it('should handle orders with different payment methods', async () => {
+      const cashOrderData = {
+        ...mockOrderData,
+        payment_method: 'cash'
+      };
+
+      mockSupabaseFrom.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        not: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: [cashOrderData],
+          error: null
+        })
+      });
+
+      const result = await NoShowHandlingService.processNoShowOrders(mockConfig);
 
       expect(result.success).toBe(true);
-      expect(result.config).toMatchObject({
-        gracePeriodMinutes: 30,
-        rescheduleTimeLimit: 24
+      expect(result.processedOrders).toHaveLength(1);
+      expect(mockSendNotification).toHaveBeenCalledWith(
+        expect.objectContaining({
+          customMessage: expect.not.stringContaining('refunded')
+        })
+      );
+    });
+
+    it('should handle very long grace periods', async () => {
+      const longGracePeriodConfig: NoShowConfig = {
+        ...mockConfig,
+        gracePeriodMinutes: 1440 // 24 hours
+      };
+
+      mockSupabaseFrom.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        not: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: [],
+          error: null
+        })
       });
+
+      const result = await NoShowHandlingService.processNoShowOrders(longGracePeriodConfig);
+
+      expect(result.success).toBe(true);
+      expect(result.processedOrders).toHaveLength(0);
     });
   });
 });

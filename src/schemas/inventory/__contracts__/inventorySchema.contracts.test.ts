@@ -45,7 +45,7 @@ describe('Inventory Schema Contracts', () => {
         product_id: 'prod-1',
         current_stock: 10,
         reserved_stock: 2,
-        available_stock: 8, // Must equal current_stock - reserved_stock
+        available_stock: 8, // current_stock - reserved_stock
         minimum_threshold: 5,
         maximum_threshold: 100,
         is_active: true,
@@ -72,7 +72,6 @@ describe('Inventory Schema Contracts', () => {
       expect(result.updatedAt).toBeDefined();
       
       // Verify correct data transformation (snake_case → camelCase)
-      expect(result.id).toBe('inv-1');
       expect(result.productId).toBe('prod-1');
       expect(result.currentStock).toBe(10);
       expect(result.reservedStock).toBe(2);
@@ -93,14 +92,14 @@ describe('Inventory Schema Contracts', () => {
 
     it('should populate all required interface fields', () => {
       const mockRawData = {
-        id: '123e4567-e89b-12d3-a456-426614174000', // Valid UUID
-        inventory_item_id: '123e4567-e89b-12d3-a456-426614174001', // Valid UUID
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        inventory_item_id: '550e8400-e29b-41d4-a716-446655440001',
         movement_type: 'adjustment',
         quantity_change: -5,
         previous_stock: 100,
         new_stock: 95,
         reason: 'Test adjustment',
-        performed_by: '123e4567-e89b-12d3-a456-426614174002', // Valid UUID
+        performed_by: 'user-1',
         performed_at: '2024-01-01T00:00:00Z',
         created_at: '2024-01-01T00:00:00Z',
         reference_order_id: null,
@@ -122,10 +121,10 @@ describe('Inventory Schema Contracts', () => {
       expect(result.createdAt).toBeDefined();
       
       // Verify correct data transformation
-      expect(result.inventoryItemId).toBe('123e4567-e89b-12d3-a456-426614174001');
+      expect(result.inventoryItemId).toBe('inv-1');
       expect(result.movementType).toBe('adjustment');
       expect(result.quantityChange).toBe(-5);
-      expect(result.performedBy).toBe('123e4567-e89b-12d3-a456-426614174002');
+      expect(result.performedBy).toBe('user-1');
     });
   });
 

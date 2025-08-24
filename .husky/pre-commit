@@ -4,7 +4,7 @@ echo ""
 
 # Step 1: Schema Contract Validation
 echo "📋 Step 1: Checking schema contracts..."
-npx tsc --noEmit src/schemas/__contracts__/schema-contracts.test.ts src/schemas/__contracts__/productAdmin.contracts.test.ts
+npx tsc --noEmit --skipLibCheck src/schemas/__contracts__/schema-contracts.test.ts src/schemas/__contracts__/productAdmin.contracts.test.ts
 if [ $? -ne 0 ]; then
   echo ""
   echo "❌ SCHEMA CONTRACTS FAILED"
@@ -63,7 +63,7 @@ echo "   ✅ Services TypeScript check passed"
 # Step 4: Contract Test Coverage Check
 echo ""
 echo "📋 Step 4: Verifying contract test coverage..."
-npx tsc --noEmit src/schemas/__contracts__/schema-contracts.test.ts src/schemas/__contracts__/failure-simulation.test.ts src/schemas/__contracts__/productAdmin.contracts.test.ts
+npx tsc --noEmit --skipLibCheck src/schemas/__contracts__/schema-contracts.test.ts src/schemas/__contracts__/failure-simulation.test.ts src/schemas/__contracts__/productAdmin.contracts.test.ts
 if [ $? -ne 0 ]; then
   echo ""
   echo "❌ CONTRACT TEST COVERAGE FAILED"

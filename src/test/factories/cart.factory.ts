@@ -17,11 +17,8 @@ import {
 import type { CartItem, CartState, Product } from '../../types';
 
 export class CartItemFactory extends SchemaFactory<CartItem, any> {
-  private productFactory: ProductFactory;
-
   constructor() {
     super('cart-item');
-    this.productFactory = new ProductFactory();
   }
 
   protected getSchema(): z.ZodSchema<CartItem> {
@@ -34,7 +31,7 @@ export class CartItemFactory extends SchemaFactory<CartItem, any> {
 
   protected getDefaults(): CartItem {
     return {
-      product: this.productFactory.create(),
+      product: ProductFactory.create(),
       quantity: 1
     };
   }
@@ -64,7 +61,7 @@ export class CartItemFactory extends SchemaFactory<CartItem, any> {
    * Create a cart item with maximum quantity
    */
   createMaxQuantity(product?: Product): CartItem {
-    const p = product || this.productFactory.create({ stock_quantity: 10 });
+    const p = product || ProductFactory.create({ stock_quantity: 10 });
     return this.create({
       product: p,
       quantity: p.stock_quantity || 10
@@ -75,7 +72,7 @@ export class CartItemFactory extends SchemaFactory<CartItem, any> {
    * Create a cart item for a pre-order product
    */
   createPreOrder(overrides: Partial<CartItem> = {}): CartItem {
-    const product = this.productFactory.createPreOrder();
+    const product = ProductFactory.createPreOrder();
     return this.create({
       product,
       quantity: product.min_pre_order_quantity || 5,
@@ -87,7 +84,7 @@ export class CartItemFactory extends SchemaFactory<CartItem, any> {
    * Create a cart item with low stock
    */
   createLowStock(remainingStock: number = 2): CartItem {
-    const product = this.productFactory.create({ stock_quantity: remainingStock });
+    const product = ProductFactory.create({ stock_quantity: remainingStock });
     return this.create({
       product,
       quantity: 1
@@ -227,7 +224,7 @@ export class CartStateFactory extends SchemaFactory<CartState, CartState> {
    * Create a cart at stock limit
    */
   createAtStockLimit(): CartState {
-    const product = this.productFactory.create({ stock_quantity: 5 });
+    const product = ProductFactory.create({ stock_quantity: 5 });
     const item = this.cartItemFactory.createWithProduct(product, 5);
     return this.createWithItems([item]);
   }

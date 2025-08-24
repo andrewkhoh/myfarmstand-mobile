@@ -11,9 +11,11 @@ module.exports = {
   testPathIgnorePatterns: [
     '<rootDir>/node_modules/',
     '.*\\.race\\.test\\.(ts|tsx|js)$',
-    'usePayment\\.test\\.(ts|tsx|js)$',
-    'useKiosk\\.test\\.(ts|tsx|js)$',
-    '/src/services/'
+    '/src/services/',
+    '/src/hooks/__tests__/archive/',
+    '/src/hooks/__tests__/prototypes/',
+    'src/hooks/__tests__/archive',
+    'src/hooks/__tests__/prototypes'
   ],
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',

@@ -355,7 +355,7 @@ describe('Phase 4.5: Pattern Compliance Audit', () => {
       it('should implement data isolation between roles', () => {
         const dataIsolation = {
           executive: ['all_metrics', 'all_insights', 'all_reports'],
-          inventory_staff: ['inventory_metrics', 'inventory_insights'],
+          staff: ['inventory_metrics', 'inventory_insights'],
           marketing_staff: ['marketing_metrics', 'marketing_insights'],
           viewer: ['limited_metrics']
         };

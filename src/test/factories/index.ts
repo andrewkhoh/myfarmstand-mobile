@@ -47,15 +47,21 @@ import {
 } from './payment.factory';
 
 // Product Factory
-export { 
+import {
   ProductFactory,
   createProduct,
   createDbProduct,
   createProducts
 } from './product.factory';
+export { 
+  ProductFactory,
+  createProduct,
+  createDbProduct,
+  createProducts
+};
 
 // Order Factory
-export { 
+import {
   OrderFactory,
   OrderItemFactory,
   CustomerInfoFactory,
@@ -66,9 +72,20 @@ export {
   createOrderItem,
   createCustomerInfo
 } from './order.factory';
+export { 
+  OrderFactory,
+  OrderItemFactory,
+  CustomerInfoFactory,
+  orderFactory,
+  orderItemFactory,
+  customerInfoFactory,
+  createOrder,
+  createOrderItem,
+  createCustomerInfo
+};
 
 // User Factory
-export { 
+import {
   UserFactory,
   AuthStateFactory,
   SupabaseAuthUserFactory,
@@ -82,9 +99,23 @@ export {
   createSupabaseUser,
   createSupabaseSession
 } from './user.factory';
+export { 
+  UserFactory,
+  AuthStateFactory,
+  SupabaseAuthUserFactory,
+  SupabaseSessionFactory,
+  userFactory,
+  authStateFactory,
+  supabaseAuthUserFactory,
+  supabaseSessionFactory,
+  createUser,
+  createAuthState,
+  createSupabaseUser,
+  createSupabaseSession
+};
 
 // Cart Factory
-export { 
+import {
   CartItemFactory,
   CartStateFactory,
   CartSummaryFactory,
@@ -95,18 +126,36 @@ export {
   createCartState,
   createCartSummary
 } from './cart.factory';
+export { 
+  CartItemFactory,
+  CartStateFactory,
+  CartSummaryFactory,
+  cartItemFactory,
+  cartStateFactory,
+  cartSummaryFactory,
+  createCartItem,
+  createCartState,
+  createCartSummary
+};
 
 // Category Factory
-export { 
+import {
   CategoryFactory,
   categoryFactory,
   createCategory,
   createDbCategory,
   createCategories
 } from './category.factory';
+export { 
+  CategoryFactory,
+  categoryFactory,
+  createCategory,
+  createDbCategory,
+  createCategories
+};
 
 // Payment Factory
-export { 
+import {
   PaymentFactory,
   PaymentMethodFactory,
   PaymentIntentFactory,
@@ -123,6 +172,23 @@ export {
   createPaymentCalculation,
   createPaymentRequest
 } from './payment.factory';
+export { 
+  PaymentFactory,
+  PaymentMethodFactory,
+  PaymentIntentFactory,
+  PaymentCalculationFactory,
+  CreatePaymentRequestFactory,
+  paymentFactory,
+  paymentMethodFactory,
+  paymentIntentFactory,
+  paymentCalculationFactory,
+  createPaymentRequestFactory,
+  createPayment,
+  createPaymentMethod,
+  createPaymentIntent,
+  createPaymentCalculation,
+  createPaymentRequest
+};
 
 /**
  * Reset all factory ID counters

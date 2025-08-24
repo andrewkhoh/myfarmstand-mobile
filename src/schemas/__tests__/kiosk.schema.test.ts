@@ -1,92 +1,85 @@
 import {
   DbKioskSessionTransformSchema,
+  DbKioskTransactionTransformSchema,
   KioskAuthRequestSchema,
   DbStaffPinTransformSchema,
   KioskAuthResponseSchema,
   KioskSessionResponseSchema,
   RawDbKioskSessionSchema,
   RawDbStaffPinSchema,
-  RawDbKioskTransactionSchema,
-  DbKioskSessionSchema,
-  KioskTransactionSchema
+  RawDbKioskTransactionSchema
 } from '../kiosk.schema';
-
-// Alias for test compatibility
-const KioskSessionSchema = DbKioskSessionTransformSchema;
 
 describe('Kiosk Schemas', () => {
   describe('DbKioskSessionTransformSchema', () => {
     const validSessionData = {
       id: 'session_123',
-      staff_id: 'staff_456',
-      session_start: '2025-08-19T10:00:00Z',
-      session_end: null,
-      total_sales: 125.50,
-      transaction_count: 5,
-      is_active: true,
-      device_id: 'kiosk_001',
-      staff: {
-        name: 'John Staff',
-        role: 'staff'
+      staffId: 'staff_456',
+      staffName: 'John Staff',
+      sessionStart: new Date('2025-08-19T10:00:00Z'),
+      sessionEnd: null,
+      totalSales: 125.50,
+      transactionCount: 5,
+      isActive: true,
+      deviceId: 'kiosk_001',
+      currentCustomer: {
+        email: 'customer@example.com',
+        phone: '+1234567890',
+        name: 'Jane Customer'
       }
     };
 
     it('should validate complete session data', () => {
       const result = KioskSessionSchema.parse(validSessionData);
-      expect(result.id).toBe('session_123');
-      expect(result.staffId).toBe('staff_456');
-      expect(result.staffName).toBe('John Staff');
-      expect(result.totalSales).toBe(125.50);
-      expect(result.transactionCount).toBe(5);
-      expect(result.isActive).toBe(true);
-      expect(result.deviceId).toBe('kiosk_001');
+      expect(result).toMatchObject(validSessionData);
     });
 
     it('should apply default values correctly', () => {
       const minimalData = {
         id: 'session_123',
-        staff_id: 'staff_456'
+        staffId: 'staff_456',
+        staffName: 'John Staff',
+        sessionStart: new Date('2025-08-19T10:00:00Z')
       };
 
       const result = KioskSessionSchema.parse(minimalData);
       expect(result.totalSales).toBe(0);
       expect(result.transactionCount).toBe(0);
       expect(result.isActive).toBe(true);
-      expect(result.sessionEnd).toBeNull();
-      expect(result.deviceId).toBeNull();
-      expect(result.currentCustomer).toBeNull();
+      expect(result.sessionEnd).toBeUndefined();
+      expect(result.deviceId).toBeUndefined();
+      expect(result.currentCustomer).toBeUndefined();
     });
 
     it('should validate nullable optional fields properly', () => {
       const dataWithNulls = {
-        id: 'session_123',
-        staff_id: 'staff_456',
-        session_end: null,
-        device_id: null,
-        total_sales: null,
-        transaction_count: null,
-        is_active: null
+        ...validSessionData,
+        sessionEnd: null,
+        deviceId: null,
+        currentCustomer: null
       };
 
       const result = KioskSessionSchema.parse(dataWithNulls);
       expect(result.sessionEnd).toBeNull();
       expect(result.deviceId).toBeNull();
-      expect(result.totalSales).toBe(0); // Defaults applied
-      expect(result.transactionCount).toBe(0); // Defaults applied
-      expect(result.isActive).toBe(true); // Defaults applied
+      expect(result.currentCustomer).toBeNull();
     });
 
     it('should reject invalid data', () => {
       expect(() => KioskSessionSchema.parse({
         id: '', // Empty string
-        staff_id: 'staff_456'
+        staffId: 'staff_456',
+        staffName: 'John Staff',
+        sessionStart: new Date()
       })).toThrow();
 
       expect(() => KioskSessionSchema.parse({
         id: 'session_123',
-        staff_id: 'staff_456',
-        total_sales: -10 // Negative sales - currently allowed by schema, won't throw
-      })).not.toThrow(); // Schema doesn't validate negative values
+        staffId: 'staff_456',
+        staffName: 'John Staff',
+        sessionStart: new Date(),
+        totalSales: -10 // Negative sales
+      })).toThrow();
     });
   });
 
@@ -123,7 +116,7 @@ describe('Kiosk Schemas', () => {
         updated_at: null
       };
 
-      const result = DbKioskSessionSchema.parse(minimalDbData);
+      const result = RawDbKioskSessionSchema.parse(minimalDbData);
       expect(result.session_start).toBeNull();
       expect(result.total_sales).toBeNull(); // Nullable field
       expect(result.transaction_count).toBeNull(); // Nullable field
@@ -165,16 +158,16 @@ describe('Kiosk Schemas', () => {
         currentCustomer: null
       });
 
-      // Verify _dbData preservation
+      // Verify _dbData preservation (includes raw fields)
       expect(result._dbData).toEqual({
         staff_id: 'staff_456',
         session_start: '2025-08-19T10:00:00Z',
         session_end: null,
-        raw_total_sales: 125.50,
-        raw_transaction_count: 5,
-        raw_is_active: true,
         created_at: '2025-08-19T09:00:00Z',
-        updated_at: '2025-08-19T10:00:00Z'
+        updated_at: '2025-08-19T10:00:00Z',
+        raw_is_active: true,
+        raw_total_sales: 125.5,
+        raw_transaction_count: 5
       });
     });
 
@@ -289,33 +282,22 @@ describe('Kiosk Schemas', () => {
       customer_email: 'customer@example.com',
       customer_phone: '+1234567890',
       customer_name: 'Jane Customer',
-      kiosk_transaction_items: [
-        {
-          id: 'item_001',
-          product_id: 'product_001',
-          product_name: 'Fresh Tomatoes',
-          unit_price: 4.99,
-          quantity: 2,
-          total_price: 9.98
-        }
-      ],
       subtotal: 9.98,
       tax_amount: 0.80,
       total_amount: 10.78,
       payment_method: 'card' as const,
       payment_status: 'completed' as const,
-      completed_at: '2025-08-19T11:00:00Z'
+      completed_at: '2025-08-19T11:00:00Z',
+      created_at: '2025-08-19T10:00:00Z',
+      updated_at: '2025-08-19T11:00:00Z'
     };
 
     it('should validate complete transaction data', () => {
-      const result = KioskTransactionSchema.parse(validTransactionData);
+      const result = DbKioskTransactionTransformSchema.parse(validTransactionData);
       expect(result.id).toBe('trans_123');
       expect(result.sessionId).toBe('session_456');
       expect(result.customerId).toBe('customer_789');
-      expect(result.customerEmail).toBe('customer@example.com');
-      expect(result.items).toHaveLength(1);
-      expect(result.items[0].productId).toBe('product_001');
-      expect(result.totalAmount).toBe(10.78);
+      expect(result.paymentMethod).toBe('card');
       expect(result.paymentStatus).toBe('completed');
     });
 
@@ -325,23 +307,21 @@ describe('Kiosk Schemas', () => {
         session_id: 'session_456',
         subtotal: 9.98,
         total_amount: 9.98,
-        payment_method: 'cash' as const,
-        payment_status: 'pending' as const
+        payment_method: 'cash' as const
       };
 
-      const result = KioskTransactionSchema.parse(minimalTransaction);
-      expect(result.taxAmount).toBe(0); // Default from null
+      const result = DbKioskTransactionTransformSchema.parse(minimalTransaction);
+      expect(result.taxAmount).toBe(0);
       expect(result.paymentStatus).toBe('pending');
-      expect(result.items).toEqual([]); // Empty array when no items provided
     });
 
     it('should validate payment method enum', () => {
       const invalidPaymentMethod = {
         ...validTransactionData,
-        payment_method: 'bitcoin' as any // Invalid payment method
+        payment_method: 'bitcoin' // Invalid payment method
       };
 
-      expect(() => KioskTransactionSchema.parse(invalidPaymentMethod)).toThrow();
+      expect(() => DbKioskTransactionTransformSchema.parse(invalidPaymentMethod)).toThrow();
     });
   });
 
@@ -376,23 +356,18 @@ describe('Kiosk Schemas', () => {
           success: true,
           session: {
             id: 'session_123',
-            staff_id: 'staff_456',
-            session_start: '2025-08-19T10:00:00Z',
-            total_sales: 125.50,
-            transaction_count: 5,
-            is_active: true,
-            staff: {
-              name: 'John Staff',
-              role: 'staff'
-            }
+            staffId: 'staff_456',
+            staffName: 'John Staff',
+            sessionStart: new Date('2025-08-19T10:00:00Z'),
+            totalSales: 125.50,
+            transactionCount: 5,
+            isActive: true
           }
         };
 
         const result = KioskSessionResponseSchema.parse(sessionResponse);
         expect(result.success).toBe(true);
-        expect(result.session.staffId).toBe('staff_456');
-        expect(result.session.staffName).toBe('John Staff');
-        expect(result.session.totalSales).toBe(125.50);
+        expect(result.session).toMatchObject(sessionResponse.session);
       });
     });
   });
@@ -414,7 +389,7 @@ describe('Kiosk Schemas', () => {
       };
 
       // Should not throw - nullable fields should be handled properly
-      expect(() => DbKioskSessionSchema.parse(dbSchemaWithAllNulls)).not.toThrow();
+      expect(() => RawDbKioskSessionSchema.parse(dbSchemaWithAllNulls)).not.toThrow();
     });
 
     it('should preserve database field names in DB schemas', () => {
@@ -429,7 +404,7 @@ describe('Kiosk Schemas', () => {
         created_at: '2025-08-19T09:00:00Z' // snake_case preserved
       };
 
-      const result = DbKioskSessionSchema.parse(dbData);
+      const result = RawDbKioskSessionSchema.parse(dbData);
       expect(result.staff_id).toBe('staff_456');
       expect(result.session_start).toBe('2025-08-19T10:00:00Z');
     });

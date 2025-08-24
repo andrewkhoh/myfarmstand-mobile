@@ -76,7 +76,7 @@ class ProductAdminService {
           name,
           description,
           price,
-          category,
+          category_id,
           category_id,
           image_url,
           is_available,
@@ -139,19 +139,18 @@ class ProductAdminService {
           // Track successful validation
           ValidationMonitor.recordPatternSuccess({
             service: 'productAdminService',
-            pattern: 'resilient_item_processing',
+            pattern: 'transformation_schema',
             operation: 'getAllProducts',
-            details: { productId: product.id }
+            performanceMs: Date.now() - startTime
           });
         } catch (validationError) {
           const errorMessage = validationError instanceof Error ? validationError.message : 'Unknown validation error';
           
           // Track validation failure
           ValidationMonitor.recordValidationError({
-            service: 'productAdminService',
             operation: 'getAllProducts',
             error: errorMessage,
-            details: {
+            context: {
               productId: rawProduct?.id,
               name: rawProduct?.name
             }
@@ -198,7 +197,7 @@ class ProductAdminService {
       const { data: rawProduct, error } = await supabase
         .from(TABLES.PRODUCTS)
         .select(`
-          id, name, description, price, category, category_id, image_url,
+          id, name, description, price, category_id, image_url,
           is_available, is_bundle, is_pre_order, is_weekly_special,
           max_pre_order_quantity, min_pre_order_quantity, nutrition_info,
           pre_order_available_date, seasonal_availability, sku, stock_quantity,
