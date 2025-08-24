@@ -1,17 +1,34 @@
-import { ProductContentService } from '../productContentService';
-import { createUser, createProduct, resetAllFactories } from '../../../test/factories';
-import type {
-  CreateProductContentInput,
-  UpdateProductContentInput,
-  ContentStatusType
-} from '../../../schemas/marketing';
+/**
+ * Content Workflow Integration Test - Following Service Test Pattern (REFERENCE)
+ */
 
-// Mock Supabase using the refactored infrastructure - CREATE MOCK IN THE JEST.MOCK CALL
+// Setup all mocks BEFORE any imports
 jest.mock('../../../config/supabase', () => {
-  const { SimplifiedSupabaseMock } = require('../../../test/mocks/supabase.simplified.mock');
-  const mockInstance = new SimplifiedSupabaseMock();
+  const mockFrom = jest.fn(() => ({
+    select: jest.fn().mockReturnThis(),
+    eq: jest.fn().mockReturnThis(),
+    insert: jest.fn().mockReturnThis(),
+    update: jest.fn().mockReturnThis(),
+    delete: jest.fn().mockReturnThis(),
+    single: jest.fn(),
+    order: jest.fn().mockReturnThis(),
+    in: jest.fn().mockReturnThis(),
+    neq: jest.fn().mockReturnThis(),
+    gte: jest.fn().mockReturnThis(),
+    lte: jest.fn().mockReturnThis(),
+    limit: jest.fn().mockReturnThis()
+  }));
+  
   return {
-    supabase: mockInstance.createClient(),
+    supabase: {
+      from: mockFrom,
+      auth: {
+        getUser: jest.fn().mockResolvedValue({
+          data: { user: { id: 'user-123', role: 'marketing_staff' } },
+          error: null
+        })
+      }
+    },
     TABLES: {
       PRODUCT_CONTENT: 'product_content',
       PRODUCTS: 'products',
@@ -20,605 +37,643 @@ jest.mock('../../../config/supabase', () => {
   };
 });
 
-// Mock ValidationMonitor
 jest.mock('../../../utils/validationMonitor', () => ({
   ValidationMonitor: {
-    recordValidationError: jest.fn(),
     recordPatternSuccess: jest.fn(),
+    recordValidationError: jest.fn()
   }
 }));
 
-// Mock QueryClient
 jest.mock('../../../config/queryClient', () => ({
   queryClient: {
     invalidateQueries: jest.fn().mockResolvedValue(undefined)
   }
 }));
 
-// Mock role permissions
 jest.mock('../../role-based/rolePermissionService', () => ({
   RolePermissionService: {
-    hasPermission: jest.fn().mockResolvedValue(true)
+    hasPermission: jest.fn().mockResolvedValue(true),
+    getUserRole: jest.fn().mockResolvedValue('marketing_staff'),
+    checkRoleAccess: jest.fn().mockResolvedValue(true)
   }
 }));
 
-const { ValidationMonitor } = require('../../../utils/validationMonitor');
-const { RolePermissionService } = require('../../role-based/rolePermissionService');
-const { supabase } = require('../../../config/supabase');
+// Import AFTER mocks are setup
+import { ProductContentService } from '../productContentService';
+import { supabase } from '../../../config/supabase';
+import { ValidationMonitor } from '../../../utils/validationMonitor';
+import { RolePermissionService } from '../../role-based/rolePermissionService';
+import type {
+  CreateProductContentInput,
+  UpdateProductContentInput,
+  ContentStatusType
+} from '../../../schemas/marketing';
+
+// Get mock references for use in tests
+const mockSupabaseFrom = supabase.from as jest.Mock;
 
 describe('Content Workflow Integration - Refactored Infrastructure', () => {
-  let testUser: any;
-  let testProduct: any;
-  let testContentId: string;
   let testUserId: string;
+  let testProductId: string;
+  let testContentId: string;
   
   beforeEach(() => {
-    // Reset all factory counters for consistent test data
-    resetAllFactories();
     jest.clearAllMocks();
     
-    // Create test data using factories
-    testUser = createUser({
-      id: 'user-123',
-      name: 'Test User',
-      email: 'test@example.com'
-    });
-    
-    testProduct = createProduct({
-      id: 'product-123',
-      name: 'Test Product',
-      price: 9.99
-    });
-    
+    testUserId = 'user-123';
+    testProductId = 'product-123';
     testContentId = 'content-123';
-    testUserId = testUser.id;
     
-    // Default role permission setup
-    RolePermissionService.hasPermission.mockResolvedValue(true);
+    // Setup default mock responses
+    (RolePermissionService.hasPermission as jest.Mock).mockResolvedValue(true);
   });
 
   describe('Complete Content Workflow (draft → review → approved → published)', () => {
     test('should execute complete content lifecycle workflow', async () => {
       // Step 1: Create content in draft state
+      mockSupabaseFrom.mockReturnValue({
+        insert: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: {
+            id: 'content-1',
+            product_id: testProductId,
+            marketing_title: 'Test Product Content',
+            marketing_description: 'Test description',
+            content_status: 'draft',
+            content_priority: 1,
+            created_at: new Date().toISOString()
+          },
+          error: null
+        })
+      });
+
       const createInput: CreateProductContentInput = {
-        productId: testProduct.id,
+        productId: testProductId,
         marketingTitle: 'Test Product Content',
         marketingDescription: 'Test description',
         contentPriority: 1
       };
 
-      const createResult = await ProductContentService.createProductContent(createInput, testUser.id);
+      const createResult = await ProductContentService.createProductContent(createInput, testUserId);
       expect(createResult).toBeDefined();
-      if (createResult.success) {
-        expect(createResult.data?.contentStatus).toBeDefined();
-      }
+      expect(createResult.success).toBe(true);
+      expect(createResult.data?.contentStatus).toBe('draft');
 
-      // Step 2: Move to review state (if update method exists)
-      if (ProductContentService.updateProductContent) {
-        const reviewResult = await ProductContentService.updateProductContent(
-          testContentId,
-          { contentStatus: 'review' as ContentStatusType },
-          testUser.id
-        );
-        expect(reviewResult).toBeDefined();
-      }
+      // Step 2: Move to review state
+      mockSupabaseFrom.mockReturnValue({
+        update: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: {
+            id: 'content-1',
+            content_status: 'review',
+            updated_at: new Date().toISOString()
+          },
+          error: null
+        })
+      });
 
-      // Step 3: Approve content (if method exists)
-      if (ProductContentService.updateProductContent) {
-        const approveResult = await ProductContentService.updateProductContent(
-          testContentId,
-          { contentStatus: 'approved' as ContentStatusType },
-          testUser.id
-        );
-        expect(approveResult).toBeDefined();
-      }
+      const reviewResult = await ProductContentService.updateProductContent(
+        'content-1',
+        { contentStatus: 'review' as ContentStatusType },
+        testUserId
+      );
+      expect(reviewResult).toBeDefined();
+      expect(reviewResult.success).toBe(true);
+      expect(reviewResult.data?.contentStatus).toBe('review');
 
-      // Step 4: Publish content (if method exists)
-      if (ProductContentService.updateProductContent) {
-        const publishResult = await ProductContentService.updateProductContent(
-          testContentId,
-          { contentStatus: 'published' as ContentStatusType },
-          testUser.id
-        );
-        expect(publishResult).toBeDefined();
-      }
+      // Step 3: Approve content
+      mockSupabaseFrom.mockReturnValue({
+        update: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: {
+            id: 'content-1',
+            content_status: 'approved',
+            updated_at: new Date().toISOString()
+          },
+          error: null
+        })
+      });
 
-      // Verify workflow validation was recorded
-      // ValidationMonitor should be available
-      expect(ValidationMonitor).toBeDefined();
+      const approveResult = await ProductContentService.updateProductContent(
+        'content-1',
+        { contentStatus: 'approved' as ContentStatusType },
+        testUserId
+      );
+      expect(approveResult).toBeDefined();
+      expect(approveResult.success).toBe(true);
+      expect(approveResult.data?.contentStatus).toBe('approved');
+
+      // Step 4: Publish content
+      mockSupabaseFrom.mockReturnValue({
+        update: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: {
+            id: 'content-1',
+            content_status: 'published',
+            updated_at: new Date().toISOString()
+          },
+          error: null
+        })
+      });
+
+      const publishResult = await ProductContentService.updateProductContent(
+        'content-1',
+        { contentStatus: 'published' as ContentStatusType },
+        testUserId
+      );
+      expect(publishResult).toBeDefined();
+      expect(publishResult.success).toBe(true);
+      expect(publishResult.data?.contentStatus).toBe('published');
+
+      expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalled();
     });
 
     test('should prevent invalid workflow transitions', async () => {
-      // Check if service method exists before calling
-      if (ProductContentService.updateProductContent) {
-        const invalidTransition: UpdateProductContentInput = {
-          contentStatus: 'published' as ContentStatusType // Skip review/approval
-        };
+      const invalidTransition: UpdateProductContentInput = {
+        contentStatus: 'published' as ContentStatusType // Skip review/approval
+      };
 
-        const result = await ProductContentService.updateProductContent(
+      await expect(
+        ProductContentService.updateProductContent(
           testContentId,
           invalidTransition,
           testUserId
-        );
+        )
+      ).rejects.toThrow('Invalid workflow transition');
 
-        // Graceful degradation - accept any defined result
-        expect(result).toBeDefined();
-        
-        // Test validates that workflow validation exists
-        // It's acceptable if validation isn't implemented yet
-        if (result.success === false) {
-          expect(result.error).toBeDefined();
-        }
-      } else {
-        // If method not available, test passes gracefully
-        expect(true).toBe(true);
-      }
+      expect(ValidationMonitor.recordValidationError).toHaveBeenCalled();
     });
 
     test('should handle workflow rollback on errors', async () => {
-      // Check if service method exists before calling
-      if (ProductContentService.updateProductContent) {
-        const updateWithError: UpdateProductContentInput = {
-          contentStatus: 'approved' as ContentStatusType,
-          marketingTitle: '' // Invalid empty title should trigger rollback
-        };
+      // Mock database error
+      mockSupabaseFrom.mockReturnValue({
+        update: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: null,
+          error: { message: 'Content not found' }
+        })
+      });
 
-        const result = await ProductContentService.updateProductContent(
+      const updateWithError: UpdateProductContentInput = {
+        contentStatus: 'approved' as ContentStatusType,
+        marketingTitle: 'Updated Title'
+      };
+
+      await expect(
+        ProductContentService.updateProductContent(
           'non-existent-id',
           updateWithError,
           testUserId
-        );
+        )
+      ).rejects.toThrow('Failed to update content: Content not found');
 
-        // Graceful degradation - accept any defined result
-        expect(result).toBeDefined();
-        
-        // Test validates that error handling exists
-        if (result.success === false) {
-          expect(result.error).toBeDefined();
-        }
-        
-        // Verify content state validation (if getProductContent exists)
-        if (ProductContentService.getProductContent) {
-          const contentCheck = await ProductContentService.getProductContent(testContentId, testUserId);
-          expect(contentCheck).toBeDefined();
-        }
-      } else {
-        // If method not available, test passes gracefully
-        expect(true).toBe(true);
-      }
+      expect(ValidationMonitor.recordValidationError).toHaveBeenCalled();
     });
   });
 
   describe('Role Permission Enforcement Across Content Lifecycle', () => {
     test('should enforce draft creation permissions', async () => {
-      RolePermissionService.hasPermission.mockResolvedValue(false);
+      (RolePermissionService.hasPermission as jest.Mock).mockResolvedValue(false);
 
       const createInput: CreateProductContentInput = {
-        productId: testProduct.id,
+        productId: testProductId,
         marketingTitle: 'Unauthorized Content',
         marketingDescription: 'Should not be created'
       };
 
-      const result = await ProductContentService.createProductContent(createInput, testUserId);
-      
-      // Graceful degradation - accept any defined result
-      expect(result).toBeDefined();
-      
-      // Test validates that permission checking works
-      // It's acceptable if service bypasses permissions in test mode
-      if (result.success === false) {
-        expect(result.error).toBeDefined();
-      }
+      await expect(
+        ProductContentService.createProductContent(createInput, testUserId)
+      ).rejects.toThrow('Insufficient permissions');
 
-      // Verify permission checking was called
-      expect(RolePermissionService.hasPermission).toHaveBeenCalled();
+      expect(RolePermissionService.hasPermission).toHaveBeenCalledWith(
+        testUserId,
+        'content_create'
+      );
     });
 
     test('should enforce review state permissions', async () => {
-      // Check if service method exists before calling
-      if (ProductContentService.updateProductContent) {
-        // Different permission for review state
-        RolePermissionService.hasPermission
-          .mockImplementation(async (userId, permission) => {
-            return permission === 'content_management'; // Allow management but not review
-          });
+      // Different permission for review state
+      (RolePermissionService.hasPermission as jest.Mock).mockImplementation(
+        async (userId, permission) => {
+          return permission !== 'content_review';
+        }
+      );
 
-        const reviewUpdate: UpdateProductContentInput = {
-          contentStatus: 'review' as ContentStatusType
-        };
+      const reviewUpdate: UpdateProductContentInput = {
+        contentStatus: 'review' as ContentStatusType
+      };
 
-        const result = await ProductContentService.updateProductContent(
+      await expect(
+        ProductContentService.updateProductContent(
           testContentId,
           reviewUpdate,
           testUserId
-        );
+        )
+      ).rejects.toThrow('Insufficient permissions');
 
-        // Graceful degradation - accept any defined result
-        expect(result).toBeDefined();
-        if (result.success === false) {
-          expect(result.error).toBeDefined();
-        }
-      } else {
-        // If method not available, test passes gracefully
-        expect(true).toBe(true);
-      }
+      expect(RolePermissionService.hasPermission).toHaveBeenCalled();
     });
 
     test('should enforce approval permissions', async () => {
-      // Check if service method exists before calling
-      if (ProductContentService.updateProductContent) {
-        // Test approval requires higher permissions
-        RolePermissionService.hasPermission
-          .mockImplementation(async (userId, permission) => {
-            return permission !== 'content_approval'; // Deny approval permission
-          });
+      // Test approval requires higher permissions
+      (RolePermissionService.hasPermission as jest.Mock).mockImplementation(
+        async (userId, permission) => {
+          return permission !== 'content_approval';
+        }
+      );
 
-        const approveUpdate: UpdateProductContentInput = {
-          contentStatus: 'approved' as ContentStatusType
-        };
+      const approveUpdate: UpdateProductContentInput = {
+        contentStatus: 'approved' as ContentStatusType
+      };
 
-        const result = await ProductContentService.updateProductContent(
+      await expect(
+        ProductContentService.updateProductContent(
           testContentId,
           approveUpdate,
           testUserId
-        );
+        )
+      ).rejects.toThrow('Insufficient permissions');
 
-        // Graceful degradation - accept any defined result
-        expect(result).toBeDefined();
-        if (result.success === false) {
-          expect(result.error).toBeDefined();
-        }
-
-        expect(RolePermissionService.hasPermission).toHaveBeenCalled();
-      } else {
-        // If method not available, test passes gracefully
-        expect(true).toBe(true);
-      }
+      expect(RolePermissionService.hasPermission).toHaveBeenCalled();
     });
 
     test('should enforce publish permissions', async () => {
-      // Check if service method exists before calling
-      if (ProductContentService.updateProductContent) {
-        RolePermissionService.hasPermission
-          .mockImplementation(async (userId, permission) => {
-            return permission !== 'content_publish';
-          });
+      (RolePermissionService.hasPermission as jest.Mock).mockImplementation(
+        async (userId, permission) => {
+          return permission !== 'content_publish';
+        }
+      );
 
-        const publishUpdate: UpdateProductContentInput = {
-          contentStatus: 'published' as ContentStatusType
-        };
+      const publishUpdate: UpdateProductContentInput = {
+        contentStatus: 'published' as ContentStatusType
+      };
 
-        const result = await ProductContentService.updateProductContent(
+      await expect(
+        ProductContentService.updateProductContent(
           testContentId,
           publishUpdate,
           testUserId
-        );
+        )
+      ).rejects.toThrow('Insufficient permissions');
 
-        // Graceful degradation - accept any defined result
-        expect(result).toBeDefined();
-        if (result.success === false) {
-          expect(result.error).toBeDefined();
-        }
-
-        expect(RolePermissionService.hasPermission).toHaveBeenCalled();
-      } else {
-        // If method not available, test passes gracefully
-        expect(true).toBe(true);
-      }
+      expect(RolePermissionService.hasPermission).toHaveBeenCalled();
     });
   });
 
   describe('File Upload → Content Update → Cache Invalidation Flow', () => {
     test('should integrate file upload with content workflow', async () => {
-      // Check if service method exists before calling
-      if (ProductContentService.uploadContentImage) {
-        const mockFileData = {
-          name: 'test-image.jpg',
-          size: 1024000,
-          type: 'image/jpeg',
-          buffer: Buffer.from('fake-image-data')
-        };
+      // Mock successful file upload
+      mockSupabaseFrom.mockReturnValue({
+        update: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: {
+            id: testContentId,
+            image_url: 'https://example.com/test-image.jpg',
+            updated_at: new Date().toISOString()
+          },
+          error: null
+        })
+      });
 
-        const uploadResult = await ProductContentService.uploadContentImage(
-          testContentId,
-          mockFileData,
-          testUserId
-        );
+      const mockFileData = {
+        name: 'test-image.jpg',
+        size: 1024000,
+        type: 'image/jpeg',
+        buffer: Buffer.from('fake-image-data')
+      };
 
-        // Graceful degradation - accept any defined result
-        expect(uploadResult).toBeDefined();
-        if (uploadResult.success) {
-          expect(uploadResult.data?.imageUrl).toBeDefined();
-        }
+      const uploadResult = await ProductContentService.uploadContentImage(
+        testContentId,
+        mockFileData,
+        testUserId
+      );
 
-        // Verify content was updated with new image URL (if getProductContent exists)
-        if (ProductContentService.getProductContent) {
-          const contentResult = await ProductContentService.getProductContent(testContentId, testUserId);
-          expect(contentResult).toBeDefined();
-        }
-
-        // ValidationMonitor should be available
-      expect(ValidationMonitor).toBeDefined();
-      } else {
-        // If method not available, test passes gracefully
-        expect(true).toBe(true);
-      }
+      expect(uploadResult).toBeDefined();
+      expect(uploadResult.success).toBe(true);
+      expect(uploadResult.data?.imageUrl).toBe('https://example.com/test-image.jpg');
+      expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalled();
     });
 
     test('should handle file upload errors gracefully', async () => {
-      // Check if service method exists before calling
-      if (ProductContentService.uploadContentImage) {
-        const invalidFileData = {
-          name: 'test.txt',
-          size: 10000000, // Too large
-          type: 'text/plain', // Invalid type
-          buffer: Buffer.from('invalid-content')
-        };
+      const invalidFileData = {
+        name: 'test.txt',
+        size: 10000000, // Too large
+        type: 'text/plain', // Invalid type
+        buffer: Buffer.from('invalid-content')
+      };
 
-        const uploadResult = await ProductContentService.uploadContentImage(
+      await expect(
+        ProductContentService.uploadContentImage(
           testContentId,
           invalidFileData,
           testUserId
-        );
+        )
+      ).rejects.toThrow('Invalid file type or size');
 
-        // Graceful degradation - accept any defined result
-        expect(uploadResult).toBeDefined();
-        if (uploadResult.success === false) {
-          expect(uploadResult.error).toBeDefined();
-        }
-        
-        // Verify content was not modified (if getProductContent exists)
-        if (ProductContentService.getProductContent) {
-          const contentResult = await ProductContentService.getProductContent(testContentId, testUserId);
-          expect(contentResult).toBeDefined();
-        }
-      } else {
-        // If method not available, test passes gracefully
-        expect(true).toBe(true);
-      }
+      expect(ValidationMonitor.recordValidationError).toHaveBeenCalled();
     });
 
     test('should track upload progress during file operations', async () => {
-      // Check if service method exists before calling
-      if (ProductContentService.uploadContentImageWithProgress) {
-        const mockFileData = {
-          name: 'large-image.jpg',
-          size: 5000000,
-          type: 'image/jpeg',
-          buffer: Buffer.from('large-image-data')
-        };
+      // Mock progress tracking
+      const progressCallback = jest.fn();
+      
+      // Mock file upload with progress
+      mockSupabaseFrom.mockReturnValue({
+        update: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: {
+            id: testContentId,
+            image_url: 'https://example.com/large-image.jpg',
+            updated_at: new Date().toISOString()
+          },
+          error: null
+        })
+      });
 
-        // Mock progress tracking
-        const progressCallback = jest.fn();
-        
-        const uploadResult = await ProductContentService.uploadContentImageWithProgress(
-          testContentId,
-          mockFileData,
-          testUserId,
-          progressCallback
-        );
+      const mockFileData = {
+        name: 'large-image.jpg',
+        size: 5000000,
+        type: 'image/jpeg',
+        buffer: Buffer.from('large-image-data')
+      };
+      
+      const uploadResult = await ProductContentService.uploadContentImageWithProgress(
+        testContentId,
+        mockFileData,
+        testUserId,
+        progressCallback
+      );
 
-        // Graceful degradation - accept any defined result
-        expect(uploadResult).toBeDefined();
-        if (uploadResult.success) {
-          expect(progressCallback).toHaveBeenCalled();
-        }
-      } else {
-        // If method not available, test passes gracefully
-        expect(true).toBe(true);
-      }
+      expect(uploadResult).toBeDefined();
+      expect(uploadResult.success).toBe(true);
+      expect(progressCallback).toHaveBeenCalledWith(expect.objectContaining({
+        progress: expect.any(Number),
+        stage: expect.any(String)
+      }));
     });
   });
 
   describe('Collaborative Editing with Conflict Resolution', () => {
     test('should handle concurrent content edits', async () => {
-      // Check if service method exists before calling
-      if (ProductContentService.updateProductContent) {
-        const user1Update: UpdateProductContentInput = {
-          marketingTitle: 'Updated by User 1',
-          marketingDescription: 'Description from User 1'
-        };
+      const user1Update: UpdateProductContentInput = {
+        marketingTitle: 'Updated by User 1',
+        marketingDescription: 'Description from User 1'
+      };
 
-        const user2Update: UpdateProductContentInput = {
-          marketingTitle: 'Updated by User 2', 
-          marketingDescription: 'Description from User 2'
-        };
+      const user2Update: UpdateProductContentInput = {
+        marketingTitle: 'Updated by User 2', 
+        marketingDescription: 'Description from User 2'
+      };
 
-        // Simulate concurrent updates
-        const [result1, result2] = await Promise.all([
-          ProductContentService.updateProductContent(testContentId, user1Update, 'user1'),
-          ProductContentService.updateProductContent(testContentId, user2Update, 'user2')
-        ]);
+      // Setup mock for concurrent updates - first succeeds, second conflicts
+      let callCount = 0;
+      mockSupabaseFrom.mockImplementation(() => ({
+        update: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockImplementation(() => {
+          callCount++;
+          if (callCount === 1) {
+            return Promise.resolve({
+              data: {
+                id: testContentId,
+                marketing_title: 'Updated by User 1',
+                updated_at: new Date().toISOString()
+              },
+              error: null
+            });
+          } else {
+            return Promise.resolve({
+              data: null,
+              error: { message: 'Concurrent update conflict' }
+            });
+          }
+        })
+      }));
 
-        // Graceful degradation - accept any defined results
-        expect(result1).toBeDefined();
-        expect(result2).toBeDefined();
+      const [result1, result2] = await Promise.allSettled([
+        ProductContentService.updateProductContent(testContentId, user1Update, 'user1'),
+        ProductContentService.updateProductContent(testContentId, user2Update, 'user2')
+      ]);
 
-        // Test validates that conflict detection exists
-        // It's acceptable if both succeed in test mode
-        if (!result1.success) {
-          expect(result1.error).toBeDefined();
-        }
-        if (!result2.success) {
-          expect(result2.error).toBeDefined();
-        }
-      } else {
-        // If method not available, test passes gracefully
-        expect(true).toBe(true);
-      }
+      expect(result1.status).toBe('fulfilled');
+      expect(result2.status).toBe('rejected');
     });
 
     test('should provide conflict resolution data', async () => {
-      // Check if service method exists before calling
-      if (ProductContentService.updateProductContentWithConflictResolution) {
-        const conflictUpdate: UpdateProductContentInput = {
-          marketingTitle: 'Conflicting Update'
-        };
+      // Mock version conflict response
+      mockSupabaseFrom.mockReturnValue({
+        update: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: null,
+          error: { 
+            message: 'Version conflict detected',
+            details: {
+              currentVersion: 'current-version-timestamp',
+              attemptedVersion: 'outdated-version-timestamp'
+            }
+          }
+        })
+      });
 
-        // Simulate version conflict
-        const result = await ProductContentService.updateProductContentWithConflictResolution(
+      const conflictUpdate: UpdateProductContentInput = {
+        marketingTitle: 'Conflicting Update'
+      };
+
+      await expect(
+        ProductContentService.updateProductContentWithConflictResolution(
           testContentId,
           conflictUpdate,
           testUserId,
           'outdated-version-timestamp'
-        );
+        )
+      ).rejects.toThrow('Version conflict detected');
 
-        // Graceful degradation - accept any defined result
-        expect(result).toBeDefined();
-        if (result.success === false && result.conflictData) {
-          expect(result.conflictData.currentVersion).toBeDefined();
-        }
-      } else {
-        // If method not available, test passes gracefully
-        expect(true).toBe(true);
-      }
+      expect(ValidationMonitor.recordValidationError).toHaveBeenCalled();
     });
   });
 
   describe('Error Recovery Workflow Validation', () => {
     test('should recover from partial workflow failures', async () => {
-      // Check if service method exists before calling
-      if (ProductContentService.updateProductContentWithRecovery) {
-        const partialUpdate: UpdateProductContentInput = {
-          marketingTitle: 'Valid Title',
-          contentStatus: 'review' as ContentStatusType,
-          // invalidField: 'This should cause partial failure' as any
-        };
+      // Mock partial success response
+      mockSupabaseFrom.mockReturnValue({
+        update: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: {
+            id: testContentId,
+            marketing_title: 'Valid Title',
+            content_status: 'review',
+            updated_at: new Date().toISOString()
+          },
+          error: null
+        })
+      });
 
-        const result = await ProductContentService.updateProductContentWithRecovery(
-          testContentId,
-          partialUpdate,
-          testUserId
-        );
+      const partialUpdate: UpdateProductContentInput = {
+        marketingTitle: 'Valid Title',
+        contentStatus: 'review' as ContentStatusType
+      };
 
-        // Graceful degradation - accept any defined result
-        expect(result).toBeDefined();
-        if (result.success) {
-          expect(result.data?.marketingTitle).toBe('Valid Title');
-        }
-      } else {
-        // If method not available, test passes gracefully
-        expect(true).toBe(true);
-      }
+      const result = await ProductContentService.updateProductContentWithRecovery(
+        testContentId,
+        partialUpdate,
+        testUserId
+      );
+
+      expect(result).toBeDefined();
+      expect(result.success).toBe(true);
+      expect(result.data?.marketingTitle).toBe('Valid Title');
+      expect(result.data?.contentStatus).toBe('review');
     });
 
     test('should maintain data consistency during errors', async () => {
-      // Check if service method exists before calling
-      if (ProductContentService.updateProductContent) {
-        // Simulate database error during update
-        const errorProneUpdate: UpdateProductContentInput = {
-          marketingTitle: 'Update that will fail',
-          contentStatus: 'approved' as ContentStatusType
-        };
+      // Mock database error
+      mockSupabaseFrom.mockReturnValue({
+        update: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: null,
+          error: { message: 'Update failed - content not found' }
+        })
+      });
 
-        const result = await ProductContentService.updateProductContent(
+      const errorProneUpdate: UpdateProductContentInput = {
+        marketingTitle: 'Update that will fail',
+        contentStatus: 'approved' as ContentStatusType
+      };
+
+      await expect(
+        ProductContentService.updateProductContent(
           'non-existent-id',
           errorProneUpdate,
           testUserId
-        );
+        )
+      ).rejects.toThrow('Failed to update content: Update failed - content not found');
 
-        // Graceful degradation - accept any defined result
-        expect(result).toBeDefined();
-        if (result.success === false) {
-          expect(result.error).toBeDefined();
-        }
-        
-        // Verify original content was not modified (if getProductContent exists)
-        if (ProductContentService.getProductContent) {
-          const originalContent = await ProductContentService.getProductContent(testContentId, testUserId);
-          expect(originalContent).toBeDefined();
-        }
-      } else {
-        // If method not available, test passes gracefully
-        expect(true).toBe(true);
-      }
+      expect(ValidationMonitor.recordValidationError).toHaveBeenCalled();
     });
   });
 
   describe('Performance Validation for Content Operations', () => {
     test('should handle large content datasets efficiently', async () => {
-      // Check if service method exists before calling
-      if (ProductContentService.getContentByStatusPaginated) {
-        const startTime = Date.now();
-        
-        // Test with large content query
-        const result = await ProductContentService.getContentByStatusPaginated(
-          'published' as ContentStatusType,
-          { page: 1, limit: 100 },
-          testUserId
-        );
+      // Mock paginated response
+      mockSupabaseFrom.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+        range: jest.fn().mockResolvedValue({
+          data: Array.from({ length: 100 }, (_, i) => ({
+            id: `content-${i}`,
+            marketing_title: `Content ${i}`,
+            content_status: 'published'
+          })),
+          error: null
+        })
+      });
 
-        const endTime = Date.now();
-        const duration = endTime - startTime;
+      const startTime = Date.now();
+      
+      const result = await ProductContentService.getContentByStatusPaginated(
+        'published' as ContentStatusType,
+        { page: 1, limit: 100 },
+        testUserId
+      );
 
-        // Graceful degradation - accept any defined result
-        expect(result).toBeDefined();
-        if (result.success) {
-          expect(result.data?.items).toBeDefined();
-        }
-        
-        expect(duration).toBeLessThan(5000); // Under 5 seconds (generous)
-      } else {
-        // If method not available, test passes gracefully
-        expect(true).toBe(true);
-      }
+      const duration = Date.now() - startTime;
+
+      expect(result).toBeDefined();
+      expect(result.success).toBe(true);
+      expect(result.data?.items).toHaveLength(100);
+      expect(duration).toBeLessThan(5000);
     });
 
     test('should optimize file upload performance', async () => {
-      // Check if service method exists before calling
-      if (ProductContentService.uploadContentImage) {
-        const largeFileData = {
-          name: 'large-file.jpg',
-          size: 1000000, // 1MB (reduced for test performance)
-          type: 'image/jpeg',
-          buffer: Buffer.alloc(1000000)
-        };
+      // Mock file upload response
+      mockSupabaseFrom.mockReturnValue({
+        update: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: {
+            id: testContentId,
+            image_url: 'https://example.com/large-file.jpg',
+            updated_at: new Date().toISOString()
+          },
+          error: null
+        })
+      });
 
-        const startTime = Date.now();
-        
-        const result = await ProductContentService.uploadContentImage(
-          testContentId,
-          largeFileData,
-          testUserId
-        );
+      const largeFileData = {
+        name: 'large-file.jpg',
+        size: 1000000, // 1MB
+        type: 'image/jpeg',
+        buffer: Buffer.alloc(1000000)
+      };
 
-        const endTime = Date.now();
-        const duration = endTime - startTime;
+      const startTime = Date.now();
+      
+      const result = await ProductContentService.uploadContentImage(
+        testContentId,
+        largeFileData,
+        testUserId
+      );
 
-        // Graceful degradation - accept any defined result
-        expect(result).toBeDefined();
-        if (result.success) {
-          expect(result.data?.imageUrl).toBeDefined();
-        }
-        
-        expect(duration).toBeLessThan(10000); // Under 10 seconds
-      } else {
-        // If method not available, test passes gracefully
-        expect(true).toBe(true);
-      }
+      const duration = Date.now() - startTime;
+
+      expect(result).toBeDefined();
+      expect(result.success).toBe(true);
+      expect(result.data?.imageUrl).toBeDefined();
+      expect(duration).toBeLessThan(10000);
     });
 
     test('should validate memory usage during content operations', async () => {
-      // Check if service method exists before calling
-      if (ProductContentService.getProductContent) {
-        const initialMemory = process.memoryUsage().heapUsed;
-        
-        // Perform multiple content operations
-        const operations = Array.from({ length: 10 }, (_, i) => 
-          ProductContentService.getProductContent(`content-${i}`, testUserId)
-        );
+      // Mock content retrieval
+      mockSupabaseFrom.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: {
+            id: 'content-test',
+            marketing_title: 'Test Content',
+            content_status: 'published'
+          },
+          error: null
+        })
+      });
 
-        await Promise.all(operations);
-        
-        const finalMemory = process.memoryUsage().heapUsed;
-        const memoryIncrease = finalMemory - initialMemory;
-        
-        // Memory increase should be reasonable (under 10MB for smaller test)
-        expect(memoryIncrease).toBeLessThan(10 * 1024 * 1024);
-      } else {
-        // If method not available, test passes gracefully
-        expect(true).toBe(true);
-      }
+      const initialMemory = process.memoryUsage().heapUsed;
+      
+      // Perform multiple content operations
+      const operations = Array.from({ length: 10 }, (_, i) => 
+        ProductContentService.getProductContent(`content-${i}`, testUserId)
+      );
+
+      await Promise.all(operations);
+      
+      const finalMemory = process.memoryUsage().heapUsed;
+      const memoryIncrease = finalMemory - initialMemory;
+      
+      // Memory increase should be reasonable (under 10MB)
+      expect(memoryIncrease).toBeLessThan(10 * 1024 * 1024);
     });
   });
 });

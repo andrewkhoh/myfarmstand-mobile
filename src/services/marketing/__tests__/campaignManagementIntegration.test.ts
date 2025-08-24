@@ -1,20 +1,34 @@
-import { MarketingCampaignService } from '../marketingCampaignService';
-import { ProductContentService } from '../productContentService';
-import { ProductBundleService } from '../productBundleService';
-import { createUser, createProduct, resetAllFactories } from '../../../test/factories';
-import type {
-  MarketingCampaignTransform,
-  CreateMarketingCampaignInput,
-  CampaignStatusType,
-  CampaignTypeType
-} from '../../../schemas/marketing';
+/**
+ * Campaign Management Integration Test - Following Service Test Pattern (REFERENCE)
+ */
 
-// Mock Supabase using the refactored infrastructure - CREATE MOCK IN THE JEST.MOCK CALL
+// Setup all mocks BEFORE any imports
 jest.mock('../../../config/supabase', () => {
-  const { SimplifiedSupabaseMock } = require('../../../test/mocks/supabase.simplified.mock');
-  const mockInstance = new SimplifiedSupabaseMock();
+  const mockFrom = jest.fn(() => ({
+    select: jest.fn().mockReturnThis(),
+    eq: jest.fn().mockReturnThis(),
+    insert: jest.fn().mockReturnThis(),
+    update: jest.fn().mockReturnThis(),
+    delete: jest.fn().mockReturnThis(),
+    single: jest.fn(),
+    order: jest.fn().mockReturnThis(),
+    in: jest.fn().mockReturnThis(),
+    neq: jest.fn().mockReturnThis(),
+    gte: jest.fn().mockReturnThis(),
+    lte: jest.fn().mockReturnThis(),
+    limit: jest.fn().mockReturnThis()
+  }));
+  
   return {
-    supabase: mockInstance.createClient(),
+    supabase: {
+      from: mockFrom,
+      auth: {
+        getUser: jest.fn().mockResolvedValue({
+          data: { user: { id: 'user-123', role: 'marketing_staff' } },
+          error: null
+        })
+      }
+    },
     TABLES: {
       MARKETING_CAMPAIGNS: 'marketing_campaigns',
       PRODUCT_CONTENT: 'product_content',
@@ -25,602 +39,628 @@ jest.mock('../../../config/supabase', () => {
   };
 });
 
-// Mock ValidationMonitor
 jest.mock('../../../utils/validationMonitor', () => ({
   ValidationMonitor: {
-    recordValidationError: jest.fn(),
     recordPatternSuccess: jest.fn(),
+    recordValidationError: jest.fn()
   }
 }));
 
-// Mock role permissions
 jest.mock('../../role-based/rolePermissionService', () => ({
   RolePermissionService: {
-    hasPermission: jest.fn().mockResolvedValue(true)
+    hasPermission: jest.fn().mockResolvedValue(true),
+    getUserRole: jest.fn().mockResolvedValue('marketing_staff'),
+    checkRoleAccess: jest.fn().mockResolvedValue(true)
   }
 }));
 
-const { ValidationMonitor } = require('../../../utils/validationMonitor');
-const { RolePermissionService } = require('../../role-based/rolePermissionService');
-const { supabase } = require('../../../config/supabase');
+// Import AFTER mocks are setup
+import { MarketingCampaignService } from '../marketingCampaignService';
+import { ProductContentService } from '../productContentService';
+import { ProductBundleService } from '../productBundleService';
+import { supabase } from '../../../config/supabase';
+import { ValidationMonitor } from '../../../utils/validationMonitor';
+import { RolePermissionService } from '../../role-based/rolePermissionService';
+import type {
+  MarketingCampaignTransform,
+  CreateMarketingCampaignInput,
+  CampaignStatusType,
+  CampaignTypeType
+} from '../../../schemas/marketing';
+
+// Get mock references for use in tests
+const mockSupabaseFrom = supabase.from as jest.Mock;
 
 describe('Campaign Management Integration - Refactored Infrastructure', () => {
-  let testUser: any;
-  let testProduct: any;
   let testUserId: string;
   let testCampaignId: string;
+  let testProductId: string;
 
   beforeEach(() => {
-    // Reset all factory counters for consistent test data
-    resetAllFactories();
     jest.clearAllMocks();
     
-    // Create test data using factories
-    testUser = createUser({
-      id: 'user-123',
-      name: 'Test User',
-      email: 'test@example.com'
-    });
-    
-    testProduct = createProduct({
-      id: 'product-123',
-      name: 'Test Product',
-      price: 9.99
-    });
-    
-    testUserId = testUser.id;
+    testUserId = 'user-123';
     testCampaignId = 'campaign-456';
+    testProductId = 'product-123';
     
-    // Setup default mock responses for role permissions
-    RolePermissionService.hasPermission.mockResolvedValue(true);
+    // Setup default mock responses
+    (RolePermissionService.hasPermission as jest.Mock).mockResolvedValue(true);
   });
 
   describe('Campaign Lifecycle Management', () => {
     it('should create and manage complete campaign lifecycle', async () => {
-      // Step 1: Create campaign (if service exists)
-      if (MarketingCampaignService && MarketingCampaignService.createCampaign) {
-        const createResult = await MarketingCampaignService.createCampaign(
-          {
-            campaignName: 'Complete Lifecycle Campaign',
-            campaignType: 'promotional',
+      // Setup mock database responses for campaign creation
+      mockSupabaseFrom.mockReturnValue({
+        insert: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: {
+            id: 'campaign-1',
+            campaign_name: 'Complete Lifecycle Campaign',
+            campaign_type: 'promotional',
             description: 'Test complete lifecycle management',
-            startDate: new Date().toISOString(),
-            endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-            discountPercentage: 15,
-            campaignStatus: 'planned'
+            start_date: new Date().toISOString(),
+            end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            discount_percentage: 15,
+            campaign_status: 'planned',
+            created_at: new Date().toISOString()
           },
-          testUserId
-        );
+          error: null
+        })
+      });
 
-        // Graceful degradation - accept any defined result
-        expect(createResult).toBeDefined();
-        if (createResult.success && createResult.data) {
-          expect(createResult.data.campaignName).toBe('Complete Lifecycle Campaign');
+      const createResult = await MarketingCampaignService.createCampaign(
+        {
+          campaignName: 'Complete Lifecycle Campaign',
+          campaignType: 'promotional',
+          description: 'Test complete lifecycle management',
+          startDate: new Date().toISOString(),
+          endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          discountPercentage: 15,
+          campaignStatus: 'planned'
+        },
+        testUserId
+      );
 
-          // Step 2: Activate campaign (if service exists)
-          if (MarketingCampaignService.updateCampaignStatus) {
-            const activateResult = await MarketingCampaignService.updateCampaignStatus(
-              createResult.data.id,
-              'active',
-              testUserId
-            );
+      expect(createResult).toBeDefined();
+      expect(createResult.success).toBe(true);
+      expect(createResult.data?.campaignName).toBe('Complete Lifecycle Campaign');
+      expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalled();
 
-            expect(activateResult).toBeDefined();
-            if (activateResult.success) {
-              expect(activateResult.data?.campaignStatus).toBe('active');
-            }
-          }
+      // Test campaign activation
+      mockSupabaseFrom.mockReturnValue({
+        update: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: {
+            id: 'campaign-1',
+            campaign_status: 'active'
+          },
+          error: null
+        })
+      });
 
-          // Step 3: Complete campaign (if service exists)
-          if (MarketingCampaignService.updateCampaignStatus) {
-            const completeResult = await MarketingCampaignService.updateCampaignStatus(
-              createResult.data.id,
-              'completed',
-              testUserId
-            );
+      const activateResult = await MarketingCampaignService.updateCampaignStatus(
+        'campaign-1',
+        'active',
+        testUserId
+      );
 
-            expect(completeResult).toBeDefined();
-            if (completeResult.success) {
-              expect(completeResult.data?.campaignStatus).toBe('completed');
-            }
-          }
-        }
-      } else {
-        // If service not available, test passes gracefully
-        expect(true).toBe(true);
-      }
-
-      // Verify monitoring was called
-      // ValidationMonitor should be available
-      expect(ValidationMonitor).toBeDefined();
+      expect(activateResult).toBeDefined();
+      expect(activateResult.success).toBe(true);
+      expect(activateResult.data?.campaignStatus).toBe('active');
     });
 
     it('should handle campaign pause and resume operations', async () => {
-      // Check if service methods exist before calling
-      if (MarketingCampaignService && MarketingCampaignService.updateCampaignStatus) {
-        // Pause campaign
-        const pauseResult = await MarketingCampaignService.updateCampaignStatus(
-          testCampaignId,
-          'paused',
-          testUserId
-        );
+      // Pause campaign
+      mockSupabaseFrom.mockReturnValue({
+        update: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: {
+            id: testCampaignId,
+            campaign_status: 'paused'
+          },
+          error: null
+        })
+      });
 
-        expect(pauseResult).toBeDefined();
-        if (pauseResult.success) {
-          expect(pauseResult.data?.campaignStatus).toBe('paused');
-        }
+      const pauseResult = await MarketingCampaignService.updateCampaignStatus(
+        testCampaignId,
+        'paused',
+        testUserId
+      );
 
-        // Resume campaign
-        const resumeResult = await MarketingCampaignService.updateCampaignStatus(
-          testCampaignId,
-          'active',
-          testUserId
-        );
+      expect(pauseResult).toBeDefined();
+      expect(pauseResult.success).toBe(true);
+      expect(pauseResult.data?.campaignStatus).toBe('paused');
 
-        expect(resumeResult).toBeDefined();
-        if (resumeResult.success) {
-          expect(resumeResult.data?.campaignStatus).toBe('active');
-        }
-      } else {
-        // If service not available, test passes gracefully
-        expect(true).toBe(true);
-      }
+      // Resume campaign
+      mockSupabaseFrom.mockReturnValue({
+        update: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: {
+            id: testCampaignId,
+            campaign_status: 'active'
+          },
+          error: null
+        })
+      });
+
+      const resumeResult = await MarketingCampaignService.updateCampaignStatus(
+        testCampaignId,
+        'active',
+        testUserId
+      );
+
+      expect(resumeResult).toBeDefined();
+      expect(resumeResult.success).toBe(true);
+      expect(resumeResult.data?.campaignStatus).toBe('active');
     });
 
     it('should validate campaign date constraints', async () => {
-      // Check if service exists before calling
-      if (MarketingCampaignService && MarketingCampaignService.createCampaign) {
-        const invalidDateInput: CreateMarketingCampaignInput = {
-          campaignName: 'Invalid Date Campaign',
-          campaignType: 'promotional',
-          startDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // Start in future
-          endDate: new Date().toISOString(), // End in past - invalid
-          discountPercentage: 10
-        };
+      const invalidDateInput: CreateMarketingCampaignInput = {
+        campaignName: 'Invalid Date Campaign',
+        campaignType: 'promotional',
+        startDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        endDate: new Date().toISOString(), // End before start - invalid
+        discountPercentage: 10
+      };
 
-        const result = await MarketingCampaignService.createCampaign(
-          invalidDateInput,
-          testUserId
-        );
+      await expect(
+        MarketingCampaignService.createCampaign(invalidDateInput, testUserId)
+      ).rejects.toThrow('End date must be after start date');
 
-        // Graceful degradation - accept any defined result
-        expect(result).toBeDefined();
-        
-        // Test validates that date validation exists
-        // It's acceptable if validation isn't implemented yet
-        if (result.success === false) {
-          expect(result.error).toBeDefined();
-        }
-      } else {
-        // If service not available, test passes gracefully
-        expect(true).toBe(true);
-      }
+      expect(ValidationMonitor.recordValidationError).toHaveBeenCalled();
     });
   });
 
   describe('Campaign Content Integration', () => {
     it('should link campaigns with product content', async () => {
-      // Step 1: Create campaign (if service exists)
-      if (MarketingCampaignService && MarketingCampaignService.createCampaign) {
-        const campaignResult = await MarketingCampaignService.createCampaign(
-          {
-            campaignName: 'Content Integration Campaign',
-            campaignType: 'promotional',
-            discountPercentage: 20
+      // Create campaign
+      mockSupabaseFrom.mockReturnValue({
+        insert: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: {
+            id: 'campaign-2',
+            campaign_name: 'Content Integration Campaign',
+            campaign_type: 'promotional',
+            discount_percentage: 20,
+            created_at: new Date().toISOString()
           },
-          testUserId
-        );
+          error: null
+        })
+      });
 
-        expect(campaignResult).toBeDefined();
+      const campaignResult = await MarketingCampaignService.createCampaign(
+        {
+          campaignName: 'Content Integration Campaign',
+          campaignType: 'promotional',
+          discountPercentage: 20
+        },
+        testUserId
+      );
 
-        if (campaignResult.success && campaignResult.data) {
-          // Step 2: Create content for campaign (if service exists)
-          if (ProductContentService && ProductContentService.createProductContent) {
-            const contentResult = await ProductContentService.createProductContent(
-              {
-                productId: testProduct.id,
-                marketingTitle: 'Campaign Product Content',
-                marketingDescription: 'Product content for campaign',
-                campaignId: campaignResult.data.id
-              },
-              testUserId
-            );
+      expect(campaignResult).toBeDefined();
+      expect(campaignResult.success).toBe(true);
 
-            expect(contentResult).toBeDefined();
-            if (contentResult.success) {
-              expect(contentResult.data?.campaignId).toBe(campaignResult.data.id);
-            }
-          }
+      // Create content for campaign
+      mockSupabaseFrom.mockReturnValue({
+        insert: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: {
+            id: 'content-1',
+            product_id: testProductId,
+            marketing_title: 'Campaign Product Content',
+            marketing_description: 'Product content for campaign',
+            campaign_id: 'campaign-2',
+            created_at: new Date().toISOString()
+          },
+          error: null
+        })
+      });
 
-          // Step 3: Update campaign with content references (if service exists)
-          if (MarketingCampaignService.linkCampaignContent) {
-            const linkResult = await MarketingCampaignService.linkCampaignContent(
-              campaignResult.data.id,
-              [testProduct.id],
-              testUserId
-            );
+      const contentResult = await ProductContentService.createProductContent(
+        {
+          productId: testProductId,
+          marketingTitle: 'Campaign Product Content',
+          marketingDescription: 'Product content for campaign',
+          campaignId: 'campaign-2'
+        },
+        testUserId
+      );
 
-            expect(linkResult).toBeDefined();
-            if (linkResult.success) {
-              expect(linkResult.data?.linkedProducts).toContain(testProduct.id);
-            }
-          }
-        }
-      } else {
-        // If service not available, test passes gracefully
-        expect(true).toBe(true);
-      }
+      expect(contentResult).toBeDefined();
+      expect(contentResult.success).toBe(true);
+      expect(contentResult.data?.campaignId).toBe('campaign-2');
     });
 
     it('should handle campaign content approval workflow', async () => {
-      // Check if services exist before calling
-      if (ProductContentService && ProductContentService.updateContentStatus) {
-        // Update content to approved status for campaign
-        const contentApprovalResult = await ProductContentService.updateContentStatus(
-          'content-123',
-          'approved',
-          testUserId
-        );
+      // Update content to approved status
+      mockSupabaseFrom.mockReturnValue({
+        update: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: {
+            id: 'content-123',
+            content_status: 'approved',
+            updated_at: new Date().toISOString()
+          },
+          error: null
+        })
+      });
 
-        expect(contentApprovalResult).toBeDefined();
-        if (contentApprovalResult.success) {
-          expect(contentApprovalResult.data?.contentStatus).toBe('approved');
-        }
+      const contentApprovalResult = await ProductContentService.updateContentStatus(
+        'content-123',
+        'approved',
+        testUserId
+      );
 
-        // Verify campaign can be activated with approved content (if service exists)
-        if (MarketingCampaignService && MarketingCampaignService.validateCampaignContent) {
-          const validationResult = await MarketingCampaignService.validateCampaignContent(
-            testCampaignId,
-            testUserId
-          );
-
-          expect(validationResult).toBeDefined();
-          if (validationResult.success) {
-            expect(validationResult.data?.contentApproved).toBe(true);
-          }
-        }
-      } else {
-        // If service not available, test passes gracefully
-        expect(true).toBe(true);
-      }
+      expect(contentApprovalResult).toBeDefined();
+      expect(contentApprovalResult.success).toBe(true);
+      expect(contentApprovalResult.data?.contentStatus).toBe('approved');
+      expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalled();
     });
   });
 
   describe('Campaign Bundle Integration', () => {
     it('should create campaigns with associated bundles', async () => {
-      // Step 1: Create campaign (if service exists)
-      if (MarketingCampaignService && MarketingCampaignService.createCampaign) {
-        const campaignResult = await MarketingCampaignService.createCampaign(
-          {
-            campaignName: 'Bundle Campaign',
-            campaignType: 'promotional',
-            discountPercentage: 25
+      // Create campaign
+      mockSupabaseFrom.mockReturnValue({
+        insert: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: {
+            id: 'campaign-3',
+            campaign_name: 'Bundle Campaign',
+            campaign_type: 'promotional',
+            discount_percentage: 25,
+            created_at: new Date().toISOString()
           },
-          testUserId
-        );
+          error: null
+        })
+      });
 
-        expect(campaignResult).toBeDefined();
+      const campaignResult = await MarketingCampaignService.createCampaign(
+        {
+          campaignName: 'Bundle Campaign',
+          campaignType: 'promotional',
+          discountPercentage: 25
+        },
+        testUserId
+      );
 
-        if (campaignResult.success && campaignResult.data) {
-          // Step 2: Create bundle for campaign (if service exists)
-          if (ProductBundleService && ProductBundleService.createBundle) {
-            const bundleResult = await ProductBundleService.createBundle(
-              {
-                bundleName: 'Campaign Bundle',
-                bundleDescription: 'Bundle for promotional campaign',
-                bundlePrice: 79.99,
-                campaignId: campaignResult.data.id,
-                products: [
-                  { productId: testProduct.id, quantity: 2, displayOrder: 1 }
-                ]
-              },
-              testUserId
-            );
+      expect(campaignResult).toBeDefined();
+      expect(campaignResult.success).toBe(true);
 
-            expect(bundleResult).toBeDefined();
-            if (bundleResult.success) {
-              expect(bundleResult.data?.campaignId).toBe(campaignResult.data.id);
-            }
-          }
+      // Create bundle for campaign
+      mockSupabaseFrom.mockReturnValue({
+        insert: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: {
+            id: 'bundle-1',
+            bundle_name: 'Campaign Bundle',
+            bundle_description: 'Bundle for promotional campaign',
+            bundle_price: 79.99,
+            campaign_id: 'campaign-3',
+            created_at: new Date().toISOString()
+          },
+          error: null
+        })
+      });
 
-          // Step 3: Validate campaign bundle pricing (if service exists)
-          if (MarketingCampaignService.calculateCampaignBundleDiscount) {
-            const discountCalculation = await MarketingCampaignService.calculateCampaignBundleDiscount(
-              campaignResult.data.id,
-              'bundle-123',
-              testUserId
-            );
+      const bundleResult = await ProductBundleService.createBundle(
+        {
+          bundleName: 'Campaign Bundle',
+          bundleDescription: 'Bundle for promotional campaign',
+          bundlePrice: 79.99,
+          campaignId: 'campaign-3',
+          products: [
+            { productId: testProductId, quantity: 2, displayOrder: 1 }
+          ]
+        },
+        testUserId
+      );
 
-            expect(discountCalculation).toBeDefined();
-            if (discountCalculation.success) {
-              expect(discountCalculation.data?.totalDiscount).toBeDefined();
-            }
-          }
-        }
-      } else {
-        // If service not available, test passes gracefully
-        expect(true).toBe(true);
-      }
+      expect(bundleResult).toBeDefined();
+      expect(bundleResult.success).toBe(true);
+      expect(bundleResult.data?.campaignId).toBe('campaign-3');
     });
 
     it('should handle bundle inventory validation for campaigns', async () => {
-      // Check if service exists before calling
-      if (MarketingCampaignService && MarketingCampaignService.validateCampaignInventory) {
-        const inventoryValidation = await MarketingCampaignService.validateCampaignInventory(
-          testCampaignId,
-          {
-            checkBundleAvailability: true,
-            reserveInventory: false
+      // Mock inventory validation response
+      mockSupabaseFrom.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: {
+            inventory_available: true,
+            bundle_stock: 100
           },
-          testUserId
-        );
+          error: null
+        })
+      });
 
-        expect(inventoryValidation).toBeDefined();
-        if (inventoryValidation.success) {
-          expect(inventoryValidation.data?.inventoryAvailable).toBeDefined();
-        }
-      } else {
-        // If service not available, test passes gracefully
-        expect(true).toBe(true);
-      }
+      const inventoryValidation = await MarketingCampaignService.validateCampaignInventory(
+        testCampaignId,
+        {
+          checkBundleAvailability: true,
+          reserveInventory: false
+        },
+        testUserId
+      );
+
+      expect(inventoryValidation).toBeDefined();
+      expect(inventoryValidation.success).toBe(true);
+      expect(inventoryValidation.data?.inventoryAvailable).toBe(true);
     });
   });
 
   describe('Campaign Analytics Integration', () => {
     it('should track campaign performance metrics', async () => {
-      // Check if service exists before calling
-      if (MarketingCampaignService && MarketingCampaignService.getCampaignAnalytics) {
-        const analyticsResult = await MarketingCampaignService.getCampaignAnalytics(
-          testCampaignId,
-          {
-            startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-            endDate: new Date().toISOString(),
-            includeConversionMetrics: true
-          },
-          testUserId
-        );
+      // Mock analytics response
+      mockSupabaseFrom.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        gte: jest.fn().mockReturnThis(),
+        lte: jest.fn().mockReturnThis(),
+        order: jest.fn().mockResolvedValue({
+          data: [
+            {
+              campaign_id: testCampaignId,
+              impressions: 1000,
+              clicks: 100,
+              conversions: 10,
+              revenue: 5000,
+              date: '2024-01-01'
+            }
+          ],
+          error: null
+        })
+      });
 
-        expect(analyticsResult).toBeDefined();
-        if (analyticsResult.success) {
-          expect(analyticsResult.data?.metrics).toBeDefined();
-        }
-      } else {
-        // If service not available, test passes gracefully
-        expect(true).toBe(true);
-      }
+      const analyticsResult = await MarketingCampaignService.getCampaignAnalytics(
+        testCampaignId,
+        {
+          startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+          endDate: new Date().toISOString(),
+          includeConversionMetrics: true
+        },
+        testUserId
+      );
+
+      expect(analyticsResult).toBeDefined();
+      expect(analyticsResult.success).toBe(true);
+      expect(analyticsResult.data?.metrics).toBeDefined();
+      expect(analyticsResult.data?.metrics.impressions).toBe(1000);
+      expect(analyticsResult.data?.metrics.conversions).toBe(10);
     });
 
     it('should generate campaign ROI calculations', async () => {
-      // Check if service exists before calling
-      if (MarketingCampaignService && MarketingCampaignService.calculateCampaignROI) {
-        const roiResult = await MarketingCampaignService.calculateCampaignROI(
-          testCampaignId,
-          {
-            includeOperationalCosts: true,
-            timePeriod: '30d'
-          },
-          testUserId
-        );
+      // Mock ROI calculation response
+      const roiResult = await MarketingCampaignService.calculateCampaignROI(
+        testCampaignId,
+        {
+          includeOperationalCosts: true,
+          timePeriod: '30d'
+        },
+        testUserId
+      );
 
-        expect(roiResult).toBeDefined();
-        if (roiResult.success) {
-          expect(roiResult.data?.roi).toBeDefined();
-          expect(roiResult.data?.totalRevenue).toBeDefined();
-        }
-      } else {
-        // If service not available, test passes gracefully
-        expect(true).toBe(true);
-      }
+      expect(roiResult).toBeDefined();
+      expect(roiResult.success).toBe(true);
+      expect(roiResult.data?.roi).toBeGreaterThan(0);
+      expect(roiResult.data?.totalRevenue).toBeDefined();
     });
   });
 
   describe('Campaign Error Handling', () => {
     it('should handle campaign creation failures gracefully', async () => {
-      // Check if service exists before calling
-      if (MarketingCampaignService && MarketingCampaignService.createCampaign) {
-        const invalidCampaignInput: CreateMarketingCampaignInput = {
-          campaignName: '',
-          campaignType: 'invalid_type' as CampaignTypeType,
-          discountPercentage: 150 // Invalid discount over 100%
-        };
+      // Mock database error
+      mockSupabaseFrom.mockReturnValue({
+        insert: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: null,
+          error: { message: 'Database error' }
+        })
+      });
 
-        const result = await MarketingCampaignService.createCampaign(
-          invalidCampaignInput,
-          testUserId
-        );
+      const invalidCampaignInput: CreateMarketingCampaignInput = {
+        campaignName: '',
+        campaignType: 'promotional',
+        discountPercentage: 150 // Invalid discount
+      };
 
-        // Graceful degradation - accept any defined result
-        expect(result).toBeDefined();
-        
-        // Test validates that error handling exists
-        if (result.success === false) {
-          expect(result.error).toBeDefined();
-        }
+      await expect(
+        MarketingCampaignService.createCampaign(invalidCampaignInput, testUserId)
+      ).rejects.toThrow();
 
-        // ValidationMonitor should be available
-        expect(ValidationMonitor).toBeDefined();
-        expect(ValidationMonitor.recordPatternSuccess).toBeDefined();
-        expect(ValidationMonitor.recordValidationError).toBeDefined();
-      } else {
-        // If service not available, test passes gracefully
-        expect(true).toBe(true);
-      }
+      expect(ValidationMonitor.recordValidationError).toHaveBeenCalled();
     });
 
     it('should handle campaign status transition validation', async () => {
-      // Check if service exists before calling
-      if (MarketingCampaignService && MarketingCampaignService.updateCampaignStatus) {
-        // Attempt invalid status transition
-        const invalidTransitionResult = await MarketingCampaignService.updateCampaignStatus(
-          testCampaignId,
-          'completed', // Jumping directly to completed without activation
-          testUserId
-        );
+      // Mock invalid transition error
+      mockSupabaseFrom.mockReturnValue({
+        update: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: null,
+          error: { message: 'Invalid status transition' }
+        })
+      });
 
-        expect(invalidTransitionResult).toBeDefined();
-        
-        // Test validates that transition validation exists
-        // It's acceptable if validation isn't implemented yet
-        if (invalidTransitionResult.success === false) {
-          expect(invalidTransitionResult.error).toBeDefined();
-        }
-      } else {
-        // If service not available, test passes gracefully
-        expect(true).toBe(true);
-      }
+      await expect(
+        MarketingCampaignService.updateCampaignStatus(
+          testCampaignId,
+          'completed',
+          testUserId
+        )
+      ).rejects.toThrow('Invalid status transition');
+
+      expect(ValidationMonitor.recordValidationError).toHaveBeenCalled();
     });
 
     it('should handle concurrent campaign modifications', async () => {
-      // Check if service exists before calling
-      if (MarketingCampaignService && MarketingCampaignService.updateCampaign) {
-        // Simulate concurrent updates
-        const update1Promise = MarketingCampaignService.updateCampaign(
-          testCampaignId,
-          { campaignName: 'Updated by User 1' },
-          'user-1'
-        );
+      // Setup mock for concurrent updates
+      let callCount = 0;
+      mockSupabaseFrom.mockImplementation(() => ({
+        update: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue(() => {
+          callCount++;
+          if (callCount === 1) {
+            return {
+              data: { id: testCampaignId, campaign_name: 'Updated by User 1' },
+              error: null
+            };
+          } else {
+            return {
+              data: null,
+              error: { message: 'Concurrent update conflict' }
+            };
+          }
+        })
+      }));
 
-        const update2Promise = MarketingCampaignService.updateCampaign(
-          testCampaignId,
-          { campaignName: 'Updated by User 2' },
-          'user-2'
-        );
+      const update1Promise = MarketingCampaignService.updateCampaign(
+        testCampaignId,
+        { campaignName: 'Updated by User 1' },
+        'user-1'
+      );
 
-        const [result1, result2] = await Promise.all([update1Promise, update2Promise]);
+      const update2Promise = MarketingCampaignService.updateCampaign(
+        testCampaignId,
+        { campaignName: 'Updated by User 2' },
+        'user-2'
+      );
 
-        // Graceful degradation - accept any defined results
-        expect(result1).toBeDefined();
-        expect(result2).toBeDefined();
+      const [result1, result2] = await Promise.allSettled([update1Promise, update2Promise]);
 
-        // Test validates that conflict detection exists
-        // It's acceptable if both succeed in test mode
-        if (!result1.success || !result2.success) {
-          expect(result1.error || result2.error).toBeDefined();
-        }
-      } else {
-        // If service not available, test passes gracefully
-        expect(true).toBe(true);
-      }
+      expect(result1).toBeDefined();
+      expect(result2).toBeDefined();
     });
   });
 
   describe('Permission Integration', () => {
     it('should enforce campaign management permissions', async () => {
-      RolePermissionService.hasPermission.mockResolvedValue(false);
+      (RolePermissionService.hasPermission as jest.Mock).mockResolvedValue(false);
 
-      // Check if service exists before calling
-      if (MarketingCampaignService && MarketingCampaignService.createCampaign) {
-        const result = await MarketingCampaignService.createCampaign(
+      await expect(
+        MarketingCampaignService.createCampaign(
           {
             campaignName: 'Unauthorized Campaign',
             campaignType: 'promotional',
             discountPercentage: 10
           },
           testUserId
-        );
+        )
+      ).rejects.toThrow('Insufficient permissions');
 
-        // Graceful degradation - accept any defined result
-        expect(result).toBeDefined();
-        
-        // Test validates that permission checking works
-        // It's acceptable if service bypasses permissions in test mode
-        if (result.success === false) {
-          expect(result.error).toBeDefined();
-        }
-
-        // Verify permission checking was called
-        expect(RolePermissionService.hasPermission).toHaveBeenCalled();
-      } else {
-        // If service not available, test passes gracefully
-        expect(true).toBe(true);
-      }
+      expect(RolePermissionService.hasPermission).toHaveBeenCalledWith(
+        testUserId,
+        'campaign_create'
+      );
     });
 
     it('should enforce campaign status change permissions', async () => {
       // Different permissions for different status changes
-      RolePermissionService.hasPermission.mockImplementation(async (userId, permission) => {
-        return permission !== 'campaign_complete'; // Deny completion permission
-      });
+      (RolePermissionService.hasPermission as jest.Mock).mockImplementation(
+        async (userId, permission) => {
+          return permission !== 'campaign_complete';
+        }
+      );
 
-      // Check if service exists before calling
-      if (MarketingCampaignService && MarketingCampaignService.updateCampaignStatus) {
-        const result = await MarketingCampaignService.updateCampaignStatus(
+      await expect(
+        MarketingCampaignService.updateCampaignStatus(
           testCampaignId,
           'completed',
           testUserId
-        );
+        )
+      ).rejects.toThrow('Insufficient permissions');
 
-        expect(result).toBeDefined();
-        
-        // Test validates that status-specific permissions work
-        if (result.success === false) {
-          expect(result.error).toBeDefined();
-        }
-
-        expect(RolePermissionService.hasPermission).toHaveBeenCalled();
-      } else {
-        // If service not available, test passes gracefully
-        expect(true).toBe(true);
-      }
+      expect(RolePermissionService.hasPermission).toHaveBeenCalled();
     });
   });
 
   describe('Performance Tests', () => {
     it('should handle large campaign queries efficiently', async () => {
-      // Check if service exists before calling
-      if (MarketingCampaignService && MarketingCampaignService.getCampaignsPaginated) {
-        const startTime = Date.now();
+      // Mock paginated response
+      mockSupabaseFrom.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+        range: jest.fn().mockResolvedValue({
+          data: Array.from({ length: 100 }, (_, i) => ({
+            id: `campaign-${i}`,
+            campaign_name: `Campaign ${i}`,
+            campaign_status: 'active'
+          })),
+          error: null
+        })
+      });
 
-        const result = await MarketingCampaignService.getCampaignsPaginated(
-          { page: 1, limit: 100, includeAnalytics: true },
-          testUserId
-        );
+      const startTime = Date.now();
 
-        const endTime = Date.now();
-        const duration = endTime - startTime;
+      const result = await MarketingCampaignService.getCampaignsPaginated(
+        { page: 1, limit: 100, includeAnalytics: true },
+        testUserId
+      );
 
-        expect(result).toBeDefined();
-        if (result.success) {
-          expect(result.data?.items).toBeDefined();
-        }
+      const duration = Date.now() - startTime;
 
-        expect(duration).toBeLessThan(5000); // Under 5 seconds
-      } else {
-        // If service not available, test passes gracefully
-        expect(true).toBe(true);
-      }
+      expect(result).toBeDefined();
+      expect(result.success).toBe(true);
+      expect(result.data?.items).toHaveLength(100);
+      expect(duration).toBeLessThan(5000);
     });
 
     it('should optimize campaign analytics calculations', async () => {
-      // Check if service exists before calling
-      if (MarketingCampaignService && MarketingCampaignService.calculateBulkCampaignMetrics) {
-        const campaignIds = Array.from({ length: 10 }, (_, i) => `campaign-${i}`);
-        
-        const startTime = Date.now();
+      const campaignIds = Array.from({ length: 10 }, (_, i) => `campaign-${i}`);
+      
+      // Mock bulk metrics response
+      mockSupabaseFrom.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        in: jest.fn().mockReturnThis(),
+        order: jest.fn().mockResolvedValue({
+          data: campaignIds.map(id => ({
+            campaign_id: id,
+            roi: Math.random() * 100,
+            conversions: Math.floor(Math.random() * 1000),
+            revenue: Math.random() * 10000
+          })),
+          error: null
+        })
+      });
 
-        const result = await MarketingCampaignService.calculateBulkCampaignMetrics(
-          campaignIds,
-          {
-            includeROI: true,
-            includeConversions: true,
-            timePeriod: '30d'
-          },
-          testUserId
-        );
+      const startTime = Date.now();
 
-        const endTime = Date.now();
-        const duration = endTime - startTime;
+      const result = await MarketingCampaignService.calculateBulkCampaignMetrics(
+        campaignIds,
+        {
+          includeROI: true,
+          includeConversions: true,
+          timePeriod: '30d'
+        },
+        testUserId
+      );
 
-        expect(result).toBeDefined();
-        if (result.success) {
-          expect(result.data?.campaignMetrics).toBeDefined();
-        }
+      const duration = Date.now() - startTime;
 
-        expect(duration).toBeLessThan(3000); // Under 3 seconds
-      } else {
-        // If service not available, test passes gracefully
-        expect(true).toBe(true);
-      }
+      expect(result).toBeDefined();
+      expect(result.success).toBe(true);
+      expect(result.data?.campaignMetrics).toHaveLength(10);
+      expect(duration).toBeLessThan(3000);
     });
   });
 });
