@@ -77,7 +77,6 @@ class ProductAdminService {
           description,
           price,
           category_id,
-          category_id,
           image_url,
           is_available,
           is_bundle,
@@ -128,6 +127,7 @@ class ProductAdminService {
       }
 
       // Step 3: Individual validation with skip-on-error (Pattern 3: Resilient Item Processing)
+      const startTime = Date.now();
       const products: ProductAdminTransform[] = [];
       const errors: Array<{ id: string; error: string }> = [];
       
@@ -148,12 +148,8 @@ class ProductAdminService {
           
           // Track validation failure
           ValidationMonitor.recordValidationError({
-            operation: 'getAllProducts',
-            error: errorMessage,
-            context: {
-              productId: rawProduct?.id,
-              name: rawProduct?.name
-            }
+            context: `getAllProducts - productId: ${rawProduct?.id}, name: ${rawProduct?.name}`,
+            errorMessage: errorMessage
           });
           
           console.error('Invalid product data, skipping:', {
@@ -273,8 +269,7 @@ class ProductAdminService {
       ValidationMonitor.recordPatternSuccess({
         service: 'productAdminService',
         pattern: 'transformation_schema',
-        operation: 'createProduct',
-        details: { productName: validatedData.name }
+        operation: 'createProduct'
       });
       
       // Step 2: Prepare for database insert
@@ -368,7 +363,7 @@ class ProductAdminService {
       const updatePayload = prepareProductForUpdate(validatedData);
       
       // Step 3: Update in database
-      const { data: updatedProduct, error } = await supabase
+      const { data, error } = await supabase
         .from(TABLES.PRODUCTS)
         .update(updatePayload)
         .eq('id', id)
@@ -453,7 +448,7 @@ class ProductAdminService {
   async deleteProduct(id: string): Promise<ProductAdminApiResponse<ProductAdminTransform>> {
     try {
       // Soft delete by updating is_available
-      const { data: deletedProduct, error } = await supabase
+      const { data, error } = await supabase
         .from(TABLES.PRODUCTS)
         .update({ 
           is_available: false,
@@ -532,8 +527,10 @@ class ProductAdminService {
 
       // Process each update individually (Pattern 3: skip-on-error)
       for (const update of validatedUpdates) {
+        if (!update) continue; // Skip null/undefined entries
+        
         try {
-          const { data: updatedProduct, error } = await supabase
+          const { data, error } = await supabase
             .from(TABLES.PRODUCTS)
             .update({ 
               stock_quantity: update.new_stock,
@@ -551,10 +548,8 @@ class ProductAdminService {
             
             // Track failed bulk operation
             ValidationMonitor.recordValidationError({
-              service: 'productAdminService',
-              operation: 'bulkUpdateStock',
-              error: error.message,
-              details: { productId: update.product_id }
+              context: `bulkUpdateStock - productId: ${update?.product_id}`,
+              errorMessage: error.message
             });
           } else {
             results.successfulUpdates.push({
@@ -567,13 +562,8 @@ class ProductAdminService {
             // Track successful bulk operation
             ValidationMonitor.recordPatternSuccess({
               service: 'productAdminService',
-              pattern: 'atomic_operation',
-              operation: 'bulkUpdateStock',
-              details: { 
-                productId: update.product_id,
-                newStock: update.new_stock,
-                reason: update.reason
-              }
+              pattern: 'direct_supabase_query',
+              operation: 'bulkUpdateStock'
             });
 
             // Broadcast individual update
@@ -623,7 +613,7 @@ class ProductAdminService {
   /**
    * Get products with low stock
    */
-  async getLowStockProducts(queryParams: LowStockQuery = {}): Promise<ProductAdminApiResponse<ProductAdminTransform[]>> {
+  async getLowStockProducts(queryParams: LowStockQuery = { threshold: 20, include_unavailable: false }): Promise<ProductAdminApiResponse<ProductAdminTransform[]>> {
     try {
       const validatedParams = LowStockQuerySchema.parse(queryParams);
       
@@ -670,7 +660,7 @@ class ProductAdminService {
   /**
    * Get out of stock products
    */
-  async getOutOfStockProducts(queryParams: OutOfStockQuery = {}): Promise<ProductAdminApiResponse<ProductAdminTransform[]>> {
+  async getOutOfStockProducts(queryParams: OutOfStockQuery = { include_unavailable: false, include_pre_order: false }): Promise<ProductAdminApiResponse<ProductAdminTransform[]>> {
     try {
       const validatedParams = OutOfStockQuerySchema.parse(queryParams);
       
