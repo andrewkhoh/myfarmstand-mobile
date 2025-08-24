@@ -81,3 +81,10 @@ const validateAllContracts = () => {
 };
 
 export default validateAllContracts;
+
+// Add a minimal Jest test so the file doesn't fail
+describe('Schema Contracts', () => {
+  it('should validate all contracts at runtime', () => {
+    expect(() => validateAllContracts()).not.toThrow();
+  });
+});

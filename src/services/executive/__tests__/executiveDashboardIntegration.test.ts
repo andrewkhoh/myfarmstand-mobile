@@ -1,4 +1,4 @@
-import { createSupabaseMock } from '../../../test/mocks/supabase.simplified.mock';
+import { SimplifiedSupabaseMock } from '../../../test/mocks/supabase.simplified.mock';
 import { createUser, resetAllFactories } from '../../../test/factories';
 import { BusinessMetricsService } from '../businessMetricsService';
 import { BusinessIntelligenceService } from '../businessIntelligenceService';
@@ -14,32 +14,24 @@ const { ValidationMonitor } = require('../../../utils/validationMonitor');
 jest.mock('../../role-based/rolePermissionService');
 
 // Mock Supabase
-jest.mock('../../../config/supabase');
-const { supabase } = require('../../../config/supabase');
+jest.mock('../../../config/supabase', () => ({
+  supabase: null // Will be set in beforeEach
+}));
 
 describe('Executive Dashboard Integration', () => {
+  let supabaseMock: SimplifiedSupabaseMock;
   const testUser = createUser();
   
   beforeEach(() => {
     jest.clearAllMocks();
     resetAllFactories();
     
-    const mockClient = createSupabaseMock();
-    Object.assign(supabase, mockClient);
-    jest.clearAllMocks();
+    // Create and inject mock
+    supabaseMock = new SimplifiedSupabaseMock();
+    require('../../../config/supabase').supabase = supabaseMock.createClient();
     
     // Setup default mocks
     (RolePermissionService.hasPermission as jest.Mock).mockResolvedValue(true);
-    
-    mockSupabase.from = jest.fn().mockReturnValue({
-      select: jest.fn().mockReturnThis(),
-      insert: jest.fn().mockReturnThis(),
-      update: jest.fn().mockReturnThis(),
-      eq: jest.fn().mockReturnThis(),
-      gte: jest.fn().mockReturnThis(),
-      order: jest.fn().mockReturnThis(),
-      single: jest.fn().mockReturnThis()
-    });
   });
 
   describe('Executive Dashboard Data Aggregation', () => {
@@ -85,21 +77,10 @@ describe('Executive Dashboard Integration', () => {
       };
 
       // Setup mock returns
-      mockSupabase.from.mockImplementation((table: string) => {
-        const mockData: any = {
-          'business_metrics': mockMetrics,
-          'business_insights': mockInsights,
-          'strategic_reports': mockReports,
-          'predictive_forecasts': mockForecasts
-        };
-        
-        return {
-          select: jest.fn().mockReturnThis(),
-          eq: jest.fn().mockReturnThis(),
-          gte: jest.fn().mockReturnThis(),
-          order: jest.fn().mockResolvedValue(mockData[table] || { data: [], error: null })
-        } as any;
-      });
+      supabaseMock.setTableData('business_metrics', mockMetrics.data);
+      supabaseMock.setTableData('business_insights', mockInsights.data);
+      supabaseMock.setTableData('strategic_reports', mockReports.data);
+      supabaseMock.setTableData('predictive_forecasts', mockForecasts.data);
 
       // Aggregate dashboard data
       const [metrics, insights, reports, forecasts] = await Promise.all([
@@ -145,11 +126,7 @@ describe('Executive Dashboard Integration', () => {
       };
 
       // First call returns initial data
-      mockSupabase.from.mockReturnValueOnce({
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        order: jest.fn().mockResolvedValue(mockInitialData)
-      } as any);
+      supabaseMock.setTableData('business_metrics', mockInitialData.data);
 
       const initialResult = await BusinessMetricsService.getCrossRoleMetrics({
         categories: ['revenue'],
@@ -157,11 +134,7 @@ describe('Executive Dashboard Integration', () => {
       });
 
       // Simulate real-time update
-      mockSupabase.from.mockReturnValueOnce({
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        order: jest.fn().mockResolvedValue(mockUpdatedData)
-      } as any);
+      supabaseMock.setTableData('business_metrics', mockUpdatedData.data);
 
       const updatedResult = await BusinessMetricsService.getCrossRoleMetrics({
         categories: ['revenue'],
@@ -199,20 +172,13 @@ describe('Executive Dashboard Integration', () => {
         predictiveAnalytics: { nextMonthForecast: 172500 }
       };
 
-      mockSupabase.from.mockReturnValue({
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({
-          data: {
-            id: 'report-1',
-            report_type: 'executive_summary',
-            report_config: {
-              data_sources: ['business_metrics', 'business_insights', 'predictive_forecasts']
-            }
-          },
-          error: null
-        })
-      } as any);
+      supabaseMock.setTableData('strategic_reports', [{
+        id: 'report-1',
+        report_type: 'executive_summary',
+        report_config: {
+          data_sources: ['business_metrics', 'business_insights', 'predictive_forecasts']
+        }
+      }]);
 
       const report = await StrategicReportingService.generateReport(
         'report-1',
@@ -234,30 +200,12 @@ describe('Executive Dashboard Integration', () => {
       const consistentProductId = 'prod-123';
       const consistentQuantity = 500;
 
-      mockSupabase.from.mockImplementation((table: string) => {
-        const data: any = {
-          'inventory_items': {
-            data: { product_id: consistentProductId, quantity_available: consistentQuantity },
-            error: null
-          },
-          'marketing_products': {
-            data: { product_id: consistentProductId, promoted_quantity: consistentQuantity },
-            error: null
-          },
-          'business_metrics': {
-            data: { product_id: consistentProductId, metric_value: consistentQuantity },
-            error: null
-          }
-        };
-
-        return {
-          select: jest.fn().mockReturnThis(),
-          eq: jest.fn().mockResolvedValue(data[table] || { data: null, error: null }),
-          single: jest.fn().mockResolvedValue(data[table] || { data: null, error: null })
-        } as any;
-      });
+      supabaseMock.setTableData('inventory_items', [{ product_id: consistentProductId, quantity_available: consistentQuantity }]);
+      supabaseMock.setTableData('marketing_products', [{ product_id: consistentProductId, promoted_quantity: consistentQuantity }]);
+      supabaseMock.setTableData('business_metrics', [{ product_id: consistentProductId, metric_value: consistentQuantity }]);
 
       // Verify consistency across all data sources
+      const { supabase } = require('../../../config/supabase');
       const inventoryData = await supabase.from('inventory_items')
         .select('*')
         .eq('product_id', consistentProductId)
@@ -370,9 +318,7 @@ describe('Executive Dashboard Integration', () => {
 
     it('should provide fallback data during service disruptions', async () => {
       // Simulate service failure
-      mockSupabase.from.mockImplementationOnce(() => {
-        throw new Error('Service temporarily unavailable');
-      });
+      supabaseMock.queueError(new Error('Service temporarily unavailable'));
 
       // Should return cached/fallback data
       const fallbackResult = await BusinessMetricsService.getCrossRoleMetrics({
@@ -422,9 +368,7 @@ describe('Executive Dashboard Integration', () => {
         requires_immediate_action: true
       };
 
-      mockSupabase.from.mockReturnValue({
-        insert: jest.fn().mockResolvedValue({ data: criticalInsight, error: null })
-      } as any);
+      supabaseMock.setTableData('critical_insights', [criticalInsight]);
 
       // Simulate insight generation
       const notification = {

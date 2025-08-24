@@ -4,6 +4,7 @@ import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals
 jest.mock('../../../utils/validationMonitor');
 
 import { InventoryService } from '../inventoryService';
+import { SimplifiedSupabaseMock } from '../../../test/mocks/supabase.simplified.mock';
 import { ValidationMonitor } from '../../../utils/validationMonitor';
 import type { 
   InventoryItemTransform,
@@ -13,15 +14,26 @@ import type {
   VisibilityUpdateInput
 } from '../../../schemas/inventory';
 
-// Mock the supabase module at the service level (copying authService exact pattern)
-const mockSupabase = require('../../../config/supabase').supabase;
+// Mock the supabase module
+jest.mock('../../../config/supabase', () => ({
+  supabase: null // Will be set in beforeEach
+}));
 
 // Real database testing against test tables
 describe('InventoryService - Phase 2.2 (Real Database)', () => {
+  let supabaseMock: SimplifiedSupabaseMock;
   
   // Test data cleanup IDs
   const testProductIds = new Set<string>();
   const testInventoryIds = new Set<string>();
+  
+  beforeEach(() => {
+    jest.clearAllMocks();
+    
+    // Create and inject mock
+    supabaseMock = new SimplifiedSupabaseMock();
+    require('../../../config/supabase').supabase = supabaseMock.createClient();
+  });
   
   // Mock test data - this matches the data from database/inventory-test-schema.sql
   const mockInventoryData = {
@@ -39,15 +51,19 @@ describe('InventoryService - Phase 2.2 (Real Database)', () => {
     updated_at: '2024-01-15T10:00:00Z'
   };
   
+  // Helper function to create test inventory data
+  const createTestInventory = (overrides = {}) => ({
+    ...mockInventoryData,
+    ...overrides
+  });
+  
 
   describe('getInventoryItem', () => {
     it('should get inventory item with transformation and database validation', async () => {
       const testInventory = createTestInventory();
       
-      const mockClient = createSupabaseMock({
-        inventory_items: [testInventory]
-      });
-      Object.assign(supabase, mockClient);
+      // Set up mock data
+      supabaseMock.setTableData('inventory_items', [testInventory]);
 
       const result = await InventoryService.getInventoryItem(testInventory.id);
       
@@ -71,10 +87,8 @@ describe('InventoryService - Phase 2.2 (Real Database)', () => {
     });
 
     it('should return null when inventory item not found', async () => {
-      const mockClient = createSupabaseMock({
-        inventory_items: [] // Empty data
-      });
-      Object.assign(supabase, mockClient);
+      // Set up empty mock data
+      supabaseMock.setTableData('inventory_items', []);
 
       const nonExistentId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
       

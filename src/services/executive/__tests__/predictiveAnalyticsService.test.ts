@@ -1,4 +1,4 @@
-import { createSupabaseMock } from '../../../test/mocks/supabase.simplified.mock';
+import { SimplifiedSupabaseMock } from '../../../test/mocks/supabase.simplified.mock';
 import { createUser, resetAllFactories } from '../../../test/factories';
 import { PredictiveAnalyticsService } from '../predictiveAnalyticsService';
 
@@ -7,19 +7,25 @@ jest.mock('../../../utils/validationMonitor');
 const { ValidationMonitor } = require('../../../utils/validationMonitor');
 
 // Mock Supabase
-jest.mock('../../../config/supabase');
-const { supabase } = require('../../../config/supabase');
+jest.mock('../../../config/supabase', () => ({
+  supabase: null // Will be set in beforeEach
+}));
 
 describe('PredictiveAnalyticsService', () => {
+  let supabaseMock: SimplifiedSupabaseMock;
   const testUser = createUser();
   
   beforeEach(() => {
     jest.clearAllMocks();
     resetAllFactories();
     
-    // Reset to simplified mock
-    const mockClient = createSupabaseMock();
-    Object.assign(supabase, mockClient);
+    // Create and inject mock
+    supabaseMock = new SimplifiedSupabaseMock();
+    require('../../../config/supabase').supabase = supabaseMock.createClient();
+  });
+  
+  afterEach(() => {
+    jest.clearAllMocks();
   });
   
   // Helper function to create complete predictive forecast data
@@ -50,62 +56,16 @@ describe('PredictiveAnalyticsService', () => {
     ...overrides
   });
 
-  // Helper function to create complete query chain mocks
-  const createQueryChainMock = (data: any[], error: any = null) => {
-    const mockMethods = {
-      select: jest.fn(),
-      in: jest.fn(),
-      eq: jest.fn(),
-      gte: jest.fn(),
-      lte: jest.fn(),
-      order: jest.fn(),
-      update: jest.fn(),
-      insert: jest.fn(),
-      single: jest.fn(),
-      range: jest.fn()
-    };
-
-    // Chain all methods to return the next method in the chain
-    mockMethods.select.mockReturnValue(mockMethods);
-    mockMethods.in.mockReturnValue(mockMethods);
-    mockMethods.eq.mockReturnValue(mockMethods);
-    mockMethods.gte.mockReturnValue(mockMethods);
-    mockMethods.lte.mockReturnValue(mockMethods);
-    mockMethods.update.mockReturnValue(mockMethods);
-    mockMethods.insert.mockReturnValue(mockMethods);
-    mockMethods.range.mockReturnValue(mockMethods);
-    
-    // Terminal methods return the data
-    mockMethods.order.mockResolvedValue({ data, error });
-    mockMethods.single.mockResolvedValue({ data: data[0] || null, error });
-    
-    // Also handle direct resolution (in case .order() isn't called)
-    Object.assign(mockMethods, { 
-      then: (resolve: any) => resolve({ data, error }),
-      catch: (reject: any) => error ? reject(error) : Promise.resolve({ data, error })
-    });
-
-    return mockMethods;
-  };
-
-  beforeEach(() => {
-    jest.clearAllMocks();
-    
-    // Reset Supabase mocks to prevent state contamination
-    if (global.resetSupabaseMocks) {
-      global.resetSupabaseMocks();
-    }
-  });
 
   // Debug test to verify basic mocking
   it('should verify supabase mock is working', async () => {
     const testData = [{ id: 'test-123', forecast_type: 'demand' }];
-    mockSupabase.from.mockReturnValue(createQueryChainMock(testData));
+    supabaseMock.setTableData('predictive_forecasts', testData);
     
     // Direct call to verify mock
-    const mockResult = await mockSupabase.from('predictive_forecasts').select('*').order('id');
+    const { supabase } = require('../../../config/supabase');
+    const mockResult = await supabase.from('predictive_forecasts').select('*').order('id');
     
-    expect(mockSupabase.from).toHaveBeenCalledWith('predictive_forecasts');
     expect(mockResult.data).toEqual(testData);
   });
 
@@ -132,7 +92,7 @@ describe('PredictiveAnalyticsService', () => {
         })
       ];
 
-      mockSupabase.from.mockReturnValue(createQueryChainMock(mockForecastData));
+      supabaseMock.setTableData('predictive_forecasts', mockForecastData);
 
       const result = await PredictiveAnalyticsService.generateForecast(
         'demand',
@@ -170,7 +130,7 @@ describe('PredictiveAnalyticsService', () => {
         })
       ];
 
-      mockSupabase.from.mockReturnValue(createQueryChainMock(mockMultiModelData));
+      supabaseMock.setTableData('predictive_forecasts', mockMultiModelData);
 
       const result = await PredictiveAnalyticsService.generateForecast(
         'revenue',
@@ -212,7 +172,7 @@ describe('PredictiveAnalyticsService', () => {
         })
       ];
 
-      mockSupabase.from.mockReturnValue(createQueryChainMock(mockAccuracyData));
+      supabaseMock.setTableData('predictive_forecasts', mockAccuracyData);
 
       const result = await PredictiveAnalyticsService.validateModelAccuracy(
         'accuracy-test-1',
@@ -251,7 +211,7 @@ describe('PredictiveAnalyticsService', () => {
         })
       ];
 
-      mockSupabase.from.mockReturnValue(createQueryChainMock(mockOverfittingData));
+      supabaseMock.setTableData('predictive_forecasts', mockOverfittingData);
 
       const result = await PredictiveAnalyticsService.validateModelAccuracy(
         'overfitting-test-1',
@@ -283,7 +243,7 @@ describe('PredictiveAnalyticsService', () => {
         })
       ];
 
-      mockSupabase.from.mockReturnValue(createQueryChainMock(mockUpdatedForecast));
+      supabaseMock.setTableData('predictive_forecasts', mockUpdatedForecast);
 
       const result = await PredictiveAnalyticsService.updateForecastData(
         'update-forecast-1',
@@ -316,7 +276,7 @@ describe('PredictiveAnalyticsService', () => {
         })
       ];
 
-      mockSupabase.from.mockReturnValue(createQueryChainMock(mockIncrementalUpdate));
+      supabaseMock.setTableData('predictive_forecasts', mockIncrementalUpdate);
 
       const result = await PredictiveAnalyticsService.updateForecastData(
         'incremental-1',
@@ -354,7 +314,7 @@ describe('PredictiveAnalyticsService', () => {
         })
       ];
 
-      mockSupabase.from.mockReturnValue(createQueryChainMock(mockDemandForecasts));
+      supabaseMock.setTableData('predictive_forecasts', mockDemandForecasts);
 
       const result = await PredictiveAnalyticsService.getForecastByType(
         'demand',
@@ -411,7 +371,7 @@ describe('PredictiveAnalyticsService', () => {
         })
       ];
 
-      mockSupabase.from.mockReturnValue(createQueryChainMock(mockConfidenceData));
+      supabaseMock.setTableData('predictive_forecasts', mockConfidenceData);
 
       const result = await PredictiveAnalyticsService.calculateConfidenceIntervals(
         'confidence-1',
@@ -443,7 +403,7 @@ describe('PredictiveAnalyticsService', () => {
         })
       ];
 
-      mockSupabase.from.mockReturnValue(createQueryChainMock(mockMultiConfidenceData));
+      supabaseMock.setTableData('predictive_forecasts', mockMultiConfidenceData);
 
       const result = await PredictiveAnalyticsService.calculateConfidenceIntervals(
         'multi-confidence-1',
@@ -486,7 +446,7 @@ describe('PredictiveAnalyticsService', () => {
         })
       ];
 
-      mockSupabase.from.mockReturnValue(createQueryChainMock(mockHistoricalForecast));
+      supabaseMock.setTableData('predictive_forecasts', mockHistoricalForecast);
 
       const result = await PredictiveAnalyticsService.generateForecast(
         'inventory',
@@ -527,7 +487,7 @@ describe('PredictiveAnalyticsService', () => {
         })
       ];
 
-      mockSupabase.from.mockReturnValue(createQueryChainMock(mockComplexForecast));
+      supabaseMock.setTableData('predictive_forecasts', mockComplexForecast);
 
       const startTime = Date.now();
       const result = await PredictiveAnalyticsService.generateForecast(
@@ -571,7 +531,7 @@ describe('PredictiveAnalyticsService', () => {
         })
       ];
 
-      mockSupabase.from.mockReturnValue(createQueryChainMock(mockAccuracyMonitoring));
+      supabaseMock.setTableData('predictive_forecasts', mockAccuracyMonitoring);
 
       const result = await PredictiveAnalyticsService.validateModelAccuracy(
         'accuracy-monitoring-1',

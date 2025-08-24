@@ -1,6 +1,13 @@
 // Mock ValidationMonitor before importing service (Pattern 1)
 jest.mock('../../../utils/validationMonitor');
 
+// Mock QueryClient
+jest.mock('../../../config/queryClient', () => ({
+  queryClient: {
+    invalidateQueries: jest.fn().mockResolvedValue(undefined)
+  }
+}));
+
 import { MarketingCampaignService } from '../marketingCampaignService';
 import { ProductContentService } from '../productContentService';
 import { ProductBundleService } from '../productBundleService';
