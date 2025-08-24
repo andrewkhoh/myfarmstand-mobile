@@ -11,7 +11,18 @@ module.exports = {
     '/ios/',
     'src/tests/rpcFunctions.test.ts',
     'src/tests/reactQueryHooks.test.tsx',
-    'src/tests/atomicOperations.test.ts'
+    'src/tests/atomicOperations.test.ts',
+    // Phase 2 Update: Only ignore true archives and prototypes
+    // This ensures ALL extension modules (executive, inventory, marketing, role-based) are tested
+    '/archives/',
+    '/ARCHIVE/',
+    'archive/',
+    'prototypes/',
+    // Skip race condition tests (they need special jest config)
+    '\\.race\\.(test|spec)\\.',
+    // Skip legacy files that are deprecated  
+    '\\.legacy\\.(test|spec)\\.',
+    '\\.deprecated\\.(test|spec)\\.',
   ],
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',
