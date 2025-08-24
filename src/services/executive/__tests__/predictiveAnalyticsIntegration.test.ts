@@ -1,4 +1,4 @@
-import { createSupabaseMock } from '../../../test/mocks/supabase.simplified.mock';
+import { SimplifiedSupabaseMock } from '../../../test/mocks/supabase.simplified.mock';
 import { createUser, resetAllFactories } from '../../../test/factories';
 import { PredictiveAnalyticsService } from '../predictiveAnalyticsService';
 import { BusinessMetricsService } from '../businessMetricsService';
@@ -11,29 +11,21 @@ jest.mock('../../../utils/validationMonitor');
 const { ValidationMonitor } = require('../../../utils/validationMonitor');
 
 // Mock Supabase
-jest.mock('../../../config/supabase');
-const { supabase } = require('../../../config/supabase');
+jest.mock('../../../config/supabase', () => ({
+  supabase: null // Will be set in beforeEach
+}));
 
 describe('Predictive Analytics Integration', () => {
+  let supabaseMock: SimplifiedSupabaseMock;
   const testUser = createUser();
   
   beforeEach(() => {
     jest.clearAllMocks();
     resetAllFactories();
     
-    const mockClient = createSupabaseMock();
-    Object.assign(supabase, mockClient);
-    
-    mockSupabase.from = jest.fn().mockReturnValue({
-      select: jest.fn().mockReturnThis(),
-      insert: jest.fn().mockReturnThis(),
-      update: jest.fn().mockReturnThis(),
-      eq: jest.fn().mockReturnThis(),
-      gte: jest.fn().mockReturnThis(),
-      lte: jest.fn().mockReturnThis(),
-      order: jest.fn().mockReturnThis(),
-      single: jest.fn().mockReturnThis()
-    });
+    // Create and inject mock
+    supabaseMock = new SimplifiedSupabaseMock();
+    require('../../../config/supabase').supabase = supabaseMock.createClient();
   });
 
   describe('End-to-End Forecasting Pipeline', () => {
@@ -73,22 +65,9 @@ describe('Predictive Analytics Integration', () => {
         error: null
       };
 
-      mockSupabase.from.mockImplementation((table: string) => {
-        const mockData: any = {
-          'historical_metrics': mockHistoricalData,
-          'model_validations': mockValidation,
-          'predictive_forecasts': mockForecast
-        };
-        
-        return {
-          select: jest.fn().mockReturnThis(),
-          eq: jest.fn().mockReturnThis(),
-          gte: jest.fn().mockReturnThis(),
-          order: jest.fn().mockResolvedValue(mockData[table] || { data: [], error: null }),
-          insert: jest.fn().mockResolvedValue(mockForecast),
-          single: jest.fn().mockResolvedValue(mockValidation)
-        } as any;
-      });
+      supabaseMock.setTableData('historical_metrics', mockHistoricalData.data);
+      supabaseMock.setTableData('model_validations', [mockValidation.data]);
+      supabaseMock.setTableData('predictive_forecasts', [mockForecast.data]);
 
       // Execute pipeline
       const forecast = await PredictiveAnalyticsService.generateForecast({
@@ -112,12 +91,7 @@ describe('Predictive Analytics Integration', () => {
         error: null
       };
 
-      mockSupabase.from.mockReturnValue({
-        select: jest.fn().mockReturnThis(),
-        gte: jest.fn().mockReturnThis(),
-        lte: jest.fn().mockReturnThis(),
-        order: jest.fn().mockResolvedValue(mockAccuracyTracking)
-      } as any);
+      supabaseMock.setTableData('accuracy_tracking', mockAccuracyTracking.data);
 
       const validation = await PredictiveAnalyticsService.validateModelAccuracy(
         'model-1',
@@ -143,12 +117,7 @@ describe('Predictive Analytics Integration', () => {
         error: null
       };
 
-      mockSupabase.from.mockReturnValue({
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue(mockDegradedAccuracy),
-        update: jest.fn().mockReturnThis()
-      } as any);
+      supabaseMock.setTableData('model_accuracy', [mockDegradedAccuracy.data]);
 
       const result = await PredictiveAnalyticsService.validateModelAccuracy(
         'model-1',
@@ -184,19 +153,8 @@ describe('Predictive Analytics Integration', () => {
         error: null
       };
 
-      mockSupabase.from.mockImplementation((table: string) => {
-        const mockData: any = {
-          'inventory_metrics': mockInventoryHistory,
-          'marketing_metrics': mockMarketingHistory
-        };
-        
-        return {
-          select: jest.fn().mockReturnThis(),
-          gte: jest.fn().mockReturnThis(),
-          lte: jest.fn().mockReturnThis(),
-          order: jest.fn().mockResolvedValue(mockData[table] || { data: [], error: null })
-        } as any;
-      });
+      supabaseMock.setTableData('inventory_metrics', mockInventoryHistory.data);
+      supabaseMock.setTableData('marketing_metrics', mockMarketingHistory.data);
 
       const integratedForecast = await PredictiveAnalyticsService.generateForecast({
         forecast_type: 'integrated',
@@ -232,11 +190,7 @@ describe('Predictive Analytics Integration', () => {
         error: null
       };
 
-      mockSupabase.from.mockReturnValue({
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue(mockForecastRecommendations)
-      } as any);
+      supabaseMock.setTableData('forecast_recommendations', [mockForecastRecommendations.data]);
 
       const recommendations = await BusinessIntelligenceService.getInsightRecommendations(
         'forecast-1'
@@ -264,11 +218,7 @@ describe('Predictive Analytics Integration', () => {
         error: null
       };
 
-      mockSupabase.from.mockReturnValue({
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue(mockStatisticalValidation)
-      } as any);
+      supabaseMock.setTableData('statistical_validation', [mockStatisticalValidation.data]);
 
       const intervals = await PredictiveAnalyticsService.calculateConfidenceIntervals(
         'forecast-1',
@@ -289,12 +239,7 @@ describe('Predictive Analytics Integration', () => {
         value: 100000 + Math.random() * 20000
       }));
 
-      mockSupabase.from.mockReturnValue({
-        select: jest.fn().mockReturnThis(),
-        gte: jest.fn().mockReturnThis(),
-        lte: jest.fn().mockReturnThis(),
-        order: jest.fn().mockResolvedValue({ data: largeDataset, error: null })
-      } as any);
+      supabaseMock.setTableData('large_dataset', largeDataset);
 
       const startTime = Date.now();
       
@@ -327,11 +272,7 @@ describe('Predictive Analytics Integration', () => {
         error: null
       };
 
-      mockSupabase.from.mockReturnValue({
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue(mockModelComparison)
-      } as any);
+      supabaseMock.setTableData('model_comparison', [mockModelComparison.data]);
 
       const result = await PredictiveAnalyticsService.getForecastByType(
         'demand',
@@ -371,10 +312,7 @@ describe('Predictive Analytics Integration', () => {
         error: null
       };
 
-      mockSupabase.from.mockReturnValue({
-        update: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockResolvedValue(mockRealtimeUpdate)
-      } as any);
+      supabaseMock.setTableData('realtime_updates', [mockRealtimeUpdate.data]);
 
       const startTime = Date.now();
       

@@ -1,4 +1,4 @@
-import { createSupabaseMock } from '../../../test/mocks/supabase.simplified.mock';
+import { SimplifiedSupabaseMock } from '../../../test/mocks/supabase.simplified.mock';
 import { createUser, resetAllFactories } from '../../../test/factories';
 import { StrategicReportingService } from '../strategicReportingService';
 
@@ -7,18 +7,21 @@ jest.mock('../../../utils/validationMonitor');
 const { ValidationMonitor } = require('../../../utils/validationMonitor');
 
 // Mock Supabase
-jest.mock('../../../config/supabase');
-const { supabase } = require('../../../config/supabase');
+jest.mock('../../../config/supabase', () => ({
+  supabase: null // Will be set in beforeEach
+}));
 
 describe('StrategicReportingService', () => {
+  let supabaseMock: SimplifiedSupabaseMock;
   const testUser = createUser();
   
   beforeEach(() => {
     jest.clearAllMocks();
     resetAllFactories();
     
-    const mockClient = createSupabaseMock();
-    Object.assign(supabase, mockClient);
+    // Create and inject mock
+    supabaseMock = new SimplifiedSupabaseMock();
+    require('../../../config/supabase').supabase = supabaseMock.createClient();
   });
   
   // Helper function to create complete strategic report data
@@ -42,62 +45,20 @@ describe('StrategicReportingService', () => {
     ...overrides
   });
 
-  // Helper function to create complete query chain mocks
-  const createQueryChainMock = (data: any[], error: any = null) => {
-    const mockMethods = {
-      select: jest.fn(),
-      in: jest.fn(),
-      eq: jest.fn(),
-      gte: jest.fn(),
-      lte: jest.fn(),
-      order: jest.fn(),
-      update: jest.fn(),
-      insert: jest.fn(),
-      single: jest.fn(),
-      range: jest.fn()
-    };
-
-    // Chain all methods to return the next method in the chain
-    mockMethods.select.mockReturnValue(mockMethods);
-    mockMethods.in.mockReturnValue(mockMethods);
-    mockMethods.eq.mockReturnValue(mockMethods);
-    mockMethods.gte.mockReturnValue(mockMethods);
-    mockMethods.lte.mockReturnValue(mockMethods);
-    mockMethods.update.mockReturnValue(mockMethods);
-    mockMethods.insert.mockReturnValue(mockMethods);
-    mockMethods.range.mockReturnValue(mockMethods);
-    
-    // Terminal methods return the data
-    mockMethods.order.mockResolvedValue({ data, error });
-    mockMethods.single.mockResolvedValue({ data: data[0] || null, error });
-    
-    // Also handle direct resolution (in case .order() isn't called)
-    Object.assign(mockMethods, { 
-      then: (resolve: any) => resolve({ data, error }),
-      catch: (reject: any) => error ? reject(error) : Promise.resolve({ data, error })
-    });
-
-    return mockMethods;
-  };
-
-  beforeEach(() => {
+  afterEach(() => {
     jest.clearAllMocks();
-    
-    // Reset Supabase mocks to prevent state contamination
-    if (global.resetSupabaseMocks) {
-      global.resetSupabaseMocks();
-    }
   });
+
 
   // Debug test to verify basic mocking
   it('should verify supabase mock is working', async () => {
     const testData = [{ id: 'test-123', report_type: 'performance' }];
-    mockSupabase.from.mockReturnValue(createQueryChainMock(testData));
+    supabaseMock.setTableData('strategic_reports', testData);
     
     // Direct call to verify mock
-    const mockResult = await mockSupabase.from('strategic_reports').select('*').order('id');
+    const { supabase } = require('../../../config/supabase');
+    const mockResult = await supabase.from('strategic_reports').select('*').order('id');
     
-    expect(mockSupabase.from).toHaveBeenCalledWith('strategic_reports');
     expect(mockResult.data).toEqual(testData);
   });
 
@@ -116,7 +77,7 @@ describe('StrategicReportingService', () => {
         })
       ];
 
-      mockSupabase.from.mockReturnValue(createQueryChainMock(mockReportData));
+      supabaseMock.setTableData('strategic_reports', mockReportData);
 
       const result = await StrategicReportingService.generateReport(
         'report-1',
@@ -150,7 +111,7 @@ describe('StrategicReportingService', () => {
         })
       ];
 
-      mockSupabase.from.mockReturnValue(createQueryChainMock(mockComplexReport));
+      supabaseMock.setTableData('strategic_reports', mockComplexReport);
 
       const result = await StrategicReportingService.generateReport(
         'complex-report-1',
@@ -186,7 +147,7 @@ describe('StrategicReportingService', () => {
         })
       ];
 
-      mockSupabase.from.mockReturnValue(createQueryChainMock(mockScheduledReport));
+      supabaseMock.setTableData('strategic_reports', mockScheduledReport);
 
       const result = await StrategicReportingService.scheduleReport(
         'scheduled-1',
@@ -205,8 +166,9 @@ describe('StrategicReportingService', () => {
     });
 
     it('should validate scheduling permissions and configuration', async () => {
-      const mockError = { message: 'Insufficient permissions for report scheduling', code: 'PERMISSION_DENIED' };
-      mockSupabase.from.mockReturnValue(createQueryChainMock([], mockError));
+      // Set up empty table data to simulate no permission
+      supabaseMock.setTableData('strategic_reports', []);
+      supabaseMock.queueError(new Error('Insufficient permissions for report scheduling'));
 
       await expect(
         StrategicReportingService.scheduleReport(
@@ -236,7 +198,7 @@ describe('StrategicReportingService', () => {
         })
       ];
 
-      mockSupabase.from.mockReturnValue(createQueryChainMock(mockReportDataResults));
+      supabaseMock.setTableData('strategic_reports', mockReportDataResults);
 
       const result = await StrategicReportingService.getReportData(
         'data-report-1',
@@ -266,7 +228,7 @@ describe('StrategicReportingService', () => {
         })
       ];
 
-      mockSupabase.from.mockReturnValue(createQueryChainMock(mockFilteredData));
+      supabaseMock.setTableData('strategic_reports', mockFilteredData);
 
       const result = await StrategicReportingService.getReportData(
         'filtered-report-1',
@@ -294,7 +256,7 @@ describe('StrategicReportingService', () => {
         })
       ];
 
-      mockSupabase.from.mockReturnValue(createQueryChainMock(mockExportableReport));
+      supabaseMock.setTableData('strategic_reports', mockExportableReport);
 
       const result = await StrategicReportingService.exportReportData(
         'export-report-1',
@@ -328,7 +290,7 @@ describe('StrategicReportingService', () => {
         })
       ];
 
-      mockSupabase.from.mockReturnValue(createQueryChainMock(mockLargeReport));
+      supabaseMock.setTableData('strategic_reports', mockLargeReport);
 
       const startTime = Date.now();
       const result = await StrategicReportingService.exportReportData(
@@ -361,7 +323,7 @@ describe('StrategicReportingService', () => {
         })
       ];
 
-      mockSupabase.from.mockReturnValue(createQueryChainMock(mockUpdatedConfig));
+      supabaseMock.setTableData('strategic_reports', mockUpdatedConfig);
 
       const result = await StrategicReportingService.updateReportConfig(
         'config-update-1',
@@ -379,8 +341,8 @@ describe('StrategicReportingService', () => {
     });
 
     it('should validate configuration updates against schema constraints', async () => {
-      const mockError = { message: 'Invalid report configuration schema', code: 'VALIDATION_ERROR' };
-      mockSupabase.from.mockReturnValue(createQueryChainMock([], mockError));
+      supabaseMock.setTableData('strategic_reports', []);
+      supabaseMock.queueError(new Error('Invalid report configuration schema'));
 
       await expect(
         StrategicReportingService.updateReportConfig(
@@ -410,7 +372,7 @@ describe('StrategicReportingService', () => {
         })
       ];
 
-      mockSupabase.from.mockReturnValue(createQueryChainMock(mockExecutiveReport));
+      supabaseMock.setTableData('strategic_reports', mockExecutiveReport);
 
       const result = await StrategicReportingService.generateReport(
         'executive-report-1',
@@ -459,7 +421,7 @@ describe('StrategicReportingService', () => {
         })
       ];
 
-      mockSupabase.from.mockReturnValue(createQueryChainMock(mockPerformanceReport));
+      supabaseMock.setTableData('strategic_reports', mockPerformanceReport);
 
       const startTime = Date.now();
       const result = await StrategicReportingService.generateReport(
@@ -506,7 +468,7 @@ describe('StrategicReportingService', () => {
         })
       ];
 
-      mockSupabase.from.mockReturnValue(createQueryChainMock(mockIntegratedReport));
+      supabaseMock.setTableData('strategic_reports', mockIntegratedReport);
 
       const result = await StrategicReportingService.generateReport(
         'integrated-report-1',

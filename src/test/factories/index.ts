@@ -7,8 +7,36 @@
  */
 
 // Base factory class
-export { SchemaFactory } from './base.factory';
+import { SchemaFactory } from './base.factory';
+export { SchemaFactory };
 export type { FactoryEntity, FactoryDbEntity } from './base.factory';
+
+// Import all for internal use
+import { ProductFactory } from './product.factory';
+import { 
+  orderFactory,
+  orderItemFactory,
+  customerInfoFactory
+} from './order.factory';
+import {
+  userFactory,
+  authStateFactory,
+  supabaseAuthUserFactory,
+  supabaseSessionFactory
+} from './user.factory';
+import {
+  cartItemFactory,
+  cartStateFactory,
+  cartSummaryFactory
+} from './cart.factory';
+import { categoryFactory } from './category.factory';
+import {
+  paymentFactory,
+  paymentMethodFactory,
+  paymentIntentFactory,
+  paymentCalculationFactory,
+  createPaymentRequestFactory
+} from './payment.factory';
 
 // Product Factory
 export { 
