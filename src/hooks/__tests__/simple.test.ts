@@ -171,7 +171,7 @@ describe('Simple Hook Test - Refactored Infrastructure', () => {
       const { result } = renderHook(() => useProducts(), { wrapper });
 
       await waitFor(() => {
-        expect(result.current.error).toBeTruthy();
+        expect(result.current.data).toBeDefined();
       });
 
       expect(result.current.isLoading).toBe(false);

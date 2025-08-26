@@ -46,7 +46,12 @@ jest.mock('../useAuth', () => ({
 jest.mock('@tanstack/react-query', () => ({
   ...jest.requireActual('@tanstack/react-query'),
   useQuery: jest.fn(() => ({
-    data: null,
+    data: {
+      isInitialized: true,
+      channels: ['orders', 'cart'],
+      activeSubscriptions: 2,
+      timestamp: new Date().toISOString(),
+    },
     isLoading: false,
     error: null,
     refetch: jest.fn(),
