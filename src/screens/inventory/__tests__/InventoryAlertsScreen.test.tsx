@@ -5,7 +5,6 @@
 
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
-import { NavigationContainer } from '@react-navigation/native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Alert } from 'react-native';
 
@@ -16,11 +15,34 @@ import * as userRoleHook from '../../../hooks/role-based/useUserRole';
 
 // Mock navigation
 const mockNavigate = jest.fn();
+const mockGoBack = jest.fn();
 jest.mock('@react-navigation/native', () => ({
-  ...jest.requireActual('@react-navigation/native'),
   useNavigation: () => ({
     navigate: mockNavigate,
+    goBack: mockGoBack,
   }),
+  useFocusEffect: jest.fn(),
+  NavigationContainer: ({ children }: any) => children,
+  useRoute: () => ({ params: {} }),
+}));
+
+// Mock React Native components
+jest.mock('react-native', () => ({
+  View: 'View',
+  Text: 'Text',
+  ScrollView: 'ScrollView',
+  TouchableOpacity: 'TouchableOpacity',
+  FlatList: 'FlatList',
+  RefreshControl: ({ onRefresh, refreshing, ...props }: any) => null,
+  Alert: {
+    alert: jest.fn(),
+  },
+  StyleSheet: {
+    create: (styles: any) => styles,
+    flatten: (style: any) => style,
+    compose: (style1: any, style2: any) => [style1, style2],
+    hairlineWidth: 1,
+  },
 }));
 
 // Mock hooks
@@ -80,9 +102,7 @@ describe('InventoryAlertsScreen', () => {
   const renderWithProviders = (component: React.ReactElement) => {
     return render(
       <QueryClientProvider client={queryClient}>
-        <NavigationContainer>
-          {component}
-        </NavigationContainer>
+        {component}
       </QueryClientProvider>
     );
   };

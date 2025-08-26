@@ -5,7 +5,6 @@
 
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
-import { NavigationContainer } from '@react-navigation/native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Alert } from 'react-native';
 
@@ -13,13 +12,86 @@ import InventoryDashboardScreen from '../InventoryDashboardScreen';
 import * as inventoryDashboardHooks from '../../../hooks/inventory/useInventoryDashboard';
 import * as userRoleHook from '../../../hooks/role-based/useUserRole';
 
-// Mock navigation
+// Mock navigation with complete implementation
 const mockNavigate = jest.fn();
+const mockGoBack = jest.fn();
+const mockSetOptions = jest.fn();
 jest.mock('@react-navigation/native', () => ({
-  ...jest.requireActual('@react-navigation/native'),
   useNavigation: () => ({
     navigate: mockNavigate,
+    goBack: mockGoBack,
+    setOptions: mockSetOptions,
+    dispatch: jest.fn(),
+    reset: jest.fn(),
+    canGoBack: jest.fn(() => true),
+    isFocused: jest.fn(() => true),
+    addListener: jest.fn(),
+    removeListener: jest.fn(),
   }),
+  useFocusEffect: jest.fn((callback) => {
+    // Simulate focus effect by calling immediately
+    callback();
+  }),
+  NavigationContainer: ({ children }: any) => children,
+  useRoute: () => ({ params: {} }),
+}));
+
+// Mock React Native components
+jest.mock('react-native', () => ({
+  View: 'View',
+  Text: 'Text',
+  ScrollView: 'ScrollView',
+  TouchableOpacity: 'TouchableOpacity',
+  TextInput: 'TextInput',
+  Modal: ({ children, visible, ...props }: any) => visible ? children : null,
+  ActivityIndicator: 'ActivityIndicator',
+  FlatList: 'FlatList',
+  SectionList: 'SectionList',
+  RefreshControl: ({ onRefresh, refreshing, ...props }: any) => null,
+  KeyboardAvoidingView: 'KeyboardAvoidingView',
+  Dimensions: {
+    get: () => ({ width: 375, height: 667 }),
+    addEventListener: jest.fn(),
+    removeEventListener: jest.fn(),
+  },
+  Platform: {
+    OS: 'ios',
+    select: jest.fn((obj) => obj.ios || obj.default),
+    Version: 14,
+  },
+  StyleSheet: {
+    create: (styles: any) => styles,
+    flatten: (style: any) => style,
+    compose: (style1: any, style2: any) => [style1, style2].filter(Boolean),
+    hairlineWidth: 1,
+    absoluteFillObject: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      top: 0,
+      bottom: 0,
+    },
+  },
+  Alert: {
+    alert: jest.fn(),
+  },
+}));
+
+// Mock components
+jest.mock('../../../components/Text', () => ({
+  Text: ({ children, ...props }: any) => children
+}));
+jest.mock('../../../components/Card', () => ({
+  Card: ({ children, ...props }: any) => children
+}));
+jest.mock('../../../components/Button', () => ({
+  Button: ({ children, onPress, ...props }: any) => children
+}));
+jest.mock('../../../components/Screen', () => ({
+  Screen: ({ children, ...props }: any) => children
+}));
+jest.mock('../../../components/Loading', () => ({
+  Loading: () => 'Loading...'
 }));
 
 // Mock hooks
@@ -38,9 +110,7 @@ describe('InventoryDashboardScreen', () => {
   const renderWithProviders = (component: React.ReactElement) => {
     return render(
       <QueryClientProvider client={queryClient}>
-        <NavigationContainer>
-          {component}
-        </NavigationContainer>
+        {component}
       </QueryClientProvider>
     );
   };
