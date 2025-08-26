@@ -1,0 +1,22 @@
+{
+  "agent_id": "phase2-extension-hooks",
+  "reference": "src/test/hook-test-pattern-guide (REFERENCE).md",
+  "files_to_fix": [
+    "src/hooks/inventory/__tests__/useBulkOperations.test.tsx",
+    "src/hooks/inventory/__tests__/useInventoryDashboard.test.tsx",
+    "src/hooks/inventory/__tests__/useInventoryItems.test.tsx",
+    "src/hooks/inventory/__tests__/useInventoryOperations.test.tsx",
+    "src/hooks/inventory/__tests__/useStockMovements.test.tsx",
+    "src/hooks/role-based/__tests__/rolePermission.integration.test.tsx",
+    "src/hooks/role-based/__tests__/useNavigationPermissions.test.tsx",
+    "src/hooks/role-based/__tests__/useRoleMenu.test.tsx",
+    "src/hooks/role-based/__tests__/useRoleNavigation.test.tsx",
+    "src/hooks/role-based/__tests__/useUserRole.test.tsx"
+  ],
+  "patterns_to_apply": [
+    "Defensive Imports",
+    "React Query Mock",
+    "Query Key Factory Mock",
+    "Broadcast Factory Mock"
+  ]
+}

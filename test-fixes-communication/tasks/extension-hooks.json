@@ -1,0 +1,16 @@
+{
+  "agent_id": "extension-hooks",
+  "category": "executive inventory marketing role-based",
+  "priority": "CRITICAL",
+  "reference_patterns": {
+    "defensive_imports": "hook-test-pattern-guide (REFERENCE).md#L73-83",
+    "react_query_mock": "hook-test-pattern-guide (REFERENCE).md#L51-66",
+    "query_key_factory": "hook-test-pattern-guide (REFERENCE).md#L27-42",
+    "broadcast_factory": "hook-test-pattern-guide (REFERENCE).md#L44-48"
+  },
+  "tasks": [
+
+  ],
+  "total_files":        8,
+  "estimated_time": "2-3 hours"
+}

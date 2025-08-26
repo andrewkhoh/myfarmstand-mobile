@@ -1,0 +1,149 @@
+version: '3.8'
+
+services:
+  orchestrator:
+    build: 
+      context: .
+      dockerfile: Dockerfile.orchestrator
+    container_name: phase2-orchestrator
+    volumes:
+      - .:/workspace
+      - ./test-fixes-communication:/communication
+      - ~/.anthropic:/root/.anthropic
+    environment:
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - MAIN_BRANCH=main
+      - TARGET_ADOPTION=100
+      - PARALLEL_AGENTS=5
+    networks:
+      - phase2-network
+    command: npm run orchestrate:phase2
+
+  agent-core-services:
+    build:
+      context: .
+      dockerfile: Dockerfile.agent
+    container_name: phase2-agent-core-services
+    volumes:
+      - ../phase2-core-services:/workspace
+      - ./test-fixes-communication:/communication
+      - ~/.anthropic:/root/.anthropic
+    environment:
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - AGENT_ID=core-services
+      - AGENT_TYPE=service-infrastructure
+      - TARGET_FILES=14
+      - REFERENCE_DOC=/workspace/src/test/service-test-pattern (REFERENCE).md
+    networks:
+      - phase2-network
+    depends_on:
+      - orchestrator
+    command: npm run agent:execute
+
+  agent-extension-services:
+    build:
+      context: .
+      dockerfile: Dockerfile.agent
+    container_name: phase2-agent-extension-services
+    volumes:
+      - ../phase2-extension-services:/workspace
+      - ./test-fixes-communication:/communication
+      - ~/.anthropic:/root/.anthropic
+    environment:
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - AGENT_ID=extension-services
+      - AGENT_TYPE=service-infrastructure
+      - TARGET_FILES=19
+      - REFERENCE_DOC=/workspace/src/test/service-test-pattern (REFERENCE).md
+    networks:
+      - phase2-network
+    depends_on:
+      - orchestrator
+    command: npm run agent:execute
+
+  agent-core-hooks:
+    build:
+      context: .
+      dockerfile: Dockerfile.agent
+    container_name: phase2-agent-core-hooks
+    volumes:
+      - ../phase2-core-hooks:/workspace
+      - ./test-fixes-communication:/communication
+      - ~/.anthropic:/root/.anthropic
+    environment:
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - AGENT_ID=core-hooks
+      - AGENT_TYPE=hook-infrastructure
+      - TARGET_FILES=13
+      - REFERENCE_DOC=/workspace/src/test/hook-test-pattern-guide (REFERENCE).md
+    networks:
+      - phase2-network
+    depends_on:
+      - orchestrator
+    command: npm run agent:execute
+
+  agent-extension-hooks:
+    build:
+      context: .
+      dockerfile: Dockerfile.agent
+    container_name: phase2-agent-extension-hooks
+    volumes:
+      - ../phase2-extension-hooks:/workspace
+      - ./test-fixes-communication:/communication
+      - ~/.anthropic:/root/.anthropic
+    environment:
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - AGENT_ID=extension-hooks
+      - AGENT_TYPE=hook-infrastructure
+      - TARGET_FILES=23
+      - REFERENCE_DOC=/workspace/src/test/hook-test-pattern-guide (REFERENCE).md
+    networks:
+      - phase2-network
+    depends_on:
+      - orchestrator
+    command: npm run agent:execute
+
+  agent-schema-other:
+    build:
+      context: .
+      dockerfile: Dockerfile.agent
+    container_name: phase2-agent-schema-other
+    volumes:
+      - ../phase2-schema-other:/workspace
+      - ./test-fixes-communication:/communication
+      - ~/.anthropic:/root/.anthropic
+    environment:
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - AGENT_ID=schema-other
+      - AGENT_TYPE=mixed-infrastructure
+      - TARGET_FILES=104
+      - REFERENCE_DOC=/workspace/src/test/schema-test-pattern (REFERENCE).md
+    networks:
+      - phase2-network
+    depends_on:
+      - orchestrator
+    command: npm run agent:execute
+
+  monitor:
+    build:
+      context: .
+      dockerfile: Dockerfile.monitor
+    container_name: phase2-monitor
+    volumes:
+      - .:/workspace
+      - ./test-fixes-communication:/communication
+    environment:
+      - REFRESH_INTERVAL=10
+    networks:
+      - phase2-network
+    depends_on:
+      - orchestrator
+    command: /workspace/scripts/monitor-dashboard.sh
+
+networks:
+  phase2-network:
+    driver: bridge
+
+volumes:
+  workspace:
+  communication:

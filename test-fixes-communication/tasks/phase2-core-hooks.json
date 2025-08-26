@@ -1,0 +1,12 @@
+{
+  "agent_id": "phase2-core-hooks",
+  "reference": "src/test/hook-test-pattern-guide (REFERENCE).md",
+  "files_to_fix": [
+    "src/hooks/__tests__/useKiosk.test.tsx"
+  ],
+  "patterns_to_apply": [
+    "React Query Mock",
+    "Broadcast Factory Mock",
+    "Query Key Factory Mock"
+  ]
+}

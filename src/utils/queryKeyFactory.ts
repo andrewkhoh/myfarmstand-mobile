@@ -195,7 +195,7 @@ export const navigationKeys = {
   
   // Batch permission queries
   batchPermissions: (role: string, screens: string[], userId?: string) => 
-    [...baseNavigationKeys.permissions(userId), role, 'batch', ...screens.sort()] as const,
+    [...baseNavigationKeys.lists(userId), 'permissions', role, 'batch', ...screens.sort()] as const,
   
   // Navigation state queries
   state: (userId?: string) => 

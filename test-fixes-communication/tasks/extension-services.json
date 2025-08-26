@@ -1,0 +1,104 @@
+{
+  "agent_id": "extension-services",
+  "category": "executive",
+  "priority": "CRITICAL",
+  "reference_patterns": {
+    "mock_setup": "service-test-pattern (REFERENCE).md#L25-95",
+    "factory_reset": "service-test-pattern (REFERENCE).md#L150-160",
+    "test_structure": "service-test-pattern (REFERENCE).md#L98-120"
+  },
+  "tasks": [
+    {
+      "file": "src/services/executive/__tests__/phase4ComplianceAudit.test.ts",
+      "filename": "phase4ComplianceAudit",
+      "fixes_needed": {
+        "SimplifiedSupabaseMock": true,
+        "FactoryReset": true
+      }
+    }
+,
+    {
+      "file": "src/services/executive/__tests__/predictiveAnalyticsService.test.ts",
+      "filename": "predictiveAnalyticsService",
+      "fixes_needed": {
+        "SimplifiedSupabaseMock": true,
+        "FactoryReset": true
+      }
+    }
+,
+    {
+      "file": "src/services/executive/__tests__/strategicReportingService.golden.test.ts",
+      "filename": "strategicReportingService.golden",
+      "fixes_needed": {
+        "SimplifiedSupabaseMock": true,
+        "FactoryReset": true
+      }
+    }
+,
+    {
+      "file": "src/services/__tests__/cartService.test.ts",
+      "filename": "cartService",
+      "fixes_needed": {
+        "SimplifiedSupabaseMock": true,
+        "FactoryReset": true
+      }
+    }
+,
+    {
+      "file": "src/services/__tests__/errorRecoveryService.test.ts",
+      "filename": "errorRecoveryService",
+      "fixes_needed": {
+        "SimplifiedSupabaseMock": true,
+        "FactoryReset": true
+      }
+    }
+,
+    {
+      "file": "src/services/__tests__/kioskOrderIntegration.test.ts",
+      "filename": "kioskOrderIntegration",
+      "fixes_needed": {
+        "SimplifiedSupabaseMock": true,
+        "FactoryReset": true
+      }
+    }
+,
+    {
+      "file": "src/services/__tests__/noShowHandlingService.test.ts",
+      "filename": "noShowHandlingService",
+      "fixes_needed": {
+        "SimplifiedSupabaseMock": true,
+        "FactoryReset": true
+      }
+    }
+,
+    {
+      "file": "src/services/__tests__/orderService.test.ts",
+      "filename": "orderService",
+      "fixes_needed": {
+        "SimplifiedSupabaseMock": true,
+        "FactoryReset": true
+      }
+    }
+,
+    {
+      "file": "src/services/__tests__/productAdminService.test.ts",
+      "filename": "productAdminService",
+      "fixes_needed": {
+        "SimplifiedSupabaseMock": true,
+        "FactoryReset": false
+      }
+    }
+,
+    {
+      "file": "src/services/__tests__/productService.test.ts",
+      "filename": "productService",
+      "fixes_needed": {
+        "SimplifiedSupabaseMock": true,
+        "FactoryReset": true
+      }
+    }
+
+  ],
+  "total_files":       24,
+  "estimated_time": "2-3 hours"
+}

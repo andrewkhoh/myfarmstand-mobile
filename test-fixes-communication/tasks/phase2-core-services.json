@@ -1,0 +1,18 @@
+{
+  "agent_id": "phase2-core-services",
+  "reference": "src/test/service-test-pattern (REFERENCE).md",
+  "files_to_fix": [
+    "src/services/__tests__/authService.test.ts",
+    "src/services/__tests__/cartService.test.ts",
+    "src/services/__tests__/errorRecoveryService.test.ts",
+    "src/services/__tests__/kioskOrderIntegration.test.ts",
+    "src/services/__tests__/noShowHandlingService.test.ts",
+    "src/services/__tests__/notificationService.test.ts",
+    "src/services/__tests__/orderService.test.ts"
+  ],
+  "patterns_to_apply": [
+    "SimplifiedSupabaseMock",
+    "Factory/Reset pattern",
+    "Proper mock order"
+  ]
+}

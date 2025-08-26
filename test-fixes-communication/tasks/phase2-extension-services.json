@@ -1,0 +1,15 @@
+{
+  "agent_id": "phase2-extension-services",
+  "reference": "src/test/service-test-pattern (REFERENCE).md",
+  "files_to_fix": [
+    "src/services/executive/__tests__/phase4ComplianceAudit.test.ts",
+    "src/services/executive/__tests__/predictiveAnalyticsService.test.ts",
+    "src/services/executive/__tests__/strategicReportingService.golden.test.ts",
+    "src/services/marketing/__tests__/campaignManagementIntegration.test.ts",
+    "src/services/role-based/__tests__/rolePermissionService.test.ts"
+  ],
+  "patterns_to_apply": [
+    "SimplifiedSupabaseMock",
+    "Factory/Reset pattern"
+  ]
+}
