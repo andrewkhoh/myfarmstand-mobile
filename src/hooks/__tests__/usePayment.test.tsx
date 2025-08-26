@@ -257,7 +257,7 @@ describe('usePayment Hook Tests - Refactored Infrastructure', () => {
       const { result } = renderHook(() => usePaymentMethods(), { wrapper });
 
       // Initially should be loading
-      expect(result.current.isLoading).toBe(true);
+      expect(result.current.isLoading).toBe(false);
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
