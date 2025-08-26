@@ -36,7 +36,7 @@ export function useUserRole(userId?: string) {
       isLoading: false,
       error: authError,
       isError: true,
-      queryKey: ['roles', 'user', 'unauthenticated'] as const,
+      queryKey: roleKeys.user('unauthenticated'),
       refetch: () => Promise.resolve({ data: null } as any),
     };
   }

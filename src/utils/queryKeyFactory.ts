@@ -95,8 +95,56 @@ export const createQueryKeyFactory = (config: QueryKeyConfig) => {
 // Pre-configured factories for each entity with fallback support
 export const cartKeys = createQueryKeyFactory({ entity: 'cart', isolation: 'user-specific' });
 export const orderKeys = createQueryKeyFactory({ entity: 'orders', isolation: 'user-specific' });
-export const productKeys = createQueryKeyFactory({ entity: 'products', isolation: 'global' });
-export const authKeys = createQueryKeyFactory({ entity: 'auth', isolation: 'user-specific' });
+
+// Products query key factory with product-specific methods
+const baseProductKeys = createQueryKeyFactory({ entity: 'products', isolation: 'global' });
+
+export const productKeys = {
+  ...baseProductKeys,
+  
+  // Search queries
+  search: (searchQuery: string) => 
+    [...baseProductKeys.lists(), 'search', searchQuery] as const,
+  
+  // Category queries
+  categories: () => 
+    [...baseProductKeys.lists(), 'categories'] as const,
+  
+  // Products by category
+  byCategory: (categoryId: string) => 
+    [...baseProductKeys.lists(), 'category', categoryId] as const,
+};
+
+// Auth query key factory with auth-specific methods
+const baseAuthKeys = createQueryKeyFactory({ entity: 'auth', isolation: 'user-specific' });
+
+export const authKeys = {
+  ...baseAuthKeys,
+  
+  // Auth status queries
+  status: () => 
+    [...baseAuthKeys.all(), 'status'] as const,
+  
+  // Profile queries
+  profile: (userId?: string) => 
+    [...baseAuthKeys.all(), 'profile'] as const,
+  
+  userProfile: (userId: string) => 
+    [...baseAuthKeys.details(userId), 'profile'] as const,
+  
+  // Settings queries
+  settings: () => 
+    [...baseAuthKeys.all(), 'settings'] as const,
+  
+  // Current user query
+  currentUser: () => 
+    [...baseAuthKeys.all(), 'current-user'] as const,
+  
+  // User details query
+  user: (userId: string) => 
+    [...baseAuthKeys.details(userId)] as const,
+};
+
 export const stockKeys = createQueryKeyFactory({ entity: 'stock', isolation: 'global' });
 
 // Role-specific query key factory with entity-specific methods
@@ -135,12 +183,19 @@ export const navigationKeys = {
   menu: (role: string, userId?: string) => 
     [...baseNavigationKeys.lists(userId), 'menus', role] as const,
   
+  menuWithRefresh: (role: string, refreshTrigger: number, userId?: string) => 
+    [...baseNavigationKeys.lists(userId), 'menus', role, refreshTrigger] as const,
+  
   // Permission queries
   permissions: (userId?: string) => 
     [...baseNavigationKeys.lists(userId), 'permissions'] as const,
   
   permission: (role: string, screen: string, userId?: string) => 
     [...baseNavigationKeys.lists(userId), 'permissions', role, screen] as const,
+  
+  // Batch permission queries
+  batchPermissions: (role: string, screens: string[], userId?: string) => 
+    [...baseNavigationKeys.permissions(userId), role, 'batch', ...screens.sort()] as const,
   
   // Navigation state queries
   state: (userId?: string) => 
@@ -161,7 +216,11 @@ export const navigationKeys = {
     [...baseNavigationKeys.all(userId), 'deep-links'] as const,
   
   deepLink: (link: string, role: string, userId?: string) => 
-    [...baseNavigationKeys.all(userId), 'deep-links', role, link] as const
+    [...baseNavigationKeys.all(userId), 'deep-links', role, link] as const,
+  
+  // Menu customization queries
+  menuCustomization: (userId?: string) => 
+    ['menu-customization', userId] as const
 };
 
 // Inventory-specific query key factory with entity-specific methods
@@ -196,6 +255,13 @@ export const inventoryKeys = {
   
   movement: (movementId: string, userId?: string) => 
     [...baseInventoryKeys.details(userId), 'movement', movementId] as const,
+  
+  // Availability and Impact queries
+  availability: () => 
+    [...baseInventoryKeys.all(), 'availability'] as const,
+  
+  impact: () => 
+    [...baseInventoryKeys.all(), 'impact'] as const,
   
   movementHistory: (inventoryItemId: string, filters?: any, userId?: string) => 
     [...baseInventoryKeys.details(userId), 'item', inventoryItemId, 'movements', filters] as const,
@@ -239,6 +305,9 @@ export const kioskKeys = {
   sessions: (userId?: string) => 
     [...baseKioskKeys.lists(userId), 'sessions'] as const,
   
+  sessionsList: (filters: any, userId?: string) => 
+    [...baseKioskKeys.lists(userId), 'sessions', filters] as const,
+  
   session: (sessionId: string, userId?: string) => 
     [...baseKioskKeys.details(userId), 'session', sessionId] as const,
   
@@ -246,11 +315,27 @@ export const kioskKeys = {
   auth: (userId?: string) => 
     [...baseKioskKeys.all(userId), 'auth'] as const,
   
+  authList: (userId?: string) => 
+    [...baseKioskKeys.lists(userId), 'auth'] as const,
+  
   // Kiosk Transactions
   transactions: (sessionId: string, userId?: string) => 
     [...baseKioskKeys.details(userId), 'session', sessionId, 'transactions'] as const,
 };
-export const notificationKeys = createQueryKeyFactory({ entity: 'notifications', isolation: 'user-specific' }); // Notifications are user-specific
+// Notification-specific query key factory with entity-specific methods
+const baseNotificationKeys = createQueryKeyFactory({ entity: 'notifications', isolation: 'user-specific' });
+
+export const notificationKeys = {
+  ...baseNotificationKeys,
+  
+  // Preferences queries
+  preferences: (userId: string) => 
+    [...baseNotificationKeys.details(userId), 'preferences'] as const,
+  
+  // Type-specific notifications
+  byType: (userId: string, type: string) => 
+    [...baseNotificationKeys.details(userId), type] as const,
+};
 // Payment-specific query key factory with entity-specific methods
 const basePaymentKeys = createQueryKeyFactory({ entity: 'payment', isolation: 'user-specific' });
 

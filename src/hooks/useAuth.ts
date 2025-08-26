@@ -243,7 +243,7 @@ export const useRegisterMutation = () => {
         // Smart invalidation strategy (following cart pattern)
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: authKeys.all() }),
-          queryClient.invalidateQueries({ queryKey: [...authKeys.all(), 'status'] })
+          queryClient.invalidateQueries({ queryKey: authKeys.status() })
         ]);
         
         // Broadcast success (following cart pattern)
@@ -341,8 +341,8 @@ export const useLogoutMutation = () => {
       queryClient.removeQueries({ queryKey: orderKeys.all() }); 
       
       // Clear any other user-specific data (profile, settings, etc.)
-      queryClient.removeQueries({ queryKey: [...authKeys.all(), 'profile'] });
-      queryClient.removeQueries({ queryKey: [...authKeys.all(), 'settings'] });
+      queryClient.removeQueries({ queryKey: authKeys.profile() });
+      queryClient.removeQueries({ queryKey: authKeys.settings() });
       
       // Note: Keep general product cache - it's not user-specific
       
@@ -436,7 +436,7 @@ export const useUpdateProfileMutation = () => {
         // Smart invalidation strategy (following cart pattern)
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: authKeys.details() }),
-          queryClient.invalidateQueries({ queryKey: [...authKeys.details(variables.userId), 'profile'] })
+          queryClient.invalidateQueries({ queryKey: authKeys.userProfile(variables.userId) })
         ]);
         
         // Broadcast success (following cart pattern)
@@ -609,7 +609,7 @@ export const useCurrentUser = () => {
  */
 export const useAuthStatus = () => {
   return useQuery({
-    queryKey: [...authKeys.all(), 'status'],
+    queryKey: authKeys.status(),
     queryFn: () => AuthService.isAuthenticated(),
     staleTime: 0, // Always check auth status
     gcTime: 0, // Don't cache auth status

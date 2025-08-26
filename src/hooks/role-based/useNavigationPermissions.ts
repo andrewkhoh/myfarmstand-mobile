@@ -78,7 +78,7 @@ export const useNavigationPermissions = (options: UseNavigationPermissionsOption
     isLoading: isBatchLoading,
     error: batchError,
   } = useQuery({
-    queryKey: [...navigationKeys.permissions(userRole?.userId), userRole?.role, 'batch', ...screens.sort()],
+    queryKey: navigationKeys.batchPermissions(userRole?.role || '', screens, userRole?.userId),
     queryFn: async () => {
       if (!userRole?.role || screens.length === 0) {
         return [] as NavigationPermission[];

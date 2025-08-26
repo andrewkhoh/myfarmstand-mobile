@@ -53,7 +53,7 @@ export const useRoleMenu = (options: UseRoleMenuOptions = {}) => {
     error: menuError,
     refetch: refetchMenu,
   } = useQuery({
-    queryKey: [...navigationKeys.menu(userRole?.role || 'customer', userRole?.userId), refreshTrigger],
+    queryKey: navigationKeys.menuWithRefresh(userRole?.role || 'customer', refreshTrigger, userRole?.userId),
     queryFn: async () => {
       if (!userRole?.role) {
         throw new Error('User role not available');
@@ -94,7 +94,7 @@ export const useRoleMenu = (options: UseRoleMenuOptions = {}) => {
     data: userCustomization,
     isLoading: isCustomizationLoading,
   } = useQuery({
-    queryKey: ['menu-customization', userRole?.userId],
+    queryKey: navigationKeys.menuCustomization(userRole?.userId),
     queryFn: async () => {
       if (!userRole?.userId) return {};
       
@@ -131,7 +131,7 @@ export const useRoleMenu = (options: UseRoleMenuOptions = {}) => {
     },
     onSuccess: (savedCustomization) => {
       setCustomization(savedCustomization);
-      queryClient.invalidateQueries({ queryKey: ['menu-customization', userRole?.userId] });
+      queryClient.invalidateQueries({ queryKey: navigationKeys.menuCustomization(userRole?.userId) });
     },
     onError: (error) => {
       ValidationMonitor.recordValidationError({

@@ -303,7 +303,7 @@ export const useProductSearch = (searchQuery: string) => {
   const { data: user } = useCurrentUser();
   
   const query = useQuery({
-    queryKey: [...productKeys.lists(), 'search', searchQuery],
+    queryKey: productKeys.search(searchQuery),
     queryFn: async (): Promise<Product[]> => {
       try {
         const response = await searchProducts(searchQuery);
@@ -441,11 +441,10 @@ export const useProductById = (productId: string) => {
 export const useCategories = () => {
   const { data: user } = useCurrentUser();
   const queryClient = useQueryClient();
-  const categoriesQueryKey = [...productKeys.lists(), 'categories'];
   
   // ✅ ARCHITECTURAL PATTERN: Use React Query's enabled guard
   const query = useQuery({
-    queryKey: categoriesQueryKey,
+    queryKey: productKeys.categories(),
     queryFn: async (): Promise<Category[]> => {
       try {
         const response = await getCategories();
@@ -591,7 +590,7 @@ export const useProductsByCategory = (categoryId: string | null) => {
   const { data: user } = useCurrentUser();
   
   const query = useQuery({
-    queryKey: [...productKeys.lists(), 'category', categoryId],
+    queryKey: productKeys.byCategory(categoryId),
     queryFn: async (): Promise<Product[]> => {
       try {
         if (!categoryId) {

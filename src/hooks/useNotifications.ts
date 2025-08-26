@@ -175,7 +175,7 @@ export const useNotifications = () => {
 
   // Enhanced notification preferences query (following cart pattern)
   const preferencesQuery = useQuery<NotificationPreferences | null, Error>({
-    queryKey: [...notificationKeys.details(user.id), 'preferences'],
+    queryKey: notificationKeys.preferences(user.id),
     queryFn: async (): Promise<NotificationPreferences | null> => {
       // Authentication guard (following cart pattern)
       if (!user?.id) {
@@ -348,7 +348,7 @@ export const useNotifications = () => {
         // Smart invalidation strategy (following cart pattern)
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: notificationKeys.lists(user.id) }),
-          queryClient.invalidateQueries({ queryKey: [...notificationKeys.details(user.id), request.type] })
+          queryClient.invalidateQueries({ queryKey: notificationKeys.byType(user.id, request.type) })
         ]);
         
         // Broadcast notification event for real-time sync (following cart pattern)
@@ -423,7 +423,7 @@ export const useNotifications = () => {
     
     onMutate: async (newPreferences: Partial<NotificationPreferences>): Promise<NotificationMutationContext> => {
       // Cancel outgoing queries to prevent race conditions (following cart pattern)
-      await queryClient.cancelQueries({ queryKey: [...notificationKeys.details(user.id), 'preferences'] });
+      await queryClient.cancelQueries({ queryKey: notificationKeys.preferences(user.id) });
       
       // Snapshot previous values for rollback (following cart pattern)
       const previousPreferences = queryClient.getQueryData<NotificationPreferences | null>([...notificationKeys.details(user.id), 'preferences']);
@@ -463,7 +463,7 @@ export const useNotifications = () => {
         });
         
         // Smart invalidation strategy (following cart pattern)
-        await queryClient.invalidateQueries({ queryKey: [...notificationKeys.details(user.id), 'preferences'] });
+        await queryClient.invalidateQueries({ queryKey: notificationKeys.preferences(user.id) });
         
         // Broadcast preferences update (following cart pattern)
         await notificationBroadcast.send('preferences-updated', {

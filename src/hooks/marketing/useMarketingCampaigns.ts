@@ -7,7 +7,7 @@ import { useAuth } from '../useAuth';
 import { MarketingCampaignService } from '../../services/marketing/marketingCampaignService';
 import { RolePermissionService } from '../../services/role-based/rolePermissionService';
 import { ValidationMonitor } from '../../utils/validationMonitor';
-import { campaignKeys } from '../../utils/queryKeyFactory';
+import { campaignKeys, contentKeys, bundleKeys } from '../../utils/queryKeyFactory';
 import type {
   MarketingCampaignTransform,
   CreateMarketingCampaignInput,
@@ -382,8 +382,8 @@ export function useUpdateCampaignStatus() {
       
       // Invalidate related content and bundle queries when campaign status changes
       // This supports cross-system integration
-      queryClient.invalidateQueries({ queryKey: ['content', 'list'] });
-      queryClient.invalidateQueries({ queryKey: ['bundles', 'list'] });
+      queryClient.invalidateQueries({ queryKey: contentKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: bundleKeys.lists() });
     },
     onError: (error) => {
       ValidationMonitor.recordValidationError({

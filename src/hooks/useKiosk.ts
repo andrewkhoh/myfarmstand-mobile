@@ -70,8 +70,8 @@ export const useKioskAuth = () => {
     onSuccess: (data: KioskAuthResponse) => {
       if (data.success && data.sessionId) {
         // ✅ PATTERN: Smart invalidation with user isolation
-        queryClient.invalidateQueries({ queryKey: [...kioskKeys.lists(user?.id), 'sessions'], exact: false });
-        queryClient.invalidateQueries({ queryKey: [...kioskKeys.lists(user?.id), 'auth'], exact: false });
+        queryClient.invalidateQueries({ queryKey: kioskKeys.sessions(user?.id), exact: false });
+        queryClient.invalidateQueries({ queryKey: kioskKeys.authList(user?.id), exact: false });
         
         // Don't invalidate all queries - be specific
         ValidationMonitor.recordPatternSuccess({
@@ -97,7 +97,7 @@ export const useKioskSession = (sessionId: string | null) => {
   const { data: user } = useCurrentUser();
   
   return useQuery({
-    queryKey: [...kioskKeys.details(user?.id), 'session', sessionId || ''],
+    queryKey: kioskKeys.session(sessionId || '', user?.id),
     queryFn: async (): Promise<KioskSessionResponse | null> => {
       if (!sessionId) {
         ValidationMonitor.recordValidationError({
@@ -153,7 +153,7 @@ export const useKioskSessions = (
   const { data: user } = useCurrentUser();
   
   return useQuery({
-    queryKey: [...kioskKeys.lists(user?.id), 'sessions', filters],
+    queryKey: kioskKeys.sessionsList(filters, user?.id),
     queryFn: async (): Promise<KioskSessionsListResponse> => {
       try {
         const result = await kioskService.getSessions(filters);
@@ -229,8 +229,8 @@ export const useKioskSessionOperations = () => {
     },
     onSuccess: (_, sessionId) => {
       // ✅ PATTERN: Smart invalidation with user isolation
-      queryClient.invalidateQueries({ queryKey: [...kioskKeys.details(user?.id), 'session', sessionId] });
-      queryClient.invalidateQueries({ queryKey: [...kioskKeys.lists(user?.id), 'sessions'] });
+      queryClient.invalidateQueries({ queryKey: kioskKeys.session(sessionId, user?.id) });
+      queryClient.invalidateQueries({ queryKey: kioskKeys.sessions(user?.id) });
       
       ValidationMonitor.recordPatternSuccess({
         service: 'useKioskSessionOperations',
@@ -276,7 +276,7 @@ export const useKioskSessionOperations = () => {
       if (data.success) {
         // ✅ PATTERN: Optimistic update
         queryClient.setQueryData(
-          [...kioskKeys.details(user?.id), 'session', sessionId], 
+          kioskKeys.session(sessionId, user?.id), 
           (old: KioskSessionResponse | undefined) => {
             if (old && old.session) {
               return {
@@ -305,7 +305,7 @@ export const useKioskTransactions = (sessionId: string | null) => {
   const { data: user } = useCurrentUser();
   
   return useQuery({
-    queryKey: [...kioskKeys.details(user?.id), 'session', sessionId || '', 'transactions'],
+    queryKey: kioskKeys.transactions(sessionId || '', user?.id),
     queryFn: async (): Promise<KioskTransactionsListResponse | null> => {
       if (!sessionId) return null;
 

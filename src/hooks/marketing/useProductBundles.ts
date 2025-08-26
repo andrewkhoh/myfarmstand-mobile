@@ -7,7 +7,7 @@ import { useAuth } from '../useAuth';
 import { ProductBundleService } from '../../services/marketing/productBundleService';
 import { RolePermissionService } from '../../services/role-based/rolePermissionService';
 import { ValidationMonitor } from '../../utils/validationMonitor';
-import { bundleKeys } from '../../utils/queryKeyFactory';
+import { bundleKeys, inventoryKeys } from '../../utils/queryKeyFactory';
 import type {
   ProductBundleTransform,
   CreateProductBundleInput,
@@ -276,7 +276,7 @@ export function useBundleInventoryImpact() {
       );
       
       // Invalidate inventory-related queries for cross-system integration
-      queryClient.invalidateQueries({ queryKey: ['inventory', 'availability'] });
+      queryClient.invalidateQueries({ queryKey: inventoryKeys.availability() });
     },
     onError: (error) => {
       ValidationMonitor.recordValidationError({
@@ -340,7 +340,7 @@ export function useUpdateBundleProducts() {
       queryClient.invalidateQueries({ queryKey: bundleKeys.performance(variables.bundleId) });
       
       // Cross-system integration: invalidate inventory queries
-      queryClient.invalidateQueries({ queryKey: ['inventory', 'impact'] });
+      queryClient.invalidateQueries({ queryKey: inventoryKeys.impact() });
     },
     onError: (error) => {
       ValidationMonitor.recordValidationError({
