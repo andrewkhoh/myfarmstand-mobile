@@ -11,10 +11,25 @@ import '@testing-library/jest-native/extend-expect';
 // ============================================================================
 
 export const mockReactNative = {
-  Platform: { OS: 'ios' },
+  Platform: { 
+    OS: 'ios',
+    select: jest.fn((platforms) => platforms.ios || platforms.default)
+  },
   Alert: { alert: jest.fn() },
   Dimensions: { get: jest.fn(() => ({ width: 375, height: 812 })) },
-  StyleSheet: { create: (styles: any) => styles },
+  StyleSheet: { 
+    create: (styles: any) => styles,
+    flatten: (style: any) => style,
+    compose: (style1: any, style2: any) => [style1, style2].filter(Boolean),
+    hairlineWidth: 1,
+    absoluteFillObject: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      top: 0,
+      bottom: 0,
+    }
+  },
   View: 'View',
   Text: 'Text',
   ScrollView: 'ScrollView',
@@ -23,6 +38,9 @@ export const mockReactNative = {
   ActivityIndicator: 'ActivityIndicator',
   KeyboardAvoidingView: 'KeyboardAvoidingView',
   Modal: 'Modal',
+  RefreshControl: 'RefreshControl',
+  FlatList: 'FlatList',
+  SectionList: 'SectionList',
 };
 
 // ============================================================================
