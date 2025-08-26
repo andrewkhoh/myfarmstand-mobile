@@ -1,14 +1,15 @@
 /**
  * AuthService Test - Using REFACTORED Infrastructure
- * Following the proven pattern from notificationService.test.ts
+ * Following the proven pattern from service tests
  */
 
-import { AuthService } from '../authService';
-import { createUser, resetAllFactories } from '../../test/factories';
+// ============================================================================
+// MOCK SETUP - MUST BE BEFORE ANY IMPORTS 
+// ============================================================================
 
-// Mock Supabase using the refactored infrastructure - CREATE MOCK IN THE JEST.MOCK CALL
-jest.mock('../../config/supabase', () => {
-  const { SimplifiedSupabaseMock } = require('../../test/mocks/supabase.simplified.mock');
+// Mock Supabase using the SimplifiedSupabaseMock pattern
+jest.mock("../../config/supabase", () => {
+  const { SimplifiedSupabaseMock } = require("../../test/mocks/supabase.simplified.mock");
   const mockInstance = new SimplifiedSupabaseMock();
   return {
     supabase: mockInstance.createClient(),
@@ -39,6 +40,7 @@ jest.mock('../../utils/validationMonitor', () => ({
   ValidationMonitor: {
     recordValidationError: jest.fn(),
     recordPatternSuccess: jest.fn(),
+    recordDataIntegrity: jest.fn()
   }
 }));
 
@@ -72,6 +74,13 @@ jest.mock('../../utils/validationPipeline', () => ({
     sanitizeInput: jest.fn((input) => input),
   }
 }));
+
+// ============================================================================
+// IMPORTS - AFTER ALL MOCKS ARE SET UP
+// ============================================================================
+
+import { AuthService } from '../authService';
+import { createUser, resetAllFactories } from '../../test/factories';
 
 describe('AuthService - Refactored Infrastructure', () => {
   let testUser: any;

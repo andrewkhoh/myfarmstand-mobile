@@ -1,3 +1,6 @@
+// Test Infrastructure Imports
+import { createProduct, createUser, resetAllFactories } from "../../test/factories";
+
 // Service import first
 import { ProductBundleService } from '../productBundleService';
 
@@ -18,9 +21,12 @@ import type {
 } from '../../../schemas/marketing';
 
 // Mock Supabase - SimplifiedSupabaseMock in jest.mock() call
-jest.mock('../../../config/supabase', () => {
-  const { SimplifiedSupabaseMock } = require('../../../test/mocks/supabase.simplified.mock');
+jest.mock("../../config/supabase", () => {
+  const { SimplifiedSupabaseMock } = require("../../test/mocks/supabase.simplified.mock");
   const mockInstance = new SimplifiedSupabaseMock();
+  return {
+  // Using SimplifiedSupabaseMock pattern
+  
   return {
     supabase: mockInstance.createClient(),
     TABLES: { 
@@ -30,13 +36,15 @@ jest.mock('../../../config/supabase', () => {
       PRODUCTS: 'products'
     }
   };
+    TABLES: { /* Add table constants */ }
+  };
 });
 
 // Mock ValidationMonitor
 jest.mock('../../../utils/validationMonitor', () => ({
   ValidationMonitor: {
     recordValidationError: jest.fn(),
-    recordPatternSuccess: jest.fn(),
+    recordPatternSuccess: jest.fn(), recordDataIntegrity: jest.fn()
   }
 }));
 
@@ -59,9 +67,6 @@ jest.mock('../../inventory/inventoryService', () => ({
   }
 }));
 
-const { supabase } = require('../../../config/supabase');
-const { ValidationMonitor } = require('../../../utils/validationMonitor');
-const { RolePermissionService } = require('../../role-based/rolePermissionService');
 const { InventoryService } = require('../../inventory/inventoryService');
 
 describe('ProductBundleService - Phase 3.2 (Mock Pattern)', () => {
@@ -121,7 +126,7 @@ describe('ProductBundleService - Phase 3.2 (Mock Pattern)', () => {
       };
 
       // Mock the bundle creation
-      supabase.from.mockReturnValue({
+      mockFrom.mockReturnValue({
         insert: jest.fn().mockReturnValue({
           select: jest.fn().mockReturnValue({
             single: jest.fn().mockResolvedValue({
@@ -156,7 +161,7 @@ describe('ProductBundleService - Phase 3.2 (Mock Pattern)', () => {
 
       // Verify ValidationMonitor integration
       expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith({
-        service: 'productBundleService',
+        context: 'productBundleService',
         pattern: 'transformation_schema',
         operation: 'createBundle'
       });
@@ -245,7 +250,7 @@ describe('ProductBundleService - Phase 3.2 (Mock Pattern)', () => {
       ];
 
       // Mock the delete and insert operations for bundle products update
-      supabase.from.mockReturnValue({
+      mockFrom.mockReturnValue({
         delete: jest.fn().mockReturnValue({
           eq: jest.fn().mockResolvedValue({ error: null })
         }),
@@ -334,7 +339,7 @@ describe('ProductBundleService - Phase 3.2 (Mock Pattern)', () => {
       };
 
       // Mock the bundle query
-      supabase.from.mockReturnValue({
+      mockFrom.mockReturnValue({
         select: jest.fn().mockReturnValue({
           eq: jest.fn().mockReturnValue({
             single: jest.fn().mockResolvedValue({ data: mockBundle, error: null })
@@ -406,7 +411,7 @@ describe('ProductBundleService - Phase 3.2 (Mock Pattern)', () => {
       };
 
       // Mock the queries
-      supabase.from.mockReturnValue({
+      mockFrom.mockReturnValue({
         update: jest.fn().mockReturnValue({
           eq: jest.fn().mockReturnValue({
             select: jest.fn().mockReturnValue({
@@ -601,7 +606,7 @@ describe('ProductBundleService - Phase 3.2 (Mock Pattern)', () => {
         return Promise.resolve(false);
       });
 
-      supabase.from.mockReturnValue({
+      mockFrom.mockReturnValue({
         select: jest.fn().mockReturnValue({
           eq: jest.fn().mockReturnValue({
             range: jest.fn().mockReturnValue({
@@ -654,7 +659,7 @@ describe('ProductBundleService - Phase 3.2 (Mock Pattern)', () => {
       };
 
       // Mock database call for getBundleDetails
-      supabase.from.mockReturnValue({
+      mockFrom.mockReturnValue({
         select: jest.fn().mockReturnValue({
           eq: jest.fn().mockReturnValue({
             single: jest.fn().mockResolvedValue({
@@ -679,7 +684,7 @@ describe('ProductBundleService - Phase 3.2 (Mock Pattern)', () => {
         
         // Verify ValidationMonitor integration
         expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith({
-          service: 'productBundleService',
+          context: 'productBundleService',
           pattern: 'transformation_schema',
           operation: 'getBundleDetails'
         });
@@ -713,7 +718,7 @@ describe('ProductBundleService - Phase 3.2 (Mock Pattern)', () => {
 
   describe('Performance validation', () => {
     it('should handle bundle operations within performance targets', async () => {
-      supabase.from.mockReturnValue({
+      mockFrom.mockReturnValue({
         select: jest.fn().mockReturnValue({
           eq: jest.fn().mockReturnValue({
             range: jest.fn().mockReturnValue({

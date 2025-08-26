@@ -1,8 +1,14 @@
+// Test Infrastructure Imports
+import { createProduct, createUser, resetAllFactories } from "../../test/factories";
+
 // Phase 4.5: Comprehensive Pattern Compliance Audit
 // Validating all Phase 4 implementations against architectural patterns
 
 // Setup all mocks BEFORE any imports
-jest.mock('../../../config/supabase', () => {
+jest.mock("../../config/supabase", () => {
+  const { SimplifiedSupabaseMock } = require("../../test/mocks/supabase.simplified.mock");
+  const mockInstance = new SimplifiedSupabaseMock();
+  return {
   const mockFrom = jest.fn(() => ({
     select: jest.fn().mockReturnThis(),
     eq: jest.fn().mockReturnThis(),
@@ -24,6 +30,8 @@ jest.mock('../../../config/supabase', () => {
         })
       }
     }
+  };
+    TABLES: { /* Add table constants */ }
   };
 });
 
@@ -381,10 +389,10 @@ describe('Phase 4.5: Pattern Compliance Audit', () => {
     describe('Security Compliance', () => {
       it('should validate role-based access control in all services', () => {
         const roleChecks = [
-          { service: 'BusinessMetrics', hasRoleCheck: true },
-          { service: 'BusinessIntelligence', hasRoleCheck: true },
-          { service: 'StrategicReporting', hasRoleCheck: true },
-          { service: 'PredictiveAnalytics', hasRoleCheck: true }
+          { context: 'BusinessMetrics', hasRoleCheck: true },
+          { context: 'BusinessIntelligence', hasRoleCheck: true },
+          { context: 'StrategicReporting', hasRoleCheck: true },
+          { context: 'PredictiveAnalytics', hasRoleCheck: true }
         ];
 
         expect(roleChecks.every(check => check.hasRoleCheck)).toBe(true);

@@ -1,3 +1,6 @@
+// Test Infrastructure Imports
+import { createProduct, createUser, resetAllFactories } from "../../test/factories";
+
 /**
  * InventoryService Test - Using PROVEN Refactored Infrastructure Pattern
  * Following the exact pattern from paymentService.test.ts
@@ -14,12 +17,17 @@ import type {
 } from '../../../schemas/inventory';
 
 // Mock Supabase using SimplifiedSupabaseMock - PROVEN PATTERN
-jest.mock('../../../config/supabase', () => {
-  const { SimplifiedSupabaseMock } = require('../../../test/mocks/supabase.simplified.mock');
+jest.mock("../../config/supabase", () => {
+  const { SimplifiedSupabaseMock } = require("../../test/mocks/supabase.simplified.mock");
   const mockInstance = new SimplifiedSupabaseMock();
+  return {
+  // Using SimplifiedSupabaseMock pattern
+  
   return {
     supabase: mockInstance.createClient(),
     TABLES: { USERS: 'users', PRODUCTS: 'products', ORDERS: 'orders', CART: 'cart', INVENTORY: 'inventory' }
+  };
+    TABLES: { /* Add table constants */ }
   };
 });
 
@@ -27,7 +35,7 @@ jest.mock('../../../config/supabase', () => {
 jest.mock('../../../utils/validationMonitor', () => ({
   ValidationMonitor: {
     recordValidationError: jest.fn(),
-    recordPatternSuccess: jest.fn(),
+    recordPatternSuccess: jest.fn(), recordDataIntegrity: jest.fn()
   }
 }));
 

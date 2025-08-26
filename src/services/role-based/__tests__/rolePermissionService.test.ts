@@ -1,9 +1,15 @@
+// Test Infrastructure Imports
+import { createProduct, createUser, resetAllFactories } from "../../test/factories";
+
 /**
  * RolePermissionService Test - Following Service Test Pattern (REFERENCE)
  */
 
 // Setup all mocks BEFORE any imports
-jest.mock('../../../config/supabase', () => {
+jest.mock("../../config/supabase", () => {
+  const { SimplifiedSupabaseMock } = require("../../test/mocks/supabase.simplified.mock");
+  const mockInstance = new SimplifiedSupabaseMock();
+  return {
   const mockFrom = jest.fn(() => ({
     select: jest.fn().mockReturnThis(),
     eq: jest.fn().mockReturnThis(),
@@ -35,6 +41,8 @@ jest.mock('../../../config/supabase', () => {
       ROLE_PERMISSIONS: 'role_permissions',
       USERS: 'users'
     }
+  };
+    TABLES: { /* Add table constants */ }
   };
 });
 
@@ -91,7 +99,7 @@ describe('RolePermissionService - Phase 1', () => {
 
       // Verify ValidationMonitor integration
       expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith({
-        service: 'rolePermissionService',
+        context: 'rolePermissionService',
         pattern: 'transformation_schema',
         operation: 'getUserRole'
       });
@@ -190,7 +198,7 @@ describe('RolePermissionService - Phase 1', () => {
       
       // Verify analytics tracking
       expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith({
-        service: 'rolePermissionService',
+        context: 'rolePermissionService',
         pattern: 'simple_input_validation',
         operation: 'hasPermission'
       });
@@ -359,7 +367,7 @@ describe('RolePermissionService - Phase 1', () => {
       
       // Verify ValidationMonitor tracking
       expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith({
-        service: 'rolePermissionService',
+        context: 'rolePermissionService',
         pattern: 'transformation_schema',
         operation: 'createUserRole'
       });
@@ -430,7 +438,7 @@ describe('RolePermissionService - Phase 1', () => {
       
       expect(result?.permissions).toEqual(['view_inventory', 'update_stock', 'new_permission']);
       expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith({
-        service: 'rolePermissionService',
+        context: 'rolePermissionService',
         pattern: 'transformation_schema',
         operation: 'updateUserPermissions'
       });

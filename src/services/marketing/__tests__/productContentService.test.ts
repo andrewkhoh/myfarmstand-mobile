@@ -1,4 +1,9 @@
+// Test Infrastructure Imports
+import { createProduct, createUser, resetAllFactories } from "../../test/factories";
+
 import { ProductContentService } from '../productContentService';
+import { RolePermissionService } from '../../role-based/rolePermissionService';
+import { ValidationMonitor } from '../../../utils/validationMonitor';
 import { createUser, createProduct, resetAllFactories } from '../../../test/factories';
 import type { 
   UpdateProductContentInput,
@@ -6,9 +11,12 @@ import type {
 } from '../../../schemas/marketing';
 
 // Mock Supabase using the refactored infrastructure - CREATE MOCK IN THE JEST.MOCK CALL
-jest.mock('../../../config/supabase', () => {
-  const { SimplifiedSupabaseMock } = require('../../../test/mocks/supabase.simplified.mock');
+jest.mock("../../config/supabase", () => {
+  const { SimplifiedSupabaseMock } = require("../../test/mocks/supabase.simplified.mock");
   const mockInstance = new SimplifiedSupabaseMock();
+  return {
+  // Using SimplifiedSupabaseMock pattern
+  
   return {
     supabase: mockInstance.createClient(),
     TABLES: {
@@ -17,13 +25,15 @@ jest.mock('../../../config/supabase', () => {
       USERS: 'users'
     }
   };
+    TABLES: { /* Add table constants */ }
+  };
 });
 
 // Mock ValidationMonitor
 jest.mock('../../../utils/validationMonitor', () => ({
   ValidationMonitor: {
     recordValidationError: jest.fn(),
-    recordPatternSuccess: jest.fn(),
+    recordPatternSuccess: jest.fn(), recordDataIntegrity: jest.fn()
   }
 }));
 
@@ -41,9 +51,9 @@ jest.mock('../../role-based/rolePermissionService', () => ({
   }
 }));
 
-const { ValidationMonitor } = require('../../../utils/validationMonitor');
-const { RolePermissionService } = require('../../role-based/rolePermissionService');
+// Get access to mockFrom for test setup
 const { supabase } = require('../../../config/supabase');
+const mockFrom = supabase.from as jest.Mock;
 
 describe('ProductContentService - Refactored Infrastructure', () => {
   let testUser: any;

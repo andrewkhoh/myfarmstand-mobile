@@ -1,3 +1,6 @@
+// Test Infrastructure Imports
+import { createProduct, createUser, resetAllFactories } from "../../test/factories";
+
 // Service import first
 import { StockMovementService } from '../stockMovementService';
 
@@ -18,9 +21,12 @@ import type {
 } from '../../../schemas/inventory';
 
 // Mock Supabase - SimplifiedSupabaseMock in jest.mock() call
-jest.mock('../../../config/supabase', () => {
-  const { SimplifiedSupabaseMock } = require('../../../test/mocks/supabase.simplified.mock');
+jest.mock("../../config/supabase", () => {
+  const { SimplifiedSupabaseMock } = require("../../test/mocks/supabase.simplified.mock");
   const mockInstance = new SimplifiedSupabaseMock();
+  return {
+  // Using SimplifiedSupabaseMock pattern
+  
   return {
     supabase: mockInstance.createClient(),
     TABLES: { 
@@ -30,18 +36,18 @@ jest.mock('../../../config/supabase', () => {
       PRODUCTS: 'products'
     }
   };
+    TABLES: { /* Add table constants */ }
+  };
 });
 
 // Mock ValidationMonitor
 jest.mock('../../../utils/validationMonitor', () => ({
   ValidationMonitor: {
     recordValidationError: jest.fn(),
-    recordPatternSuccess: jest.fn(),
+    recordPatternSuccess: jest.fn(), recordDataIntegrity: jest.fn()
   }
 }));
 
-const { supabase } = require('../../../config/supabase');
-const { ValidationMonitor } = require('../../../utils/validationMonitor');
 
 describe('StockMovementService - Mock Tests', () => {
   // Test constants
@@ -84,7 +90,7 @@ describe('StockMovementService - Mock Tests', () => {
 
     it('should record stock movement with complete audit trail (mocked)', async () => {
       // Setup successful insert mock
-      supabase.from.mockReturnValue({
+      mockFrom.mockReturnValue({
         insert: jest.fn().mockReturnValue({
           select: jest.fn().mockReturnValue({
             single: jest.fn().mockResolvedValue({
@@ -113,7 +119,7 @@ describe('StockMovementService - Mock Tests', () => {
       
       // Verify ValidationMonitor integration
       expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith({
-        service: 'stockMovementService',
+        context: 'stockMovementService',
         pattern: 'transformation_schema',
         operation: 'recordMovement'
       });
@@ -130,7 +136,7 @@ describe('StockMovementService - Mock Tests', () => {
         new_stock: 110
       };
 
-      supabase.from.mockReturnValue({
+      mockFrom.mockReturnValue({
         insert: jest.fn().mockReturnValue({
           select: jest.fn().mockReturnValue({
             single: jest.fn().mockResolvedValue({
@@ -159,7 +165,7 @@ describe('StockMovementService - Mock Tests', () => {
 
     it('should handle movement recording errors gracefully', async () => {
       // Setup database error mock
-      supabase.from.mockReturnValue({
+      mockFrom.mockReturnValue({
         insert: jest.fn().mockReturnValue({
           select: jest.fn().mockReturnValue({
             single: jest.fn().mockResolvedValue({
@@ -208,7 +214,7 @@ describe('StockMovementService - Mock Tests', () => {
 
     it('should get movement history with pagination and filtering (mocked)', async () => {
       // Setup history query mock
-      supabase.from.mockReturnValue({
+      mockFrom.mockReturnValue({
         select: jest.fn().mockReturnValue({
           eq: jest.fn().mockReturnValue({
             order: jest.fn().mockReturnValue({
@@ -229,14 +235,14 @@ describe('StockMovementService - Mock Tests', () => {
       expect(result.success[0].inventoryItemId).toBe(testInventoryId);
       
       expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith({
-        service: 'stockMovementService',
+        context: 'stockMovementService',
         pattern: 'transformation_schema',
         operation: 'getMovementHistory'
       });
     });
 
     it('should handle pagination correctly', async () => {
-      supabase.from.mockReturnValue({
+      mockFrom.mockReturnValue({
         select: jest.fn().mockReturnValue({
           eq: jest.fn().mockReturnValue({
             order: jest.fn().mockReturnValue({
@@ -266,7 +272,7 @@ describe('StockMovementService - Mock Tests', () => {
       const marketingUserId = '22222222-2222-2222-2222-222222222222'; // marketing_staff
       
       // Setup role data mock - marketing staff can read but not write
-      supabase.from.mockReturnValue({
+      mockFrom.mockReturnValue({
         select: jest.fn().mockReturnValue({
           eq: jest.fn().mockReturnValue({
             eq: jest.fn().mockResolvedValue({
@@ -296,7 +302,7 @@ describe('StockMovementService - Mock Tests', () => {
       expect(canWrite).toBe(false); // But cannot record movements
       
       expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith({
-        service: 'stockMovementService',
+        context: 'stockMovementService',
         pattern: 'transformation_schema',
         operation: 'checkMovementPermission'
       });
@@ -305,7 +311,7 @@ describe('StockMovementService - Mock Tests', () => {
 
   describe('Error Handling and Edge Cases', () => {
     it('should handle database errors gracefully', async () => {
-      supabase.from.mockReturnValue({
+      mockFrom.mockReturnValue({
         select: jest.fn().mockReturnValue({
           eq: jest.fn().mockReturnValue({
             order: jest.fn().mockReturnValue({

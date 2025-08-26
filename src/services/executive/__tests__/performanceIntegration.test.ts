@@ -1,3 +1,6 @@
+// Test Infrastructure Imports
+import { createProduct, createUser, resetAllFactories } from "../../test/factories";
+
 /**
  * Performance Integration Test - Using REFACTORED Infrastructure
  */
@@ -6,12 +9,17 @@ import { BusinessMetricsService } from '../businessMetricsService';
 import { createUser, resetAllFactories } from '../../../test/factories';
 
 // Mock Supabase using the refactored infrastructure
-jest.mock('../../../config/supabase', () => {
-  const { SimplifiedSupabaseMock } = require('../../../test/mocks/supabase.simplified.mock');
+jest.mock("../../config/supabase", () => {
+  const { SimplifiedSupabaseMock } = require("../../test/mocks/supabase.simplified.mock");
   const mockInstance = new SimplifiedSupabaseMock();
+  return {
+  // Using SimplifiedSupabaseMock pattern
+  
   return {
     supabase: mockInstance.createClient(),
     TABLES: { USERS: 'users', REPORTS: 'reports' }
+  };
+    TABLES: { /* Add table constants */ }
   };
 });
 
@@ -19,11 +27,10 @@ jest.mock('../../../config/supabase', () => {
 jest.mock('../../../utils/validationMonitor', () => ({
   ValidationMonitor: {
     recordValidationError: jest.fn(),
-    recordPatternSuccess: jest.fn(),
+    recordPatternSuccess: jest.fn(), recordDataIntegrity: jest.fn()
   }
 }));
 
-const { ValidationMonitor } = require('../../../utils/validationMonitor');
 
 describe('Performance Integration - Refactored', () => {
   let testUser: any;

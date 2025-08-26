@@ -1,9 +1,15 @@
+// Test Infrastructure Imports
+import { createProduct, createUser, resetAllFactories } from "../../test/factories";
+
 /**
  * Campaign Management Integration Test - Following Service Test Pattern (REFERENCE)
  */
 
 // Setup all mocks BEFORE any imports
-jest.mock('../../../config/supabase', () => {
+jest.mock("../../config/supabase", () => {
+  const { SimplifiedSupabaseMock } = require("../../test/mocks/supabase.simplified.mock");
+  const mockInstance = new SimplifiedSupabaseMock();
+  return {
   const mockFrom = jest.fn(() => ({
     select: jest.fn().mockReturnThis(),
     eq: jest.fn().mockReturnThis(),
@@ -36,6 +42,8 @@ jest.mock('../../../config/supabase', () => {
       PRODUCTS: 'products',
       USERS: 'users'
     }
+  };
+    TABLES: { /* Add table constants */ }
   };
 });
 

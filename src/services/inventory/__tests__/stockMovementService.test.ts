@@ -1,3 +1,6 @@
+// Test Infrastructure Imports
+import { createProduct, createUser, resetAllFactories } from "../../test/factories";
+
 /**
  * StockMovementService Test - Following the proven refactored test pattern
  * 
@@ -14,19 +17,24 @@
 // MOCK SETUP - MUST BE BEFORE ANY IMPORTS 
 // ============================================================================
 
-jest.mock('../../../config/supabase', () => {
-  const { SimplifiedSupabaseMock } = require('../../../test/mocks/supabase.simplified.mock');
+jest.mock("../../config/supabase", () => {
+  const { SimplifiedSupabaseMock } = require("../../test/mocks/supabase.simplified.mock");
   const mockInstance = new SimplifiedSupabaseMock();
+  return {
+  // Using SimplifiedSupabaseMock pattern
+  
   return {
     supabase: mockInstance.createClient(),
     TABLES: { USERS: 'users', PRODUCTS: 'products', STOCK_MOVEMENTS: 'test_stock_movements' }
+  };
+    TABLES: { /* Add table constants */ }
   };
 });
 
 jest.mock('../../../utils/validationMonitor', () => ({
   ValidationMonitor: {
     recordValidationError: jest.fn(),
-    recordPatternSuccess: jest.fn(),
+    recordPatternSuccess: jest.fn(), recordDataIntegrity: jest.fn()
   }
 }));
 
@@ -107,7 +115,7 @@ describe('StockMovementService - Refactored Test Pattern', () => {
         
         // Verify ValidationMonitor was called for successful operations
         expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith({
-          service: 'stockMovementService',
+          context: 'stockMovementService',
           pattern: 'transformation_schema',
           operation: 'recordMovement'
         });
@@ -256,7 +264,7 @@ describe('StockMovementService - Refactored Test Pattern', () => {
       });
       
       expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith({
-        service: 'stockMovementService',
+        context: 'stockMovementService',
         pattern: 'transformation_schema',
         operation: 'getMovementHistory'
       });
@@ -379,7 +387,7 @@ describe('StockMovementService - Refactored Test Pattern', () => {
       });
       
       expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith({
-        service: 'stockMovementService',
+        context: 'stockMovementService',
         pattern: 'transformation_schema',
         operation: 'getMovementsByFilter'
       });
@@ -509,7 +517,7 @@ describe('StockMovementService - Refactored Test Pattern', () => {
       }
       
       expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith({
-        service: 'stockMovementService',
+        context: 'stockMovementService',
         pattern: 'transformation_schema',
         operation: 'getBatchMovements'
       });
@@ -593,7 +601,7 @@ describe('StockMovementService - Refactored Test Pattern', () => {
       });
       
       expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith({
-        service: 'stockMovementService',
+        context: 'stockMovementService',
         pattern: 'transformation_schema',
         operation: 'recordBatchMovements'
       });
@@ -741,7 +749,7 @@ describe('StockMovementService - Refactored Test Pattern', () => {
       });
       
       expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith({
-        service: 'stockMovementService',
+        context: 'stockMovementService',
         pattern: 'transformation_schema',
         operation: 'getMovementAnalytics'
       });
@@ -804,7 +812,7 @@ describe('StockMovementService - Refactored Test Pattern', () => {
         
         // Verify ValidationMonitor was called for successful operations
         expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith({
-          service: 'stockMovementService',
+          context: 'stockMovementService',
           pattern: 'transformation_schema',
           operation: 'recordMovementWithInventoryUpdate'
         });
@@ -872,7 +880,7 @@ describe('StockMovementService - Refactored Test Pattern', () => {
       // Verify ValidationMonitor calls (may be called multiple times)
       expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith(
         expect.objectContaining({
-          service: 'stockMovementService',
+          context: 'stockMovementService',
           operation: 'checkMovementPermission'
         })
       );
