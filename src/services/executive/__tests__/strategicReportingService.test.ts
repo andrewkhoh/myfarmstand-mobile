@@ -1,3 +1,6 @@
+// Test Infrastructure Imports
+import { createProduct, createUser, resetAllFactories } from "../../test/factories";
+
 /**
  * StrategicReportingService Test - Using REFACTORED Infrastructure
  * Following the proven pattern from authService.fixed.test.ts
@@ -7,9 +10,12 @@ import { StrategicReportingService } from '../strategicReportingService';
 import { createUser, resetAllFactories } from '../../../test/factories';
 
 // Mock Supabase using the refactored infrastructure - CREATE MOCK IN THE JEST.MOCK CALL
-jest.mock('../../../config/supabase', () => {
-  const { SimplifiedSupabaseMock } = require('../../../test/mocks/supabase.simplified.mock');
+jest.mock("../../config/supabase", () => {
+  const { SimplifiedSupabaseMock } = require("../../test/mocks/supabase.simplified.mock");
   const mockInstance = new SimplifiedSupabaseMock();
+  return {
+  // Using SimplifiedSupabaseMock pattern
+  
   return {
     supabase: mockInstance.createClient(),
     TABLES: {
@@ -21,13 +27,15 @@ jest.mock('../../../config/supabase', () => {
       REPORTS: 'reports'
     }
   };
+    TABLES: { /* Add table constants */ }
+  };
 });
 
 // Mock ValidationMonitor
 jest.mock('../../../utils/validationMonitor', () => ({
   ValidationMonitor: {
     recordValidationError: jest.fn(),
-    recordPatternSuccess: jest.fn(),
+    recordPatternSuccess: jest.fn(), recordDataIntegrity: jest.fn()
   }
 }));
 
@@ -57,7 +65,6 @@ jest.mock('../businessIntelligenceService', () => ({
   }
 }));
 
-const { ValidationMonitor } = require('../../../utils/validationMonitor');
 
 describe('StrategicReportingService - Refactored', () => {
   let testUser: any;
@@ -316,7 +323,6 @@ describe('StrategicReportingService - Refactored', () => {
   describe('Role-based Access Control for Reports', () => {
     it('should enforce role-based access control for report generation', async () => {
       if (StrategicReportingService.generateReport) {
-        const { RolePermissionService } = require('../../role-based/rolePermissionService');
         
         const result = await StrategicReportingService.generateReport(
           'executive-report-1',
@@ -335,7 +341,6 @@ describe('StrategicReportingService - Refactored', () => {
 
     it('should restrict report access for insufficient permissions', async () => {
       if (StrategicReportingService.generateReport) {
-        const { RolePermissionService } = require('../../role-based/rolePermissionService');
         (RolePermissionService.hasPermission as jest.Mock).mockResolvedValueOnce(false);
 
         await expect(

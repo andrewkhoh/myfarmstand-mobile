@@ -1,3 +1,6 @@
+// Test Infrastructure Imports
+import { createProduct, createUser, resetAllFactories } from "../../test/factories";
+
 /**
  * StockRestorationService Test - Using REFACTORED Infrastructure
  * Following the proven pattern from notificationService.test.ts
@@ -7,9 +10,12 @@ import { StockRestorationService } from '../stockRestorationService';
 import { createOrder, createProduct, createOrderItem, resetAllFactories } from '../../test/factories';
 
 // Mock Supabase using the refactored infrastructure - CREATE MOCK IN THE JEST.MOCK CALL
-jest.mock('../../config/supabase', () => {
-  const { SimplifiedSupabaseMock } = require('../../test/mocks/supabase.simplified.mock');
+jest.mock("../../config/supabase", () => {
+  const { SimplifiedSupabaseMock } = require("../../test/mocks/supabase.simplified.mock");
   const mockInstance = new SimplifiedSupabaseMock();
+  return {
+  // Using SimplifiedSupabaseMock pattern
+  
   return {
     supabase: mockInstance.createClient(),
     TABLES: {
@@ -21,13 +27,15 @@ jest.mock('../../config/supabase', () => {
       STOCK_RESTORATION_LOGS: 'stock_restoration_logs',
     }
   };
+    TABLES: { /* Add table constants */ }
+  };
 });
 
 // Mock ValidationMonitor
 jest.mock('../../utils/validationMonitor', () => ({
   ValidationMonitor: {
     recordValidationError: jest.fn(),
-    recordPatternSuccess: jest.fn(),
+    recordPatternSuccess: jest.fn(), recordDataIntegrity: jest.fn()
   }
 }));
 

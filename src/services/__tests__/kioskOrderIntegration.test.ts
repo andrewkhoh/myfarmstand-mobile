@@ -1,3 +1,6 @@
+// Test Infrastructure Imports
+import { createProduct, createUser, resetAllFactories } from "../../test/factories";
+
 /**
  * KioskOrderIntegration Test - Using REFACTORED Infrastructure
  * Following the proven pattern from service test reference
@@ -5,9 +8,12 @@
 
 // Setup all mocks BEFORE any imports
 // Mock Supabase using the refactored infrastructure - CREATE MOCK IN THE JEST.MOCK CALL
-jest.mock('../../config/supabase', () => {
-  const { SimplifiedSupabaseMock } = require('../../test/mocks/supabase.simplified.mock');
+jest.mock("../../config/supabase", () => {
+  const { SimplifiedSupabaseMock } = require("../../test/mocks/supabase.simplified.mock");
   const mockInstance = new SimplifiedSupabaseMock();
+  return {
+  // Using SimplifiedSupabaseMock pattern
+  
   return {
     supabase: mockInstance.createClient(),
     TABLES: {
@@ -16,6 +22,8 @@ jest.mock('../../config/supabase', () => {
       ORDERS: 'orders',
       KIOSK_SESSIONS: 'kiosk_sessions',
     }
+  };
+    TABLES: { /* Add table constants */ }
   };
 });
 

@@ -1,3 +1,6 @@
+// Test Infrastructure Imports
+import { createProduct, createUser, resetAllFactories } from "../../test/factories";
+
 /**
  * RoleNavigationService Tests
  * Tests for role-based navigation service functionality
@@ -19,9 +22,12 @@ import {
 import { UserRole, NavigationMenuItem, NavigationState } from '../../../types';
 
 // Mock Supabase - SimplifiedSupabaseMock in jest.mock() call
-jest.mock('../../../config/supabase', () => {
-  const { SimplifiedSupabaseMock } = require('../../../test/mocks/supabase.simplified.mock');
+jest.mock("../../config/supabase", () => {
+  const { SimplifiedSupabaseMock } = require("../../test/mocks/supabase.simplified.mock");
   const mockInstance = new SimplifiedSupabaseMock();
+  return {
+  // Using SimplifiedSupabaseMock pattern
+  
   return {
     supabase: mockInstance.createClient(),
     TABLES: { 
@@ -31,18 +37,18 @@ jest.mock('../../../config/supabase', () => {
       USERS: 'users'
     }
   };
+    TABLES: { /* Add table constants */ }
+  };
 });
 
 // Mock ValidationMonitor
 jest.mock('../../../utils/validationMonitor', () => ({
   ValidationMonitor: {
     recordValidationError: jest.fn(),
-    recordPatternSuccess: jest.fn(),
+    recordPatternSuccess: jest.fn(), recordDataIntegrity: jest.fn()
   }
 }));
 
-const { supabase } = require('../../../config/supabase');
-const { ValidationMonitor } = require('../../../utils/validationMonitor');
 
 describe('RoleNavigationService', () => {
   // Test constants using factory functions
@@ -100,7 +106,7 @@ describe('RoleNavigationService', () => {
       }
       
       expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith({
-        service: 'roleNavigationService',
+        context: 'roleNavigationService',
         pattern: 'transformation_schema',
         operation: 'generateMenuItems'
       });
@@ -224,7 +230,7 @@ describe('RoleNavigationService', () => {
       expect(result).toBeDefined();
       expect(result).toBe(true);
       expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith({
-        service: 'roleNavigationService',
+        context: 'roleNavigationService',
         pattern: 'simple_input_validation',
         operation: 'canNavigateTo'
       });
@@ -239,7 +245,7 @@ describe('RoleNavigationService', () => {
       expect(result).toBeDefined();
       expect(result).toBe(false);
       expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith({
-        service: 'roleNavigationService',
+        context: 'roleNavigationService',
         pattern: 'simple_input_validation',
         operation: 'canNavigateTo'
       });
@@ -260,7 +266,7 @@ describe('RoleNavigationService', () => {
       const role: UserRole = 'vendor';
       const screen = 'CustomVendorScreen';
       
-      supabase.from.mockReturnValue({
+      mockFrom.mockReturnValue({
         select: jest.fn().mockReturnValue({
           eq: jest.fn().mockReturnValue({
             eq: jest.fn().mockReturnValue({
@@ -284,7 +290,7 @@ describe('RoleNavigationService', () => {
       const role: UserRole = 'staff';
       const screen = 'StaffScreen';
       
-      supabase.from.mockReturnValue({
+      mockFrom.mockReturnValue({
         select: jest.fn().mockReturnValue({
           eq: jest.fn().mockReturnValue({
             eq: jest.fn().mockReturnValue({
@@ -340,7 +346,7 @@ describe('RoleNavigationService', () => {
       
       expect(result).toBeDefined();
       expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith({
-        service: 'roleNavigationService',
+        context: 'roleNavigationService',
         pattern: 'simple_input_validation',
         operation: 'getDefaultScreen'
       });
@@ -382,7 +388,7 @@ describe('RoleNavigationService', () => {
       
       expect(result).toBeDefined();
       expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith({
-        service: 'roleNavigationService',
+        context: 'roleNavigationService',
         pattern: 'simple_input_validation',
         operation: 'handlePermissionDenied'
       });
@@ -451,7 +457,7 @@ describe('RoleNavigationService', () => {
       
       expect(result).toBeDefined();
       expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith({
-        service: 'roleNavigationService',
+        context: 'roleNavigationService',
         pattern: 'direct_supabase_query',
         operation: 'trackNavigation'
       });
@@ -583,7 +589,7 @@ describe('RoleNavigationService', () => {
       
       expect(result).toBeDefined();
       expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith({
-        service: 'roleNavigationService',
+        context: 'roleNavigationService',
         pattern: 'direct_supabase_query',
         operation: 'persistNavigationState'
       });
@@ -599,7 +605,7 @@ describe('RoleNavigationService', () => {
       };
       
       // Mock persisted state retrieval
-      supabase.from.mockReturnValue({
+      mockFrom.mockReturnValue({
         select: jest.fn().mockReturnValue({
           eq: jest.fn().mockReturnValue({
             single: jest.fn().mockResolvedValue({
@@ -619,7 +625,7 @@ describe('RoleNavigationService', () => {
     it('should handle state retrieval errors gracefully', async () => {
       const userId = testUser.id;
       
-      supabase.from.mockReturnValue({
+      mockFrom.mockReturnValue({
         select: jest.fn().mockReturnValue({
           eq: jest.fn().mockReturnValue({
             single: jest.fn().mockRejectedValue(new Error('State retrieval failed')),

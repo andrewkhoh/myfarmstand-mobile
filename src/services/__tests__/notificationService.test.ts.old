@@ -1,3 +1,6 @@
+// Test Infrastructure Imports
+import { createProduct, createUser, resetAllFactories } from "../../test/factories";
+
 /**
  * NotificationService Test - Using AuthService Golden Pattern
  * Adapted from proven authService success pattern
@@ -5,7 +8,10 @@
 
 // Setup all mocks BEFORE any imports
 
-jest.mock('../../config/supabase', () => {
+jest.mock("../../config/supabase", () => {
+  const { SimplifiedSupabaseMock } = require("../../test/mocks/supabase.simplified.mock");
+  const mockInstance = new SimplifiedSupabaseMock();
+  return {
   const mockAuth = {
     signInWithPassword: jest.fn(),
     signOut: jest.fn(),
@@ -40,6 +46,8 @@ jest.mock('../../config/supabase', () => {
       ORDERS: 'orders',
       NOTIFICATIONS: 'notifications',
     }
+  };
+    TABLES: { /* Add table constants */ }
   };
 });
 

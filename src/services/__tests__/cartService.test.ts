@@ -7,9 +7,9 @@
 // MOCK SETUP - MUST BE BEFORE ANY IMPORTS 
 // ============================================================================
 
-// Mock Supabase using the refactored infrastructure - CREATE MOCK IN THE JEST.MOCK CALL
-jest.mock('../../config/supabase', () => {
-  const { SimplifiedSupabaseMock } = require('../../test/mocks/supabase.simplified.mock');
+// Mock Supabase using the SimplifiedSupabaseMock pattern
+jest.mock("../../config/supabase", () => {
+  const { SimplifiedSupabaseMock } = require("../../test/mocks/supabase.simplified.mock");
   const mockInstance = new SimplifiedSupabaseMock();
   return {
     supabase: mockInstance.createClient(),
@@ -46,6 +46,7 @@ jest.mock('../../utils/validationMonitor', () => ({
   ValidationMonitor: {
     recordValidationError: jest.fn(),
     recordPatternSuccess: jest.fn(),
+    recordDataIntegrity: jest.fn()
   }
 }));
 

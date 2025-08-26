@@ -1,3 +1,6 @@
+// Test Infrastructure Imports
+import { createProduct, createUser, resetAllFactories } from "../../test/factories";
+
 /**
  * BusinessIntelligenceService Test - Using REFACTORED Infrastructure
  * Following the proven pattern from authService.fixed.test.ts
@@ -7,9 +10,12 @@ import { BusinessIntelligenceService } from '../businessIntelligenceService';
 import { createUser, resetAllFactories } from '../../../test/factories';
 
 // Mock Supabase using the refactored infrastructure
-jest.mock('../../../config/supabase', () => {
-  const { SimplifiedSupabaseMock } = require('../../../test/mocks/supabase.simplified.mock');
+jest.mock("../../config/supabase", () => {
+  const { SimplifiedSupabaseMock } = require("../../test/mocks/supabase.simplified.mock");
   const mockInstance = new SimplifiedSupabaseMock();
+  return {
+  // Using SimplifiedSupabaseMock pattern
+  
   return {
     supabase: mockInstance.createClient(),
     TABLES: {
@@ -20,13 +26,15 @@ jest.mock('../../../config/supabase', () => {
       REPORTS: 'reports'
     }
   };
+    TABLES: { /* Add table constants */ }
+  };
 });
 
 // Mock ValidationMonitor
 jest.mock('../../../utils/validationMonitor', () => ({
   ValidationMonitor: {
     recordValidationError: jest.fn(),
-    recordPatternSuccess: jest.fn(),
+    recordPatternSuccess: jest.fn(), recordDataIntegrity: jest.fn()
   }
 }));
 
@@ -38,7 +46,6 @@ jest.mock('../../role-based/rolePermissionService', () => ({
   }
 }));
 
-const { ValidationMonitor } = require('../../../utils/validationMonitor');
 
 describe('BusinessIntelligenceService - Refactored', () => {
 
@@ -143,7 +150,6 @@ describe('BusinessIntelligenceService - Refactored', () => {
 
     it('should enforce role restrictions for insight access', async () => {
       if (BusinessIntelligenceService.getInsightsByImpact) {
-        const { RolePermissionService } = require('../../role-based/rolePermissionService');
         (RolePermissionService.hasPermission as jest.Mock).mockResolvedValueOnce(false);
 
         await expect(

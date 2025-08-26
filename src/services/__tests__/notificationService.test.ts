@@ -1,3 +1,6 @@
+// Test Infrastructure Imports
+import { createProduct, createUser, resetAllFactories } from "../../test/factories";
+
 /**
  * NotificationService Test - Using REFACTORED Infrastructure
  * Following the authService.fixed.test.ts pattern properly
@@ -7,9 +10,12 @@ import { NotificationService, sendPickupReadyNotification, sendOrderConfirmation
 import { createUser, createOrder, resetAllFactories } from '../../test/factories';
 
 // Mock Supabase using the refactored infrastructure - CREATE MOCK IN THE JEST.MOCK CALL
-jest.mock('../../config/supabase', () => {
-  const { SimplifiedSupabaseMock } = require('../../test/mocks/supabase.simplified.mock');
+jest.mock("../../config/supabase", () => {
+  const { SimplifiedSupabaseMock } = require("../../test/mocks/supabase.simplified.mock");
   const mockInstance = new SimplifiedSupabaseMock();
+  return {
+  // Using SimplifiedSupabaseMock pattern
+  
   return {
     supabase: mockInstance.createClient(),
     TABLES: {
@@ -18,13 +24,15 @@ jest.mock('../../config/supabase', () => {
       NOTIFICATIONS: 'notifications',
     }
   };
+    TABLES: { /* Add table constants */ }
+  };
 });
 
 // Mock ValidationMonitor
 jest.mock('../../utils/validationMonitor', () => ({
   ValidationMonitor: {
     recordValidationError: jest.fn(),
-    recordPatternSuccess: jest.fn(),
+    recordPatternSuccess: jest.fn(), recordDataIntegrity: jest.fn()
   }
 }));
 

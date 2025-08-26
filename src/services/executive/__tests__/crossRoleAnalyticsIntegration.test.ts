@@ -1,3 +1,6 @@
+// Test Infrastructure Imports
+import { createProduct, createUser, resetAllFactories } from "../../test/factories";
+
 /**
  * Cross-Role Analytics Integration Test - Using REFACTORED Infrastructure
  * Following the proven pattern from authService.fixed.test.ts
@@ -8,9 +11,12 @@ import { BusinessIntelligenceService } from '../businessIntelligenceService';
 import { createUser, resetAllFactories } from '../../../test/factories';
 
 // Mock Supabase using the refactored infrastructure - CREATE MOCK IN THE JEST.MOCK CALL
-jest.mock('../../../config/supabase', () => {
-  const { SimplifiedSupabaseMock } = require('../../../test/mocks/supabase.simplified.mock');
+jest.mock("../../config/supabase", () => {
+  const { SimplifiedSupabaseMock } = require("../../test/mocks/supabase.simplified.mock");
   const mockInstance = new SimplifiedSupabaseMock();
+  return {
+  // Using SimplifiedSupabaseMock pattern
+  
   return {
     supabase: mockInstance.createClient(),
     TABLES: {
@@ -23,13 +29,15 @@ jest.mock('../../../config/supabase', () => {
       REPORTS: 'reports'
     }
   };
+    TABLES: { /* Add table constants */ }
+  };
 });
 
 // Mock ValidationMonitor
 jest.mock('../../../utils/validationMonitor', () => ({
   ValidationMonitor: {
     recordValidationError: jest.fn(),
-    recordPatternSuccess: jest.fn(),
+    recordPatternSuccess: jest.fn(), recordDataIntegrity: jest.fn()
   }
 }));
 
@@ -57,8 +65,6 @@ jest.mock('../../marketing/marketingCampaignService', () => ({
   }
 }));
 
-const { ValidationMonitor } = require('../../../utils/validationMonitor');
-const { RolePermissionService } = require('../../role-based/rolePermissionService');
 
 describe('Cross-Role Analytics Integration - Refactored', () => {
   let testUser: any;
