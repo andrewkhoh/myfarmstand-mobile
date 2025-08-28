@@ -1,9 +1,5 @@
 module.exports = {
   testEnvironment: 'node',
-  setupFilesAfterEnv: ['<rootDir>/src/test/test-setup.ts'],
-  globals: {
-    TEST_MODE: 'default'
-  },
   testMatch: [
     '**/hooks/__tests__/**/*.(test|spec).(ts|tsx|js)'
   ],
@@ -15,10 +11,8 @@ module.exports = {
   ],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],
   transform: {
-    '^.+\\.(js|jsx|ts|tsx)$': ['ts-jest', {
-      tsconfig: {
-        jsx: 'react'
-      }
+    '^.+\\.(js|jsx|ts|tsx)$': ['babel-jest', {
+      presets: ['@babel/preset-env', '@babel/preset-react', '@babel/preset-typescript']
     }]
   },
   moduleNameMapper: {

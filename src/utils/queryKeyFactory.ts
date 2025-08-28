@@ -96,6 +96,33 @@ export const createQueryKeyFactory = (config: QueryKeyConfig) => {
 export const cartKeys = createQueryKeyFactory({ entity: 'cart', isolation: 'user-specific' });
 export const orderKeys = createQueryKeyFactory({ entity: 'orders', isolation: 'user-specific' });
 
+// Roles query key factory with role-specific methods
+const baseRoleKeys = createQueryKeyFactory({ entity: 'roles', isolation: 'user-specific' });
+
+export const roleKeys = {
+  ...baseRoleKeys,
+  
+  // User role queries
+  user: (userId: string) => 
+    [...baseRoleKeys.all(), 'user', userId] as const,
+    
+  // Current user role
+  userRole: (userId: string) => 
+    [...baseRoleKeys.all(userId), 'current'] as const,
+  
+  // Role permission queries  
+  permissions: (userId: string) => 
+    [...baseRoleKeys.all(), 'user', userId, 'permissions'] as const,
+  
+  // All roles list (for admin use)
+  allRoles: () => 
+    [...baseRoleKeys.all(), 'all'] as const,
+  
+  // Role type queries
+  roleType: (roleType: string) => 
+    [...baseRoleKeys.all(), 'type', roleType] as const
+};
+
 // Products query key factory with product-specific methods
 const baseProductKeys = createQueryKeyFactory({ entity: 'products', isolation: 'global' });
 
@@ -146,29 +173,6 @@ export const authKeys = {
 };
 
 export const stockKeys = createQueryKeyFactory({ entity: 'stock', isolation: 'global' });
-
-// Role-specific query key factory with entity-specific methods
-const baseRoleKeys = createQueryKeyFactory({ entity: 'roles', isolation: 'user-specific' });
-
-export const roleKeys = {
-  ...baseRoleKeys,
-  
-  // User role queries
-  user: (userId: string) => 
-    [...baseRoleKeys.all(), 'user', userId] as const,
-  
-  // Role permission queries  
-  permissions: (userId: string) => 
-    [...baseRoleKeys.all(), 'user', userId, 'permissions'] as const,
-  
-  // All roles list (for admin use)
-  allRoles: () => 
-    [...baseRoleKeys.all(), 'all'] as const,
-  
-  // Role type queries
-  roleType: (roleType: string) => 
-    [...baseRoleKeys.all(), 'type', roleType] as const
-};
 
 // Navigation-specific query key factory with entity-specific methods
 const baseNavigationKeys = createQueryKeyFactory({ entity: 'navigation', isolation: 'user-specific' });

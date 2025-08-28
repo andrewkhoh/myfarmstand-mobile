@@ -1,0 +1,5 @@
+
+> myfarmstand-mobile@1.0.0 test:hooks
+> jest --config jest.config.hooks.regular.js src/hooks/__tests__/ --forceExit
+
+sh: 1: jest: not found
