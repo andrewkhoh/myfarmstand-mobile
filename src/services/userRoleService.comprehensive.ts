@@ -153,7 +153,7 @@ export class UserRoleService {
 
       ValidationMonitor.recordPatternSuccess({
         service: 'UserRoleService',
-        pattern: 'resilient_validation',
+        pattern: 'direct_supabase_query',
         operation: 'getUserRoles'
       });
 

@@ -1,0 +1,186 @@
+version: '3.8'
+
+services:
+  # Foundation Agents (run in parallel)
+  role-services-agent:
+    build: 
+      context: ./agents
+      dockerfile: Dockerfile
+    container_name: role-services-agent
+    environment:
+      - AGENT_NAME=role-services
+      - AGENT_TYPE=foundation
+      - PHASE=1
+    volumes:
+      - ./volumes/phase1-role-foundation-role-services:/workspace:rw
+      - ./volumes/communication:/shared:rw
+    working_dir: /workspace
+    command: >
+      bash -c "
+        echo '🚀 Starting role-services agent...';
+        mkdir -p /shared/progress /shared/logs /shared/status;
+        echo 'Started: ' > /shared/progress/role-services.md;
+        date >> /shared/progress/role-services.md;
+        while true; do
+          echo 'role-services agent running at:' \$$(date);
+          echo \$$(date) ': Working on services...' >> /shared/progress/role-services.md;
+          sleep 60;
+        done
+      "
+    restart: unless-stopped
+
+  role-hooks-agent:
+    build: 
+      context: ./agents
+      dockerfile: Dockerfile
+    container_name: role-hooks-agent
+    environment:
+      - AGENT_NAME=role-hooks
+      - AGENT_TYPE=foundation
+      - PHASE=1
+    volumes:
+      - ./volumes/phase1-role-foundation-role-hooks:/workspace:rw
+      - ./volumes/communication:/shared:rw
+    working_dir: /workspace
+    command: >
+      bash -c "
+        echo '🚀 Starting role-hooks agent...';
+        mkdir -p /shared/progress /shared/logs /shared/status;
+        echo 'Started: ' > /shared/progress/role-hooks.md;
+        date >> /shared/progress/role-hooks.md;
+        while true; do
+          echo 'role-hooks agent running at:' \$$(date);
+          echo \$$(date) ': Working on hooks...' >> /shared/progress/role-hooks.md;
+          sleep 60;
+        done
+      "
+    restart: unless-stopped
+
+  role-navigation-agent:
+    build: 
+      context: ./agents
+      dockerfile: Dockerfile
+    container_name: role-navigation-agent
+    environment:
+      - AGENT_NAME=role-navigation
+      - AGENT_TYPE=foundation
+      - PHASE=1
+    volumes:
+      - ./volumes/phase1-role-foundation-role-navigation:/workspace:rw
+      - ./volumes/communication:/shared:rw
+    working_dir: /workspace
+    command: >
+      bash -c "
+        echo '🚀 Starting role-navigation agent...';
+        mkdir -p /shared/progress /shared/logs /shared/status;
+        echo 'Started: ' > /shared/progress/role-navigation.md;
+        date >> /shared/progress/role-navigation.md;
+        while true; do
+          echo 'role-navigation agent running at:' \$$(date);
+          echo \$$(date) ': Working on navigation...' >> /shared/progress/role-navigation.md;
+          sleep 60;
+        done
+      "
+    restart: unless-stopped
+
+  # Extension Agents (simplified - no dependency waiting for now)
+  role-screens-agent:
+    build: 
+      context: ./agents
+      dockerfile: Dockerfile
+    container_name: role-screens-agent
+    environment:
+      - AGENT_NAME=role-screens
+      - AGENT_TYPE=extension
+      - PHASE=1
+    volumes:
+      - ./volumes/phase1-role-foundation-role-screens:/workspace:rw
+      - ./volumes/communication:/shared:rw
+    working_dir: /workspace
+    command: >
+      bash -c "
+        echo '🚀 Starting role-screens agent...';
+        mkdir -p /shared/progress /shared/logs /shared/status;
+        echo 'Started: ' > /shared/progress/role-screens.md;
+        date >> /shared/progress/role-screens.md;
+        while true; do
+          echo 'role-screens agent running at:' \$$(date);
+          echo \$$(date) ': Working on screens...' >> /shared/progress/role-screens.md;
+          sleep 60;
+        done
+      "
+    restart: unless-stopped
+
+  permission-ui-agent:
+    build: 
+      context: ./agents
+      dockerfile: Dockerfile
+    container_name: permission-ui-agent
+    environment:
+      - AGENT_NAME=permission-ui
+      - AGENT_TYPE=extension
+      - PHASE=1
+    volumes:
+      - ./volumes/phase1-role-foundation-permission-ui:/workspace:rw
+      - ./volumes/communication:/shared:rw
+    working_dir: /workspace
+    command: >
+      bash -c "
+        echo '🚀 Starting permission-ui agent...';
+        mkdir -p /shared/progress /shared/logs /shared/status;
+        echo 'Started: ' > /shared/progress/permission-ui.md;
+        date >> /shared/progress/permission-ui.md;
+        while true; do
+          echo 'permission-ui agent running at:' \$$(date);
+          echo \$$(date) ': Working on UI permissions...' >> /shared/progress/permission-ui.md;
+          sleep 60;
+        done
+      "
+    restart: unless-stopped
+
+  integration-agent:
+    build: 
+      context: ./agents
+      dockerfile: Dockerfile
+    container_name: integration-agent
+    environment:
+      - AGENT_NAME=integration
+      - AGENT_TYPE=integration
+      - PHASE=1
+    volumes:
+      - ./volumes/phase1-role-foundation-integration:/workspace:rw
+      - ./volumes/communication:/shared:rw
+    working_dir: /workspace
+    command: >
+      bash -c "
+        echo '🚀 Starting integration agent...';
+        mkdir -p /shared/progress /shared/logs /shared/status;
+        echo 'Started: ' > /shared/progress/integration.md;
+        date >> /shared/progress/integration.md;
+        while true; do
+          echo 'integration agent running at:' \$$(date);
+          echo \$$(date) ': Performing integration...' >> /shared/progress/integration.md;
+          sleep 60;
+        done
+      "
+    restart: unless-stopped
+
+  # Monitor Container  
+  monitor:
+    build:
+      context: ./monitoring
+      dockerfile: Dockerfile
+    container_name: phase1-monitor
+    environment:
+      - PHASE=1
+      - PROJECT=phase1-role-foundation
+      - NODE_ENV=production
+    volumes:
+      - ./volumes/communication:/shared:ro
+    ports:
+      - "3001:3001"
+    restart: unless-stopped
+
+networks:
+  default:
+    name: phase1-agents

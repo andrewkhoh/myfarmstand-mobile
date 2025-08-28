@@ -1,6 +1,22 @@
 /**
  * useRolePermissions Hook - Role permissions management with React Query
  * Following Pattern: React Query Patterns from docs/architectural-patterns-and-best-practices.md
+ *
+ * DEPRECATION NOTICE:
+ * This module will be phased out in favor of the canonical API in
+ * `src/hooks/role-based/permissions.ts`.
+ *
+ * Prefer importing from `src/hooks/role-based/permissions`:
+ *  - useUserPermissions(userId)
+ *  - useRolePermissionsByType(roleType)
+ *  - useHasPermission(userId, permission)
+ *  - useCanPerformAction(userId, resource, action)
+ *  - useHasAllPermissions(userId, permissions)
+ *  - useHasAnyPermission(userId, permissions)
+ *  - useCurrentUser* variants
+ *
+ * This file remains to preserve backward compatibility for tests and
+ * existing imports. Behavior is unchanged.
  */
 
 import { useQuery } from '@tanstack/react-query';

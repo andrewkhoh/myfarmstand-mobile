@@ -1,195 +1,272 @@
 #!/bin/bash
 
-# Test Fix Multi-Agent Setup Script
-# Purpose: Set up parallel agents to fix test infrastructure adoption issues
+# Test Fix & Inventory Completion - Parallel Agent Setup
+# Step 1: Fix remaining test failures (Agent 1 & 2)
+# Step 2: Complete inventory screens (Agent 3)
 
-echo "🚀 Setting up Test Fix Multi-Agent Environment"
+set -e
+
+echo "🚀 Setting up Test Fix & Inventory Completion Agents"
+echo "===================================================="
 
 # Configuration
 MAIN_REPO="/Users/andrewkhoh/Documents/myfarmstand-mobile"
 PROJECT_NAME="test-fixes"
 BASE_BRANCH="main"
-TIMESTAMP=$(date +"%Y%m%d-%H%M%S")
-
-# Create communication hub (outside git)
 COMM_DIR="../${PROJECT_NAME}-communication"
-mkdir -p ${COMM_DIR}/{blockers,progress,contracts,handoffs}
 
-echo "✅ Created communication hub at ${COMM_DIR}"
-
-# Define agents and their branches
+# Agent definitions
 declare -a AGENTS=(
-  "critical-hooks"      # Fix executive/inventory/marketing hooks
-  "service-suites"      # Fix failing service test suites
-  "core-hooks"          # Polish core hook tests
-  "schema-fixes"        # Fix schema test issues
-  "quality-assurance"   # Final validation
+  "fix-hook-tests"        # Agent 1: Fix 27 failing hook tests
+  "fix-service-tests"     # Agent 2: Fix 187 failing service tests
+  "complete-inventory-ui" # Agent 3: Complete remaining inventory screens
 )
 
-# Create worktrees for each agent
+# Colors for output
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+echo -e "${YELLOW}Step 1: Creating communication hub${NC}"
+mkdir -p ${COMM_DIR}/{progress,tasks,handoffs,status}
+
+echo "✅ Created communication directory at ${COMM_DIR}"
+
+echo -e "\n${YELLOW}Step 2: Creating git worktrees${NC}"
 cd $MAIN_REPO
+
 for agent in "${AGENTS[@]}"; do
-  WORKSPACE="${PROJECT_NAME}-${agent}"
+  WORKSPACE="../${PROJECT_NAME}-${agent}"
   BRANCH="${PROJECT_NAME}-${agent}"
   
-  # Remove existing worktree if it exists
+  # Remove existing worktree if exists
   if git worktree list | grep -q "$WORKSPACE"; then
-    echo "Removing existing worktree for ${agent}..."
-    git worktree remove ../$WORKSPACE --force 2>/dev/null || true
+    git worktree remove "$WORKSPACE" --force 2>/dev/null || true
   fi
   
-  # Create new worktree
-  git worktree add ../$WORKSPACE -b $BRANCH $BASE_BRANCH
-  echo "✅ Created workspace for ${agent} at ../$WORKSPACE"
+  # Create new worktree from current main (with Phase 1-2 changes)
+  git worktree add "$WORKSPACE" -b "$BRANCH"
+  
+  echo -e "${GREEN}✅ Created workspace for ${agent}${NC}"
+  echo "   Location: $WORKSPACE"
 done
 
-# Initialize task board
-cat > ${COMM_DIR}/task-board.md << 'EOF'
-# 📋 Test Fix Task Board
-Last Updated: $(date)
+echo -e "\n${YELLOW}Step 3: Creating task assignments${NC}"
 
-## 🎯 Overall Goal
-Fix test infrastructure adoption issues to achieve 85%+ test pass rate
+# Task list for test fixes
+cat > ${COMM_DIR}/tasks/test-fix-tasks.md << 'EOF'
+# Test Fix Task Assignments
 
-## 📊 Current Metrics
-- **Service Tests**: 78% passing (119/545 failing)
-- **Core Hooks**: 89% passing (17/158 failing)
-- **Executive Hooks**: 1% passing (67/68 failing) ⚠️ CRITICAL
-- **Inventory Hooks**: 2% passing (120/122 failing) ⚠️ CRITICAL
-- **Marketing Hooks**: 1% passing (97/98 failing) ⚠️ CRITICAL
-- **Schema Tests**: 94% passing (14/249 failing)
+## Agent 1: Fix Hook Tests (27 failures)
+**Branch**: test-fixes-fix-hook-tests
 
-## 🏃 Active Tasks
+### Failed Tests to Fix:
+- useProducts.test.tsx - Mock issues with new query keys
+- useAuth.test.tsx - Missing mock implementations
+- useNotifications.test.tsx - Async cleanup issues
+- useKiosk.test.tsx - New query key structure
+- Marketing hooks - Mock patterns need update
+- Role-based hooks - Permission mock issues
 
-### Agent 1: Critical Hooks (PRIORITY: CRITICAL)
-- [ ] Fix executive hook tests (8 files, 67 failures)
-- [ ] Fix inventory hook tests (11 files, 120 failures)
-- [ ] Fix marketing hook tests (5 files, 97 failures)
-- [ ] Apply infrastructure patterns from reference guide
+### Strategy:
+1. Update mocks to use centralized query keys
+2. Fix async test cleanup issues
+3. Add proper defensive imports
+4. Remove fake timers where causing issues
 
-### Agent 2: Service Suites (PRIORITY: HIGH)
-- [ ] Identify why 17 suites fail despite 78% test pass rate
-- [ ] Fix executive service suites (5 failing)
-- [ ] Fix marketing service suites (2 failing)
-- [ ] Fix core service suites (~10 failing)
+---
 
-### Agent 3: Core Hooks (PRIORITY: MEDIUM)
-- [ ] Fix 17 failing tests in core hooks
-- [ ] Ensure React Query mock configuration
-- [ ] Apply defensive import patterns
+## Agent 2: Fix Service Tests (187 failures)
+**Branch**: test-fixes-fix-service-tests
 
-### Agent 4: Schema Fixes (PRIORITY: LOW)
-- [ ] Fix validation-transform-pattern.test.ts
-- [ ] Fix cart-transform-pattern.test.ts
-- [ ] Fix payment.schema.test.ts
-- [ ] Fix kiosk.schema.test.ts
+### Failed Tests to Fix:
+- Product service tests - Schema validation issues
+- Order service tests - Mock response format
+- Payment service tests - Stripe mock updates
+- Inventory service tests - New patterns
+- Marketing service tests - Missing mocks
+- Role service tests - Permission logic
 
-### Agent 5: Quality Assurance (PRIORITY: FINAL)
-- [ ] Validate all fixes
-- [ ] Run comprehensive test suites
-- [ ] Document remaining issues
+### Strategy:
+1. Update SimplifiedSupabaseMock responses
+2. Fix ValidationMonitor assertions
+3. Update schema transformations
+4. Add missing service mocks
 
-## 🔗 Dependencies
-```mermaid
-graph TD
-    Reference-Patterns --> All-Agents
-    Critical-Hooks --> QA
-    Service-Suites --> QA
-    Core-Hooks --> QA
-    Schema-Fixes --> QA
+---
+
+## Agent 3: Complete Inventory UI
+**Branch**: test-fixes-complete-inventory-ui
+
+### Remaining Screens to Build:
+- InventoryDashboard.tsx (enhance from basic)
+- StockManagementScreen.tsx (complete implementation)
+- InventoryAlertsScreen.tsx (finish features)
+- BulkOperationsModal.tsx (new component)
+- StockHistoryView.tsx (new component)
+
+### Remaining Tests (55/105):
+- InventoryDashboard tests (25 more)
+- StockManagementScreen tests (20 more)
+- InventoryAlertsScreen tests (10 more)
+
+### Strategy:
+1. Follow TDD - write tests first
+2. Use completed hooks (already working)
+3. Add real-time updates
+4. Implement pull-to-refresh
+EOF
+
+echo "✅ Created task assignments"
+
+echo -e "\n${YELLOW}Step 4: Creating test failure analysis${NC}"
+
+# Analyze current test failures
+cat > ${COMM_DIR}/tasks/failure-analysis.md << 'EOF'
+# Test Failure Analysis
+
+## Hook Test Failures (27 total)
+
+### Common Issues:
+1. **Query Key Mismatches**
+   - Tests expect old local query keys
+   - Need to import from centralized factory
+
+2. **Async Cleanup**
+   - Tests not properly awaiting
+   - Missing act() wrappers
+   - Timers not cleaned up
+
+3. **Mock Misalignment**
+   - Mocks return old response format
+   - Missing ValidationMonitor mocks
+
+### Quick Fixes:
+```typescript
+// Import centralized keys
+import { productKeys, authKeys } from 'utils/queryKeyFactory';
+
+// Proper async cleanup
+afterEach(async () => {
+  await waitFor(() => {
+    jest.clearAllMocks();
+  });
+});
+
+// Fix timer issues
+beforeEach(() => {
+  jest.useRealTimers(); // Not fake timers
+});
 ```
 
-## ⚠️ Important Notes
-- DO NOT modify actual implementation code
-- ONLY fix test code to properly use infrastructure
-- Some tests may fail due to incomplete features - mark these as expected failures
-- Follow patterns from src/test/*-pattern (REFERENCE).md files
-EOF
+## Service Test Failures (187 total)
 
-# Create health metrics
-cat > ${COMM_DIR}/health-metrics.json << EOF
-{
-  "timestamp": "${TIMESTAMP}",
-  "overall_pass_rate": 70,
-  "target_pass_rate": 85,
-  "categories": {
-    "service_tests": {"current": 78, "target": 85},
-    "core_hooks": {"current": 89, "target": 95},
-    "critical_hooks": {"current": 1, "target": 50},
-    "schema_tests": {"current": 94, "target": 98}
-  },
-  "agent_progress": {
-    "critical-hooks": 0,
-    "service-suites": 0,
-    "core-hooks": 0,
-    "schema-fixes": 0,
-    "quality-assurance": 0
+### Common Issues:
+1. **Schema Validation**
+   - Response doesn't match new schemas
+   - Missing required fields in mocks
+
+2. **Mock Setup Order**
+   - Mocks must be before imports
+   - SimplifiedSupabaseMock pattern not followed
+
+3. **Transform Errors**
+   - Snake_case to camelCase issues
+   - Null handling problems
+
+### Quick Fixes:
+```typescript
+// Proper mock setup
+jest.mock('config/supabase', () => ({
+  supabase: {
+    from: jest.fn(() => ({
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn()
+    }))
   }
-}
+}));
+
+// Add ValidationMonitor
+jest.mock('utils/validationMonitor', () => ({
+  ValidationMonitor: {
+    recordPatternSuccess: jest.fn(),
+    recordValidationError: jest.fn()
+  }
+}));
+```
 EOF
 
-# Create reference patterns contract
-cat > ${COMM_DIR}/contracts/test-patterns.md << 'EOF'
-# Test Pattern Contracts
+echo "✅ Created failure analysis"
 
-## Service Test Pattern
-- Use SimplifiedSupabaseMock from test infrastructure
-- Mock setup BEFORE imports
-- Use factories (createUser, createOrder, etc.)
-- Include resetAllFactories() in beforeEach
-- Reference: src/services/__tests__/authService.test.ts
+echo -e "\n${YELLOW}Step 5: Creating monitoring script${NC}"
 
-## Hook Test Pattern  
-- Apply defensive imports with try/catch
-- Mock React Query dynamically
-- Mock all query key factory methods
-- Use createWrapper() from test utils
-- Include graceful degradation
-- Reference: src/hooks/__tests__/prototypes/useAuth.simple.working.test.tsx
+cat > ${COMM_DIR}/monitor-progress.sh << 'MONITOR'
+#!/bin/bash
 
-## Schema Test Pattern
-- Database-first validation
-- Transform in single pass
-- Handle nulls with defaults
-- Include debug metadata
-- Reference: src/schemas/__tests__/cart-transform-pattern.test.ts
+COMM_DIR="$(dirname "$0")"
 
-## Key Infrastructure Files
-- Test Setup: src/test/test-setup.ts
-- Factories: src/test/factories/index.ts
-- Mocks: src/test/mocks/supabase.simplified.mock.ts
-- Patterns: src/test/*-pattern (REFERENCE).md
-EOF
+while true; do
+  clear
+  echo "📊 TEST FIX & INVENTORY COMPLETION MONITOR"
+  echo "=========================================="
+  echo "Time: $(date '+%Y-%m-%d %H:%M:%S')"
+  echo ""
+  
+  echo "🧪 TEST FIX PROGRESS:"
+  echo "-------------------"
+  echo "Target: Fix 214 failing tests"
+  echo ""
+  
+  if [ -f "${COMM_DIR}/status/test-status.txt" ]; then
+    cat "${COMM_DIR}/status/test-status.txt"
+  else
+    echo "Hooks: 27 failing → 0 (pending)"
+    echo "Services: 187 failing → 0 (pending)"
+  fi
+  
+  echo ""
+  echo "🎨 INVENTORY UI PROGRESS:"
+  echo "------------------------"
+  if [ -f "${COMM_DIR}/progress/complete-inventory-ui.md" ]; then
+    tail -10 "${COMM_DIR}/progress/complete-inventory-ui.md"
+  else
+    echo "Screens: 0/5 complete"
+    echo "Tests: 50/105 written"
+  fi
+  
+  echo ""
+  echo "📝 RECENT UPDATES:"
+  echo "-----------------"
+  for file in ${COMM_DIR}/progress/*.md; do
+    if [ -f "$file" ]; then
+      agent=$(basename "$file" .md)
+      last_line=$(tail -1 "$file")
+      echo "$agent: $last_line"
+    fi
+  done
+  
+  echo ""
+  echo "Press Ctrl+C to exit"
+  sleep 15
+done
+MONITOR
 
-# Create sync log
-cat > ${COMM_DIR}/sync-log.md << EOF
-# 🔄 Sync Log
-Project: Test Infrastructure Fixes
-Started: ${TIMESTAMP}
+chmod +x ${COMM_DIR}/monitor-progress.sh
 
-## Timeline
-- ${TIMESTAMP}: Environment initialized
-- Agents created: ${#AGENTS[@]}
-- Worktrees established
-- Communication hub ready
+echo "✅ Created monitoring script"
 
-## Active Agents
-$(for agent in "${AGENTS[@]}"; do echo "- $agent: workspace ready"; done)
-EOF
-
-echo "
-✅ Test Fix Multi-Agent Environment Ready!
-
-📁 Structure Created:
-- Main Repo: ${MAIN_REPO}
-- Communication Hub: ${COMM_DIR}
-- Agent Workspaces: $(for agent in "${AGENTS[@]}"; do echo -n "../${PROJECT_NAME}-${agent} "; done)
-
-🚀 Next Steps:
-1. Launch agents with their specific prompts
-2. Monitor progress at ${COMM_DIR}/task-board.md
-3. Check blockers at ${COMM_DIR}/blockers/
-4. View metrics at ${COMM_DIR}/health-metrics.json
-
-Use: ./launch-test-fix-agent.sh <agent-number> to start each agent
-"
+echo -e "\n${GREEN}✨ Setup Complete!${NC}"
+echo "=================="
+echo ""
+echo "📁 Workspaces created:"
+for agent in "${AGENTS[@]}"; do
+  echo "   - ../${PROJECT_NAME}-${agent}"
+done
+echo ""
+echo "📂 Communication hub: ${COMM_DIR}"
+echo ""
+echo "🚀 Next steps:"
+echo "   1. Open 3 Claude Code tabs"
+echo "   2. Use the agent prompts below"
+echo "   3. Monitor: ${COMM_DIR}/monitor-progress.sh"

@@ -1,0 +1,75 @@
+version: '3.8'
+
+services:
+  # Simple test agent without complex setup
+  debug-agent:
+    image: node:18-alpine
+    container_name: debug-agent
+    environment:
+      - AGENT_NAME=debug
+      - NODE_ENV=development
+    volumes:
+      - ./volumes/phase1-role-foundation-role-services:/workspace:rw
+      - ./volumes/communication:/shared:rw
+    working_dir: /workspace
+    command: >
+      sh -c "
+        echo '🚀 Debug Agent Starting...';
+        echo 'Checking directories:';
+        ls -la /workspace || echo 'Workspace not accessible';
+        ls -la /shared || echo 'Shared not accessible';
+        echo 'Creating progress file:';
+        mkdir -p /shared/progress /shared/logs /shared/status;
+        echo 'Agent started at: ' > /shared/progress/debug.md;
+        date >> /shared/progress/debug.md;
+        echo 'Starting loop...';
+        while true; do
+          echo 'Debug agent running at:' $$(date);
+          echo $$(date) ': Still running' >> /shared/progress/debug.md;
+          sleep 30;
+        done
+      "
+    restart: unless-stopped
+
+  # Simple monitor without dependencies
+  debug-monitor:
+    image: node:18-alpine
+    container_name: debug-monitor
+    ports:
+      - "3002:3002"
+    volumes:
+      - ./volumes/communication:/shared:ro
+    command: >
+      sh -c "
+        echo '📊 Debug Monitor Starting...';
+        echo 'Creating simple HTTP server...';
+        cd /tmp;
+        echo 'const http = require(\"http\");
+        const fs = require(\"fs\");
+        const server = http.createServer((req, res) => {
+          console.log(\"Request:\", req.url);
+          if (req.url === \"/health\") {
+            res.writeHead(200, {\"Content-Type\": \"application/json\"});
+            res.end(JSON.stringify({status: \"healthy\", time: new Date()}));
+          } else if (req.url === \"/progress\") {
+            try {
+              const files = fs.readdirSync(\"/shared/progress\");
+              res.writeHead(200, {\"Content-Type\": \"application/json\"});
+              res.end(JSON.stringify({files: files}));
+            } catch(e) {
+              res.writeHead(500);
+              res.end(JSON.stringify({error: e.message}));
+            }
+          } else {
+            res.writeHead(200, {\"Content-Type\": \"text/html\"});
+            res.end(\"<h1>Debug Monitor</h1><p>Running on port 3002</p><ul><li><a href=/health>Health</a></li><li><a href=/progress>Progress</a></li></ul>\");
+          }
+        });
+        server.listen(3002, () => {
+          console.log(\"Debug monitor listening on port 3002\");
+        });
+        server.on(\"error\", (err) => {
+          console.error(\"Server error:\", err);
+        });' > server.js;
+        node server.js
+      "

@@ -52,7 +52,7 @@ export type RolePermission = z.infer<typeof RolePermissionSchema>;
 
 export class RolePermissionService {
   private supabase: SupabaseClient;
-  private permissionsCache: Map<string, string[]> = new Map();
+  private permissionsCache: Map<string, RolePermission[]> = new Map();
   private cacheTimeout = 5 * 60 * 1000; // 5 minutes
   private lastCacheUpdate = 0;
 
@@ -104,7 +104,7 @@ export class RolePermissionService {
       }
 
       // Update cache
-      this.permissionsCache.set(role, permissions.map(p => p.permission));
+      this.permissionsCache.set(role, permissions);
       this.lastCacheUpdate = Date.now();
 
       ValidationMonitor.recordPatternSuccess({
@@ -175,7 +175,7 @@ export class RolePermissionService {
 
       ValidationMonitor.recordPatternSuccess({
         service: 'RolePermissionService',
-        pattern: 'individual_validation',
+        pattern: 'direct_supabase_query',
         operation: 'getAllPermissions'
       });
 

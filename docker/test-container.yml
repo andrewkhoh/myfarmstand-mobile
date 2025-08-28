@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  test-agent:
+    image: node:18-alpine
+    container_name: test-agent
+    command: >
+      sh -c "
+        echo 'Test container starting...';
+        while true; do
+          echo 'Test container is alive at: ' $$(date);
+          sleep 10;
+        done
+      "
+    volumes:
+      - ./volumes/communication:/shared
+    restart: unless-stopped
+
+  test-monitor:
+    image: node:18-alpine
+    container_name: test-monitor
+    command: >
+      sh -c "
+        echo 'Monitor starting on port 3001...';
+        mkdir -p /app;
+        cd /app;
+        echo 'const http = require(\"http\"); 
+        http.createServer((req, res) => { 
+          res.writeHead(200); 
+          res.end(\"Monitor is running\"); 
+        }).listen(3001, () => console.log(\"Listening on 3001\"));' > server.js;
+        node server.js
+      "
+    ports:
+      - "3001:3001"
+    restart: unless-stopped

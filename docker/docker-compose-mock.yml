@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  # Mock agents that properly update status
+  role-services-agent:
+    image: node:18-alpine
+    container_name: role-services-agent
+    environment:
+      - AGENT_NAME=role-services
+    volumes:
+      - ./volumes/communication:/shared
+    command: >
+      sh -c "
+        echo 'Starting role-services mock agent...';
+        mkdir -p /shared/progress /shared/status /shared/logs;
+        while true; do
+          echo 'role-services running at:' \$$(date);
+          echo \$$(date) >> /shared/progress/role-services.md;
+          echo '{\"agent\":\"role-services\",\"status\":\"running\",\"heartbeat\":\"'\$$(date -Iseconds)'\",\"lastUpdate\":\"'\$$(date -Iseconds)'\"}' > /shared/status/role-services.json;
+          sleep 30;
+        done
+      "
+    restart: unless-stopped
+
+  role-hooks-agent:
+    image: node:18-alpine
+    container_name: role-hooks-agent
+    environment:
+      - AGENT_NAME=role-hooks
+    volumes:
+      - ./volumes/communication:/shared
+    command: >
+      sh -c "
+        echo 'Starting role-hooks mock agent...';
+        mkdir -p /shared/progress /shared/status /shared/logs;
+        while true; do
+          echo 'role-hooks running at:' \$$(date);
+          echo \$$(date) >> /shared/progress/role-hooks.md;
+          echo '{\"agent\":\"role-hooks\",\"status\":\"running\",\"heartbeat\":\"'\$$(date -Iseconds)'\",\"lastUpdate\":\"'\$$(date -Iseconds)'\"}' > /shared/status/role-hooks.json;
+          sleep 30;
+        done
+      "
+    restart: unless-stopped
+
+  role-navigation-agent:
+    image: node:18-alpine
+    container_name: role-navigation-agent
+    environment:
+      - AGENT_NAME=role-navigation
+    volumes:
+      - ./volumes/communication:/shared
+    command: >
+      sh -c "
+        echo 'Starting role-navigation mock agent...';
+        mkdir -p /shared/progress /shared/status /shared/logs;
+        while true; do
+          echo 'role-navigation running at:' \$$(date);
+          echo \$$(date) >> /shared/progress/role-navigation.md;
+          echo '{\"agent\":\"role-navigation\",\"status\":\"running\",\"heartbeat\":\"'\$$(date -Iseconds)'\",\"lastUpdate\":\"'\$$(date -Iseconds)'\"}' > /shared/status/role-navigation.json;
+          sleep 30;
+        done
+      "
+    restart: unless-stopped
+
+  # Simple monitor
+  monitor:
+    image: node:18-alpine
+    container_name: phase1-monitor
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./volumes/communication:/shared:ro
+    command: >
+      sh -c "
+        echo 'Starting monitor on port 3001...';
+        cd /tmp;
+        echo 'const http = require(\"http\");
+        const fs = require(\"fs\");
+        http.createServer((req, res) => {
+          if (req.url === \"/health\") {
+            res.writeHead(200, {\"Content-Type\": \"application/json\"});
+            res.end(JSON.stringify({status: \"healthy\", time: new Date()}));
+          } else {
+            res.writeHead(200);
+            res.end(\"Monitor running on 3001\");
+          }
+        }).listen(3001, () => console.log(\"Monitor on 3001\"));' > server.js;
+        node server.js
+      "
+    restart: unless-stopped

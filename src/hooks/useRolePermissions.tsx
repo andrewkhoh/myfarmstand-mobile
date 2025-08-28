@@ -3,6 +3,22 @@
  * Following Pattern: React Query Hooks from useCart.tsx
  * Reference: docs/architectural-patterns-and-best-practices.md
  * Uses centralized query key factory
+ *
+ * DEPRECATION NOTICE:
+ * This module will be phased out in favor of the canonical API in
+ * `src/hooks/role-based/permissions.ts`.
+ *
+ * Prefer importing from `src/hooks/role-based/permissions`:
+ *  - useUserPermissions(userId)
+ *  - useRolePermissionsByType(roleType)
+ *  - useHasPermission(userId, permission)
+ *  - useCanPerformAction(userId, resource, action)
+ *  - useHasAllPermissions(userId, permissions)
+ *  - useHasAnyPermission(userId, permissions)
+ *  - useCurrentUser* variants
+ *
+ * This file remains to preserve backward compatibility for tests and
+ * existing imports. Behavior is unchanged.
  */
 
 import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
