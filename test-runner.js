@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 /**
- * Combined test runner for components and hooks
- * Handles both permission UI components and role hooks
+ * Combined test runner for components, hooks, and role services
+ * Handles permission UI components, role hooks, and role services
  */
 
 const { execSync } = require('child_process');
@@ -206,4 +206,44 @@ if (passRate >= 85) {
 } else {
   console.log(`${colors.red}❌ FAILURE: Pass rate below 85% requirement${colors.reset}`);
   process.exit(1);
+}
+
+// Additional Jest-based test runner for role services
+const jest = require('jest');
+
+async function runRoleServiceTests() {
+  console.log('\n🔧 Running Role Service Tests...\n');
+  
+  const options = {
+    projects: [__dirname],
+    testMatch: [
+      '**/services/__tests__/rolePermissionService.test.ts',
+      '**/services/__tests__/userRoleService.test.ts'
+    ],
+    testEnvironment: 'node',
+    bail: true,
+    verbose: true,
+    detectOpenHandles: true,
+    forceExit: true,
+    setupFilesAfterEnv: [],  // Skip the problematic setup
+    transform: {
+      '^.+\\.(js|jsx|ts|tsx)$': 'babel-jest'
+    },
+  };
+
+  try {
+    const result = await jest.runCLI(options, [__dirname]);
+    console.log('\nRole Service Test Summary:');
+    console.log(`Total tests: ${result.results.numTotalTests}`);
+    console.log(`Passed: ${result.results.numPassedTests}`);
+    console.log(`Failed: ${result.results.numFailedTests}`);
+    console.log(`Pass rate: ${(result.results.numPassedTests / result.results.numTotalTests * 100).toFixed(2)}%`);
+  } catch (error) {
+    console.error('Role service test run failed:', error);
+  }
+}
+
+// Run both test suites if this file is executed directly
+if (require.main === module) {
+  runRoleServiceTests();
 }

@@ -427,7 +427,7 @@ export class SimplifiedSupabaseMock {
         },
         
         then: async (resolve: Function) => {
-          const updatedRows = [];
+          const updatedRows: any[] = [];
           for (const index of filteredIndices) {
             tableData[index] = { 
               ...tableData[index], 
@@ -552,7 +552,7 @@ export class SimplifiedSupabaseMock {
           }
           
           // Perform upsert logic
-          const resultData = [];
+          const resultData: any[] = [];
           for (const item of upsertData) {
             // Assume 'id' is the primary key for upsert matching
             const existingIndex = tableData.findIndex(row => row.id === item.id);
@@ -587,7 +587,7 @@ export class SimplifiedSupabaseMock {
         
         then: async (resolve: Function) => {
           // Perform upsert logic
-          const resultData = [];
+          const resultData: any[] = [];
           for (const item of upsertData) {
             const existingIndex = tableData.findIndex(row => row.id === item.id);
             
@@ -785,7 +785,7 @@ export class SimplifiedSupabaseMock {
         }),
         
         remove: jest.fn().mockImplementation(async (paths: string[]) => {
-          const removedPaths = [];
+          const removedPaths: string[] = [];
           
           for (const path of paths) {
             if (storage[bucket]?.[path]) {
@@ -801,7 +801,7 @@ export class SimplifiedSupabaseMock {
         }),
         
         list: jest.fn().mockImplementation(async (path?: string, options?: any) => {
-          const files = [];
+          const files: any[] = [];
           
           if (storage[bucket]) {
             for (const [filePath, fileData] of Object.entries(storage[bucket])) {

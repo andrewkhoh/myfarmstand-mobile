@@ -9,7 +9,6 @@ import { createProduct, createUser, resetAllFactories } from "../../test/factori
 jest.mock("../../config/supabase", () => {
   const { SimplifiedSupabaseMock } = require("../../test/mocks/supabase.simplified.mock");
   const mockInstance = new SimplifiedSupabaseMock();
-  return {
   const mockFrom = jest.fn(() => ({
     select: jest.fn().mockReturnThis(),
     eq: jest.fn().mockReturnThis(),
