@@ -1,6 +1,3 @@
-// Test Infrastructure Imports
-import { createProduct, createUser, resetAllFactories } from "../../test/factories";
-
 /**
  * RoleNavigationService Tests
  * Tests for role-based navigation service functionality
@@ -23,11 +20,8 @@ import { UserRole, NavigationMenuItem, NavigationState } from '../../../types';
 
 // Mock Supabase - SimplifiedSupabaseMock in jest.mock() call
 jest.mock("../../config/supabase", () => {
-  const { SimplifiedSupabaseMock } = require("../../test/mocks/supabase.simplified.mock");
+  const { SimplifiedSupabaseMock } = require("../../../test/mocks/supabase.simplified.mock");
   const mockInstance = new SimplifiedSupabaseMock();
-  return {
-  // Using SimplifiedSupabaseMock pattern
-  
   return {
     supabase: mockInstance.createClient(),
     TABLES: { 
@@ -37,15 +31,14 @@ jest.mock("../../config/supabase", () => {
       USERS: 'users'
     }
   };
-    TABLES: { /* Add table constants */ }
-  };
 });
 
 // Mock ValidationMonitor
 jest.mock('../../../utils/validationMonitor', () => ({
   ValidationMonitor: {
     recordValidationError: jest.fn(),
-    recordPatternSuccess: jest.fn(), recordDataIntegrity: jest.fn()
+    recordPatternSuccess: jest.fn(),
+    recordDataIntegrity: jest.fn()
   }
 }));
 

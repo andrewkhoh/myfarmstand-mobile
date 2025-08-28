@@ -48,15 +48,18 @@ export const PermissionGate: React.FC<PermissionGateProps> = ({
   const { data: userRole, isLoading: isUserLoading } = useUserRole();
 
   // Get screen permissions if screen is specified
-  const screenPermissionResult = useNavigationPermissions(
-    screen || '',
-    { cacheResults: true }
-  );
+  const navPermissions = useNavigationPermissions({
+    screens: screen ? [screen] : [],
+    enableBatchCheck: true,
+    cacheResults: true
+  });
+  
+  const screenPermissionResult = screen ? navPermissions.getPermission(screen) : null;
 
   // Determine permission status
   const permissionStatus = useMemo(() => {
     // Still loading user or screen permissions
-    if (isUserLoading || (screen && !screenPermissionResult.checked)) {
+    if (isUserLoading || (screen && navPermissions.isLoading)) {
       return { allowed: false, loading: true, reason: 'Loading permissions...' };
     }
 
@@ -82,7 +85,7 @@ export const PermissionGate: React.FC<PermissionGateProps> = ({
     }
 
     // Check screen access requirements
-    if (screen && hasPermission) {
+    if (screen && hasPermission && screenPermissionResult) {
       if (screenPermissionResult.error) {
         hasPermission = false;
         denialReason = screenPermissionResult.error;
@@ -97,9 +100,10 @@ export const PermissionGate: React.FC<PermissionGateProps> = ({
       // Note: This is a simplified check. In a real implementation,
       // you'd check against the user's actual permissions from the database
       const rolePermissions = getRolePermissions(userRole.role);
-      const hasRequiredPermission = permissions.some(permission => 
-        rolePermissions.includes(permission)
-      );
+      
+      // Admin has all permissions
+      const hasRequiredPermission = rolePermissions.includes('*') ||
+        permissions.some(permission => rolePermissions.includes(permission));
       
       if (!hasRequiredPermission) {
         hasPermission = false;
@@ -136,6 +140,7 @@ export const PermissionGate: React.FC<PermissionGateProps> = ({
     roles,
     screen,
     screenPermissionResult,
+    navPermissions.isLoading,
     permissions,
     invert
   ]);
@@ -199,6 +204,7 @@ const getRolePermissions = (role: UserRole): string[] => {
     vendor: ['view:products', 'manage:products', 'view:orders', 'manage:inventory', 'view:analytics'],
     admin: ['*'], // Admin has all permissions
     staff: ['view:products', 'view:orders', 'manage:orders', 'view:inventory'],
+    manager: ['view:products', 'manage:products', 'view:orders', 'manage:inventory', 'view:analytics', 'view:staff']
   };
   
   return rolePermissionMap[role] || [];

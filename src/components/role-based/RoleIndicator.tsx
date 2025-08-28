@@ -71,6 +71,13 @@ const roleConfigs: Record<UserRole, RoleConfig> = {
     backgroundColor: '#F3E5F5',
     textColor: '#7B1FA2',
   },
+  manager: {
+    title: 'Manager',
+    icon: '👔',
+    color: '#795548',
+    backgroundColor: '#EFEBE9',
+    textColor: '#5D4037',
+  },
 };
 
 export const RoleIndicator: React.FC<RoleIndicatorProps> = ({

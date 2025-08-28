@@ -60,10 +60,17 @@ export const RoleBasedButton: React.FC<RoleBasedButtonProps> = ({
   const { data: userRole, isLoading: isUserLoading } = useUserRole();
 
   // Get screen permissions if screen is specified
-  const screenPermissionResult = useNavigationPermissions(
-    screen || '',
-    { cacheResults: true }
-  );
+  const navPermissions = useNavigationPermissions({
+    screens: screen ? [screen] : [],
+    enableBatchCheck: false,
+    cacheResults: true
+  });
+  
+  const screenPermissionResult = screen ? {
+    allowed: navPermissions.isAllowed(screen),
+    checked: navPermissions.getPermission(screen)?.checked || false,
+    error: navPermissions.getPermission(screen)?.error
+  } : { allowed: true, checked: true, error: undefined };
 
   // Calculate permission status
   const permissionStatus = useMemo(() => {
@@ -138,6 +145,11 @@ export const RoleBasedButton: React.FC<RoleBasedButtonProps> = ({
 
   // Handle button press with permission checking
   const handlePress = useCallback(() => {
+    // Don't handle press if button is independently disabled
+    if (disabled || loading) {
+      return;
+    }
+    
     if (!permissionStatus.hasPermission) {
       if (showPermissionMessage) {
         const message = permissionMessage || permissionStatus.reason || 'Access denied';
@@ -166,6 +178,8 @@ export const RoleBasedButton: React.FC<RoleBasedButtonProps> = ({
 
     onPress();
   }, [
+    disabled,
+    loading,
     permissionStatus.hasPermission,
     permissionStatus.reason,
     showPermissionMessage,
@@ -179,7 +193,8 @@ export const RoleBasedButton: React.FC<RoleBasedButtonProps> = ({
   }
 
   // Calculate final disabled state
-  const isDisabled = disabled || loading || !permissionStatus.hasPermission;
+  // Only disable if explicitly disabled or loading. Permission denial is handled in onPress
+  const isDisabled = disabled || loading || permissionStatus.loading;
 
   // Calculate button style
   const buttonStyle = useMemo(() => {
@@ -216,6 +231,7 @@ const getRoleDisplayName = (role: UserRole): string => {
     vendor: 'Vendor',
     admin: 'Administrator',
     staff: 'Staff',
+    manager: 'Manager',
   };
   
   return displayNames[role] || role;
@@ -229,6 +245,7 @@ const getRolePermissions = (role: UserRole): string[] => {
     vendor: ['view:products', 'manage:products', 'view:orders', 'manage:inventory', 'view:analytics'],
     admin: ['*'], // Admin has all permissions
     staff: ['view:products', 'view:orders', 'manage:orders', 'view:inventory'],
+    manager: ['view:products', 'manage:products', 'view:orders', 'manage:inventory', 'view:analytics', 'manage:staff', 'manage:orders'],
   };
   
   return rolePermissionMap[role] || [];

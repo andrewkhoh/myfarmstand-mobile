@@ -10,6 +10,7 @@ interface TextProps {
   align?: 'left' | 'center' | 'right';
   style?: TextStyle;
   numberOfLines?: number;
+  testID?: string;
 }
 
 export const Text: React.FC<TextProps> = ({
@@ -20,6 +21,7 @@ export const Text: React.FC<TextProps> = ({
   align = 'left',
   style,
   numberOfLines,
+  testID,
 }) => {
   const textStyles = [
     styles.base,
@@ -31,7 +33,7 @@ export const Text: React.FC<TextProps> = ({
   ];
 
   return (
-    <RNText style={textStyles} numberOfLines={numberOfLines}>
+    <RNText style={textStyles} numberOfLines={numberOfLines} testID={testID}>
       {children}
     </RNText>
   );

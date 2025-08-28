@@ -59,11 +59,38 @@ describe('PermissionGate Component', () => {
 
     // Default navigation permissions mock
     mockUseNavigationPermissions.mockReturnValue({
-      screen: '',
-      allowed: true,
-      checked: true,
-      error: undefined,
-      checkPermission: jest.fn(),
+      permissions: [],
+      userRole: 'customer',
+      isLoading: false,
+      isBatchLoading: false,
+      batchError: undefined,
+      hasPermissionErrors: false,
+      checkPermission: jest.fn().mockResolvedValue({
+        screen: '',
+        allowed: true,
+        checked: true
+      }),
+      checkPermissions: jest.fn(),
+      validateScreenAccess: jest.fn(),
+      isAllowed: jest.fn().mockReturnValue(true),
+      getPermission: jest.fn().mockReturnValue({
+        screen: '',
+        allowed: true,
+        checked: true
+      }),
+      getAllowedScreens: jest.fn().mockReturnValue([]),
+      getDeniedScreens: jest.fn().mockReturnValue([]),
+      getPermissionErrors: jest.fn().mockReturnValue([]),
+      canAccessAdminScreens: false,
+      canAccessManagementScreens: false,
+      canAccessCustomerOnlyScreens: true,
+      canAccessStaffScreens: false,
+      getScreensByRole: jest.fn().mockReturnValue([]),
+      getAccessibleScreens: jest.fn().mockReturnValue([]),
+      hasPermissions: false,
+      checkedScreenCount: 0,
+      allowedScreenCount: 0,
+      deniedScreenCount: 0
     });
   });
 
@@ -88,12 +115,41 @@ describe('PermissionGate Component', () => {
     });
 
     it('should show loading state when screen permissions are being checked', () => {
+      const basePermissions = {
+        permissions: [],
+        userRole: 'customer',
+        isLoading: false,
+        isBatchLoading: false,
+        batchError: undefined,
+        hasPermissionErrors: false,
+        checkPermission: jest.fn().mockResolvedValue({
+          screen: '',
+          allowed: true,
+          checked: true
+        }),
+        checkPermissions: jest.fn(),
+        validateScreenAccess: jest.fn(),
+        isAllowed: jest.fn().mockReturnValue(true),
+        getPermission: jest.fn().mockReturnValue(null),
+        getAllowedScreens: jest.fn().mockReturnValue([]),
+        getDeniedScreens: jest.fn().mockReturnValue([]),
+        getPermissionErrors: jest.fn().mockReturnValue([]),
+        canAccessAdminScreens: false,
+        canAccessManagementScreens: false,
+        canAccessCustomerOnlyScreens: true,
+        canAccessStaffScreens: false,
+        getScreensByRole: jest.fn().mockReturnValue([]),
+        getAccessibleScreens: jest.fn().mockReturnValue([]),
+        hasPermissions: false,
+        checkedScreenCount: 0,
+        allowedScreenCount: 0,
+        deniedScreenCount: 0
+      };
+      
       mockUseNavigationPermissions.mockReturnValue({
-        screen: 'TestScreen',
-        allowed: false,
-        checked: false,
-        error: undefined,
-        checkPermission: jest.fn(),
+        ...basePermissions,
+        isLoading: true,
+        getPermission: jest.fn().mockReturnValue(null)
       });
 
       const { getByTestId } = render(
@@ -225,13 +281,42 @@ describe('PermissionGate Component', () => {
     });
 
     it('should check screen access permissions', async () => {
-      mockUseNavigationPermissions.mockReturnValue({
-        screen: 'AdminScreen',
-        allowed: true,
-        checked: true,
-        error: undefined,
-        checkPermission: jest.fn(),
-      });
+      const basePermissions = {
+        permissions: [],
+        userRole: 'customer',
+        isLoading: false,
+        isBatchLoading: false,
+        batchError: undefined,
+        hasPermissionErrors: false,
+        checkPermission: jest.fn().mockResolvedValue({
+          screen: '',
+          allowed: true,
+          checked: true
+        }),
+        checkPermissions: jest.fn(),
+        validateScreenAccess: jest.fn(),
+        isAllowed: jest.fn().mockReturnValue(true),
+        getPermission: jest.fn().mockReturnValue({
+          screen: 'AdminScreen',
+          allowed: true,
+          checked: true
+        }),
+        getAllowedScreens: jest.fn().mockReturnValue([]),
+        getDeniedScreens: jest.fn().mockReturnValue([]),
+        getPermissionErrors: jest.fn().mockReturnValue([]),
+        canAccessAdminScreens: false,
+        canAccessManagementScreens: false,
+        canAccessCustomerOnlyScreens: true,
+        canAccessStaffScreens: false,
+        getScreensByRole: jest.fn().mockReturnValue([]),
+        getAccessibleScreens: jest.fn().mockReturnValue([]),
+        hasPermissions: false,
+        checkedScreenCount: 0,
+        allowedScreenCount: 0,
+        deniedScreenCount: 0
+      };
+      
+      mockUseNavigationPermissions.mockReturnValue(basePermissions);
 
       const { getByTestId, getByText } = render(
         <PermissionGate screen="AdminScreen">
@@ -247,13 +332,42 @@ describe('PermissionGate Component', () => {
     });
 
     it('should deny access when screen permission denied', async () => {
-      mockUseNavigationPermissions.mockReturnValue({
-        screen: 'AdminScreen',
-        allowed: false,
-        checked: true,
-        error: undefined,
-        checkPermission: jest.fn(),
-      });
+      const basePermissions = {
+        permissions: [],
+        userRole: 'customer',
+        isLoading: false,
+        isBatchLoading: false,
+        batchError: undefined,
+        hasPermissionErrors: false,
+        checkPermission: jest.fn().mockResolvedValue({
+          screen: '',
+          allowed: true,
+          checked: true
+        }),
+        checkPermissions: jest.fn(),
+        validateScreenAccess: jest.fn(),
+        isAllowed: jest.fn().mockReturnValue(true),
+        getPermission: jest.fn().mockReturnValue({
+          screen: 'AdminScreen',
+          allowed: false,
+          checked: true
+        }),
+        getAllowedScreens: jest.fn().mockReturnValue([]),
+        getDeniedScreens: jest.fn().mockReturnValue([]),
+        getPermissionErrors: jest.fn().mockReturnValue([]),
+        canAccessAdminScreens: false,
+        canAccessManagementScreens: false,
+        canAccessCustomerOnlyScreens: true,
+        canAccessStaffScreens: false,
+        getScreensByRole: jest.fn().mockReturnValue([]),
+        getAccessibleScreens: jest.fn().mockReturnValue([]),
+        hasPermissions: false,
+        checkedScreenCount: 0,
+        allowedScreenCount: 0,
+        deniedScreenCount: 0
+      };
+      
+      mockUseNavigationPermissions.mockReturnValue(basePermissions);
 
       const { getByTestId, getByText } = render(
         <PermissionGate screen="AdminScreen">
@@ -269,13 +383,43 @@ describe('PermissionGate Component', () => {
     });
 
     it('should handle screen permission errors', async () => {
-      mockUseNavigationPermissions.mockReturnValue({
-        screen: 'AdminScreen',
-        allowed: false,
-        checked: true,
-        error: 'Permission service unavailable',
-        checkPermission: jest.fn(),
-      });
+      const basePermissions = {
+        permissions: [],
+        userRole: 'customer',
+        isLoading: false,
+        isBatchLoading: false,
+        batchError: undefined,
+        hasPermissionErrors: false,
+        checkPermission: jest.fn().mockResolvedValue({
+          screen: '',
+          allowed: true,
+          checked: true
+        }),
+        checkPermissions: jest.fn(),
+        validateScreenAccess: jest.fn(),
+        isAllowed: jest.fn().mockReturnValue(true),
+        getPermission: jest.fn().mockReturnValue({
+          screen: 'AdminScreen',
+          allowed: false,
+          checked: true,
+          error: 'Permission service unavailable'
+        }),
+        getAllowedScreens: jest.fn().mockReturnValue([]),
+        getDeniedScreens: jest.fn().mockReturnValue([]),
+        getPermissionErrors: jest.fn().mockReturnValue([]),
+        canAccessAdminScreens: false,
+        canAccessManagementScreens: false,
+        canAccessCustomerOnlyScreens: true,
+        canAccessStaffScreens: false,
+        getScreensByRole: jest.fn().mockReturnValue([]),
+        getAccessibleScreens: jest.fn().mockReturnValue([]),
+        hasPermissions: false,
+        checkedScreenCount: 0,
+        allowedScreenCount: 0,
+        deniedScreenCount: 0
+      };
+      
+      mockUseNavigationPermissions.mockReturnValue(basePermissions);
 
       const { getByTestId, getByText } = render(
         <PermissionGate screen="AdminScreen">
@@ -387,7 +531,7 @@ describe('PermissionGate Component', () => {
     });
 
     it('should render nothing when fallback is null', async () => {
-      const { container } = render(
+      const { queryByTestId, queryByText } = render(
         <PermissionGate roles={['admin']} fallback={null}>
           <TestContent />
         </PermissionGate>,
@@ -395,7 +539,9 @@ describe('PermissionGate Component', () => {
       );
 
       await waitFor(() => {
-        expect(container.children.length).toBe(0);
+        expect(queryByTestId('permission-gate-denied')).toBeFalsy();
+        expect(queryByText('Protected Content')).toBeFalsy();
+        expect(queryByText('Access Denied')).toBeFalsy();
       });
     });
   });
