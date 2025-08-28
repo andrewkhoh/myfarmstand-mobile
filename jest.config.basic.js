@@ -1,9 +1,6 @@
 module.exports = {
-  preset: './node_modules/jest-expo/jest-preset.js',
   setupFilesAfterEnv: ['<rootDir>/src/test/test-setup.ts'],
-  globals: {
-    TEST_MODE: 'default'
-  },
+  testEnvironment: 'node',
   testMatch: [
     '**/__tests__/**/*.(ts|tsx|js)',
     '**/*.(test|spec).(ts|tsx|js)'
@@ -11,21 +8,10 @@ module.exports = {
   testPathIgnorePatterns: [
     '<rootDir>/node_modules/',
     '.*\\.race\\.test\\.(ts|tsx|js)$',
-    '/src/services/',
-    '/src/hooks/__tests__/archive/',
-    '/src/hooks/__tests__/prototypes/',
-    'src/hooks/__tests__/archive',
-    'src/hooks/__tests__/prototypes'
-  ],
-  collectCoverageFrom: [
-    'src/**/*.{ts,tsx}',
-    '!src/**/*.d.ts',
-    '!src/test/**/*',
-    '!src/**/__tests__/**/*'
   ],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],
   transform: {
-    '^.+\\.(js|jsx|ts|tsx)$': 'babel-jest'
+    '^.+\\.(js|jsx|ts|tsx)$': ['babel-jest', { configFile: './babel.config.js' }]
   },
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',

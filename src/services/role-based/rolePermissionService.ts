@@ -185,7 +185,183 @@ export class RolePermissionService {
   }
 
   /**
-   * Update user permissions
+   * Get user permissions (both role-based and custom)
+   */
+  static async getUserPermissions(userId: string): Promise<string[]> {
+    try {
+      const userRole = await this.getUserRole(userId);
+      
+      if (!userRole) return [];
+      
+      // Combine role-based permissions with custom permissions
+      const rolePermissions = ROLE_PERMISSIONS[userRole.roleType] || [];
+      const customPermissions = userRole.permissions || [];
+      
+      // Use Set to ensure unique permissions
+      const allPermissions = new Set([
+        ...(rolePermissions as string[]),
+        ...customPermissions
+      ]);
+      
+      ValidationMonitor.recordPatternSuccess({
+        service: 'rolePermissionService',
+        pattern: 'simple_validation',
+        operation: 'getUserPermissions'
+      });
+      
+      return Array.from(allPermissions);
+      
+    } catch (error) {
+      ValidationMonitor.recordValidationError({
+        context: 'RolePermissionService.getUserPermissions',
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        errorCode: 'PERMISSIONS_FETCH_FAILED',
+        validationPattern: 'simple_validation'
+      });
+      
+      return [];
+    }
+  }
+
+  /**
+   * Add a custom permission to user
+   */
+  static async addPermission(userId: string, permission: string): Promise<boolean> {
+    try {
+      const userRole = await this.getUserRole(userId);
+      
+      if (!userRole) return false;
+      
+      const currentPermissions = userRole.permissions || [];
+      
+      // Check if permission already exists
+      if (currentPermissions.includes(permission)) {
+        return true; // Already has permission
+      }
+      
+      const updatedPermissions = [...currentPermissions, permission];
+      
+      const result = await this.updateUserPermissions(userId, updatedPermissions);
+      
+      ValidationMonitor.recordPatternSuccess({
+        service: 'rolePermissionService',
+        pattern: 'atomic_operation',
+        operation: 'addPermission'
+      });
+      
+      return result !== null;
+      
+    } catch (error) {
+      ValidationMonitor.recordValidationError({
+        context: 'RolePermissionService.addPermission',
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        errorCode: 'ADD_PERMISSION_FAILED',
+        validationPattern: 'atomic_operation'
+      });
+      
+      return false;
+    }
+  }
+
+  /**
+   * Remove a custom permission from user
+   */
+  static async removePermission(userId: string, permission: string): Promise<boolean> {
+    try {
+      const userRole = await this.getUserRole(userId);
+      
+      if (!userRole) return false;
+      
+      const currentPermissions = userRole.permissions || [];
+      const updatedPermissions = currentPermissions.filter(p => p !== permission);
+      
+      // Only update if permission was actually removed
+      if (currentPermissions.length === updatedPermissions.length) {
+        return true; // Permission wasn't there anyway
+      }
+      
+      const result = await this.updateUserPermissions(userId, updatedPermissions);
+      
+      ValidationMonitor.recordPatternSuccess({
+        service: 'rolePermissionService',
+        pattern: 'atomic_operation',
+        operation: 'removePermission'
+      });
+      
+      return result !== null;
+      
+    } catch (error) {
+      ValidationMonitor.recordValidationError({
+        context: 'RolePermissionService.removePermission',
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        errorCode: 'REMOVE_PERMISSION_FAILED',
+        validationPattern: 'atomic_operation'
+      });
+      
+      return false;
+    }
+  }
+
+  /**
+   * Get all permissions for a role type (static data)
+   */
+  static async getAllPermissionsForRole(roleType: RoleType): Promise<string[]> {
+    try {
+      const permissions = ROLE_PERMISSIONS[roleType] || [];
+      
+      ValidationMonitor.recordPatternSuccess({
+        service: 'rolePermissionService',
+        pattern: 'simple_lookup',
+        operation: 'getAllPermissionsForRole'
+      });
+      
+      return permissions as string[];
+      
+    } catch (error) {
+      ValidationMonitor.recordValidationError({
+        context: 'RolePermissionService.getAllPermissionsForRole',
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        errorCode: 'ROLE_PERMISSIONS_LOOKUP_FAILED',
+        validationPattern: 'simple_lookup'
+      });
+      
+      return [];
+    }
+  }
+
+  /**
+   * Check if user has multiple permissions (AND logic)
+   */
+  static async hasMultiplePermissions(userId: string, permissions: string[]): Promise<boolean> {
+    try {
+      const userPermissions = await this.getUserPermissions(userId);
+      
+      const hasAll = permissions.every(permission => 
+        userPermissions.includes(permission)
+      );
+      
+      ValidationMonitor.recordPatternSuccess({
+        service: 'rolePermissionService',
+        pattern: 'simple_validation',
+        operation: 'hasMultiplePermissions'
+      });
+      
+      return hasAll;
+      
+    } catch (error) {
+      ValidationMonitor.recordValidationError({
+        context: 'RolePermissionService.hasMultiplePermissions',
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        errorCode: 'MULTIPLE_PERMISSION_CHECK_FAILED',
+        validationPattern: 'simple_validation'
+      });
+      
+      return false;
+    }
+  }
+
+  /**
+   * Update user permissions (updates custom permissions only)
    */
   static async updateUserPermissions(
     userId: string, 
@@ -227,6 +403,95 @@ export class RolePermissionService {
       });
       
       return null;
+    }
+  }
+
+  /**
+   * Update user role (change role type)
+   * Pattern: Atomic operation with validation
+   */
+  static async updateUserRole(
+    userId: string, 
+    roleType: RoleType
+  ): Promise<RolePermissionTransform | null> {
+    try {
+      // Validate role type exists
+      if (!ROLE_PERMISSIONS[roleType]) {
+        throw new Error(`Invalid role type: ${roleType}`);
+      }
+
+      const { data, error } = await this.supabase
+        .from('user_roles')
+        .update({ 
+          role_type: roleType,
+          updated_at: new Date().toISOString() 
+        })
+        .eq('user_id', userId)
+        .eq('is_active', true)
+        .select(`
+          id, user_id, role_type, permissions,
+          is_active, created_at, updated_at
+        `)
+        .single();
+
+      if (error) throw error;
+
+      const transformed = RolePermissionTransformSchema.parse(data);
+      
+      ValidationMonitor.recordPatternSuccess({
+        service: 'rolePermissionService',
+        pattern: 'transformation_schema',
+        operation: 'updateUserRole'
+      });
+      
+      return transformed;
+      
+    } catch (error) {
+      ValidationMonitor.recordValidationError({
+        context: 'RolePermissionService.updateUserRole',
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        errorCode: 'ROLE_UPDATE_FAILED',
+        validationPattern: 'transformation_schema'
+      });
+      
+      return null;
+    }
+  }
+
+  /**
+   * Deactivate user role
+   * Pattern: Atomic operation with soft delete
+   */
+  static async deactivateUserRole(userId: string): Promise<boolean> {
+    try {
+      const { error } = await this.supabase
+        .from('user_roles')
+        .update({ 
+          is_active: false,
+          updated_at: new Date().toISOString() 
+        })
+        .eq('user_id', userId)
+        .eq('is_active', true);
+
+      if (error) throw error;
+      
+      ValidationMonitor.recordPatternSuccess({
+        service: 'rolePermissionService',
+        pattern: 'atomic_operation',
+        operation: 'deactivateUserRole'
+      });
+      
+      return true;
+      
+    } catch (error) {
+      ValidationMonitor.recordValidationError({
+        context: 'RolePermissionService.deactivateUserRole',
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        errorCode: 'ROLE_DEACTIVATION_FAILED',
+        validationPattern: 'atomic_operation'
+      });
+      
+      return false;
     }
   }
 

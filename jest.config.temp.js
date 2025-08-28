@@ -1,5 +1,5 @@
 module.exports = {
-  preset: './node_modules/jest-expo/jest-preset.js',
+  testEnvironment: 'node',
   setupFilesAfterEnv: ['<rootDir>/src/test/test-setup.ts'],
   globals: {
     TEST_MODE: 'default'
@@ -7,21 +7,6 @@ module.exports = {
   testMatch: [
     '**/__tests__/**/*.(ts|tsx|js)',
     '**/*.(test|spec).(ts|tsx|js)'
-  ],
-  testPathIgnorePatterns: [
-    '<rootDir>/node_modules/',
-    '.*\\.race\\.test\\.(ts|tsx|js)$',
-    '/src/services/',
-    '/src/hooks/__tests__/archive/',
-    '/src/hooks/__tests__/prototypes/',
-    'src/hooks/__tests__/archive',
-    'src/hooks/__tests__/prototypes'
-  ],
-  collectCoverageFrom: [
-    'src/**/*.{ts,tsx}',
-    '!src/**/*.d.ts',
-    '!src/test/**/*',
-    '!src/**/__tests__/**/*'
   ],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],
   transform: {
