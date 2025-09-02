@@ -42,7 +42,7 @@ RUN mkdir -p /shared /prompts && \
     chown -R agent:agent /shared /prompts
 
 # Copy entrypoints
-COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY entrypoint-generic.sh /usr/local/bin/entrypoint.sh
 COPY entrypoint-enhanced.sh /usr/local/bin/entrypoint-enhanced.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/entrypoint-enhanced.sh
 

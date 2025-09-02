@@ -1,0 +1,575 @@
+version: '3.8'
+
+services:
+  # marketing-schema-tests agent
+  marketing-schema-tests-agent:
+    build: 
+      context: ../../agents
+      dockerfile: Dockerfile
+    container_name: marketing-schema-tests-agent
+    environment:
+      - "AGENT_NAME=marketing-schema-tests"
+      - "AGENT_TYPE=test-writer"
+      - "PROJECT_NAME=marketing_operations"
+      - "PROJECT_DESCRIPTION=TDD Phase 3: Marketing Operations with Content Workflows"
+      - "MAX_RESTARTS=5"
+      - "TARGET_PASS_RATE=85"
+      - "TEST_COMMAND=npm run test:schemas:marketing"
+      - "AGENT_PROMPT_FILE=/prompts/phase3-marketing-schema-tests.md"
+      - "DEBUG=${DEBUG:-false}"
+      - "FRESH_START=${FRESH_START:-false}"
+    volumes:
+      - ../../volumes/tdd_phase_3-marketing-schema-tests:/workspace:rw
+      - ../../volumes/communication:/shared:rw
+      - ../../agents/prompts:/prompts:ro
+      - ./entrypoint.sh:/usr/local/bin/entrypoint-enhanced.sh:ro
+      - ~/.claude:/home/agent/.claude:rw
+    working_dir: /workspace
+    entrypoint: ["/usr/local/bin/entrypoint-enhanced.sh"]
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+
+  # marketing-service-tests agent
+  marketing-service-tests-agent:
+    build: 
+      context: ../../agents
+      dockerfile: Dockerfile
+    container_name: marketing-service-tests-agent
+    environment:
+      - "AGENT_NAME=marketing-service-tests"
+      - "AGENT_TYPE=test-writer"
+      - "PROJECT_NAME=marketing_operations"
+      - "PROJECT_DESCRIPTION=TDD Phase 3: Marketing Operations with Content Workflows"
+      - "MAX_RESTARTS=5"
+      - "TARGET_PASS_RATE=85"
+      - "TEST_COMMAND=npm run test:services:marketing"
+      - "AGENT_PROMPT_FILE=/prompts/phase3-marketing-service-tests.md"
+      - "DEBUG=${DEBUG:-false}"
+      - "FRESH_START=${FRESH_START:-false}"
+    volumes:
+      - ../../volumes/tdd_phase_3-marketing-service-tests:/workspace:rw
+      - ../../volumes/communication:/shared:rw
+      - ../../agents/prompts:/prompts:ro
+      - ./entrypoint.sh:/usr/local/bin/entrypoint-enhanced.sh:ro
+      - ~/.claude:/home/agent/.claude:rw
+    working_dir: /workspace
+    entrypoint: ["/usr/local/bin/entrypoint-enhanced.sh"]
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+
+  # marketing-hooks-tests agent
+  marketing-hooks-tests-agent:
+    build: 
+      context: ../../agents
+      dockerfile: Dockerfile
+    container_name: marketing-hooks-tests-agent
+    environment:
+      - "AGENT_NAME=marketing-hooks-tests"
+      - "AGENT_TYPE=test-writer"
+      - "PROJECT_NAME=marketing_operations"
+      - "PROJECT_DESCRIPTION=TDD Phase 3: Marketing Operations with Content Workflows"
+      - "MAX_RESTARTS=5"
+      - "TARGET_PASS_RATE=85"
+      - "TEST_COMMAND=npm run test:hooks:marketing"
+      - "AGENT_PROMPT_FILE=/prompts/phase3-marketing-hooks-tests.md"
+      - "DEBUG=${DEBUG:-false}"
+      - "FRESH_START=${FRESH_START:-false}"
+    volumes:
+      - ../../volumes/tdd_phase_3-marketing-hooks-tests:/workspace:rw
+      - ../../volumes/communication:/shared:rw
+      - ../../agents/prompts:/prompts:ro
+      - ./entrypoint.sh:/usr/local/bin/entrypoint-enhanced.sh:ro
+      - ~/.claude:/home/agent/.claude:rw
+    working_dir: /workspace
+    entrypoint: ["/usr/local/bin/entrypoint-enhanced.sh"]
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+
+  # marketing-screens-tests agent
+  marketing-screens-tests-agent:
+    build: 
+      context: ../../agents
+      dockerfile: Dockerfile
+    container_name: marketing-screens-tests-agent
+    environment:
+      - "AGENT_NAME=marketing-screens-tests"
+      - "AGENT_TYPE=test-writer"
+      - "PROJECT_NAME=marketing_operations"
+      - "PROJECT_DESCRIPTION=TDD Phase 3: Marketing Operations with Content Workflows"
+      - "MAX_RESTARTS=5"
+      - "TARGET_PASS_RATE=85"
+      - "TEST_COMMAND=npm run test:screens:marketing"
+      - "AGENT_PROMPT_FILE=/prompts/phase3-marketing-screens-tests.md"
+      - "DEBUG=${DEBUG:-false}"
+      - "FRESH_START=${FRESH_START:-false}"
+    volumes:
+      - ../../volumes/tdd_phase_3-marketing-screens-tests:/workspace:rw
+      - ../../volumes/communication:/shared:rw
+      - ../../agents/prompts:/prompts:ro
+      - ./entrypoint.sh:/usr/local/bin/entrypoint-enhanced.sh:ro
+      - ~/.claude:/home/agent/.claude:rw
+    working_dir: /workspace
+    entrypoint: ["/usr/local/bin/entrypoint-enhanced.sh"]
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+
+  # marketing-components-tests agent
+  marketing-components-tests-agent:
+    build: 
+      context: ../../agents
+      dockerfile: Dockerfile
+    container_name: marketing-components-tests-agent
+    environment:
+      - "AGENT_NAME=marketing-components-tests"
+      - "AGENT_TYPE=test-writer"
+      - "PROJECT_NAME=marketing_operations"
+      - "PROJECT_DESCRIPTION=TDD Phase 3: Marketing Operations with Content Workflows"
+      - "MAX_RESTARTS=5"
+      - "TARGET_PASS_RATE=85"
+      - "TEST_COMMAND=npm run test:components:marketing"
+      - "AGENT_PROMPT_FILE=/prompts/phase3-marketing-components-tests.md"
+      - "DEBUG=${DEBUG:-false}"
+      - "FRESH_START=${FRESH_START:-false}"
+    volumes:
+      - ../../volumes/tdd_phase_3-marketing-components-tests:/workspace:rw
+      - ../../volumes/communication:/shared:rw
+      - ../../agents/prompts:/prompts:ro
+      - ./entrypoint.sh:/usr/local/bin/entrypoint-enhanced.sh:ro
+      - ~/.claude:/home/agent/.claude:rw
+    working_dir: /workspace
+    entrypoint: ["/usr/local/bin/entrypoint-enhanced.sh"]
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+
+  # marketing-integration-tests agent
+  marketing-integration-tests-agent:
+    build: 
+      context: ../../agents
+      dockerfile: Dockerfile
+    container_name: marketing-integration-tests-agent
+    environment:
+      - "AGENT_NAME=marketing-integration-tests"
+      - "AGENT_TYPE=test-writer"
+      - "PROJECT_NAME=marketing_operations"
+      - "PROJECT_DESCRIPTION=TDD Phase 3: Marketing Operations with Content Workflows"
+      - "MAX_RESTARTS=5"
+      - "TARGET_PASS_RATE=85"
+      - "TEST_COMMAND=npm run test:integration:marketing"
+      - "AGENT_PROMPT_FILE=/prompts/phase3-marketing-integration-tests.md"
+      - "DEBUG=${DEBUG:-false}"
+      - "FRESH_START=${FRESH_START:-false}"
+    volumes:
+      - ../../volumes/tdd_phase_3-marketing-integration-tests:/workspace:rw
+      - ../../volumes/communication:/shared:rw
+      - ../../agents/prompts:/prompts:ro
+      - ./entrypoint.sh:/usr/local/bin/entrypoint-enhanced.sh:ro
+      - ~/.claude:/home/agent/.claude:rw
+    working_dir: /workspace
+    entrypoint: ["/usr/local/bin/entrypoint-enhanced.sh"]
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+
+  # marketing-schema-impl agent
+  marketing-schema-impl-agent:
+    build: 
+      context: ../../agents
+      dockerfile: Dockerfile
+    container_name: marketing-schema-impl-agent
+    environment:
+      - "AGENT_NAME=marketing-schema-impl"
+      - "AGENT_TYPE=implementer"
+      - "PROJECT_NAME=marketing_operations"
+      - "PROJECT_DESCRIPTION=TDD Phase 3: Marketing Operations with Content Workflows"
+      - "MAX_RESTARTS=5"
+      - "TARGET_PASS_RATE=85"
+      - "TEST_COMMAND=npm run test:schemas:marketing"
+      - "AGENT_PROMPT_FILE=/prompts/phase3-marketing-schema-impl.md"
+      - "DEBUG=${DEBUG:-false}"
+      - "FRESH_START=${FRESH_START:-false}"
+    volumes:
+      - ../../volumes/tdd_phase_3-marketing-schema-impl:/workspace:rw
+      - ../../volumes/communication:/shared:rw
+      - ../../agents/prompts:/prompts:ro
+      - ./entrypoint.sh:/usr/local/bin/entrypoint-enhanced.sh:ro
+      - ~/.claude:/home/agent/.claude:rw
+    working_dir: /workspace
+    entrypoint: ["/usr/local/bin/entrypoint-enhanced.sh"]
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+
+  # marketing-service-impl agent
+  marketing-service-impl-agent:
+    build: 
+      context: ../../agents
+      dockerfile: Dockerfile
+    container_name: marketing-service-impl-agent
+    environment:
+      - "AGENT_NAME=marketing-service-impl"
+      - "AGENT_TYPE=implementer"
+      - "PROJECT_NAME=marketing_operations"
+      - "PROJECT_DESCRIPTION=TDD Phase 3: Marketing Operations with Content Workflows"
+      - "MAX_RESTARTS=5"
+      - "TARGET_PASS_RATE=85"
+      - "TEST_COMMAND=npm run test:services:marketing"
+      - "AGENT_PROMPT_FILE=/prompts/phase3-marketing-service-impl.md"
+      - "DEBUG=${DEBUG:-false}"
+      - "FRESH_START=${FRESH_START:-false}"
+    volumes:
+      - ../../volumes/tdd_phase_3-marketing-service-impl:/workspace:rw
+      - ../../volumes/communication:/shared:rw
+      - ../../agents/prompts:/prompts:ro
+      - ./entrypoint.sh:/usr/local/bin/entrypoint-enhanced.sh:ro
+      - ~/.claude:/home/agent/.claude:rw
+    working_dir: /workspace
+    entrypoint: ["/usr/local/bin/entrypoint-enhanced.sh"]
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+
+  # marketing-hooks-impl agent
+  marketing-hooks-impl-agent:
+    build: 
+      context: ../../agents
+      dockerfile: Dockerfile
+    container_name: marketing-hooks-impl-agent
+    environment:
+      - "AGENT_NAME=marketing-hooks-impl"
+      - "AGENT_TYPE=implementer"
+      - "PROJECT_NAME=marketing_operations"
+      - "PROJECT_DESCRIPTION=TDD Phase 3: Marketing Operations with Content Workflows"
+      - "MAX_RESTARTS=5"
+      - "TARGET_PASS_RATE=85"
+      - "TEST_COMMAND=npm run test:hooks:marketing"
+      - "AGENT_PROMPT_FILE=/prompts/phase3-marketing-hooks-impl.md"
+      - "DEBUG=${DEBUG:-false}"
+      - "FRESH_START=${FRESH_START:-false}"
+    volumes:
+      - ../../volumes/tdd_phase_3-marketing-hooks-impl:/workspace:rw
+      - ../../volumes/communication:/shared:rw
+      - ../../agents/prompts:/prompts:ro
+      - ./entrypoint.sh:/usr/local/bin/entrypoint-enhanced.sh:ro
+      - ~/.claude:/home/agent/.claude:rw
+    working_dir: /workspace
+    entrypoint: ["/usr/local/bin/entrypoint-enhanced.sh"]
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+
+  # marketing-components-impl agent
+  marketing-components-impl-agent:
+    build: 
+      context: ../../agents
+      dockerfile: Dockerfile
+    container_name: marketing-components-impl-agent
+    environment:
+      - "AGENT_NAME=marketing-components-impl"
+      - "AGENT_TYPE=implementer"
+      - "PROJECT_NAME=marketing_operations"
+      - "PROJECT_DESCRIPTION=TDD Phase 3: Marketing Operations with Content Workflows"
+      - "MAX_RESTARTS=5"
+      - "TARGET_PASS_RATE=85"
+      - "TEST_COMMAND=npm run test:components:marketing"
+      - "AGENT_PROMPT_FILE=/prompts/phase3-marketing-components-impl.md"
+      - "DEBUG=${DEBUG:-false}"
+      - "FRESH_START=${FRESH_START:-false}"
+    volumes:
+      - ../../volumes/tdd_phase_3-marketing-components-impl:/workspace:rw
+      - ../../volumes/communication:/shared:rw
+      - ../../agents/prompts:/prompts:ro
+      - ./entrypoint.sh:/usr/local/bin/entrypoint-enhanced.sh:ro
+      - ~/.claude:/home/agent/.claude:rw
+    working_dir: /workspace
+    entrypoint: ["/usr/local/bin/entrypoint-enhanced.sh"]
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+
+  # marketing-screens-impl agent
+  marketing-screens-impl-agent:
+    build: 
+      context: ../../agents
+      dockerfile: Dockerfile
+    container_name: marketing-screens-impl-agent
+    environment:
+      - "AGENT_NAME=marketing-screens-impl"
+      - "AGENT_TYPE=implementer"
+      - "PROJECT_NAME=marketing_operations"
+      - "PROJECT_DESCRIPTION=TDD Phase 3: Marketing Operations with Content Workflows"
+      - "MAX_RESTARTS=5"
+      - "TARGET_PASS_RATE=85"
+      - "TEST_COMMAND=npm run test:screens:marketing"
+      - "AGENT_PROMPT_FILE=/prompts/phase3-marketing-screens-impl.md"
+      - "DEBUG=${DEBUG:-false}"
+      - "FRESH_START=${FRESH_START:-false}"
+    volumes:
+      - ../../volumes/tdd_phase_3-marketing-screens-impl:/workspace:rw
+      - ../../volumes/communication:/shared:rw
+      - ../../agents/prompts:/prompts:ro
+      - ./entrypoint.sh:/usr/local/bin/entrypoint-enhanced.sh:ro
+      - ~/.claude:/home/agent/.claude:rw
+    working_dir: /workspace
+    entrypoint: ["/usr/local/bin/entrypoint-enhanced.sh"]
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+
+  # marketing-integration-impl agent
+  marketing-integration-impl-agent:
+    build: 
+      context: ../../agents
+      dockerfile: Dockerfile
+    container_name: marketing-integration-impl-agent
+    environment:
+      - "AGENT_NAME=marketing-integration-impl"
+      - "AGENT_TYPE=implementer"
+      - "PROJECT_NAME=marketing_operations"
+      - "PROJECT_DESCRIPTION=TDD Phase 3: Marketing Operations with Content Workflows"
+      - "MAX_RESTARTS=5"
+      - "TARGET_PASS_RATE=85"
+      - "TEST_COMMAND=npm run test:integration:marketing"
+      - "AGENT_PROMPT_FILE=/prompts/phase3-marketing-integration-impl.md"
+      - "DEBUG=${DEBUG:-false}"
+      - "FRESH_START=${FRESH_START:-false}"
+    volumes:
+      - ../../volumes/tdd_phase_3-marketing-integration-impl:/workspace:rw
+      - ../../volumes/communication:/shared:rw
+      - ../../agents/prompts:/prompts:ro
+      - ./entrypoint.sh:/usr/local/bin/entrypoint-enhanced.sh:ro
+      - ~/.claude:/home/agent/.claude:rw
+    working_dir: /workspace
+    entrypoint: ["/usr/local/bin/entrypoint-enhanced.sh"]
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+
+  # marketing-refactor agent
+  marketing-refactor-agent:
+    build: 
+      context: ../../agents
+      dockerfile: Dockerfile
+    container_name: marketing-refactor-agent
+    environment:
+      - "AGENT_NAME=marketing-refactor"
+      - "AGENT_TYPE=refactor"
+      - "PROJECT_NAME=marketing_operations"
+      - "PROJECT_DESCRIPTION=TDD Phase 3: Marketing Operations with Content Workflows"
+      - "MAX_RESTARTS=5"
+      - "TARGET_PASS_RATE=85"
+      - "TEST_COMMAND=npm run test:marketing:all"
+      - "AGENT_PROMPT_FILE=/prompts/phase3-marketing-refactor.md"
+      - "DEBUG=${DEBUG:-false}"
+      - "FRESH_START=${FRESH_START:-false}"
+    volumes:
+      - ../../volumes/tdd_phase_3-marketing-refactor:/workspace:rw
+      - ../../volumes/communication:/shared:rw
+      - ../../agents/prompts:/prompts:ro
+      - ./entrypoint.sh:/usr/local/bin/entrypoint-enhanced.sh:ro
+      - ~/.claude:/home/agent/.claude:rw
+    working_dir: /workspace
+    entrypoint: ["/usr/local/bin/entrypoint-enhanced.sh"]
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+
+  # marketing-audit agent
+  marketing-audit-agent:
+    build: 
+      context: ../../agents
+      dockerfile: Dockerfile
+    container_name: marketing-audit-agent
+    environment:
+      - "AGENT_NAME=marketing-audit"
+      - "AGENT_TYPE=audit"
+      - "PROJECT_NAME=marketing_operations"
+      - "PROJECT_DESCRIPTION=TDD Phase 3: Marketing Operations with Content Workflows"
+      - "MAX_RESTARTS=5"
+      - "TARGET_PASS_RATE=85"
+      - "TEST_COMMAND=npm run validate:marketing:patterns"
+      - "AGENT_PROMPT_FILE=/prompts/phase3-marketing-audit.md"
+      - "DEBUG=${DEBUG:-false}"
+      - "FRESH_START=${FRESH_START:-false}"
+    volumes:
+      - ../../volumes/tdd_phase_3-marketing-audit:/workspace:rw
+      - ../../volumes/communication:/shared:rw
+      - ../../agents/prompts:/prompts:ro
+      - ./entrypoint.sh:/usr/local/bin/entrypoint-enhanced.sh:ro
+      - ~/.claude:/home/agent/.claude:rw
+    working_dir: /workspace
+    entrypoint: ["/usr/local/bin/entrypoint-enhanced.sh"]
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+
+  # marketing-integration-final agent
+  marketing-integration-final-agent:
+    build: 
+      context: ../../agents
+      dockerfile: Dockerfile
+    container_name: marketing-integration-final-agent
+    environment:
+      - "AGENT_NAME=marketing-integration-final"
+      - "AGENT_TYPE=integration"
+      - "PROJECT_NAME=marketing_operations"
+      - "PROJECT_DESCRIPTION=TDD Phase 3: Marketing Operations with Content Workflows"
+      - "MAX_RESTARTS=5"
+      - "TARGET_PASS_RATE=85"
+      - "TEST_COMMAND=npm run test:marketing:all"
+      - "AGENT_PROMPT_FILE=/prompts/phase3-marketing-integration-final.md"
+      - "DEBUG=${DEBUG:-false}"
+      - "FRESH_START=${FRESH_START:-false}"
+    volumes:
+      - ../../volumes/tdd_phase_3-marketing-integration-final:/workspace:rw
+      - ../../volumes/communication:/shared:rw
+      - ../../agents/prompts:/prompts:ro
+      - ./entrypoint.sh:/usr/local/bin/entrypoint-enhanced.sh:ro
+      - ~/.claude:/home/agent/.claude:rw
+    working_dir: /workspace
+    entrypoint: ["/usr/local/bin/entrypoint-enhanced.sh"]
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+
+  # Authentication Container
+  tdd_phase_3-auth:
+    build:
+      context: ../../agents
+      dockerfile: Dockerfile
+    container_name: tdd_phase_3-auth
+    environment:
+      - "AGENT_NAME=auth"
+      - "PROJECT_NAME=marketing_operations"
+    volumes:
+      - ~/.claude:/home/agent/.claude:rw
+    entrypoint: ["sleep", "infinity"]
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  # Monitoring Container
+  tdd_phase_3-monitoring:
+    build:
+      context: ../../monitoring
+      dockerfile: Dockerfile
+    container_name: tdd_phase_3-monitoring
+    environment:
+      - PORT=3003
+      - PROJECT=marketing_operations
+    volumes:
+      - ../../volumes/communication:/shared:rw
+      - ../../monitoring/analyze-logs.sh:/app/analyze-logs.sh:ro
+      - ~/.claude:/home/monitor/.claude:rw
+    ports:
+      - "3003:3003"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+# Networks and volumes
+networks:
+  default:
+    name: tdd_phase_3-network
+
+volumes:
+  tdd_phase_3-data:
+    driver: local
