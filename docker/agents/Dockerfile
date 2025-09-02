@@ -37,6 +37,11 @@ WORKDIR /workspace
 RUN mkdir -p /home/agent/.claude && \
     chown -R agent:agent /workspace /home/agent/.claude
 
+# Copy package files and install dependencies
+# This allows agents to run npm test commands
+COPY --chown=agent:agent package*.json ./
+RUN npm ci --only=production=false 2>/dev/null || npm install 2>/dev/null || echo "Note: npm install skipped (package.json may be mounted at runtime)"
+
 # Create shared directories
 RUN mkdir -p /shared /prompts && \
     chown -R agent:agent /shared /prompts

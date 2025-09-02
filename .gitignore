@@ -44,3 +44,13 @@ secrets/
 
 # typescript
 *.tsbuildinfo
+# Runtime volumes from multi-agent Docker containers
+docker/volumes/communication/logs/
+docker/volumes/communication/progress/
+docker/volumes/communication/status/
+docker/volumes/communication/restart_counters/
+docker/volumes/communication/test-results/
+docker/volumes/tdd_phase_*/
+docker/volumes/phase1-*/
+docker/projects/*/docker/volumes/
+
