@@ -102,13 +102,14 @@ get_agent_workspace_strategy() {
     if [ -n "$strategy" ]; then
         echo "$strategy"
     else
-        # Auto-detect based on agent name/type
-        if [[ "$agent_name" =~ (refactor|audit|integration-final) ]]; then
-            echo "unified"
-        elif [[ "$agent_name" =~ ^(.+)-(tests|impl)$ ]]; then
-            echo "layer"
+        # Check for global workspace strategy in config (defaults to unified)
+        local global_strategy=$(get_config_value "workspace_strategy" "$file")
+        if [ -n "$global_strategy" ]; then
+            echo "$global_strategy"
         else
-            echo "isolated"
+            # Default to unified workspace for better TDD workflow
+            # This ensures test writers and implementers share the same workspace
+            echo "unified"
         fi
     fi
 }
@@ -140,6 +141,13 @@ echo "  Description: $PROJECT_DESCRIPTION"
 echo "  Max Restarts: $MAX_RESTARTS"
 echo "  Test Target: $TEST_PASS_TARGET%"
 echo "  Monitoring Port: $MONITORING_PORT"
+
+# Determine global workspace strategy
+GLOBAL_WORKSPACE_STRATEGY=$(get_config_value "workspace_strategy" "$CONFIG_FILE")
+if [ -z "$GLOBAL_WORKSPACE_STRATEGY" ]; then
+    GLOBAL_WORKSPACE_STRATEGY="unified"
+fi
+echo "  Workspace Strategy: $GLOBAL_WORKSPACE_STRATEGY (default: unified)"
 echo ""
 
 # Extract agent list
@@ -233,11 +241,14 @@ for agent in "${AGENTS[@]}"; do
     
     # Determine workspace volume based on strategy
     if [ "$workspace_strategy" = "unified" ]; then
-        workspace_volume="${PROJECT_PREFIX}-unified"
+        # All agents share a single workspace - best for TDD workflow
+        workspace_volume="${PROJECT_PREFIX}-workspace"
     elif [ "$workspace_strategy" = "layer" ]; then
+        # Test/impl pairs share workspace by layer (e.g., schema-tests + schema-impl)
         layer_name=$(get_layer_name "$agent")
         workspace_volume="${PROJECT_PREFIX}-${layer_name}"
     else
+        # Each agent gets its own isolated workspace
         workspace_volume="${PROJECT_PREFIX}-${agent}"
     fi
     
