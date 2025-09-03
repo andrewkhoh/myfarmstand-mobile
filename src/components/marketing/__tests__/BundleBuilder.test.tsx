@@ -1,136 +1,224 @@
-import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
-
-// Mock the component (doesn't exist yet - RED phase)
-jest.mock('../BundleBuilder', () => ({
-  default: jest.fn(() => null)
-}));
+import React from 'react';
 
 import BundleBuilder from '../BundleBuilder';
 
 describe('BundleBuilder', () => {
   const defaultProps = {
     products: [],
-    selectedProducts: [],
-    onProductAdd: jest.fn(),
-    onProductRemove: jest.fn(),
-    onQuantityChange: jest.fn(),
+    onAdd: jest.fn(),
+    onRemove: jest.fn(),
     onReorder: jest.fn(),
+    onQuantityChange: jest.fn(),
     onPriceUpdate: jest.fn(),
     maxItems: 10,
-    currency: 'USD',
+    pricing: {
+      basePrice: 0,
+      discountPercentage: 0
+    },
     testID: 'bundle-builder'
   };
-
+  
   const mockProducts = [
-    { id: '1', name: 'Product A', price: 29.99, image: 'image1.jpg' },
-    { id: '2', name: 'Product B', price: 49.99, image: 'image2.jpg' },
-    { id: '3', name: 'Product C', price: 19.99, image: 'image3.jpg' }
+    { id: '1', name: 'Product A', price: 29.99, image: 'imageA.jpg' },
+    { id: '2', name: 'Product B', price: 39.99, image: 'imageB.jpg' },
+    { id: '3', name: 'Product C', price: 49.99, image: 'imageC.jpg' }
   ];
-
+  
   beforeEach(() => {
     jest.clearAllMocks();
   });
-
-  describe('product selection', () => {
-    it('should display available products', () => {
+  
+  describe('product display', () => {
+    it('should render empty state when no products', () => {
+      const { getByText } = render(
+        <BundleBuilder {...defaultProps} />
+      );
+      expect(getByText('No products in bundle')).toBeTruthy();
+    });
+    
+    it('should display product list', () => {
       const { getByText } = render(
         <BundleBuilder {...defaultProps} products={mockProducts} />
       );
       
-      mockProducts.forEach(product => {
-        expect(getByText(product.name)).toBeTruthy();
-        expect(getByText(`$${product.price}`)).toBeTruthy();
-      });
+      expect(getByText('Product A')).toBeTruthy();
+      expect(getByText('Product B')).toBeTruthy();
+      expect(getByText('Product C')).toBeTruthy();
     });
-
-    it('should allow adding products to bundle', () => {
-      const onProductAdd = jest.fn();
+    
+    it('should show product images', () => {
       const { getByTestId } = render(
-        <BundleBuilder {...defaultProps} products={mockProducts} onProductAdd={onProductAdd} />
+        <BundleBuilder {...defaultProps} products={mockProducts} />
       );
       
-      const addButton = getByTestId('add-product-1');
+      expect(getByTestId('product-image-1').props.source.uri).toBe('imageA.jpg');
+      expect(getByTestId('product-image-2').props.source.uri).toBe('imageB.jpg');
+    });
+    
+    it('should display product prices', () => {
+      const { getByText } = render(
+        <BundleBuilder {...defaultProps} products={mockProducts} />
+      );
+      
+      expect(getByText('$29.99')).toBeTruthy();
+      expect(getByText('$39.99')).toBeTruthy();
+      expect(getByText('$49.99')).toBeTruthy();
+    });
+  });
+  
+  describe('product selection', () => {
+    it('should show add product button', () => {
+      const { getByTestId } = render(
+        <BundleBuilder {...defaultProps} />
+      );
+      expect(getByTestId('add-product-button')).toBeTruthy();
+    });
+    
+    it('should open product selector modal', () => {
+      const { getByTestId } = render(
+        <BundleBuilder {...defaultProps} />
+      );
+      
+      const addButton = getByTestId('add-product-button');
       fireEvent.press(addButton);
       
-      expect(onProductAdd).toHaveBeenCalledWith('1');
+      expect(getByTestId('product-selector-modal')).toBeTruthy();
     });
-
-    it('should display selected products in bundle', () => {
-      const selectedProducts = [
-        { ...mockProducts[0], quantity: 2 },
-        { ...mockProducts[1], quantity: 1 }
-      ];
-      
+    
+    it('should call onAdd when product selected', () => {
+      const onAdd = jest.fn();
       const { getByTestId } = render(
-        <BundleBuilder {...defaultProps} selectedProducts={selectedProducts} />
+        <BundleBuilder {...defaultProps} onAdd={onAdd} />
       );
       
-      expect(getByTestId('bundle-item-1')).toBeTruthy();
-      expect(getByTestId('bundle-item-2')).toBeTruthy();
+      const addButton = getByTestId('add-product-button');
+      fireEvent.press(addButton);
+      
+      const productOption = getByTestId('select-product-1');
+      fireEvent.press(productOption);
+      
+      expect(onAdd).toHaveBeenCalledWith(expect.objectContaining({ id: '1' }));
     });
-
-    it('should allow removing products from bundle', () => {
-      const onProductRemove = jest.fn();
-      const selectedProducts = [{ ...mockProducts[0], quantity: 1 }];
+    
+    it('should disable add button when max items reached', () => {
+      const maxProducts = Array(5).fill(null).map((_, i) => ({
+        id: String(i),
+        name: `Product ${i}`,
+        price: 10
+      }));
       
       const { getByTestId } = render(
-        <BundleBuilder 
-          {...defaultProps} 
-          selectedProducts={selectedProducts} 
-          onProductRemove={onProductRemove}
-        />
+        <BundleBuilder {...defaultProps} products={maxProducts} maxItems={5} />
+      );
+      
+      const addButton = getByTestId('add-product-button');
+      expect(addButton.props.disabled).toBe(true);
+    });
+    
+    it('should show item count indicator', () => {
+      const { getByText } = render(
+        <BundleBuilder {...defaultProps} products={mockProducts} maxItems={10} />
+      );
+      
+      expect(getByText('3 / 10 items')).toBeTruthy();
+    });
+  });
+  
+  describe('product removal', () => {
+    it('should show remove button for each product', () => {
+      const { getByTestId } = render(
+        <BundleBuilder {...defaultProps} products={mockProducts} />
+      );
+      
+      expect(getByTestId('remove-product-1')).toBeTruthy();
+      expect(getByTestId('remove-product-2')).toBeTruthy();
+    });
+    
+    it('should call onRemove when remove button pressed', () => {
+      const onRemove = jest.fn();
+      const { getByTestId } = render(
+        <BundleBuilder {...defaultProps} products={mockProducts} onRemove={onRemove} />
       );
       
       const removeButton = getByTestId('remove-product-1');
       fireEvent.press(removeButton);
       
-      expect(onProductRemove).toHaveBeenCalledWith('1');
+      expect(onRemove).toHaveBeenCalledWith('1');
     });
-
-    it('should enforce maximum items limit', () => {
-      const selectedProducts = Array(10).fill(null).map((_, i) => ({
-        id: `${i}`,
-        name: `Product ${i}`,
-        price: 10,
-        quantity: 1
-      }));
-      
+    
+    it('should show confirmation before removing', async () => {
       const { getByTestId, getByText } = render(
-        <BundleBuilder 
-          {...defaultProps} 
-          selectedProducts={selectedProducts}
-          maxItems={10}
-        />
+        <BundleBuilder {...defaultProps} products={mockProducts} confirmRemove={true} />
       );
       
-      expect(getByText('Maximum items reached (10)')).toBeTruthy();
-      expect(getByTestId('add-product-1').props.disabled).toBe(true);
+      const removeButton = getByTestId('remove-product-1');
+      fireEvent.press(removeButton);
+      
+      await waitFor(() => {
+        expect(getByText('Remove this product?')).toBeTruthy();
+      });
     });
   });
-
-  describe('quantity management', () => {
-    it('should display quantity controls for each product', () => {
-      const selectedProducts = [{ ...mockProducts[0], quantity: 1 }];
-      
+  
+  describe('drag and drop reordering', () => {
+    it('should support drag handle for each product', () => {
       const { getByTestId } = render(
-        <BundleBuilder {...defaultProps} selectedProducts={selectedProducts} />
+        <BundleBuilder {...defaultProps} products={mockProducts} />
+      );
+      
+      expect(getByTestId('drag-handle-1')).toBeTruthy();
+      expect(getByTestId('drag-handle-2')).toBeTruthy();
+    });
+    
+    it('should call onReorder when products dragged', () => {
+      const onReorder = jest.fn();
+      const { getByTestId } = render(
+        <BundleBuilder {...defaultProps} products={mockProducts} onReorder={onReorder} />
+      );
+      
+      const product1 = getByTestId('product-item-1');
+      
+      fireEvent(product1, 'dragStart');
+      fireEvent(product1, 'dragEnd', { nativeEvent: { y: 200 } });
+      
+      expect(onReorder).toHaveBeenCalledWith(expect.any(Array));
+    });
+    
+    it('should show drop zone indicator during drag', async () => {
+      const { getByTestId } = render(
+        <BundleBuilder {...defaultProps} products={mockProducts} />
+      );
+      
+      const dragHandle = getByTestId('drag-handle-1');
+      fireEvent(dragHandle, 'dragStart');
+      
+      await waitFor(() => {
+        expect(getByTestId('drop-zone-indicator')).toBeTruthy();
+      });
+    });
+  });
+  
+  describe('quantity management', () => {
+    it('should show quantity controls for each product', () => {
+      const { getByTestId } = render(
+        <BundleBuilder {...defaultProps} products={mockProducts} />
       );
       
       expect(getByTestId('quantity-decrease-1')).toBeTruthy();
-      expect(getByTestId('quantity-input-1')).toBeTruthy();
       expect(getByTestId('quantity-increase-1')).toBeTruthy();
+      expect(getByTestId('quantity-input-1')).toBeTruthy();
     });
-
-    it('should increase product quantity', () => {
+    
+    it('should call onQuantityChange when quantity increased', () => {
       const onQuantityChange = jest.fn();
-      const selectedProducts = [{ ...mockProducts[0], quantity: 1 }];
+      const productsWithQty = mockProducts.map(p => ({ ...p, quantity: 1 }));
       
       const { getByTestId } = render(
         <BundleBuilder 
           {...defaultProps} 
-          selectedProducts={selectedProducts}
+          products={productsWithQty}
           onQuantityChange={onQuantityChange}
         />
       );
@@ -140,15 +228,15 @@ describe('BundleBuilder', () => {
       
       expect(onQuantityChange).toHaveBeenCalledWith('1', 2);
     });
-
-    it('should decrease product quantity', () => {
+    
+    it('should call onQuantityChange when quantity decreased', () => {
       const onQuantityChange = jest.fn();
-      const selectedProducts = [{ ...mockProducts[0], quantity: 3 }];
+      const productsWithQty = mockProducts.map(p => ({ ...p, quantity: 2 }));
       
       const { getByTestId } = render(
         <BundleBuilder 
           {...defaultProps} 
-          selectedProducts={selectedProducts}
+          products={productsWithQty}
           onQuantityChange={onQuantityChange}
         />
       );
@@ -156,17 +244,17 @@ describe('BundleBuilder', () => {
       const decreaseButton = getByTestId('quantity-decrease-1');
       fireEvent.press(decreaseButton);
       
-      expect(onQuantityChange).toHaveBeenCalledWith('1', 2);
+      expect(onQuantityChange).toHaveBeenCalledWith('1', 1);
     });
-
+    
     it('should allow direct quantity input', () => {
       const onQuantityChange = jest.fn();
-      const selectedProducts = [{ ...mockProducts[0], quantity: 1 }];
+      const productsWithQty = mockProducts.map(p => ({ ...p, quantity: 1 }));
       
       const { getByTestId } = render(
         <BundleBuilder 
           {...defaultProps} 
-          selectedProducts={selectedProducts}
+          products={productsWithQty}
           onQuantityChange={onQuantityChange}
         />
       );
@@ -176,199 +264,127 @@ describe('BundleBuilder', () => {
       
       expect(onQuantityChange).toHaveBeenCalledWith('1', 5);
     });
-
+    
     it('should validate quantity limits', () => {
-      const onQuantityChange = jest.fn();
-      const selectedProducts = [{ ...mockProducts[0], quantity: 1, maxQuantity: 5 }];
+      const productsWithQty = mockProducts.map(p => ({ ...p, quantity: 1, maxQuantity: 3 }));
       
       const { getByTestId } = render(
-        <BundleBuilder 
-          {...defaultProps} 
-          selectedProducts={selectedProducts}
-          onQuantityChange={onQuantityChange}
-        />
+        <BundleBuilder {...defaultProps} products={productsWithQty} />
       );
       
       const quantityInput = getByTestId('quantity-input-1');
       fireEvent.changeText(quantityInput, '10');
       
-      expect(onQuantityChange).toHaveBeenCalledWith('1', 5);
+      expect(getByTestId('quantity-error-1')).toBeTruthy();
     });
   });
-
+  
   describe('pricing display', () => {
     it('should calculate and display total price', () => {
-      const selectedProducts = [
-        { ...mockProducts[0], quantity: 2 }, // 29.99 * 2 = 59.98
-        { ...mockProducts[1], quantity: 1 }  // 49.99 * 1 = 49.99
-      ];
+      const productsWithQty = mockProducts.map(p => ({ ...p, quantity: 1 }));
+      const { getByText } = render(
+        <BundleBuilder {...defaultProps} products={productsWithQty} />
+      );
+      
+      // Total: 29.99 + 39.99 + 49.99 = 119.97
+      expect(getByText('Total: $119.97')).toBeTruthy();
+    });
+    
+    it('should apply bundle discount', () => {
+      const productsWithQty = mockProducts.map(p => ({ ...p, quantity: 1 }));
+      const pricing = { basePrice: 0, discountPercentage: 10 };
       
       const { getByText } = render(
-        <BundleBuilder {...defaultProps} selectedProducts={selectedProducts} />
+        <BundleBuilder {...defaultProps} products={productsWithQty} pricing={pricing} />
       );
       
-      expect(getByText('Total: $109.97')).toBeTruthy();
+      expect(getByText('Discount: 10%')).toBeTruthy();
+      expect(getByText('Total: $107.97')).toBeTruthy(); // 119.97 - 10%
     });
-
-    it('should display individual item subtotals', () => {
-      const selectedProducts = [
-        { ...mockProducts[0], quantity: 3 } // 29.99 * 3 = 89.97
-      ];
-      
-      const { getByTestId } = render(
-        <BundleBuilder {...defaultProps} selectedProducts={selectedProducts} />
-      );
-      
-      const subtotal = getByTestId('subtotal-1');
-      expect(subtotal.props.children).toContain('$89.97');
-    });
-
-    it('should apply and display discounts', () => {
-      const selectedProducts = [
-        { ...mockProducts[0], quantity: 2, discount: 10 } // 10% off
-      ];
+    
+    it('should show savings amount', () => {
+      const productsWithQty = mockProducts.map(p => ({ ...p, quantity: 1 }));
+      const pricing = { basePrice: 0, discountPercentage: 10 };
       
       const { getByText } = render(
-        <BundleBuilder {...defaultProps} selectedProducts={selectedProducts} />
+        <BundleBuilder {...defaultProps} products={productsWithQty} pricing={pricing} />
       );
       
-      expect(getByText('Discount: -$6.00')).toBeTruthy();
-      expect(getByText('Total: $53.98')).toBeTruthy();
+      expect(getByText('You save: $12.00')).toBeTruthy();
     });
-
-    it('should format prices according to currency', () => {
-      const selectedProducts = [{ ...mockProducts[0], quantity: 1 }];
-      
-      const { getByText } = render(
-        <BundleBuilder 
-          {...defaultProps} 
-          selectedProducts={selectedProducts}
-          currency="EUR"
-        />
-      );
-      
-      expect(getByText('€29.99')).toBeTruthy();
-    });
-  });
-
-  describe('drag and drop reordering', () => {
-    it('should support drag handles on bundle items', () => {
-      const selectedProducts = [
-        { ...mockProducts[0], quantity: 1 },
-        { ...mockProducts[1], quantity: 1 }
-      ];
-      
-      const { getByTestId } = render(
-        <BundleBuilder {...defaultProps} selectedProducts={selectedProducts} />
-      );
-      
-      expect(getByTestId('drag-handle-1')).toBeTruthy();
-      expect(getByTestId('drag-handle-2')).toBeTruthy();
-    });
-
-    it('should reorder items via drag and drop', () => {
-      const onReorder = jest.fn();
-      const selectedProducts = [
-        { ...mockProducts[0], quantity: 1 },
-        { ...mockProducts[1], quantity: 1 },
-        { ...mockProducts[2], quantity: 1 }
-      ];
+    
+    it('should update price when quantity changes', () => {
+      const onPriceUpdate = jest.fn();
+      const productsWithQty = mockProducts.map(p => ({ ...p, quantity: 1 }));
       
       const { getByTestId } = render(
         <BundleBuilder 
           {...defaultProps} 
-          selectedProducts={selectedProducts}
-          onReorder={onReorder}
+          products={productsWithQty}
+          onPriceUpdate={onPriceUpdate}
         />
       );
       
-      const dragItem = getByTestId('bundle-item-1');
+      const increaseButton = getByTestId('quantity-increase-1');
+      fireEvent.press(increaseButton);
       
-      // Simulate drag from position 0 to position 2
-      fireEvent(dragItem, 'dragStart');
-      fireEvent(dragItem, 'dragEnd', {
-        nativeEvent: { 
-          pageY: 200 // Assuming this corresponds to position 2
-        }
-      });
-      
-      expect(onReorder).toHaveBeenCalledWith(['2', '3', '1']);
-    });
-
-    it('should provide visual feedback during drag', () => {
-      const selectedProducts = [
-        { ...mockProducts[0], quantity: 1 },
-        { ...mockProducts[1], quantity: 1 }
-      ];
-      
-      const { getByTestId } = render(
-        <BundleBuilder {...defaultProps} selectedProducts={selectedProducts} />
-      );
-      
-      const dragItem = getByTestId('bundle-item-1');
-      fireEvent(dragItem, 'dragStart');
-      
-      expect(dragItem.props.style).toMatchObject({
-        opacity: expect.any(Number)
-      });
+      expect(onPriceUpdate).toHaveBeenCalledWith(expect.objectContaining({
+        total: expect.any(Number),
+        subtotal: expect.any(Number),
+        discount: expect.any(Number)
+      }));
     });
   });
-
+  
   describe('validation', () => {
-    it('should validate minimum bundle requirements', () => {
+    it('should validate minimum items requirement', () => {
       const { getByText } = render(
-        <BundleBuilder {...defaultProps} minItems={3} selectedProducts={[]} />
+        <BundleBuilder {...defaultProps} products={[mockProducts[0]]} minItems={3} />
       );
       
-      expect(getByText('Add at least 3 items to create a bundle')).toBeTruthy();
+      expect(getByText('Minimum 3 items required')).toBeTruthy();
     });
-
-    it('should show stock availability', () => {
-      const products = [
-        { ...mockProducts[0], stock: 5 },
-        { ...mockProducts[1], stock: 0 }
-      ];
-      
-      const { getByTestId, getByText } = render(
-        <BundleBuilder {...defaultProps} products={products} />
+    
+    it('should show validation summary', () => {
+      const { getByTestId } = render(
+        <BundleBuilder 
+          {...defaultProps} 
+          products={[]} 
+          minItems={2}
+          showValidation={true}
+        />
       );
       
-      expect(getByText('5 in stock')).toBeTruthy();
-      expect(getByText('Out of stock')).toBeTruthy();
-      expect(getByTestId('add-product-2').props.disabled).toBe(true);
+      expect(getByTestId('validation-summary')).toBeTruthy();
     });
   });
-
+  
   describe('accessibility', () => {
-    it('should have proper accessibility labels', () => {
+    it('should have accessible labels for controls', () => {
       const { getByTestId } = render(
         <BundleBuilder {...defaultProps} products={mockProducts} />
       );
       
-      const addButton = getByTestId('add-product-1');
-      expect(addButton.props.accessibilityLabel).toBe('Add Product A to bundle');
+      const addButton = getByTestId('add-product-button');
+      expect(addButton.props.accessibilityLabel).toBe('Add product to bundle');
     });
-
+    
     it('should announce bundle changes', () => {
-      const selectedProducts = [{ ...mockProducts[0], quantity: 2 }];
-      
       const { getByTestId } = render(
-        <BundleBuilder {...defaultProps} selectedProducts={selectedProducts} />
+        <BundleBuilder {...defaultProps} products={mockProducts} />
       );
       
-      const bundleContainer = getByTestId('bundle-container');
+      const bundleContainer = getByTestId('bundle-builder');
       expect(bundleContainer.props.accessibilityLiveRegion).toBe('polite');
     });
-
-    it('should provide drag and drop hints', () => {
-      const selectedProducts = [{ ...mockProducts[0], quantity: 1 }];
-      
+    
+    it('should provide hints for drag and drop', () => {
       const { getByTestId } = render(
-        <BundleBuilder {...defaultProps} selectedProducts={selectedProducts} />
+        <BundleBuilder {...defaultProps} products={mockProducts} />
       );
       
       const dragHandle = getByTestId('drag-handle-1');
-      expect(dragHandle.props.accessibilityHint).toBe('Drag to reorder bundle items');
+      expect(dragHandle.props.accessibilityHint).toBe('Long press and drag to reorder');
     });
   });
 });

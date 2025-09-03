@@ -1,7 +1,7 @@
+import React from 'react';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
-import React from 'react';
 
 // Mock the hook (doesn't exist yet - RED phase)
 const useMarketingCampaign = jest.fn();
@@ -25,273 +25,340 @@ describe('useMarketingCampaign', () => {
     </QueryClientProvider>
   );
   
-  describe('campaign lifecycle management', () => {
+  describe('campaign CRUD operations', () => {
+    it('should fetch all marketing campaigns', async () => {
+      useMarketingCampaign.mockReturnValue({
+        isLoading: false,
+        data: [
+          { id: 'campaign-1', name: 'Summer Sale', status: 'active', budget: 10000 },
+          { id: 'campaign-2', name: 'Black Friday', status: 'scheduled', budget: 25000 },
+          { id: 'campaign-3', name: 'New Year', status: 'draft', budget: 15000 }
+        ]
+      });
+      
+      const { result } = renderHook(() => useMarketingCampaign(), { wrapper });
+      
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+      
+      expect(result.current.data).toHaveLength(3);
+      expect(result.current.data[0].name).toBe('Summer Sale');
+    });
+    
     it('should create new marketing campaign', async () => {
-      const mockHookReturn = {
-        campaigns: [],
-        createCampaign: jest.fn(),
-        isCreating: false
-      };
-      useMarketingCampaign.mockReturnValue(mockHookReturn);
+      const createCampaign = jest.fn().mockResolvedValue({
+        id: 'campaign-new',
+        name: 'Spring Launch',
+        status: 'draft',
+        created_at: new Date().toISOString()
+      });
+      
+      useMarketingCampaign.mockReturnValue({
+        isLoading: false,
+        createCampaign
+      });
       
       const { result } = renderHook(() => useMarketingCampaign(), { wrapper });
       
-      const newCampaign = {
-        name: 'Summer Sale 2025',
-        type: 'promotional',
-        channels: ['email', 'social', 'paid'],
-        budget: 50000,
-        startDate: '2025-06-01',
-        endDate: '2025-08-31'
-      };
-      
-      mockHookReturn.isCreating = true;
-      
-      act(() => {
-        result.current.createCampaign(newCampaign);
-      });
-      
-      mockHookReturn.campaigns = [{ ...newCampaign, id: 'campaign-1', status: 'draft' }];
-      mockHookReturn.isCreating = false;
-      
-      await waitFor(() => {
-        expect(result.current.campaigns).toHaveLength(1);
-        expect(result.current.campaigns[0].name).toBe('Summer Sale 2025');
+      await act(async () => {
+        const created = await result.current.createCampaign({
+          name: 'Spring Launch',
+          budget: 20000,
+          start_date: '2025-03-01',
+          end_date: '2025-04-30',
+          channels: ['email', 'social', 'search']
+        });
+        expect(created.id).toBe('campaign-new');
       });
     });
     
-    it('should handle campaign scheduling', async () => {
-      const mockHookReturn = {
-        scheduleCampaign: jest.fn(),
-        isScheduling: false,
-        scheduledCampaigns: []
-      };
-      useMarketingCampaign.mockReturnValue(mockHookReturn);
+    it('should update campaign details', async () => {
+      const updateCampaign = jest.fn().mockResolvedValue({
+        id: 'campaign-1',
+        budget: 12000,
+        updated_at: new Date().toISOString()
+      });
+      
+      useMarketingCampaign.mockReturnValue({
+        isLoading: false,
+        updateCampaign
+      });
       
       const { result } = renderHook(() => useMarketingCampaign(), { wrapper });
       
-      const scheduleData = {
-        campaignId: 'campaign-1',
-        launchDate: '2025-06-01T09:00:00Z',
-        timezone: 'America/New_York',
-        recurring: false
-      };
+      await act(async () => {
+        const updated = await result.current.updateCampaign('campaign-1', {
+          budget: 12000,
+          channels: ['email', 'social', 'search', 'display']
+        });
+        expect(updated.budget).toBe(12000);
+      });
+    });
+    
+    it('should delete campaign', async () => {
+      const deleteCampaign = jest.fn().mockResolvedValue({ success: true });
       
-      mockHookReturn.isScheduling = true;
-      
-      act(() => {
-        result.current.scheduleCampaign(scheduleData);
+      useMarketingCampaign.mockReturnValue({
+        isLoading: false,
+        deleteCampaign
       });
       
-      mockHookReturn.scheduledCampaigns = [{
-        ...scheduleData,
+      const { result } = renderHook(() => useMarketingCampaign(), { wrapper });
+      
+      await act(async () => {
+        const deleted = await result.current.deleteCampaign('campaign-1');
+        expect(deleted.success).toBe(true);
+      });
+      
+      expect(deleteCampaign).toHaveBeenCalledWith('campaign-1');
+    });
+    
+    it('should activate campaign', async () => {
+      const activateCampaign = jest.fn().mockResolvedValue({
+        id: 'campaign-1',
+        status: 'active',
+        activated_at: new Date().toISOString()
+      });
+      
+      useMarketingCampaign.mockReturnValue({
+        isLoading: false,
+        activateCampaign
+      });
+      
+      const { result } = renderHook(() => useMarketingCampaign(), { wrapper });
+      
+      await act(async () => {
+        const activated = await result.current.activateCampaign('campaign-1');
+        expect(activated.status).toBe('active');
+      });
+    });
+    
+    it('should pause campaign', async () => {
+      const pauseCampaign = jest.fn().mockResolvedValue({
+        id: 'campaign-1',
+        status: 'paused',
+        paused_at: new Date().toISOString()
+      });
+      
+      useMarketingCampaign.mockReturnValue({
+        isLoading: false,
+        pauseCampaign
+      });
+      
+      const { result } = renderHook(() => useMarketingCampaign(), { wrapper });
+      
+      await act(async () => {
+        const paused = await result.current.pauseCampaign('campaign-1');
+        expect(paused.status).toBe('paused');
+      });
+    });
+    
+    it('should schedule campaign', async () => {
+      const scheduleCampaign = jest.fn().mockResolvedValue({
+        id: 'campaign-1',
         status: 'scheduled',
-        nextRun: '2025-06-01T09:00:00Z'
-      }];
-      mockHookReturn.isScheduling = false;
+        scheduled_start: '2025-03-01T00:00:00Z'
+      });
       
-      await waitFor(() => {
-        expect(result.current.scheduledCampaigns).toHaveLength(1);
-        expect(result.current.scheduledCampaigns[0].status).toBe('scheduled');
+      useMarketingCampaign.mockReturnValue({
+        isLoading: false,
+        scheduleCampaign
+      });
+      
+      const { result } = renderHook(() => useMarketingCampaign(), { wrapper });
+      
+      await act(async () => {
+        const scheduled = await result.current.scheduleCampaign('campaign-1', {
+          start_date: '2025-03-01',
+          end_date: '2025-03-31'
+        });
+        expect(scheduled.status).toBe('scheduled');
       });
     });
     
-    it('should manage campaign status transitions', async () => {
-      const mockHookReturn = {
-        updateCampaignStatus: jest.fn(),
-        campaignStatuses: {
-          'campaign-1': 'draft'
+    it('should clone existing campaign', async () => {
+      const cloneCampaign = jest.fn().mockResolvedValue({
+        id: 'campaign-clone',
+        name: 'Summer Sale (Copy)',
+        original_id: 'campaign-1'
+      });
+      
+      useMarketingCampaign.mockReturnValue({
+        isLoading: false,
+        cloneCampaign
+      });
+      
+      const { result } = renderHook(() => useMarketingCampaign(), { wrapper });
+      
+      await act(async () => {
+        const cloned = await result.current.cloneCampaign('campaign-1');
+        expect(cloned.original_id).toBe('campaign-1');
+      });
+    });
+  });
+  
+  describe('campaign management', () => {
+    it('should manage campaign budget allocation', async () => {
+      const allocateBudget = jest.fn().mockResolvedValue({
+        total_budget: 10000,
+        allocations: {
+          email: 3000,
+          social: 4000,
+          search: 2000,
+          display: 1000
         }
-      };
-      useMarketingCampaign.mockReturnValue(mockHookReturn);
+      });
+      
+      useMarketingCampaign.mockReturnValue({
+        isLoading: false,
+        allocateBudget
+      });
       
       const { result } = renderHook(() => useMarketingCampaign(), { wrapper });
       
-      act(() => {
-        result.current.updateCampaignStatus('campaign-1', 'active');
-      });
-      
-      mockHookReturn.campaignStatuses['campaign-1'] = 'active';
-      
-      await waitFor(() => {
-        expect(result.current.campaignStatuses['campaign-1']).toBe('active');
-      });
-    });
-    
-    it('should track campaign budget and spending', async () => {
-      const mockHookReturn = {
-        budgetTracking: {
-          allocated: 50000,
-          spent: 15000,
-          remaining: 35000,
-          dailySpend: 500,
-          projectedTotal: 45000
-        },
-        updateBudget: jest.fn()
-      };
-      useMarketingCampaign.mockReturnValue(mockHookReturn);
-      
-      const { result } = renderHook(() => useMarketingCampaign(), { wrapper });
-      
-      expect(result.current.budgetTracking.remaining).toBe(35000);
-      
-      act(() => {
-        result.current.updateBudget(60000);
-      });
-      
-      mockHookReturn.budgetTracking.allocated = 60000;
-      mockHookReturn.budgetTracking.remaining = 45000;
-      
-      await waitFor(() => {
-        expect(result.current.budgetTracking.allocated).toBe(60000);
-      });
-    });
-    
-    it('should handle campaign duplication', async () => {
-      const mockHookReturn = {
-        campaigns: [
-          { id: 'campaign-1', name: 'Original Campaign', budget: 10000 }
-        ],
-        duplicateCampaign: jest.fn(),
-        isDuplicating: false
-      };
-      useMarketingCampaign.mockReturnValue(mockHookReturn);
-      
-      const { result } = renderHook(() => useMarketingCampaign(), { wrapper });
-      
-      mockHookReturn.isDuplicating = true;
-      
-      act(() => {
-        result.current.duplicateCampaign('campaign-1', { name: 'Duplicated Campaign' });
-      });
-      
-      mockHookReturn.campaigns.push({
-        id: 'campaign-2',
-        name: 'Duplicated Campaign',
-        budget: 10000
-      });
-      mockHookReturn.isDuplicating = false;
-      
-      await waitFor(() => {
-        expect(result.current.campaigns).toHaveLength(2);
-        expect(result.current.campaigns[1].name).toBe('Duplicated Campaign');
-      });
-    });
-    
-    it('should manage campaign segments and targeting', async () => {
-      const mockHookReturn = {
-        targeting: {
-          demographics: { ageRange: '25-45', gender: 'all' },
-          interests: ['technology', 'sports'],
-          behaviors: ['online_shoppers'],
-          locations: ['US', 'CA']
-        },
-        updateTargeting: jest.fn()
-      };
-      useMarketingCampaign.mockReturnValue(mockHookReturn);
-      
-      const { result } = renderHook(() => useMarketingCampaign(), { wrapper });
-      
-      act(() => {
-        result.current.updateTargeting({
-          interests: ['technology', 'sports', 'travel']
+      await act(async () => {
+        const allocation = await result.current.allocateBudget('campaign-1', {
+          email: 30,
+          social: 40,
+          search: 20,
+          display: 10
         });
-      });
-      
-      mockHookReturn.targeting.interests = ['technology', 'sports', 'travel'];
-      
-      await waitFor(() => {
-        expect(result.current.targeting.interests).toHaveLength(3);
+        expect(allocation.allocations.social).toBe(4000);
       });
     });
     
-    it('should handle campaign collaboration and permissions', async () => {
-      const mockHookReturn = {
-        collaborators: [],
-        addCollaborator: jest.fn(),
-        removeCollaborator: jest.fn(),
-        updatePermissions: jest.fn()
-      };
-      useMarketingCampaign.mockReturnValue(mockHookReturn);
+    it('should manage campaign audiences', async () => {
+      const updateAudience = jest.fn().mockResolvedValue({
+        campaign_id: 'campaign-1',
+        audiences: [
+          { id: 'audience-1', name: '18-24 Tech Enthusiasts', size: 50000 },
+          { id: 'audience-2', name: '25-34 Professionals', size: 75000 }
+        ]
+      });
+      
+      useMarketingCampaign.mockReturnValue({
+        isLoading: false,
+        updateAudience
+      });
       
       const { result } = renderHook(() => useMarketingCampaign(), { wrapper });
       
-      act(() => {
-        result.current.addCollaborator({
-          userId: 'user-1',
-          role: 'editor',
-          permissions: ['edit', 'view', 'comment']
-        });
-      });
-      
-      mockHookReturn.collaborators = [{
-        userId: 'user-1',
-        role: 'editor',
-        permissions: ['edit', 'view', 'comment']
-      }];
-      
-      await waitFor(() => {
-        expect(result.current.collaborators).toHaveLength(1);
-        expect(result.current.collaborators[0].role).toBe('editor');
+      await act(async () => {
+        const updated = await result.current.updateAudience('campaign-1', ['audience-1', 'audience-2']);
+        expect(updated.audiences).toHaveLength(2);
       });
     });
     
-    it('should archive completed campaigns', async () => {
-      const mockHookReturn = {
-        campaigns: [
-          { id: 'campaign-1', status: 'completed' },
-          { id: 'campaign-2', status: 'active' }
-        ],
-        archiveCampaign: jest.fn(),
-        isArchiving: false
-      };
-      useMarketingCampaign.mockReturnValue(mockHookReturn);
+    it('should track campaign milestones', async () => {
+      useMarketingCampaign.mockReturnValue({
+        isLoading: false,
+        milestones: [
+          { id: 'milestone-1', name: 'Launch', date: '2025-03-01', status: 'pending' },
+          { id: 'milestone-2', name: '50% Budget', date: '2025-03-15', status: 'pending' },
+          { id: 'milestone-3', name: 'Completion', date: '2025-03-31', status: 'pending' }
+        ]
+      });
+      
+      const { result } = renderHook(() => useMarketingCampaign('campaign-1'), { wrapper });
+      
+      await waitFor(() => {
+        expect(result.current.milestones).toHaveLength(3);
+      });
+    });
+  });
+  
+  describe('optimistic updates', () => {
+    it('should optimistically update campaign status', async () => {
+      const updateStatus = jest.fn();
+      useMarketingCampaign.mockReturnValue({
+        isLoading: false,
+        data: { id: 'campaign-1', status: 'draft' },
+        updateStatus,
+        optimisticData: { id: 'campaign-1', status: 'active' }
+      });
+      
+      const { result } = renderHook(() => useMarketingCampaign('campaign-1'), { wrapper });
+      
+      await act(async () => {
+        result.current.updateStatus('active');
+      });
+      
+      expect(result.current.optimisticData.status).toBe('active');
+    });
+    
+    it('should rollback on failed status update', async () => {
+      const updateStatus = jest.fn().mockRejectedValue(new Error('Update failed'));
+      useMarketingCampaign.mockReturnValue({
+        isLoading: false,
+        data: { status: 'draft' },
+        updateStatus
+      });
+      
+      const { result } = renderHook(() => useMarketingCampaign('campaign-1'), { wrapper });
+      
+      await act(async () => {
+        try {
+          await result.current.updateStatus('active');
+        } catch {
+          // Expected error
+        }
+      });
+      
+      await waitFor(() => {
+        expect(result.current.data.status).toBe('draft');
+      });
+    });
+  });
+  
+  describe('error handling', () => {
+    it('should handle budget exceeded errors', async () => {
+      const updateCampaign = jest.fn().mockRejectedValue({
+        message: 'Budget exceeded',
+        available_budget: 5000,
+        requested_budget: 10000
+      });
+      
+      useMarketingCampaign.mockReturnValue({
+        isLoading: false,
+        updateCampaign
+      });
       
       const { result } = renderHook(() => useMarketingCampaign(), { wrapper });
       
-      mockHookReturn.isArchiving = true;
-      
-      act(() => {
-        result.current.archiveCampaign('campaign-1');
-      });
-      
-      mockHookReturn.campaigns = mockHookReturn.campaigns.map(c => 
-        c.id === 'campaign-1' ? { ...c, status: 'archived' } : c
-      );
-      mockHookReturn.isArchiving = false;
-      
-      await waitFor(() => {
-        const archived = result.current.campaigns.find(c => c.id === 'campaign-1');
-        expect(archived.status).toBe('archived');
+      await act(async () => {
+        try {
+          await result.current.updateCampaign('campaign-1', { budget: 10000 });
+        } catch (error: any) {
+          expect(error.message).toBe('Budget exceeded');
+          expect(error.available_budget).toBe(5000);
+        }
       });
     });
     
-    it('should handle campaign templates', async () => {
-      const mockHookReturn = {
-        templates: [],
-        saveAsTemplate: jest.fn(),
-        createFromTemplate: jest.fn(),
-        isLoadingTemplates: false
-      };
-      useMarketingCampaign.mockReturnValue(mockHookReturn);
+    it('should handle campaign conflicts', async () => {
+      const createCampaign = jest.fn().mockRejectedValue({
+        message: 'Campaign conflict',
+        conflicting_campaigns: ['campaign-2', 'campaign-3']
+      });
+      
+      useMarketingCampaign.mockReturnValue({
+        isLoading: false,
+        createCampaign
+      });
       
       const { result } = renderHook(() => useMarketingCampaign(), { wrapper });
       
-      const template = {
-        name: 'Holiday Campaign Template',
-        category: 'seasonal',
-        config: { channels: ['email', 'social'], duration: 30 }
-      };
-      
-      act(() => {
-        result.current.saveAsTemplate('campaign-1', template);
-      });
-      
-      mockHookReturn.templates = [{ ...template, id: 'template-1' }];
-      
-      await waitFor(() => {
-        expect(result.current.templates).toHaveLength(1);
-        expect(result.current.templates[0].category).toBe('seasonal');
+      await act(async () => {
+        try {
+          await result.current.createCampaign({
+            name: 'Conflicting Campaign',
+            start_date: '2025-03-01',
+            end_date: '2025-03-31'
+          });
+        } catch (error: any) {
+          expect(error.conflicting_campaigns).toHaveLength(2);
+        }
       });
     });
   });

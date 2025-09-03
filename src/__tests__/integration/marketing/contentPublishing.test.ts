@@ -1,876 +1,910 @@
-import React from 'react';
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { fireEvent, waitFor } from '@testing-library/react-native';
+import { render, fireEvent, waitFor, screen } from '@testing-library/react-native';
+import { NavigationContainer } from '@react-navigation/native';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import {
-  renderApp,
   setupIntegrationTest,
   cleanupIntegrationTest,
+  renderApp,
+  createMockWorkflowData,
+  validateWorkflowState,
   TestContext,
-  navigateTo,
-  waitForAsyncOperations
 } from '@/test/integration-utils';
+import ProductContentScreen from '@/screens/marketing/ProductContentScreen';
 
 describe('Content Publishing Workflow', () => {
   let testContext: TestContext;
-  
+  let mockData: ReturnType<typeof createMockWorkflowData>;
+
   beforeEach(async () => {
     testContext = await setupIntegrationTest();
+    mockData = createMockWorkflowData();
     jest.clearAllMocks();
   });
-  
+
   afterEach(async () => {
     await cleanupIntegrationTest(testContext);
   });
-  
-  describe('Happy Path', () => {
-    it('should complete full content creation, review, approval, and publishing workflow', async () => {
+
+  describe('Happy Path - Complete Publishing Workflow', () => {
+    it('should create, review, approve, and publish content end-to-end', async () => {
       // Step 1: Navigate to content creation
-      // Render the main app with navigation and providers
-      // This would normally render the MarketingApp component
-      // Since it doesn't exist yet, the test will fail (RED phase)
-      const MarketingApp = () => <div />; // Placeholder for non-existent component
       const { getByText, getByTestId, queryByText } = renderApp(
-        <MarketingApp />,
+        <ProductContentScreen />,
         { queryClient: testContext.queryClient }
       );
-      
-      fireEvent.press(getByText('Create Content'));
-      await waitFor(() => {
-        expect(getByTestId('content-creation-screen')).toBeTruthy();
-      });
-      
+
+      // Verify initial state
+      expect(getByText('Create Content')).toBeTruthy();
+      expect(queryByText('Draft saved')).toBeFalsy();
+
       // Step 2: Fill content form
-      fireEvent.changeText(getByTestId('content-title-input'), 'New Product Launch');
-      fireEvent.changeText(getByTestId('content-description-input'), 'Exciting new product description');
-      fireEvent.changeText(getByTestId('content-body-input'), 'Full marketing content body text');
+      fireEvent.press(getByText('Create Content'));
       
-      // Step 3: Select content type and category
-      fireEvent.press(getByTestId('content-type-selector'));
-      fireEvent.press(getByText('Product Announcement'));
+      const titleInput = getByTestId('content-title-input');
+      const descriptionInput = getByTestId('content-description-input');
+      const categorySelect = getByTestId('content-category-select');
       
-      fireEvent.press(getByTestId('category-selector'));
-      fireEvent.press(getByText('Electronics'));
+      fireEvent.changeText(titleInput, 'Summer Collection 2024');
+      fireEvent.changeText(descriptionInput, 'Exclusive summer products with special discounts');
+      fireEvent.press(categorySelect);
+      fireEvent.press(getByText('Fashion'));
+
+      // Add tags
+      const tagInput = getByTestId('content-tags-input');
+      fireEvent.changeText(tagInput, 'summer, sale, exclusive');
+      fireEvent.press(getByText('Add Tags'));
+
+      // Step 3: Upload images
+      fireEvent.press(getByText('Add Images'));
       
-      // Step 4: Add tags
-      fireEvent.changeText(getByTestId('tags-input'), 'launch, product, new');
-      fireEvent.press(getByTestId('add-tags-button'));
-      
-      // Step 5: Upload images
-      fireEvent.press(getByTestId('add-media-button'));
-      fireEvent.press(getByTestId('image-picker'));
+      // Simulate image picker
+      const imagePicker = getByTestId('image-picker');
+      fireEvent.press(imagePicker);
       
       // Mock image selection
-      const mockImageUri = 'file:///mock/image.jpg';
-      fireEvent(getByTestId('image-picker'), 'onImageSelected', { uri: mockImageUri });
-      
       await waitFor(() => {
         expect(getByTestId('image-preview-0')).toBeTruthy();
       });
-      
-      // Step 6: Save as draft
-      fireEvent.press(getByTestId('save-draft-button'));
+
+      // Add multiple images
+      fireEvent.press(getByText('Add More Images'));
+      fireEvent.press(imagePicker);
       
       await waitFor(() => {
-        expect(getByText('Content saved as draft')).toBeTruthy();
+        expect(getByTestId('image-preview-1')).toBeTruthy();
       });
+
+      // Set featured image
+      fireEvent.press(getByTestId('set-featured-image-0'));
+      expect(getByTestId('featured-badge-0')).toBeTruthy();
+
+      // Step 4: Save as draft
+      fireEvent.press(getByText('Save Draft'));
       
+      await waitFor(() => {
+        expect(getByText('Draft saved successfully')).toBeTruthy();
+        expect(testContext.mockServices.contentService.create).toHaveBeenCalledWith(
+          expect.objectContaining({
+            title: 'Summer Collection 2024',
+            description: 'Exclusive summer products with special discounts',
+            category: 'Fashion',
+            tags: ['summer', 'sale', 'exclusive'],
+            status: 'draft',
+          })
+        );
+      });
+
       // Verify draft state
-      const draftContent = await testContext.mockServices.contentService.listContents({ status: 'draft' });
-      expect(draftContent.length).toBe(1);
-      expect(draftContent[0].title).toBe('New Product Launch');
-      
-      // Step 7: Submit for review
-      fireEvent.press(getByTestId('submit-for-review-button'));
+      expect(getByText('Status: Draft')).toBeTruthy();
+      expect(getByTestId('content-id')).toBeTruthy();
+
+      // Step 5: Preview content
+      fireEvent.press(getByText('Preview'));
       
       await waitFor(() => {
-        expect(getByText('Submitted for review')).toBeTruthy();
-        expect(getByTestId('content-status-badge')).toHaveTextContent('In Review');
+        expect(getByTestId('preview-modal')).toBeTruthy();
+        expect(getByText('Summer Collection 2024')).toBeTruthy();
       });
       
-      // Step 8: Switch to reviewer role
-      fireEvent.press(getByTestId('user-menu'));
+      fireEvent.press(getByText('Close Preview'));
+
+      // Step 6: Submit for review
+      fireEvent.press(getByText('Submit for Review'));
+      
+      // Add review notes
+      const reviewNotesInput = getByTestId('review-notes-input');
+      fireEvent.changeText(reviewNotesInput, 'Ready for summer campaign launch');
+      
+      fireEvent.press(getByText('Confirm Submission'));
+      
+      await waitFor(() => {
+        expect(getByText('Status: In Review')).toBeTruthy();
+        expect(testContext.mockServices.contentService.submitForReview).toHaveBeenCalled();
+        expect(getByText('Submitted for review successfully')).toBeTruthy();
+      });
+
+      // Step 7: Reviewer actions (simulate reviewer role)
+      // Switch to reviewer view
       fireEvent.press(getByText('Switch to Reviewer'));
       
-      // Step 9: Navigate to review queue
-      fireEvent.press(getByText('Review Queue'));
+      expect(getByText('Content Review Queue')).toBeTruthy();
+      expect(getByText('Summer Collection 2024')).toBeTruthy();
+      
+      fireEvent.press(getByText('Review'));
+      
+      // Review checklist
+      fireEvent.press(getByTestId('check-content-quality'));
+      fireEvent.press(getByTestId('check-images-appropriate'));
+      fireEvent.press(getByTestId('check-metadata-complete'));
+      fireEvent.press(getByTestId('check-seo-optimized'));
+      
+      // Add review comment
+      const reviewCommentInput = getByTestId('review-comment-input');
+      fireEvent.changeText(reviewCommentInput, 'Content looks great, approved for publishing');
+      
+      // Step 8: Approve content
+      fireEvent.press(getByText('Approve Content'));
       
       await waitFor(() => {
-        expect(getByTestId('review-queue-screen')).toBeTruthy();
+        expect(getByText('Status: Approved')).toBeTruthy();
+        expect(testContext.mockServices.contentService.approve).toHaveBeenCalled();
+        expect(getByText('Content approved successfully')).toBeTruthy();
       });
+
+      // Step 9: Schedule publishing
+      fireEvent.press(getByText('Schedule Publishing'));
       
-      // Step 10: Select content for review
-      fireEvent.press(getByTestId('review-item-0'));
+      const publishDatePicker = getByTestId('publish-date-picker');
+      const publishTimePicker = getByTestId('publish-time-picker');
       
-      await waitFor(() => {
-        expect(getByTestId('review-detail-screen')).toBeTruthy();
-      });
+      // Set future date
+      fireEvent.press(publishDatePicker);
+      fireEvent.press(getByText('Tomorrow'));
       
-      // Step 11: Review content details
-      expect(getByText('New Product Launch')).toBeTruthy();
-      expect(getByText('Exciting new product description')).toBeTruthy();
+      fireEvent.press(publishTimePicker);
+      fireEvent.press(getByText('10:00 AM'));
       
-      // Step 12: Add review comments
-      fireEvent.changeText(getByTestId('review-comments-input'), 'Looks good, approved for publishing');
-      
-      // Step 13: Approve content
-      fireEvent.press(getByTestId('approve-button'));
-      
-      await waitFor(() => {
-        expect(getByText('Content approved')).toBeTruthy();
-      });
-      
-      // Step 14: Switch back to marketer role
-      fireEvent.press(getByTestId('user-menu'));
-      fireEvent.press(getByText('Switch to Marketer'));
-      
-      // Step 15: Navigate to approved content
-      fireEvent.press(getByText('My Content'));
-      fireEvent.press(getByTestId('filter-approved'));
-      
-      await waitFor(() => {
-        expect(getByTestId('content-item-0')).toBeTruthy();
-      });
-      
-      // Step 16: Open approved content
-      fireEvent.press(getByTestId('content-item-0'));
-      
-      // Step 17: Schedule publishing
-      fireEvent.press(getByTestId('schedule-publish-button'));
-      
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      
-      fireEvent(getByTestId('date-picker'), 'onDateChange', tomorrow);
       fireEvent.press(getByText('Confirm Schedule'));
       
-      // Step 18: Publish immediately instead
-      fireEvent.press(getByTestId('publish-now-button'));
+      expect(getByText('Scheduled for publishing')).toBeTruthy();
+
+      // Step 10: Immediate publish (override schedule)
+      fireEvent.press(getByText('Publish Now'));
+      
+      // Confirm dialog
+      expect(getByText('Are you sure you want to publish now?')).toBeTruthy();
+      fireEvent.press(getByText('Yes, Publish'));
       
       await waitFor(() => {
+        expect(getByText('Status: Published')).toBeTruthy();
+        expect(testContext.mockServices.contentService.publish).toHaveBeenCalled();
         expect(getByText('Content published successfully')).toBeTruthy();
-        expect(getByTestId('content-status-badge')).toHaveTextContent('Published');
       });
-      
-      // Step 19: Verify in public view
-      fireEvent.press(getByTestId('view-published-button'));
+
+      // Step 11: Verify in public view
+      fireEvent.press(getByText('View Published Content'));
       
       await waitFor(() => {
         expect(getByTestId('public-content-view')).toBeTruthy();
-        expect(getByText('New Product Launch')).toBeTruthy();
+        expect(getByText('Summer Collection 2024')).toBeTruthy();
+        expect(getByText('Exclusive summer products with special discounts')).toBeTruthy();
+        expect(getByTestId('published-badge')).toBeTruthy();
       });
-      
-      // Step 20: Verify analytics tracking
-      const metrics = await testContext.mockServices.analyticsService.getMetrics();
-      expect(metrics.events).toContainEqual(
+
+      // Step 12: Verify analytics tracking
+      expect(testContext.mockServices.analyticsService.trackEvent).toHaveBeenCalledWith(
         expect.objectContaining({
-          eventName: 'content_published',
-          data: expect.objectContaining({ contentId: expect.any(String) })
+          event: 'content_published',
+          contentId: expect.any(String),
+          title: 'Summer Collection 2024',
         })
       );
     });
-    
-    it('should handle auto-save while editing content', async () => {
-      const { getByText, getByTestId } = renderApp(
-        <MarketingApp />,
+
+    it('should handle auto-save during content creation', async () => {
+      const { getByTestId, getByText } = renderApp(
+        <ProductContentScreen />,
         { queryClient: testContext.queryClient }
       );
-      
+
       fireEvent.press(getByText('Create Content'));
       
-      // Start typing
-      fireEvent.changeText(getByTestId('content-title-input'), 'Auto');
-      
-      // Wait for auto-save
+      const titleInput = getByTestId('content-title-input');
+      fireEvent.changeText(titleInput, 'Auto-save Test Content');
+
+      // Wait for auto-save (typically after 3 seconds of inactivity)
       await waitFor(() => {
-        expect(getByTestId('auto-save-indicator')).toHaveTextContent('Saving...');
-      }, { timeout: 2000 });
-      
+        expect(getByText('Auto-saving...')).toBeTruthy();
+      }, { timeout: 4000 });
+
       await waitFor(() => {
-        expect(getByTestId('auto-save-indicator')).toHaveTextContent('Saved');
-      });
-      
-      // Continue typing
-      fireEvent.changeText(getByTestId('content-title-input'), 'Auto-saved Content');
-      
-      await waitFor(() => {
-        expect(getByTestId('auto-save-indicator')).toHaveTextContent('Saved');
-      });
-      
-      // Verify content was saved
-      const drafts = await testContext.mockServices.contentService.listContents({ status: 'draft' });
-      expect(drafts[0].title).toBe('Auto-saved Content');
-    });
-    
-    it('should maintain content history and allow version comparison', async () => {
-      const { getByText, getByTestId } = renderApp(
-        <MarketingApp />,
-        { queryClient: testContext.queryClient }
-      );
-      
-      // Create initial version
-      fireEvent.press(getByText('Create Content'));
-      fireEvent.changeText(getByTestId('content-title-input'), 'Version 1');
-      fireEvent.press(getByTestId('save-draft-button'));
-      
-      await waitFor(() => {
-        expect(getByText('Content saved as draft')).toBeTruthy();
-      });
-      
-      // Edit to create version 2
-      fireEvent.changeText(getByTestId('content-title-input'), 'Version 2');
-      fireEvent.press(getByTestId('save-draft-button'));
-      
-      // Edit to create version 3
-      fireEvent.changeText(getByTestId('content-title-input'), 'Version 3');
-      fireEvent.press(getByTestId('save-draft-button'));
-      
-      // Open version history
-      fireEvent.press(getByTestId('version-history-button'));
-      
-      await waitFor(() => {
-        expect(getByTestId('version-history-modal')).toBeTruthy();
-      });
-      
-      // Should show 3 versions
-      expect(getByTestId('version-item-0')).toBeTruthy();
-      expect(getByTestId('version-item-1')).toBeTruthy();
-      expect(getByTestId('version-item-2')).toBeTruthy();
-      
-      // Compare versions
-      fireEvent.press(getByTestId('compare-version-1-2'));
-      
-      await waitFor(() => {
-        expect(getByTestId('version-diff-view')).toBeTruthy();
-        expect(getByText('- Version 1')).toBeTruthy();
-        expect(getByText('+ Version 2')).toBeTruthy();
-      });
-      
-      // Restore older version
-      fireEvent.press(getByTestId('restore-version-1'));
-      fireEvent.press(getByText('Confirm Restore'));
-      
-      await waitFor(() => {
-        expect(getByTestId('content-title-input')).toHaveTextContent('Version 1');
+        expect(getByText('Auto-saved')).toBeTruthy();
+        expect(testContext.mockServices.contentService.update).toHaveBeenCalled();
       });
     });
-  });
-  
-  describe('Review Rejection Flow', () => {
-    it('should handle content rejection and revision workflow', async () => {
+
+    it('should validate required fields before submission', async () => {
       const { getByText, getByTestId } = renderApp(
-        <MarketingApp />,
+        <ProductContentScreen />,
         { queryClient: testContext.queryClient }
       );
-      
-      // Create and submit content
-      fireEvent.press(getByText('Create Content'));
-      fireEvent.changeText(getByTestId('content-title-input'), 'Content for Rejection');
-      fireEvent.changeText(getByTestId('content-description-input'), 'This will be rejected');
-      fireEvent.press(getByTestId('save-draft-button'));
-      fireEvent.press(getByTestId('submit-for-review-button'));
-      
-      await waitFor(() => {
-        expect(getByText('Submitted for review')).toBeTruthy();
-      });
-      
-      // Switch to reviewer
-      fireEvent.press(getByTestId('user-menu'));
-      fireEvent.press(getByText('Switch to Reviewer'));
-      fireEvent.press(getByText('Review Queue'));
-      fireEvent.press(getByTestId('review-item-0'));
-      
-      // Reject with feedback
-      fireEvent.changeText(getByTestId('review-comments-input'), 'Needs more detail in description');
-      fireEvent.press(getByTestId('reject-button'));
-      
-      await waitFor(() => {
-        expect(getByText('Content rejected')).toBeTruthy();
-      });
-      
-      // Switch back to marketer
-      fireEvent.press(getByTestId('user-menu'));
-      fireEvent.press(getByText('Switch to Marketer'));
-      fireEvent.press(getByText('My Content'));
-      
-      // Check rejected content
-      fireEvent.press(getByTestId('filter-rejected'));
-      fireEvent.press(getByTestId('content-item-0'));
-      
-      // Should see rejection feedback
-      expect(getByTestId('rejection-feedback')).toHaveTextContent('Needs more detail in description');
-      expect(getByTestId('content-status-badge')).toHaveTextContent('Rejected');
-      
-      // Revise content
-      fireEvent.press(getByTestId('revise-button'));
-      fireEvent.changeText(getByTestId('content-description-input'), 'Much more detailed description with all required information');
-      fireEvent.press(getByTestId('save-draft-button'));
-      
-      // Resubmit for review
-      fireEvent.press(getByTestId('resubmit-for-review-button'));
-      
-      await waitFor(() => {
-        expect(getByText('Resubmitted for review')).toBeTruthy();
-        expect(getByTestId('content-status-badge')).toHaveTextContent('In Review');
-      });
-      
-      // Verify revision history
-      fireEvent.press(getByTestId('revision-history-button'));
-      expect(getByText('Revision 2: After feedback')).toBeTruthy();
-    });
-    
-    it('should require mandatory fields before submission', async () => {
-      const { getByText, getByTestId } = renderApp(
-        <MarketingApp />,
-        { queryClient: testContext.queryClient }
-      );
-      
+
       fireEvent.press(getByText('Create Content'));
       
       // Try to submit without required fields
-      fireEvent.press(getByTestId('submit-for-review-button'));
+      fireEvent.press(getByText('Submit for Review'));
       
-      await waitFor(() => {
-        expect(getByText('Please fill in all required fields')).toBeTruthy();
-      });
+      // Should show validation errors
+      expect(getByText('Title is required')).toBeTruthy();
+      expect(getByText('Description is required')).toBeTruthy();
+      expect(getByText('At least one image is required')).toBeTruthy();
+      expect(getByText('Category must be selected')).toBeTruthy();
       
-      // Check field validation
-      expect(getByTestId('content-title-input-error')).toHaveTextContent('Title is required');
-      expect(getByTestId('content-description-input-error')).toHaveTextContent('Description is required');
-      expect(getByTestId('content-body-input-error')).toHaveTextContent('Content body is required');
-      
-      // Fill required fields
-      fireEvent.changeText(getByTestId('content-title-input'), 'Valid Title');
-      expect(queryByText('Title is required')).toBeFalsy();
-      
-      fireEvent.changeText(getByTestId('content-description-input'), 'Valid Description');
-      expect(queryByText('Description is required')).toBeFalsy();
-      
-      fireEvent.changeText(getByTestId('content-body-input'), 'Valid Body');
-      expect(queryByText('Content body is required')).toBeFalsy();
-      
-      // Now submission should work
-      fireEvent.press(getByTestId('submit-for-review-button'));
-      
-      await waitFor(() => {
-        expect(getByText('Submitted for review')).toBeTruthy();
-      });
+      // Submission should not proceed
+      expect(testContext.mockServices.contentService.submitForReview).not.toHaveBeenCalled();
     });
   });
-  
-  describe('Concurrent Editing', () => {
-    it('should detect and handle concurrent edits by multiple users', async () => {
-      // User 1 starts editing
-      const user1 = renderApp(
-        <MarketingApp />,
+
+  describe('Review Rejection and Revision Flow', () => {
+    it('should handle content rejection with feedback and allow revision', async () => {
+      const { getByText, getByTestId } = renderApp(
+        <ProductContentScreen />,
         { queryClient: testContext.queryClient }
       );
-      
-      fireEvent.press(user1.getByText('Create Content'));
-      fireEvent.changeText(user1.getByTestId('content-title-input'), 'Collaborative Content');
-      fireEvent.press(user1.getByTestId('save-draft-button'));
-      
-      await waitFor(() => {
-        expect(user1.getByText('Content saved as draft')).toBeTruthy();
-      });
-      
-      const contentId = user1.getByTestId('content-id').props.children;
-      
-      // User 2 opens same content
-      const user2Context = await setupIntegrationTest();
-      await user2Context.mockServices.authService.login('user2@example.com', 'password');
-      
-      const user2 = renderApp(
-        <MarketingApp contentId={contentId} />,
-        { queryClient: user2Context.queryClient }
-      );
-      
-      // Both users edit simultaneously
-      fireEvent.changeText(user1.getByTestId('content-title-input'), 'User 1 Edit');
-      fireEvent.changeText(user2.getByTestId('content-title-input'), 'User 2 Edit');
-      
-      // User 1 saves first
-      fireEvent.press(user1.getByTestId('save-draft-button'));
+
+      // Create and submit content
+      fireEvent.press(getByText('Create Content'));
+      fireEvent.changeText(getByTestId('content-title-input'), 'Content for Rejection');
+      fireEvent.changeText(getByTestId('content-description-input'), 'Initial description');
+      fireEvent.press(getByText('Submit for Review'));
       
       await waitFor(() => {
-        expect(user1.getByText('Content saved')).toBeTruthy();
+        expect(getByText('Status: In Review')).toBeTruthy();
       });
+
+      // Reviewer rejects content
+      fireEvent.press(getByText('Switch to Reviewer'));
+      fireEvent.press(getByText('Review'));
       
-      // User 2 tries to save - should detect conflict
-      fireEvent.press(user2.getByTestId('save-draft-button'));
+      const rejectionReasonInput = getByTestId('rejection-reason-input');
+      fireEvent.changeText(rejectionReasonInput, 'Images need higher resolution. Description too brief.');
+      
+      fireEvent.press(getByText('Reject Content'));
       
       await waitFor(() => {
-        expect(user2.getByTestId('conflict-modal')).toBeTruthy();
-        expect(user2.getByText('Content has been modified by another user')).toBeTruthy();
+        expect(getByText('Status: Rejected')).toBeTruthy();
+        expect(testContext.mockServices.contentService.reject).toHaveBeenCalled();
       });
+
+      // Author views rejection feedback
+      fireEvent.press(getByText('Switch to Author'));
       
-      // Show diff
-      expect(user2.getByTestId('conflict-diff')).toBeTruthy();
-      expect(user2.getByText('Your version: User 2 Edit')).toBeTruthy();
-      expect(user2.getByText('Current version: User 1 Edit')).toBeTruthy();
+      expect(getByText('Content Rejected')).toBeTruthy();
+      expect(getByText('Images need higher resolution. Description too brief.')).toBeTruthy();
+
+      // Revise content based on feedback
+      fireEvent.press(getByText('Revise Content'));
       
-      // User 2 chooses to merge
-      fireEvent.press(user2.getByText('Merge Changes'));
+      // Update description
+      const descriptionInput = getByTestId('content-description-input');
+      fireEvent.changeText(descriptionInput, 'Detailed description with comprehensive product information');
+      
+      // Replace images
+      fireEvent.press(getByTestId('remove-image-0'));
+      fireEvent.press(getByText('Add Images'));
+      fireEvent.press(getByTestId('image-picker'));
       
       await waitFor(() => {
-        expect(user2.getByTestId('merge-editor')).toBeTruthy();
+        expect(getByTestId('image-preview-0')).toBeTruthy();
       });
+
+      // Resubmit for review
+      fireEvent.press(getByText('Resubmit for Review'));
       
-      // Clean up second context
-      await cleanupIntegrationTest(user2Context);
+      const resubmitNotesInput = getByTestId('resubmit-notes-input');
+      fireEvent.changeText(resubmitNotesInput, 'Updated images and enhanced description as requested');
+      
+      fireEvent.press(getByText('Confirm Resubmission'));
+      
+      await waitFor(() => {
+        expect(getByText('Status: In Review')).toBeTruthy();
+        expect(getByText('Resubmitted for review')).toBeTruthy();
+      });
+
+      // Verify revision history
+      fireEvent.press(getByText('View History'));
+      
+      expect(getByText('Revision 2')).toBeTruthy();
+      expect(getByText('Revision 1')).toBeTruthy();
+      expect(getByText('Rejected: Images need higher resolution')).toBeTruthy();
     });
-    
+
+    it('should track rejection metrics and patterns', async () => {
+      const { getByText, getByTestId } = renderApp(
+        <ProductContentScreen />,
+        { queryClient: testContext.queryClient }
+      );
+
+      // Simulate multiple rejections
+      for (let i = 0; i < 3; i++) {
+        fireEvent.press(getByText('Create Content'));
+        fireEvent.changeText(getByTestId('content-title-input'), `Content ${i}`);
+        fireEvent.press(getByText('Submit for Review'));
+        
+        await waitFor(() => {
+          expect(getByText('Status: In Review')).toBeTruthy();
+        });
+
+        fireEvent.press(getByText('Switch to Reviewer'));
+        fireEvent.press(getByText('Reject Content'));
+        
+        await waitFor(() => {
+          expect(getByText('Status: Rejected')).toBeTruthy();
+        });
+      }
+
+      // Check analytics
+      expect(testContext.mockServices.analyticsService.trackEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: 'content_rejection_pattern',
+          count: 3,
+        })
+      );
+    });
+  });
+
+  describe('Concurrent Editing and Conflict Resolution', () => {
+    it('should detect and handle concurrent edits by multiple users', async () => {
+      const { getByText, getByTestId } = renderApp(
+        <ProductContentScreen />,
+        { queryClient: testContext.queryClient }
+      );
+
+      // User 1 starts editing
+      fireEvent.press(getByText('Edit Content'));
+      const titleInput = getByTestId('content-title-input');
+      fireEvent.changeText(titleInput, 'User 1 Edit');
+
+      // Simulate User 2 editing same content
+      testContext.mockServices.contentService.getById.mockResolvedValueOnce({
+        ...mockData.content,
+        title: 'User 2 Edit',
+        metadata: {
+          ...mockData.content.metadata,
+          version: 2,
+          updatedBy: 'user2',
+        },
+      });
+
+      // User 1 tries to save
+      fireEvent.press(getByText('Save'));
+      
+      await waitFor(() => {
+        expect(getByText('Conflict Detected')).toBeTruthy();
+        expect(getByText('This content has been modified by another user')).toBeTruthy();
+      });
+
+      // Show conflict resolution options
+      expect(getByText('Your Version: User 1 Edit')).toBeTruthy();
+      expect(getByText('Their Version: User 2 Edit')).toBeTruthy();
+      
+      // Options
+      expect(getByText('Keep Your Changes')).toBeTruthy();
+      expect(getByText('Keep Their Changes')).toBeTruthy();
+      expect(getByText('Merge Changes')).toBeTruthy();
+
+      // Choose merge
+      fireEvent.press(getByText('Merge Changes'));
+      
+      // Merge editor
+      expect(getByTestId('merge-editor')).toBeTruthy();
+      fireEvent.changeText(getByTestId('merged-title-input'), 'Merged Edit - Combined');
+      
+      fireEvent.press(getByText('Save Merged Version'));
+      
+      await waitFor(() => {
+        expect(getByText('Changes merged successfully')).toBeTruthy();
+        expect(testContext.mockServices.contentService.update).toHaveBeenCalledWith(
+          expect.objectContaining({
+            title: 'Merged Edit - Combined',
+            metadata: expect.objectContaining({
+              version: 3,
+              mergedFrom: ['user1', 'user2'],
+            }),
+          })
+        );
+      });
+    });
+
+    it('should implement optimistic locking for content edits', async () => {
+      const { getByText, getByTestId } = renderApp(
+        <ProductContentScreen />,
+        { queryClient: testContext.queryClient }
+      );
+
+      // Load content with version
+      fireEvent.press(getByText('Edit Content'));
+      
+      await waitFor(() => {
+        expect(getByTestId('version-indicator')).toBeTruthy();
+        expect(getByText('Version: 1')).toBeTruthy();
+      });
+
+      // Edit content
+      fireEvent.changeText(getByTestId('content-title-input'), 'Updated Title');
+      
+      // Mock version conflict
+      testContext.mockServices.contentService.update.mockRejectedValueOnce({
+        error: 'VERSION_CONFLICT',
+        currentVersion: 2,
+      });
+
+      fireEvent.press(getByText('Save'));
+      
+      await waitFor(() => {
+        expect(getByText('Version Conflict')).toBeTruthy();
+        expect(getByText('Content has been updated by another user')).toBeTruthy();
+        expect(getByText('Reload and Try Again')).toBeTruthy();
+      });
+
+      // Reload latest version
+      fireEvent.press(getByText('Reload and Try Again'));
+      
+      await waitFor(() => {
+        expect(getByText('Version: 2')).toBeTruthy();
+        expect(testContext.mockServices.contentService.getById).toHaveBeenCalled();
+      });
+    });
+
     it('should show real-time collaboration indicators', async () => {
       const { getByText, getByTestId } = renderApp(
-        <MarketingApp />,
+        <ProductContentScreen />,
         { queryClient: testContext.queryClient }
       );
+
+      fireEvent.press(getByText('Edit Content'));
       
-      // Create content
-      fireEvent.press(getByText('Create Content'));
-      fireEvent.changeText(getByTestId('content-title-input'), 'Collaborative Content');
-      fireEvent.press(getByTestId('save-draft-button'));
-      
-      const contentId = getByTestId('content-id').props.children;
-      
-      // Simulate another user joining
-      const user2Context = await setupIntegrationTest();
-      await user2Context.mockServices.authService.login('user2@example.com', 'password');
-      
-      renderApp(
-        <MarketingApp contentId={contentId} />,
-        { queryClient: user2Context.queryClient }
-      );
-      
-      // User 1 should see collaboration indicator
+      // Simulate other users joining
       await waitFor(() => {
-        expect(getByTestId('active-users-indicator')).toBeTruthy();
+        expect(getByTestId('collaboration-indicator')).toBeTruthy();
         expect(getByText('2 users editing')).toBeTruthy();
       });
+
+      // Show user avatars
+      expect(getByTestId('user-avatar-user2')).toBeTruthy();
+      expect(getByTestId('user-avatar-user3')).toBeTruthy();
+
+      // Show field-level locks
+      fireEvent.focus(getByTestId('content-title-input'));
+      expect(getByText('You are editing title')).toBeTruthy();
       
-      // Should show user avatars
-      expect(getByTestId('user-avatar-0')).toBeTruthy();
-      expect(getByTestId('user-avatar-1')).toBeTruthy();
-      
-      // Clean up
-      await cleanupIntegrationTest(user2Context);
+      // Simulate another user editing description
+      expect(getByTestId('field-lock-description')).toBeTruthy();
+      expect(getByText('User2 is editing description')).toBeTruthy();
     });
   });
-  
-  describe('Media Management', () => {
-    it('should handle multiple image uploads with progress tracking', async () => {
+
+  describe('Media Management in Publishing Workflow', () => {
+    it('should handle image upload with optimization and CDN integration', async () => {
       const { getByText, getByTestId } = renderApp(
-        <MarketingApp />,
+        <ProductContentScreen />,
         { queryClient: testContext.queryClient }
       );
+
+      fireEvent.press(getByText('Add Images'));
+      fireEvent.press(getByTestId('image-picker'));
       
-      fireEvent.press(getByText('Create Content'));
-      fireEvent.press(getByTestId('add-media-button'));
-      
+      // Show upload progress
+      await waitFor(() => {
+        expect(getByTestId('upload-progress')).toBeTruthy();
+        expect(getByText('Uploading... 0%')).toBeTruthy();
+      });
+
+      // Progress updates
+      await waitFor(() => {
+        expect(getByText('Uploading... 50%')).toBeTruthy();
+      });
+
+      await waitFor(() => {
+        expect(getByText('Processing image...')).toBeTruthy();
+      });
+
+      // Optimization complete
+      await waitFor(() => {
+        expect(getByText('Upload complete')).toBeTruthy();
+        expect(getByTestId('image-preview-0')).toBeTruthy();
+        expect(getByTestId('image-size-0')).toBeTruthy();
+        expect(getByText('Optimized: 2.1MB → 450KB')).toBeTruthy();
+      });
+
+      // Verify CDN URL
+      expect(testContext.mockServices.contentService.uploadImage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          optimize: true,
+          generateThumbnails: true,
+          cdnUpload: true,
+        })
+      );
+    });
+
+    it('should support bulk image operations', async () => {
+      const { getByText, getByTestId } = renderApp(
+        <ProductContentScreen />,
+        { queryClient: testContext.queryClient }
+      );
+
       // Select multiple images
-      const mockImages = [
-        { uri: 'file:///image1.jpg', size: 1024000 },
-        { uri: 'file:///image2.jpg', size: 2048000 },
-        { uri: 'file:///image3.jpg', size: 512000 }
-      ];
+      fireEvent.press(getByText('Add Images'));
+      fireEvent.press(getByTestId('bulk-select'));
       
-      fireEvent(getByTestId('image-picker'), 'onMultipleImagesSelected', mockImages);
+      // Select 5 images
+      for (let i = 0; i < 5; i++) {
+        fireEvent.press(getByTestId(`image-select-${i}`));
+      }
       
-      // Should show upload progress for each
+      fireEvent.press(getByText('Upload Selected (5)'));
+      
+      // Show bulk upload progress
       await waitFor(() => {
-        expect(getByTestId('upload-progress-0')).toBeTruthy();
-        expect(getByTestId('upload-progress-1')).toBeTruthy();
-        expect(getByTestId('upload-progress-2')).toBeTruthy();
+        expect(getByText('Uploading 5 images...')).toBeTruthy();
+        expect(getByTestId('bulk-progress-bar')).toBeTruthy();
       });
-      
-      // Wait for uploads to complete
+
+      // Individual progress indicators
+      for (let i = 0; i < 5; i++) {
+        expect(getByTestId(`upload-status-${i}`)).toBeTruthy();
+      }
+
       await waitFor(() => {
-        expect(getByTestId('image-preview-0')).toBeTruthy();
-        expect(getByTestId('image-preview-1')).toBeTruthy();
-        expect(getByTestId('image-preview-2')).toBeTruthy();
-      }, { timeout: 5000 });
-      
-      // Should be able to reorder images
-      fireEvent(getByTestId('image-list'), 'onDragEnd', { 
-        data: [mockImages[1], mockImages[0], mockImages[2]] 
+        expect(getByText('All images uploaded successfully')).toBeTruthy();
       });
+
+      // Bulk operations on uploaded images
+      fireEvent.press(getByText('Select All'));
+      fireEvent.press(getByText('Bulk Actions'));
       
-      // Should be able to delete image
-      fireEvent.press(getByTestId('delete-image-1'));
-      fireEvent.press(getByText('Confirm Delete'));
-      
-      await waitFor(() => {
-        expect(queryByTestId('image-preview-1')).toBeFalsy();
-      });
+      expect(getByText('Resize All')).toBeTruthy();
+      expect(getByText('Add Watermark')).toBeTruthy();
+      expect(getByText('Set Alt Text')).toBeTruthy();
+      expect(getByText('Delete Selected')).toBeTruthy();
     });
-    
-    it('should validate and compress large images before upload', async () => {
+
+    it('should handle video content with transcoding', async () => {
       const { getByText, getByTestId } = renderApp(
-        <MarketingApp />,
+        <ProductContentScreen />,
         { queryClient: testContext.queryClient }
       );
+
+      fireEvent.press(getByText('Add Video'));
+      fireEvent.press(getByTestId('video-picker'));
       
-      fireEvent.press(getByText('Create Content'));
-      fireEvent.press(getByTestId('add-media-button'));
-      
-      // Try to upload oversized image
-      const largeImage = { uri: 'file:///large.jpg', size: 10485760 }; // 10MB
-      
-      fireEvent(getByTestId('image-picker'), 'onImageSelected', largeImage);
-      
-      // Should show compression dialog
+      // Show transcoding progress
       await waitFor(() => {
-        expect(getByTestId('image-compression-dialog')).toBeTruthy();
-        expect(getByText('Image is too large (10MB). Compressing...')).toBeTruthy();
+        expect(getByText('Uploading video...')).toBeTruthy();
       });
-      
-      // Should complete compression and upload
+
       await waitFor(() => {
-        expect(getByTestId('image-preview-0')).toBeTruthy();
-        expect(getByText('Image compressed to 2MB')).toBeTruthy();
-      }, { timeout: 5000 });
-    });
-    
-    it('should support video content with thumbnail generation', async () => {
-      const { getByText, getByTestId } = renderApp(
-        <MarketingApp />,
-        { queryClient: testContext.queryClient }
-      );
-      
-      fireEvent.press(getByText('Create Content'));
-      fireEvent.press(getByTestId('add-media-button'));
-      fireEvent.press(getByTestId('media-type-video'));
-      
-      // Select video
-      const mockVideo = { uri: 'file:///video.mp4', duration: 30, size: 5242880 };
-      fireEvent(getByTestId('video-picker'), 'onVideoSelected', mockVideo);
-      
-      // Should generate thumbnail
-      await waitFor(() => {
-        expect(getByTestId('video-thumbnail')).toBeTruthy();
-        expect(getByTestId('video-duration')).toHaveTextContent('0:30');
+        expect(getByText('Transcoding video...')).toBeTruthy();
+        expect(getByText('Generating preview...')).toBeTruthy();
       });
-      
-      // Should show video preview
-      fireEvent.press(getByTestId('play-video-preview'));
-      
+
       await waitFor(() => {
-        expect(getByTestId('video-player')).toBeTruthy();
+        expect(getByText('Video ready')).toBeTruthy();
+        expect(getByTestId('video-preview')).toBeTruthy();
+        expect(getByTestId('video-duration')).toBeTruthy();
+        expect(getByText('Duration: 2:45')).toBeTruthy();
       });
+
+      // Video settings
+      fireEvent.press(getByTestId('video-settings'));
+      expect(getByText('Autoplay')).toBeTruthy();
+      expect(getByText('Loop')).toBeTruthy();
+      expect(getByText('Muted')).toBeTruthy();
+      expect(getByText('Thumbnail Time')).toBeTruthy();
     });
   });
-  
-  describe('Content Templates', () => {
-    it('should allow selection and customization of content templates', async () => {
+
+  describe('SEO and Metadata Management', () => {
+    it('should optimize content for SEO during publishing', async () => {
       const { getByText, getByTestId } = renderApp(
-        <MarketingApp />,
+        <ProductContentScreen />,
         { queryClient: testContext.queryClient }
       );
-      
+
       fireEvent.press(getByText('Create Content'));
-      fireEvent.press(getByTestId('use-template-button'));
+      fireEvent.changeText(getByTestId('content-title-input'), 'SEO Optimized Content');
       
-      // Should show template gallery
-      await waitFor(() => {
-        expect(getByTestId('template-gallery')).toBeTruthy();
-      });
+      // SEO section
+      fireEvent.press(getByText('SEO Settings'));
       
-      // Select product launch template
-      fireEvent.press(getByTestId('template-product-launch'));
+      expect(getByTestId('seo-score')).toBeTruthy();
+      expect(getByText('SEO Score: 45/100')).toBeTruthy();
       
-      await waitFor(() => {
-        // Template should pre-fill fields
-        expect(getByTestId('content-title-input')).toHaveTextContent('[Product Name] Launch Announcement');
-        expect(getByTestId('content-body-input')).toHaveTextContent(expect.stringContaining('We are excited to announce'));
-      });
-      
-      // Customize template
-      fireEvent.changeText(
-        getByTestId('content-title-input'), 
-        getByTestId('content-title-input').props.value.replace('[Product Name]', 'iPhone 15')
-      );
-      
-      // Save customized version as new template
-      fireEvent.press(getByTestId('save-as-template-button'));
-      fireEvent.changeText(getByTestId('template-name-input'), 'iPhone Launch Template');
-      fireEvent.press(getByText('Save Template'));
-      
-      await waitFor(() => {
-        expect(getByText('Template saved')).toBeTruthy();
-      });
-    });
-  });
-  
-  describe('SEO and Metadata', () => {
-    it('should validate and optimize SEO metadata', async () => {
-      const { getByText, getByTestId } = renderApp(
-        <MarketingApp />,
-        { queryClient: testContext.queryClient }
-      );
-      
-      fireEvent.press(getByText('Create Content'));
-      fireEvent.press(getByTestId('seo-settings-button'));
+      // SEO recommendations
+      expect(getByText('Add meta description')).toBeTruthy();
+      expect(getByText('Include focus keywords')).toBeTruthy();
+      expect(getByText('Optimize title length')).toBeTruthy();
       
       // Fill SEO fields
-      fireEvent.changeText(getByTestId('meta-title-input'), 'Product Launch - Best Deals 2024');
-      fireEvent.changeText(getByTestId('meta-description-input'), 'Discover our latest product with amazing features and exclusive launch offers.');
-      fireEvent.changeText(getByTestId('meta-keywords-input'), 'product, launch, deals, 2024');
-      fireEvent.changeText(getByTestId('url-slug-input'), 'product-launch-2024');
+      fireEvent.changeText(getByTestId('meta-title-input'), 'SEO Optimized Content | Best Deals 2024');
+      fireEvent.changeText(getByTestId('meta-description-input'), 'Discover our SEO optimized content with exclusive deals and offers for 2024');
+      fireEvent.changeText(getByTestId('focus-keywords-input'), 'deals, offers, 2024, exclusive');
       
-      // Check SEO score
-      fireEvent.press(getByTestId('analyze-seo-button'));
+      // URL slug
+      fireEvent.changeText(getByTestId('url-slug-input'), 'seo-optimized-content-2024');
       
-      await waitFor(() => {
-        expect(getByTestId('seo-score')).toBeTruthy();
-        expect(getByTestId('seo-suggestions')).toBeTruthy();
-      });
-      
-      // Should show recommendations
-      expect(getByText('Meta description length: Good (156 characters)')).toBeTruthy();
-      expect(getByText('Keywords density: Optimal')).toBeTruthy();
-      
-      // Generate AI suggestions
-      fireEvent.press(getByTestId('ai-seo-suggestions'));
+      // Open Graph
+      fireEvent.press(getByText('Social Media Preview'));
+      fireEvent.changeText(getByTestId('og-title-input'), 'Amazing Deals for 2024');
+      fireEvent.changeText(getByTestId('og-description-input'), 'Check out our exclusive offers');
+      fireEvent.press(getByTestId('og-image-picker'));
       
       await waitFor(() => {
-        expect(getByTestId('ai-suggestions-list')).toBeTruthy();
+        expect(getByText('SEO Score: 92/100')).toBeTruthy();
+        expect(getByText('Excellent SEO')).toBeTruthy();
       });
+
+      // Schema markup
+      fireEvent.press(getByText('Structured Data'));
+      fireEvent.press(getByTestId('schema-type-select'));
+      fireEvent.press(getByText('Product'));
+      
+      expect(getByTestId('schema-preview')).toBeTruthy();
     });
-  });
-  
-  describe('Publishing Channels', () => {
-    it('should publish content to multiple channels simultaneously', async () => {
+
+    it('should generate and validate structured data', async () => {
       const { getByText, getByTestId } = renderApp(
-        <MarketingApp />,
+        <ProductContentScreen />,
         { queryClient: testContext.queryClient }
       );
-      
-      // Create and approve content first
+
       fireEvent.press(getByText('Create Content'));
-      fireEvent.changeText(getByTestId('content-title-input'), 'Multi-channel Content');
-      fireEvent.changeText(getByTestId('content-description-input'), 'Description');
-      fireEvent.changeText(getByTestId('content-body-input'), 'Body');
-      fireEvent.press(getByTestId('save-draft-button'));
+      fireEvent.press(getByText('Structured Data'));
       
-      // Mock approval
-      const content = await testContext.mockServices.contentService.listContents({ status: 'draft' });
-      await testContext.mockServices.contentService.approveContent(content[0].id);
+      // Select schema type
+      fireEvent.press(getByTestId('schema-type-select'));
+      fireEvent.press(getByText('Article'));
       
-      // Select publishing channels
-      fireEvent.press(getByTestId('publish-settings-button'));
-      
-      fireEvent.press(getByTestId('channel-website'));
-      fireEvent.press(getByTestId('channel-mobile-app'));
-      fireEvent.press(getByTestId('channel-email'));
-      fireEvent.press(getByTestId('channel-social-media'));
-      
-      // Configure channel-specific settings
-      fireEvent.press(getByTestId('configure-social-media'));
-      fireEvent.press(getByTestId('platform-facebook'));
-      fireEvent.press(getByTestId('platform-twitter'));
-      fireEvent.press(getByTestId('platform-instagram'));
-      
-      // Schedule different times for different channels
-      fireEvent.press(getByTestId('schedule-per-channel'));
-      
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      
-      fireEvent(getByTestId('website-schedule'), 'onDateChange', tomorrow);
-      fireEvent(getByTestId('social-schedule'), 'onDateChange', new Date());
-      
-      // Publish
-      fireEvent.press(getByTestId('publish-all-channels-button'));
+      // Auto-populate from content
+      fireEvent.press(getByText('Auto-generate from content'));
       
       await waitFor(() => {
-        expect(getByText('Publishing to 4 channels...')).toBeTruthy();
+        expect(getByTestId('schema-json-preview')).toBeTruthy();
       });
+
+      // Validate schema
+      fireEvent.press(getByText('Validate Schema'));
       
       await waitFor(() => {
-        expect(getByText('Published to all channels successfully')).toBeTruthy();
-        expect(getByTestId('channel-status-website')).toHaveTextContent('Scheduled');
-        expect(getByTestId('channel-status-social-media')).toHaveTextContent('Published');
-      }, { timeout: 5000 });
-    });
-  });
-  
-  describe('Content Localization', () => {
-    it('should support multi-language content creation and translation', async () => {
-      const { getByText, getByTestId } = renderApp(
-        <MarketingApp />,
-        { queryClient: testContext.queryClient }
-      );
-      
-      fireEvent.press(getByText('Create Content'));
-      
-      // Create content in primary language
-      fireEvent.changeText(getByTestId('content-title-input'), 'Product Launch');
-      fireEvent.changeText(getByTestId('content-description-input'), 'New product description');
-      
-      // Add translations
-      fireEvent.press(getByTestId('add-translation-button'));
-      
-      // Select Spanish
-      fireEvent.press(getByTestId('language-selector'));
-      fireEvent.press(getByText('Spanish (ES)'));
-      
-      // Auto-translate
-      fireEvent.press(getByTestId('auto-translate-button'));
-      
-      await waitFor(() => {
-        expect(getByTestId('translation-es-title')).toHaveTextContent('Lanzamiento de Producto');
-        expect(getByTestId('translation-es-description')).toHaveTextContent('Nueva descripción del producto');
-      });
-      
-      // Manual edit translation
-      fireEvent.changeText(getByTestId('translation-es-title'), 'Lanzamiento del Producto Nuevo');
-      
-      // Add French translation
-      fireEvent.press(getByTestId('add-another-translation'));
-      fireEvent.press(getByTestId('language-selector'));
-      fireEvent.press(getByText('French (FR)'));
-      
-      fireEvent.changeText(getByTestId('translation-fr-title'), 'Lancement de Produit');
-      fireEvent.changeText(getByTestId('translation-fr-description'), 'Description du nouveau produit');
-      
-      // Save all translations
-      fireEvent.press(getByTestId('save-all-translations'));
-      
-      await waitFor(() => {
-        expect(getByText('Content saved in 3 languages')).toBeTruthy();
-      });
-      
-      // Switch preview language
-      fireEvent.press(getByTestId('preview-language-selector'));
-      fireEvent.press(getByText('Spanish'));
-      
-      expect(getByTestId('preview-title')).toHaveTextContent('Lanzamiento del Producto Nuevo');
-    });
-  });
-  
-  describe('Content Performance Tracking', () => {
-    it('should track and display content performance metrics after publishing', async () => {
-      const { getByText, getByTestId } = renderApp(
-        <MarketingApp />,
-        { queryClient: testContext.queryClient }
-      );
-      
-      // Create and publish content
-      fireEvent.press(getByText('Create Content'));
-      fireEvent.changeText(getByTestId('content-title-input'), 'Performance Test Content');
-      fireEvent.changeText(getByTestId('content-description-input'), 'Description');
-      fireEvent.changeText(getByTestId('content-body-input'), 'Body');
-      fireEvent.press(getByTestId('save-draft-button'));
-      
-      // Mock approval and publish
-      const content = await testContext.mockServices.contentService.listContents({ status: 'draft' });
-      await testContext.mockServices.contentService.approveContent(content[0].id);
-      await testContext.mockServices.contentService.publishContent(content[0].id);
-      
-      // Simulate some metrics
-      await testContext.mockServices.analyticsService.trackEvent('content_view', { contentId: content[0].id });
-      await testContext.mockServices.analyticsService.trackEvent('content_view', { contentId: content[0].id });
-      await testContext.mockServices.analyticsService.trackEvent('content_engagement', { contentId: content[0].id, action: 'like' });
-      
-      // View performance dashboard
-      fireEvent.press(getByText('My Content'));
-      fireEvent.press(getByTestId('content-item-0'));
-      fireEvent.press(getByTestId('view-performance-button'));
-      
-      await waitFor(() => {
-        expect(getByTestId('performance-dashboard')).toBeTruthy();
-      });
-      
-      // Check metrics
-      expect(getByTestId('metric-views')).toHaveTextContent('2');
-      expect(getByTestId('metric-engagement-rate')).toHaveTextContent('50%');
-      expect(getByTestId('performance-chart')).toBeTruthy();
-      
-      // Export performance report
-      fireEvent.press(getByTestId('export-performance-button'));
-      fireEvent.press(getByText('PDF Report'));
-      
-      await waitFor(() => {
-        expect(getByText('Performance report exported')).toBeTruthy();
+        expect(getByText('Schema Valid')).toBeTruthy();
+        expect(getByText('Passes Google Rich Results Test')).toBeTruthy();
       });
     });
   });
-  
-  describe('Error Handling and Recovery', () => {
-    it('should handle network failures during content submission', async () => {
+
+  describe('Performance and Error Handling', () => {
+    it('should complete publishing workflow within performance targets', async () => {
+      const startTime = Date.now();
+      
       const { getByText, getByTestId } = renderApp(
-        <MarketingApp />,
+        <ProductContentScreen />,
         { queryClient: testContext.queryClient }
       );
+
+      // Quick publish flow
+      fireEvent.press(getByText('Quick Publish'));
+      fireEvent.changeText(getByTestId('content-title-input'), 'Performance Test');
+      fireEvent.changeText(getByTestId('content-description-input'), 'Test');
+      fireEvent.press(getByText('Publish Now'));
       
+      await waitFor(() => {
+        expect(getByText('Status: Published')).toBeTruthy();
+      });
+
+      const endTime = Date.now();
+      const duration = endTime - startTime;
+      
+      // Should complete within 3 seconds
+      expect(duration).toBeLessThan(3000);
+      
+      // Verify performance metrics tracked
+      expect(testContext.mockServices.analyticsService.trackEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: 'publishing_performance',
+          duration: expect.any(Number),
+        })
+      );
+    });
+
+    it('should handle network failures gracefully during publishing', async () => {
+      const { getByText, getByTestId } = renderApp(
+        <ProductContentScreen />,
+        { queryClient: testContext.queryClient }
+      );
+
+      // Setup network failure
+      testContext.mockServices.contentService.publish.mockRejectedValueOnce({
+        error: 'NETWORK_ERROR',
+        message: 'Connection timeout',
+      });
+
       fireEvent.press(getByText('Create Content'));
       fireEvent.changeText(getByTestId('content-title-input'), 'Network Test');
-      fireEvent.changeText(getByTestId('content-description-input'), 'Description');
-      fireEvent.changeText(getByTestId('content-body-input'), 'Body');
-      
-      // Mock network failure
-      jest.spyOn(testContext.mockServices.contentService, 'createDraft')
-        .mockRejectedValueOnce(new Error('Network error'));
-      
-      fireEvent.press(getByTestId('save-draft-button'));
+      fireEvent.press(getByText('Publish'));
       
       await waitFor(() => {
-        expect(getByTestId('error-message')).toHaveTextContent('Failed to save content. Please try again.');
-        expect(getByTestId('retry-button')).toBeTruthy();
+        expect(getByText('Publishing failed')).toBeTruthy();
+        expect(getByText('Connection timeout')).toBeTruthy();
+      });
+
+      // Retry options
+      expect(getByText('Retry')).toBeTruthy();
+      expect(getByText('Save as Draft')).toBeTruthy();
+      expect(getByText('Cancel')).toBeTruthy();
+      
+      // Retry with success
+      testContext.mockServices.contentService.publish.mockResolvedValueOnce({
+        id: '1',
+        status: 'published',
       });
       
-      // Content should be saved locally
-      expect(getByTestId('local-save-indicator')).toHaveTextContent('Saved locally');
-      
-      // Retry should work
-      jest.spyOn(testContext.mockServices.contentService, 'createDraft')
-        .mockRestore();
-      
-      fireEvent.press(getByTestId('retry-button'));
+      fireEvent.press(getByText('Retry'));
       
       await waitFor(() => {
-        expect(getByText('Content saved as draft')).toBeTruthy();
-        expect(queryByTestId('local-save-indicator')).toBeFalsy();
+        expect(getByText('Status: Published')).toBeTruthy();
+        expect(getByText('Published after retry')).toBeTruthy();
       });
     });
-    
-    it('should recover from browser crash with auto-saved content', async () => {
+
+    it('should recover from partial failures in multi-step workflow', async () => {
       const { getByText, getByTestId } = renderApp(
-        <MarketingApp />,
+        <ProductContentScreen />,
         { queryClient: testContext.queryClient }
       );
+
+      // Setup partial failure scenario
+      testContext.mockServices.contentService.uploadImage.mockRejectedValueOnce({
+        error: 'UPLOAD_FAILED',
+      });
+
+      fireEvent.press(getByText('Create Content'));
+      fireEvent.changeText(getByTestId('content-title-input'), 'Partial Failure Test');
       
+      // Upload multiple images
+      fireEvent.press(getByText('Add Images'));
+      fireEvent.press(getByTestId('bulk-select'));
+      fireEvent.press(getByTestId('image-select-0'));
+      fireEvent.press(getByTestId('image-select-1'));
+      fireEvent.press(getByText('Upload Selected (2)'));
+      
+      await waitFor(() => {
+        expect(getByText('1 of 2 uploads failed')).toBeTruthy();
+      });
+
+      // Show partial success state
+      expect(getByTestId('upload-success-1')).toBeTruthy();
+      expect(getByTestId('upload-failed-0')).toBeTruthy();
+      
+      // Retry failed upload
+      fireEvent.press(getByTestId('retry-upload-0'));
+      
+      await waitFor(() => {
+        expect(getByText('All uploads completed')).toBeTruthy();
+      });
+    });
+
+    it('should implement circuit breaker for repeated failures', async () => {
+      const { getByText, getByTestId } = renderApp(
+        <ProductContentScreen />,
+        { queryClient: testContext.queryClient }
+      );
+
+      // Simulate repeated failures
+      for (let i = 0; i < 5; i++) {
+        testContext.mockServices.contentService.publish.mockRejectedValueOnce({
+          error: 'SERVICE_UNAVAILABLE',
+        });
+      }
+
+      fireEvent.press(getByText('Create Content'));
+      fireEvent.changeText(getByTestId('content-title-input'), `Circuit Test ${i}`);
+      
+      // Multiple publish attempts
+      for (let i = 0; i < 3; i++) {
+        fireEvent.press(getByText('Publish'));
+        await waitFor(() => {
+          expect(getByText('Publishing failed')).toBeTruthy();
+        });
+        fireEvent.press(getByText('Retry'));
+      }
+
+      // Circuit breaker triggered
+      await waitFor(() => {
+        expect(getByText('Service temporarily unavailable')).toBeTruthy();
+        expect(getByText('Please try again in 5 minutes')).toBeTruthy();
+      });
+
+      // Publish button disabled
+      expect(getByTestId('publish-button')).toBeDisabled();
+    });
+  });
+
+  describe('Workflow State Persistence and Recovery', () => {
+    it('should persist workflow state across sessions', async () => {
+      const { getByText, getByTestId } = renderApp(
+        <ProductContentScreen />,
+        { queryClient: testContext.queryClient }
+      );
+
       // Start creating content
       fireEvent.press(getByText('Create Content'));
-      fireEvent.changeText(getByTestId('content-title-input'), 'Crash Recovery Test');
-      fireEvent.changeText(getByTestId('content-description-input'), 'This should be recovered');
+      fireEvent.changeText(getByTestId('content-title-input'), 'Persistent Content');
+      fireEvent.changeText(getByTestId('content-description-input'), 'Will be saved');
       
-      // Simulate crash by unmounting and remounting
-      const contentData = {
-        title: 'Crash Recovery Test',
-        description: 'This should be recovered'
-      };
+      // Simulate session end
+      fireEvent.press(getByTestId('app-background'));
       
-      // Store in mock local storage
-      await AsyncStorage.setItem('unsaved_content', JSON.stringify(contentData));
-      
-      // Remount app
-      const { getByText: getByText2, getByTestId: getByTestId2 } = renderApp(
-        <MarketingApp />,
+      // Verify state saved
+      expect(testContext.mockServices.contentService.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          draft: true,
+          sessionData: expect.any(Object),
+        })
+      );
+
+      // Simulate new session
+      const { getByText: getByText2 } = renderApp(
+        <ProductContentScreen />,
         { queryClient: testContext.queryClient }
       );
-      
-      // Should show recovery dialog
+
+      // Should restore draft
       await waitFor(() => {
-        expect(getByTestId2('recovery-dialog')).toBeTruthy();
-        expect(getByText2('Recover unsaved content?')).toBeTruthy();
+        expect(getByText2('Resume editing "Persistent Content"?')).toBeTruthy();
+      });
+
+      fireEvent.press(getByText2('Resume'));
+      
+      expect(getByTestId('content-title-input').props.value).toBe('Persistent Content');
+      expect(getByTestId('content-description-input').props.value).toBe('Will be saved');
+    });
+
+    it('should handle workflow interruption and recovery', async () => {
+      const { getByText, getByTestId } = renderApp(
+        <ProductContentScreen />,
+        { queryClient: testContext.queryClient }
+      );
+
+      // Start multi-step workflow
+      fireEvent.press(getByText('Create Content'));
+      fireEvent.changeText(getByTestId('content-title-input'), 'Interrupted Content');
+      fireEvent.press(getByText('Next Step'));
+      
+      // In middle of workflow
+      fireEvent.press(getByText('Add Images'));
+      
+      // Simulate crash/interruption
+      testContext.mockServices.contentService.create.mockRejectedValueOnce({
+        error: 'CONNECTION_LOST',
       });
       
-      // Recover content
-      fireEvent.press(getByText2('Recover'));
+      await waitFor(() => {
+        expect(getByText('Connection lost')).toBeTruthy();
+      });
+
+      // Recovery options
+      expect(getByText('Save progress locally')).toBeTruthy();
+      expect(getByText('Retry when connected')).toBeTruthy();
+      
+      fireEvent.press(getByText('Save progress locally'));
+      
+      // Simulate reconnection
+      fireEvent.press(getByText('Retry'));
       
       await waitFor(() => {
-        expect(getByTestId2('content-title-input')).toHaveTextContent('Crash Recovery Test');
-        expect(getByTestId2('content-description-input')).toHaveTextContent('This should be recovered');
+        expect(getByText('Resuming from last checkpoint')).toBeTruthy();
+        expect(getByText('Step 2 of 4')).toBeTruthy();
       });
     });
   });

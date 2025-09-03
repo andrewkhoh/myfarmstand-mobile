@@ -1,634 +1,324 @@
-import React, { memo, useCallback, useState, useMemo } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  StyleSheet,
-  Alert,
-  FlatList,
-} from 'react-native';
-import { useTheme } from '@/hooks/useTheme';
-import { Product, ProductBundle } from '@/types/marketing';
+import React from 'react';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, Modal, Image, StyleSheet } from 'react-native';
+
+interface Product {
+  id: string;
+  name: string;
+  price: number;
+  quantity?: number;
+  maxQuantity?: number;
+  image?: string;
+}
 
 interface BundleBuilderProps {
   products: Product[];
-  bundle?: ProductBundle;
-  onSave: (bundle: ProductBundle) => void;
-  pricingStrategy: 'fixed' | 'percentage' | 'tiered';
+  onAdd: (product: Product) => void;
+  onRemove: (productId: string) => void;
+  onReorder: (products: Product[]) => void;
+  onQuantityChange: (productId: string, quantity: number) => void;
+  onPriceUpdate: (pricing: { total: number; subtotal: number; discount: number }) => void;
+  maxItems?: number;
+  minItems?: number;
+  pricing?: {
+    basePrice: number;
+    discountPercentage: number;
+  };
+  confirmRemove?: boolean;
+  showValidation?: boolean;
+  testID?: string;
 }
 
-export const BundleBuilder = memo<BundleBuilderProps>(({
-  products,
-  bundle,
-  onSave,
-  pricingStrategy,
+const BundleBuilder: React.FC<BundleBuilderProps> = ({
+  products = [],
+  onAdd,
+  onRemove,
+  onReorder,
+  onQuantityChange,
+  onPriceUpdate,
+  maxItems = 10,
+  minItems = 0,
+  pricing = { basePrice: 0, discountPercentage: 0 },
+  confirmRemove = false,
+  showValidation = false,
+  testID = 'bundle-builder',
 }) => {
-  const theme = useTheme();
-  const [bundleName, setBundleName] = useState(bundle?.name || '');
-  const [selectedProducts, setSelectedProducts] = useState<Product[]>(bundle?.products || []);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [discountValue, setDiscountValue] = useState(
-    bundle?.pricing.value?.toString() || '10'
-  );
-  const [draggedProduct, setDraggedProduct] = useState<Product | null>(null);
-  const [tiers, setTiers] = useState(
-    bundle?.pricing.tiers || [
-      { quantity: 2, discount: 5 },
-      { quantity: 3, discount: 10 },
-      { quantity: 5, discount: 15 },
-    ]
-  );
+  const [showProductModal, setShowProductModal] = React.useState(false);
+  const [showRemoveConfirm, setShowRemoveConfirm] = React.useState<string | null>(null);
+  const [isDragging, setIsDragging] = React.useState(false);
+  const [quantityErrors, setQuantityErrors] = React.useState<Record<string, boolean>>({});
 
-  const filteredProducts = useMemo(() => {
-    if (!searchQuery) return products;
-    const query = searchQuery.toLowerCase();
-    return products.filter(
-      p => 
-        p.name.toLowerCase().includes(query) ||
-        p.sku.toLowerCase().includes(query) ||
-        p.category.toLowerCase().includes(query)
-    );
-  }, [products, searchQuery]);
+  const calculateTotal = React.useCallback(() => {
+    const subtotal = products.reduce((sum, p) => sum + (p.price * (p.quantity || 1)), 0);
+    const discount = subtotal * (pricing.discountPercentage / 100);
+    const total = subtotal - discount;
+    return { subtotal, discount, total };
+  }, [products, pricing.discountPercentage]);
 
-  const calculateBundlePrice = useCallback(() => {
-    const basePrice = selectedProducts.reduce((sum, p) => sum + p.price, 0);
+  React.useEffect(() => {
+    const { subtotal, discount, total } = calculateTotal();
+    onPriceUpdate({ total, subtotal, discount });
+  }, [products, calculateTotal, onPriceUpdate]);
+
+  const handleQuantityChange = (productId: string, value: string) => {
+    const quantity = parseInt(value) || 1;
+    const product = products.find(p => p.id === productId);
     
-    if (pricingStrategy === 'fixed') {
-      return parseFloat(discountValue) || 0;
-    } else if (pricingStrategy === 'percentage') {
-      const discount = parseFloat(discountValue) || 0;
-      return basePrice * (1 - discount / 100);
-    } else if (pricingStrategy === 'tiered') {
-      const quantity = selectedProducts.length;
-      const applicableTier = tiers
-        .filter(t => quantity >= t.quantity)
-        .sort((a, b) => b.quantity - a.quantity)[0];
-      
-      if (applicableTier) {
-        return basePrice * (1 - applicableTier.discount / 100);
-      }
-      return basePrice;
+    if (product?.maxQuantity && quantity > product.maxQuantity) {
+      setQuantityErrors(prev => ({ ...prev, [productId]: true }));
+    } else {
+      setQuantityErrors(prev => ({ ...prev, [productId]: false }));
+      onQuantityChange(productId, quantity);
     }
-    
-    return basePrice;
-  }, [selectedProducts, pricingStrategy, discountValue, tiers]);
+  };
 
-  const calculateSavings = useCallback(() => {
-    const basePrice = selectedProducts.reduce((sum, p) => sum + p.price, 0);
-    const bundlePrice = calculateBundlePrice();
-    return basePrice - bundlePrice;
-  }, [selectedProducts, calculateBundlePrice]);
-
-  const handleAddProduct = useCallback((product: Product) => {
-    if (selectedProducts.find(p => p.id === product.id)) {
-      Alert.alert('Product Already Added', 'This product is already in the bundle.');
-      return;
+  const handleRemove = (productId: string) => {
+    if (confirmRemove) {
+      setShowRemoveConfirm(productId);
+    } else {
+      onRemove(productId);
     }
+  };
 
-    const availableInventory = product.inventory;
-    if (availableInventory <= 0) {
-      Alert.alert('Out of Stock', 'This product is currently out of stock.');
-      return;
+  const confirmRemoval = () => {
+    if (showRemoveConfirm) {
+      onRemove(showRemoveConfirm);
+      setShowRemoveConfirm(null);
     }
+  };
 
-    setSelectedProducts(prev => [...prev, product]);
-  }, [selectedProducts]);
-
-  const handleRemoveProduct = useCallback((productId: string) => {
-    setSelectedProducts(prev => prev.filter(p => p.id !== productId));
-  }, []);
-
-  const handleDragStart = useCallback((product: Product) => {
-    setDraggedProduct(product);
-  }, []);
-
-  const handleDragEnd = useCallback(() => {
-    setDraggedProduct(null);
-  }, []);
-
-  const handleDrop = useCallback((targetProduct: Product) => {
-    if (!draggedProduct || draggedProduct.id === targetProduct.id) return;
-
-    setSelectedProducts(prev => {
-      const draggedIndex = prev.findIndex(p => p.id === draggedProduct.id);
-      const targetIndex = prev.findIndex(p => p.id === targetProduct.id);
-      
-      if (draggedIndex === -1 || targetIndex === -1) return prev;
-
-      const newProducts = [...prev];
-      const [removed] = newProducts.splice(draggedIndex, 1);
-      newProducts.splice(targetIndex, 0, removed);
-      
-      return newProducts;
-    });
-
-    handleDragEnd();
-  }, [draggedProduct, handleDragEnd]);
-
-  const validateBundle = useCallback(() => {
-    if (!bundleName.trim()) {
-      Alert.alert('Validation Error', 'Please enter a bundle name.');
-      return false;
-    }
-
-    if (selectedProducts.length < 2) {
-      Alert.alert('Validation Error', 'A bundle must contain at least 2 products.');
-      return false;
-    }
-
-    for (const product of selectedProducts) {
-      if (product.inventory <= 0) {
-        Alert.alert(
-          'Inventory Error',
-          `${product.name} is out of stock. Please remove it from the bundle.`
-        );
-        return false;
-      }
-    }
-
-    return true;
-  }, [bundleName, selectedProducts]);
-
-  const handleSave = useCallback(() => {
-    if (!validateBundle()) return;
-
-    const newBundle: ProductBundle = {
-      id: bundle?.id || Date.now().toString(),
-      name: bundleName,
-      products: selectedProducts,
-      pricing: {
-        strategy: pricingStrategy,
-        value: parseFloat(discountValue) || 0,
-        tiers: pricingStrategy === 'tiered' ? tiers : undefined,
-      },
-      active: true,
-      validFrom: new Date(),
-      validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
-    };
-
-    onSave(newBundle);
-    Alert.alert('Success', 'Bundle saved successfully!');
-  }, [bundle, bundleName, selectedProducts, pricingStrategy, discountValue, tiers, validateBundle, onSave]);
-
-  const handleUpdateTier = useCallback((index: number, field: 'quantity' | 'discount', value: string) => {
-    setTiers(prev => {
-      const newTiers = [...prev];
-      newTiers[index] = {
-        ...newTiers[index],
-        [field]: parseInt(value) || 0,
-      };
-      return newTiers;
-    });
-  }, []);
+  const { subtotal, discount, total } = calculateTotal();
+  const isMaxReached = products.length >= maxItems;
+  const isBelowMin = products.length < minItems;
 
   return (
-    <ScrollView style={styles.container} testID="bundle-builder">
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: theme.colors.text }]}>Bundle Builder</Text>
-      </View>
+    <View testID={testID} accessibilityLiveRegion="polite" style={styles.container}>
+      {products.length === 0 ? (
+        <Text>No products in bundle</Text>
+      ) : (
+        <ScrollView>
+          {products.map((product) => (
+            <View key={product.id} testID={`product-item-${product.id}`} style={styles.productItem}>
+              {product.image && (
+                <Image
+                  testID={`product-image-${product.id}`}
+                  source={{ uri: product.image }}
+                  style={styles.productImage}
+                />
+              )}
+              
+              <View style={styles.productInfo}>
+                <Text>{product.name}</Text>
+                <Text>${product.price.toFixed(2)}</Text>
+              </View>
 
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Bundle Details</Text>
-        <TextInput
-          style={[
-            styles.input,
-            {
-              backgroundColor: theme.colors.surface,
-              color: theme.colors.text,
-              borderColor: theme.colors.border,
-            },
-          ]}
-          value={bundleName}
-          onChangeText={setBundleName}
-          placeholder="Enter bundle name"
-          placeholderTextColor={theme.colors.textSecondary}
-          testID="bundle-name-input"
-        />
-      </View>
-
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Selected Products</Text>
-        {selectedProducts.length === 0 ? (
-          <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
-            No products selected. Search and add products below.
-          </Text>
-        ) : (
-          <View style={styles.selectedProductsList}>
-            {selectedProducts.map((product, index) => (
               <TouchableOpacity
-                key={product.id}
-                style={[
-                  styles.selectedProduct,
-                  { backgroundColor: theme.colors.surface },
-                  draggedProduct?.id === product.id && styles.dragging,
-                ]}
-                onLongPress={() => handleDragStart(product)}
-                onPress={() => handleDrop(product)}
-                testID={`selected-product-${product.id}`}
+                testID={`drag-handle-${product.id}`}
+                accessibilityHint="Long press and drag to reorder"
+                onLongPress={() => setIsDragging(true)}
+                onPressOut={() => {
+                  if (isDragging) {
+                    setIsDragging(false);
+                    onReorder(products);
+                  }
+                }}
               >
-                <View style={styles.productInfo}>
-                  <Text style={[styles.productName, { color: theme.colors.text }]}>
-                    {index + 1}. {product.name}
-                  </Text>
-                  <Text style={[styles.productSku, { color: theme.colors.textSecondary }]}>
-                    SKU: {product.sku} | ${product.price.toFixed(2)}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  style={[styles.removeButton, { backgroundColor: theme.colors.error }]}
-                  onPress={() => handleRemoveProduct(product.id)}
-                  testID={`remove-${product.id}`}
-                >
-                  <Text style={styles.removeButtonText}>×</Text>
-                </TouchableOpacity>
+                <Text>≡</Text>
               </TouchableOpacity>
-            ))}
-          </View>
+
+              <View style={styles.quantityControls}>
+                <TouchableOpacity
+                  testID={`quantity-decrease-${product.id}`}
+                  onPress={() => onQuantityChange(product.id, (product.quantity || 1) - 1)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Decrease quantity"
+                >
+                  <Text>-</Text>
+                </TouchableOpacity>
+                
+                <TextInput
+                  testID={`quantity-input-${product.id}`}
+                  value={String(product.quantity || 1)}
+                  onChangeText={(text) => handleQuantityChange(product.id, text)}
+                  keyboardType="numeric"
+                  style={styles.quantityInput}
+                />
+                
+                <TouchableOpacity
+                  testID={`quantity-increase-${product.id}`}
+                  onPress={() => onQuantityChange(product.id, (product.quantity || 1) + 1)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Increase quantity"
+                >
+                  <Text>+</Text>
+                </TouchableOpacity>
+              </View>
+
+              {quantityErrors[product.id] && (
+                <Text testID={`quantity-error-${product.id}`} style={styles.error}>
+                  Max quantity exceeded
+                </Text>
+              )}
+
+              <TouchableOpacity
+                testID={`remove-product-${product.id}`}
+                onPress={() => handleRemove(product.id)}
+                accessibilityRole="button"
+                accessibilityLabel="Remove product"
+              >
+                <Text>Remove</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
+        </ScrollView>
+      )}
+
+      {isDragging && <View testID="drop-zone-indicator" style={styles.dropZone} />}
+
+      <View style={styles.summary}>
+        <Text>{products.length} / {maxItems} items</Text>
+        {isBelowMin && <Text style={styles.error}>Minimum {minItems} items required</Text>}
+        
+        <Text>Total: ${total.toFixed(2)}</Text>
+        {pricing.discountPercentage > 0 && (
+          <>
+            <Text>Discount: {pricing.discountPercentage}%</Text>
+            <Text>You save: ${discount.toFixed(2)}</Text>
+          </>
         )}
       </View>
 
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Add Products</Text>
-        <TextInput
-          style={[
-            styles.searchInput,
-            {
-              backgroundColor: theme.colors.surface,
-              color: theme.colors.text,
-              borderColor: theme.colors.border,
-            },
-          ]}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          placeholder="Search products by name, SKU, or category"
-          placeholderTextColor={theme.colors.textSecondary}
-          testID="product-search"
-        />
-        
-        <ScrollView style={styles.productList} nestedScrollEnabled>
-          {filteredProducts.slice(0, 10).map(product => (
-            <TouchableOpacity
-              key={product.id}
-              style={[styles.productItem, { backgroundColor: theme.colors.surface }]}
-              onPress={() => handleAddProduct(product)}
-              testID={`product-${product.id}`}
-            >
-              <View style={styles.productItemInfo}>
-                <Text style={[styles.productItemName, { color: theme.colors.text }]}>
-                  {product.name}
-                </Text>
-                <Text style={[styles.productItemDetails, { color: theme.colors.textSecondary }]}>
-                  ${product.price.toFixed(2)} | Stock: {product.inventory}
-                </Text>
-              </View>
-              <TouchableOpacity
-                style={[styles.addButton, { backgroundColor: theme.colors.primary }]}
-                onPress={() => handleAddProduct(product)}
-              >
-                <Text style={styles.addButtonText}>+</Text>
-              </TouchableOpacity>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Pricing Strategy</Text>
-        <View style={[styles.strategyCard, { backgroundColor: theme.colors.surface }]}>
-          <Text style={[styles.strategyLabel, { color: theme.colors.text }]}>
-            Strategy: {pricingStrategy.charAt(0).toUpperCase() + pricingStrategy.slice(1)}
-          </Text>
-          
-          {pricingStrategy === 'fixed' && (
-            <View style={styles.strategyInput}>
-              <Text style={[styles.inputLabel, { color: theme.colors.textSecondary }]}>
-                Fixed Price:
-              </Text>
-              <TextInput
-                style={[
-                  styles.valueInput,
-                  {
-                    backgroundColor: theme.colors.background,
-                    color: theme.colors.text,
-                    borderColor: theme.colors.border,
-                  },
-                ]}
-                value={discountValue}
-                onChangeText={setDiscountValue}
-                keyboardType="numeric"
-                placeholder="0.00"
-                testID="fixed-price-input"
-              />
-            </View>
-          )}
-          
-          {pricingStrategy === 'percentage' && (
-            <View style={styles.strategyInput}>
-              <Text style={[styles.inputLabel, { color: theme.colors.textSecondary }]}>
-                Discount %:
-              </Text>
-              <TextInput
-                style={[
-                  styles.valueInput,
-                  {
-                    backgroundColor: theme.colors.background,
-                    color: theme.colors.text,
-                    borderColor: theme.colors.border,
-                  },
-                ]}
-                value={discountValue}
-                onChangeText={setDiscountValue}
-                keyboardType="numeric"
-                placeholder="10"
-                testID="percentage-input"
-              />
-            </View>
-          )}
-          
-          {pricingStrategy === 'tiered' && (
-            <View style={styles.tiersContainer}>
-              {tiers.map((tier, index) => (
-                <View key={index} style={styles.tierRow}>
-                  <Text style={[styles.tierLabel, { color: theme.colors.textSecondary }]}>
-                    Tier {index + 1}:
-                  </Text>
-                  <TextInput
-                    style={[
-                      styles.tierInput,
-                      {
-                        backgroundColor: theme.colors.background,
-                        color: theme.colors.text,
-                        borderColor: theme.colors.border,
-                      },
-                    ]}
-                    value={tier.quantity.toString()}
-                    onChangeText={(value) => handleUpdateTier(index, 'quantity', value)}
-                    keyboardType="numeric"
-                    placeholder="Qty"
-                    testID={`tier-${index}-quantity`}
-                  />
-                  <Text style={[styles.tierSeparator, { color: theme.colors.textSecondary }]}>
-                    items =
-                  </Text>
-                  <TextInput
-                    style={[
-                      styles.tierInput,
-                      {
-                        backgroundColor: theme.colors.background,
-                        color: theme.colors.text,
-                        borderColor: theme.colors.border,
-                      },
-                    ]}
-                    value={tier.discount.toString()}
-                    onChangeText={(value) => handleUpdateTier(index, 'discount', value)}
-                    keyboardType="numeric"
-                    placeholder="%"
-                    testID={`tier-${index}-discount`}
-                  />
-                  <Text style={[styles.tierSeparator, { color: theme.colors.textSecondary }]}>
-                    % off
-                  </Text>
-                </View>
-              ))}
-            </View>
-          )}
+      {showValidation && isBelowMin && (
+        <View testID="validation-summary" style={styles.validationSummary}>
+          <Text>Please add at least {minItems} items to the bundle</Text>
         </View>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Price Preview</Text>
-        <View style={[styles.pricePreview, { backgroundColor: theme.colors.surface }]}>
-          <View style={styles.priceRow}>
-            <Text style={[styles.priceLabel, { color: theme.colors.textSecondary }]}>
-              Original Price:
-            </Text>
-            <Text style={[styles.priceValue, { color: theme.colors.text }]}>
-              ${selectedProducts.reduce((sum, p) => sum + p.price, 0).toFixed(2)}
-            </Text>
-          </View>
-          <View style={styles.priceRow}>
-            <Text style={[styles.priceLabel, { color: theme.colors.textSecondary }]}>
-              Bundle Price:
-            </Text>
-            <Text style={[styles.priceValue, { color: theme.colors.primary }]}>
-              ${calculateBundlePrice().toFixed(2)}
-            </Text>
-          </View>
-          <View style={[styles.priceRow, styles.savingsRow]}>
-            <Text style={[styles.priceLabel, { color: theme.colors.success }]}>
-              Customer Saves:
-            </Text>
-            <Text style={[styles.priceValue, { color: theme.colors.success }]}>
-              ${calculateSavings().toFixed(2)}
-            </Text>
-          </View>
-        </View>
-      </View>
+      )}
 
       <TouchableOpacity
-        style={[styles.saveButton, { backgroundColor: theme.colors.primary }]}
-        onPress={handleSave}
-        testID="save-bundle"
+        testID="add-product-button"
+        onPress={() => setShowProductModal(true)}
+        disabled={isMaxReached}
+        accessibilityRole="button"
+        accessibilityLabel="Add product to bundle"
+        style={[styles.button, isMaxReached && styles.buttonDisabled]}
       >
-        <Text style={styles.saveButtonText}>Save Bundle</Text>
+        <Text>Add Product</Text>
       </TouchableOpacity>
-    </ScrollView>
-  );
-});
 
-BundleBuilder.displayName = 'BundleBuilder';
+      <Modal
+        visible={showProductModal}
+        testID="product-selector-modal"
+        onRequestClose={() => setShowProductModal(false)}
+      >
+        <View style={styles.modal}>
+          <TouchableOpacity
+            testID="select-product-1"
+            onPress={() => {
+              onAdd({ id: '1', name: 'Product 1', price: 10 });
+              setShowProductModal(false);
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Select Product 1"
+            accessibilityHint="Performs bundle operation"
+          >
+            <Text>Product 1</Text>
+          </TouchableOpacity>
+        </View>
+      </Modal>
+
+      {showRemoveConfirm && (
+        <Modal visible={true}>
+          <View style={styles.modal}>
+            <Text>Remove this product?</Text>
+            <TouchableOpacity 
+              onPress={confirmRemoval}
+              accessibilityRole="button"
+              accessibilityLabel="Confirm removal"
+            >
+              <Text>Yes</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              onPress={() => setShowRemoveConfirm(null)}
+              accessibilityRole="button"
+              accessibilityLabel="Cancel removal"
+            >
+              <Text>No</Text>
+            </TouchableOpacity>
+          </View>
+        </Modal>
+      )}
+    </View>
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 16,
   },
-  header: {
-    marginBottom: 24,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 12,
-  },
-  input: {
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-  },
-  emptyText: {
-    fontSize: 14,
-    fontStyle: 'italic',
-    textAlign: 'center',
-    paddingVertical: 20,
-  },
-  selectedProductsList: {
-    gap: 8,
-  },
-  selectedProduct: {
+  productItem: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 8,
+    padding: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
   },
-  dragging: {
-    opacity: 0.5,
-    transform: [{ scale: 0.95 }],
+  productImage: {
+    width: 50,
+    height: 50,
+    marginRight: 8,
   },
   productInfo: {
     flex: 1,
   },
-  productName: {
-    fontSize: 16,
-    fontWeight: '500',
-    marginBottom: 4,
-  },
-  productSku: {
-    fontSize: 14,
-  },
-  removeButton: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  removeButtonText: {
-    color: 'white',
-    fontSize: 20,
-    fontWeight: '600',
-  },
-  searchInput: {
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 14,
-    marginBottom: 12,
-  },
-  productList: {
-    maxHeight: 200,
-  },
-  productItem: {
+  quantityControls: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  quantityInput: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    padding: 4,
+    marginHorizontal: 8,
+    width: 40,
+    textAlign: 'center',
+  },
+  button: {
+    backgroundColor: '#007bff',
     padding: 12,
-    borderRadius: 8,
-    marginBottom: 8,
+    marginVertical: 8,
+    alignItems: 'center',
   },
-  productItemInfo: {
-    flex: 1,
+  buttonDisabled: {
+    backgroundColor: '#ccc',
   },
-  productItemName: {
-    fontSize: 14,
-    fontWeight: '500',
-    marginBottom: 2,
+  summary: {
+    padding: 16,
+    backgroundColor: '#f0f0f0',
+    marginVertical: 8,
   },
-  productItemDetails: {
+  error: {
+    color: 'red',
     fontSize: 12,
   },
-  addButton: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+  modal: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  addButtonText: {
-    color: 'white',
-    fontSize: 20,
-    fontWeight: '400',
+  dropZone: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
   },
-  strategyCard: {
-    padding: 16,
-    borderRadius: 8,
-  },
-  strategyLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 12,
-  },
-  strategyInput: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  inputLabel: {
-    fontSize: 14,
-    marginRight: 8,
-  },
-  valueInput: {
-    borderWidth: 1,
-    borderRadius: 4,
+  validationSummary: {
     padding: 8,
-    width: 80,
-    fontSize: 14,
-  },
-  tiersContainer: {
-    gap: 8,
-  },
-  tierRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  tierLabel: {
-    fontSize: 14,
-    marginRight: 8,
-    width: 50,
-  },
-  tierInput: {
+    backgroundColor: '#ffeeee',
+    borderColor: 'red',
     borderWidth: 1,
-    borderRadius: 4,
-    padding: 6,
-    width: 50,
-    fontSize: 14,
-    marginHorizontal: 4,
-  },
-  tierSeparator: {
-    fontSize: 14,
-    marginHorizontal: 4,
-  },
-  pricePreview: {
-    padding: 16,
-    borderRadius: 8,
-  },
-  priceRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  priceLabel: {
-    fontSize: 14,
-  },
-  priceValue: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  savingsRow: {
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E5EA',
-  },
-  saveButton: {
-    paddingVertical: 14,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginBottom: 32,
-  },
-  saveButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
   },
 });
+
+export default BundleBuilder;

@@ -1,529 +1,483 @@
 import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
-import { NavigationContainer } from '@react-navigation/native';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Alert } from 'react-native';
+import { render, waitFor, fireEvent } from '@testing-library/react-native';
+import { BundleManagementScreen } from '../BundleManagementScreen';
+import { marketingService } from '../../../services/marketing/marketingService';
+import { bundleService } from '../../../services/marketing/bundleService';
 
-// Mock the screen (doesn't exist yet - RED phase)
-const BundleManagementScreen = jest.fn(() => null);
-jest.mock('../BundleManagementScreen', () => ({
-  default: jest.fn(() => null)
-}));
+// Mock services
+jest.mock('../../../services/marketing/marketingService');
+jest.mock('../../../services/marketing/bundleService');
 
-// Mock bundle management hooks
-jest.mock('@/hooks/marketing/useBundleManagement', () => ({
-  useBundleManagement: jest.fn(() => ({
-    bundles: [
-      {
-        id: '1',
-        name: 'Starter Pack',
-        products: [
-          { id: 'p1', name: 'Basic Item', price: 29.99, quantity: 1 },
-          { id: 'p2', name: 'Accessory', price: 9.99, quantity: 2 }
-        ],
-        discount: 15,
-        price: 42.97,
-        originalPrice: 49.97,
-        stock: 45
-      },
-      {
-        id: '2',
-        name: 'Pro Bundle',
-        products: [
-          { id: 'p3', name: 'Premium Item', price: 99.99, quantity: 1 },
-          { id: 'p4', name: 'Pro Accessory', price: 29.99, quantity: 1 }
-        ],
-        discount: 25,
-        price: 97.48,
-        originalPrice: 129.98,
-        stock: 12
-      }
-    ],
-    createBundle: jest.fn(),
-    updateBundle: jest.fn(),
-    deleteBundle: jest.fn(),
-    calculatePrice: jest.fn(),
-    checkInventory: jest.fn(),
-    isLoading: false
-  }))
-}));
-
-jest.mock('@/hooks/marketing/useProductSearch', () => ({
-  useProductSearch: jest.fn(() => ({
-    products: [
-      { id: 'p1', name: 'Basic Item', price: 29.99, stock: 100 },
-      { id: 'p2', name: 'Accessory', price: 9.99, stock: 200 },
-      { id: 'p3', name: 'Premium Item', price: 99.99, stock: 50 },
-      { id: 'p4', name: 'Pro Accessory', price: 29.99, stock: 75 }
-    ],
-    searchProducts: jest.fn(),
-    isSearching: false
-  }))
-}));
-
+// Mock navigation
 const mockNavigate = jest.fn();
+const mockNavigation = {
+  navigate: mockNavigate,
+  goBack: jest.fn(),
+};
 
 describe('BundleManagementScreen', () => {
-  let queryClient: QueryClient;
-  
   beforeEach(() => {
-    queryClient = new QueryClient({
-      defaultOptions: { 
-        queries: { retry: false },
-        mutations: { retry: false }
-      }
-    });
     jest.clearAllMocks();
+    
+    // Setup default mocks
+    (bundleService.getBundles as jest.Mock).mockResolvedValue([
+      {
+        id: 'bundle-1',
+        name: 'Summer Collection',
+        description: 'Best summer products',
+        products: ['product-1', 'product-2'],
+        pricing: {
+          originalPrice: 150,
+          bundlePrice: 120,
+          discount: 20,
+        },
+        status: 'active',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        id: 'bundle-2',
+        name: 'Starter Pack',
+        description: 'Essential items for beginners',
+        products: ['product-3', 'product-4', 'product-5'],
+        pricing: {
+          originalPrice: 200,
+          bundlePrice: 150,
+          discount: 25,
+        },
+        status: 'draft',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ]);
+
+    (bundleService.createBundle as jest.Mock).mockResolvedValue({
+      id: 'new-bundle',
+      name: 'New Bundle',
+      products: [],
+      status: 'draft',
+    });
+
+    (marketingService.getProducts as jest.Mock).mockResolvedValue([
+      { id: 'product-1', name: 'Product 1', price: 50, stock: 100 },
+      { id: 'product-2', name: 'Product 2', price: 100, stock: 50 },
+      { id: 'product-3', name: 'Product 3', price: 75, stock: 200 },
+    ]);
   });
-  
-  const renderScreen = (props = {}) => {
-    return render(
-      <QueryClientProvider client={queryClient}>
-        <NavigationContainer>
-          <BundleManagementScreen {...props} />
-        </NavigationContainer>
-      </QueryClientProvider>
-    );
-  };
-  
-  describe('Bundle List', () => {
+
+  describe('Rendering', () => {
+    it('should render bundle management screen', () => {
+      const { getByText, getByTestId } = render(
+        <BundleManagementScreen navigation={mockNavigation} />
+      );
+      
+      expect(getByText('Bundle Management')).toBeTruthy();
+      expect(getByTestId('bundle-management-screen')).toBeTruthy();
+    });
+
     it('should display existing bundles', async () => {
-      const { getAllByTestId } = renderScreen();
+      const { getByText } = render(
+        <BundleManagementScreen navigation={mockNavigation} />
+      );
       
       await waitFor(() => {
-        const bundleCards = getAllByTestId(/bundle-card-/);
-        expect(bundleCards).toHaveLength(2);
-      });
-    });
-    
-    it('should show bundle details', async () => {
-      const { getByText, getByTestId } = renderScreen();
-      
-      await waitFor(() => {
+        expect(getByText('Summer Collection')).toBeTruthy();
         expect(getByText('Starter Pack')).toBeTruthy();
-        expect(getByText('15% OFF')).toBeTruthy();
-        expect(getByTestId('bundle-price-1')).toHaveTextContent('$42.97');
-        expect(getByTestId('bundle-original-price-1')).toHaveTextContent('$49.97');
       });
     });
-    
-    it('should display product count in bundle', async () => {
-      const { getByTestId } = renderScreen();
+
+    it('should show bundle pricing information', async () => {
+      const { getByText } = render(
+        <BundleManagementScreen navigation={mockNavigation} />
+      );
       
       await waitFor(() => {
-        expect(getByTestId('product-count-1')).toHaveTextContent('3 items');
-        expect(getByTestId('product-count-2')).toHaveTextContent('2 items');
+        expect(getByText('$120')).toBeTruthy(); // Bundle price
+        expect(getByText('Save 20%')).toBeTruthy(); // Discount
       });
     });
-    
-    it('should show stock availability', async () => {
-      const { getByTestId } = renderScreen();
+
+    it('should display bundle status badges', async () => {
+      const { getByText } = render(
+        <BundleManagementScreen navigation={mockNavigation} />
+      );
       
       await waitFor(() => {
-        expect(getByTestId('stock-indicator-1')).toHaveTextContent('45 in stock');
-        expect(getByTestId('stock-indicator-2')).toHaveTextContent('12 in stock');
+        expect(getByText('active')).toBeTruthy();
+        expect(getByText('draft')).toBeTruthy();
       });
     });
-    
-    it('should highlight low stock bundles', async () => {
-      const { getByTestId } = renderScreen();
+
+    it('should show loading state initially', () => {
+      const { getByTestId } = render(
+        <BundleManagementScreen navigation={mockNavigation} />
+      );
+      
+      expect(getByTestId('loading-indicator')).toBeTruthy();
+    });
+
+    it('should display empty state when no bundles', async () => {
+      (bundleService.getBundles as jest.Mock).mockResolvedValue([]);
+      
+      const { getByText } = render(
+        <BundleManagementScreen navigation={mockNavigation} />
+      );
       
       await waitFor(() => {
-        const lowStockBundle = getByTestId('bundle-card-2');
-        expect(lowStockBundle.props.style).toContainEqual(
-          expect.objectContaining({ borderColor: '#FF6B6B' })
+        expect(getByText('No bundles created yet')).toBeTruthy();
+        expect(getByText('Create your first product bundle')).toBeTruthy();
+      });
+    });
+  });
+
+  describe('Bundle Creation', () => {
+    it('should open bundle creation modal', () => {
+      const { getByTestId } = render(
+        <BundleManagementScreen navigation={mockNavigation} />
+      );
+      
+      fireEvent.press(getByTestId('create-bundle-button'));
+      
+      expect(getByTestId('bundle-creation-modal')).toBeTruthy();
+    });
+
+    it('should display product selector', () => {
+      const { getByTestId, getByText } = render(
+        <BundleManagementScreen navigation={mockNavigation} />
+      );
+      
+      fireEvent.press(getByTestId('create-bundle-button'));
+      
+      expect(getByText('Select Products')).toBeTruthy();
+      expect(getByTestId('product-selector')).toBeTruthy();
+    });
+
+    it('should handle product selection', async () => {
+      const { getByTestId } = render(
+        <BundleManagementScreen navigation={mockNavigation} />
+      );
+      
+      fireEvent.press(getByTestId('create-bundle-button'));
+      
+      await waitFor(() => {
+        expect(getByTestId('product-checkbox-1')).toBeTruthy();
+      });
+      
+      fireEvent.press(getByTestId('product-checkbox-1'));
+      fireEvent.press(getByTestId('product-checkbox-2'));
+      
+      const selectedProducts = getByTestId('selected-products');
+      expect(selectedProducts.props.children).toContain('2 products selected');
+    });
+
+    it('should calculate bundle pricing automatically', async () => {
+      const { getByTestId, getByText } = render(
+        <BundleManagementScreen navigation={mockNavigation} />
+      );
+      
+      fireEvent.press(getByTestId('create-bundle-button'));
+      
+      await waitFor(() => {
+        fireEvent.press(getByTestId('product-checkbox-1')); // $50
+        fireEvent.press(getByTestId('product-checkbox-2')); // $100
+      });
+      
+      expect(getByText('Original Price: $150')).toBeTruthy();
+      expect(getByTestId('bundle-price-input').props.placeholder).toBe('Suggested: $120');
+    });
+
+    it('should validate bundle name', () => {
+      const { getByTestId, getByText } = render(
+        <BundleManagementScreen navigation={mockNavigation} />
+      );
+      
+      fireEvent.press(getByTestId('create-bundle-button'));
+      fireEvent.press(getByTestId('save-bundle-button'));
+      
+      expect(getByText('Bundle name is required')).toBeTruthy();
+    });
+
+    it('should create bundle on submit', async () => {
+      const { getByTestId, getByPlaceholderText } = render(
+        <BundleManagementScreen navigation={mockNavigation} />
+      );
+      
+      fireEvent.press(getByTestId('create-bundle-button'));
+      
+      // Fill form
+      fireEvent.changeText(getByPlaceholderText('Bundle Name'), 'Holiday Special');
+      fireEvent.changeText(getByPlaceholderText('Description'), 'Special holiday bundle');
+      
+      await waitFor(() => {
+        fireEvent.press(getByTestId('product-checkbox-1'));
+        fireEvent.press(getByTestId('product-checkbox-2'));
+      });
+      
+      fireEvent.changeText(getByTestId('bundle-price-input'), '99');
+      
+      fireEvent.press(getByTestId('save-bundle-button'));
+      
+      await waitFor(() => {
+        expect(bundleService.createBundle).toHaveBeenCalledWith(
+          expect.objectContaining({
+            name: 'Holiday Special',
+            description: 'Special holiday bundle',
+            products: ['product-1', 'product-2'],
+            pricing: expect.objectContaining({
+              bundlePrice: 99,
+            }),
+          })
         );
       });
     });
   });
-  
-  describe('Bundle Creation', () => {
-    it('should show create bundle button', async () => {
-      const { getByTestId } = renderScreen();
-      
-      await waitFor(() => {
-        expect(getByTestId('create-bundle-button')).toBeTruthy();
-      });
-    });
-    
-    it('should open bundle builder', async () => {
-      const { getByTestId, getByText } = renderScreen();
-      
-      await waitFor(() => {
-        fireEvent.press(getByTestId('create-bundle-button'));
-      });
-      
-      expect(getByTestId('bundle-builder-modal')).toBeTruthy();
-      expect(getByText('Create New Bundle')).toBeTruthy();
-    });
-    
-    it('should enter bundle name', async () => {
-      const { getByTestId } = renderScreen();
-      
-      await waitFor(() => {
-        fireEvent.press(getByTestId('create-bundle-button'));
-        const nameInput = getByTestId('bundle-name-input');
-        fireEvent.changeText(nameInput, 'Holiday Special');
-        
-        expect(nameInput.props.value).toBe('Holiday Special');
-      });
-    });
-    
-    it('should validate bundle name', async () => {
-      const { getByTestId, getByText } = renderScreen();
-      
-      await waitFor(() => {
-        fireEvent.press(getByTestId('create-bundle-button'));
-        fireEvent.press(getByTestId('save-bundle-button'));
-      });
-      
-      expect(getByText('Bundle name is required')).toBeTruthy();
-    });
-  });
-  
-  describe('Product Selection', () => {
-    it('should display product search', async () => {
-      const { getByTestId } = renderScreen();
-      
-      await waitFor(() => {
-        fireEvent.press(getByTestId('create-bundle-button'));
-        expect(getByTestId('product-search-input')).toBeTruthy();
-      });
-    });
-    
-    it('should search for products', async () => {
-      const { getByTestId } = renderScreen();
-      const { searchProducts } = require('@/hooks/marketing/useProductSearch').useProductSearch();
-      
-      await waitFor(() => {
-        fireEvent.press(getByTestId('create-bundle-button'));
-        const searchInput = getByTestId('product-search-input');
-        fireEvent.changeText(searchInput, 'Premium');
-      });
-      
-      expect(searchProducts).toHaveBeenCalledWith('Premium');
-    });
-    
-    it('should display search results', async () => {
-      const { getByTestId, getAllByTestId } = renderScreen();
-      
-      await waitFor(() => {
-        fireEvent.press(getByTestId('create-bundle-button'));
-        const productItems = getAllByTestId(/product-item-/);
-        expect(productItems).toHaveLength(4);
-      });
-    });
-    
-    it('should add product to bundle', async () => {
-      const { getByTestId } = renderScreen();
-      
-      await waitFor(() => {
-        fireEvent.press(getByTestId('create-bundle-button'));
-        fireEvent.press(getByTestId('add-product-p1'));
-      });
-      
-      expect(getByTestId('selected-product-p1')).toBeTruthy();
-    });
-    
-    it('should show selected products list', async () => {
-      const { getByTestId, getAllByTestId } = renderScreen();
-      
-      await waitFor(() => {
-        fireEvent.press(getByTestId('create-bundle-button'));
-        fireEvent.press(getByTestId('add-product-p1'));
-        fireEvent.press(getByTestId('add-product-p2'));
-        
-        const selectedProducts = getAllByTestId(/selected-product-/);
-        expect(selectedProducts).toHaveLength(2);
-      });
-    });
-    
-    it('should adjust product quantity', async () => {
-      const { getByTestId } = renderScreen();
-      
-      await waitFor(() => {
-        fireEvent.press(getByTestId('create-bundle-button'));
-        fireEvent.press(getByTestId('add-product-p1'));
-        
-        const quantityInput = getByTestId('quantity-input-p1');
-        fireEvent.changeText(quantityInput, '3');
-        
-        expect(quantityInput.props.value).toBe('3');
-      });
-    });
-    
-    it('should remove product from bundle', async () => {
-      const { getByTestId, queryByTestId } = renderScreen();
-      
-      await waitFor(() => {
-        fireEvent.press(getByTestId('create-bundle-button'));
-        fireEvent.press(getByTestId('add-product-p1'));
-        fireEvent.press(getByTestId('remove-product-p1'));
-      });
-      
-      expect(queryByTestId('selected-product-p1')).toBeNull();
-    });
-    
-    it('should use drag and drop to reorder products', async () => {
-      const { getByTestId } = renderScreen();
-      
-      await waitFor(() => {
-        fireEvent.press(getByTestId('create-bundle-button'));
-        fireEvent.press(getByTestId('add-product-p1'));
-        fireEvent.press(getByTestId('add-product-p2'));
-        
-        const product1 = getByTestId('selected-product-p1');
-        fireEvent(product1, 'onDragStart');
-        fireEvent(product1, 'onDragEnd', { index: 1 });
-      });
-      
-      expect(getByTestId('selected-product-0')).toHaveTextContent('Accessory');
-    });
-  });
-  
-  describe('Pricing and Discounts', () => {
-    it('should display discount slider', async () => {
-      const { getByTestId } = renderScreen();
-      
-      await waitFor(() => {
-        fireEvent.press(getByTestId('create-bundle-button'));
-        expect(getByTestId('discount-slider')).toBeTruthy();
-      });
-    });
-    
-    it('should adjust discount percentage', async () => {
-      const { getByTestId, getByText } = renderScreen();
-      
-      await waitFor(() => {
-        fireEvent.press(getByTestId('create-bundle-button'));
-        const slider = getByTestId('discount-slider');
-        fireEvent(slider, 'onValueChange', 20);
-      });
-      
-      expect(getByText('20% discount')).toBeTruthy();
-    });
-    
-    it('should calculate bundle price', async () => {
-      const { getByTestId } = renderScreen();
-      const { calculatePrice } = require('@/hooks/marketing/useBundleManagement').useBundleManagement();
-      
-      await waitFor(() => {
-        fireEvent.press(getByTestId('create-bundle-button'));
-        fireEvent.press(getByTestId('add-product-p1'));
-        fireEvent.press(getByTestId('add-product-p2'));
-        
-        const slider = getByTestId('discount-slider');
-        fireEvent(slider, 'onValueChange', 20);
-      });
-      
-      expect(calculatePrice).toHaveBeenCalledWith(
-        expect.any(Array),
-        20
+
+  describe('Bundle Management', () => {
+    it('should edit existing bundle', async () => {
+      const { getByTestId } = render(
+        <BundleManagementScreen navigation={mockNavigation} />
       );
-    });
-    
-    it('should display price breakdown', async () => {
-      const { getByTestId, getByText } = renderScreen();
       
       await waitFor(() => {
-        fireEvent.press(getByTestId('create-bundle-button'));
-        fireEvent.press(getByTestId('add-product-p1'));
-        fireEvent.press(getByTestId('add-product-p2'));
+        expect(getByTestId('bundle-card-bundle-1')).toBeTruthy();
       });
       
-      expect(getByText('Original Price: $39.98')).toBeTruthy();
-      expect(getByText('Discount: -$5.99')).toBeTruthy();
-      expect(getByText('Bundle Price: $33.99')).toBeTruthy();
+      fireEvent.press(getByTestId('edit-bundle-1'));
+      
+      expect(getByTestId('bundle-edit-modal')).toBeTruthy();
     });
-    
-    it('should show savings amount', async () => {
-      const { getByTestId } = renderScreen();
-      
-      await waitFor(() => {
-        fireEvent.press(getByTestId('create-bundle-button'));
-        fireEvent.press(getByTestId('add-product-p1'));
-        
-        const slider = getByTestId('discount-slider');
-        fireEvent(slider, 'onValueChange', 25);
-      });
-      
-      expect(getByTestId('savings-badge')).toHaveTextContent('Save $7.50');
-    });
-  });
-  
-  describe('Inventory Impact', () => {
-    it('should check inventory availability', async () => {
-      const { getByTestId } = renderScreen();
-      const { checkInventory } = require('@/hooks/marketing/useBundleManagement').useBundleManagement();
-      
-      await waitFor(() => {
-        fireEvent.press(getByTestId('create-bundle-button'));
-        fireEvent.press(getByTestId('add-product-p1'));
-      });
-      
-      expect(checkInventory).toHaveBeenCalledWith(['p1']);
-    });
-    
-    it('should display inventory warnings', async () => {
-      const { getByTestId, getByText } = renderScreen();
-      
-      require('@/hooks/marketing/useBundleManagement').useBundleManagement().checkInventory.mockReturnValue({
-        available: false,
-        message: 'Limited stock available'
-      });
-      
-      await waitFor(() => {
-        fireEvent.press(getByTestId('create-bundle-button'));
-        fireEvent.press(getByTestId('add-product-p1'));
-      });
-      
-      expect(getByText('Limited stock available')).toBeTruthy();
-      expect(getByTestId('inventory-warning')).toBeTruthy();
-    });
-    
-    it('should show maximum bundle quantity', async () => {
-      const { getByTestId } = renderScreen();
-      
-      await waitFor(() => {
-        fireEvent.press(getByTestId('create-bundle-button'));
-        fireEvent.press(getByTestId('add-product-p1'));
-      });
-      
-      expect(getByTestId('max-bundles')).toHaveTextContent('Max bundles: 100');
-    });
-  });
-  
-  describe('Bundle Editing', () => {
-    it('should open bundle for editing', async () => {
-      const { getByTestId } = renderScreen();
-      
-      await waitFor(() => {
-        fireEvent.press(getByTestId('edit-bundle-1'));
-      });
-      
-      expect(getByTestId('bundle-editor-modal')).toBeTruthy();
-      expect(getByTestId('bundle-name-input').props.value).toBe('Starter Pack');
-    });
-    
-    it('should update bundle name', async () => {
-      const { getByTestId } = renderScreen();
-      const { updateBundle } = require('@/hooks/marketing/useBundleManagement').useBundleManagement();
-      
-      await waitFor(() => {
-        fireEvent.press(getByTestId('edit-bundle-1'));
-        const nameInput = getByTestId('bundle-name-input');
-        fireEvent.changeText(nameInput, 'Updated Bundle');
-        fireEvent.press(getByTestId('save-bundle-button'));
-      });
-      
-      expect(updateBundle).toHaveBeenCalledWith('1', {
-        name: 'Updated Bundle'
-      });
-    });
-    
+
     it('should delete bundle with confirmation', async () => {
-      const { getByTestId } = renderScreen();
-      const { deleteBundle } = require('@/hooks/marketing/useBundleManagement').useBundleManagement();
-      
-      await waitFor(() => {
-        fireEvent.press(getByTestId('delete-bundle-1'));
-      });
-      
-      expect(Alert.alert).toHaveBeenCalledWith(
-        'Delete Bundle',
-        'Are you sure you want to delete this bundle?',
-        expect.any(Array)
+      const { getByTestId, getByText } = render(
+        <BundleManagementScreen navigation={mockNavigation} />
       );
       
-      const alertCall = (Alert.alert as jest.Mock).mock.calls[0];
-      alertCall[2][1].onPress();
-      
-      expect(deleteBundle).toHaveBeenCalledWith('1');
-    });
-  });
-  
-  describe('Bundle Preview', () => {
-    it('should show bundle preview', async () => {
-      const { getByTestId } = renderScreen();
-      
       await waitFor(() => {
-        fireEvent.press(getByTestId('preview-bundle-1'));
+        expect(getByTestId('bundle-card-bundle-1')).toBeTruthy();
       });
       
-      expect(getByTestId('bundle-preview-modal')).toBeTruthy();
-    });
-    
-    it('should display preview as customer view', async () => {
-      const { getByTestId, getByText } = renderScreen();
+      fireEvent.press(getByTestId('delete-bundle-1'));
+      
+      expect(getByText('Delete Bundle?')).toBeTruthy();
+      expect(getByText('This action cannot be undone')).toBeTruthy();
+      
+      fireEvent.press(getByText('Confirm'));
       
       await waitFor(() => {
-        fireEvent.press(getByTestId('preview-bundle-1'));
+        expect(bundleService.deleteBundle).toHaveBeenCalledWith('bundle-1');
+      });
+    });
+
+    it('should activate/deactivate bundle', async () => {
+      const { getByTestId } = render(
+        <BundleManagementScreen navigation={mockNavigation} />
+      );
+      
+      await waitFor(() => {
+        expect(getByTestId('bundle-status-toggle-bundle-2')).toBeTruthy();
       });
       
-      expect(getByText('Customer View')).toBeTruthy();
-      expect(getByTestId('preview-bundle-card')).toBeTruthy();
-      expect(getByTestId('preview-add-to-cart')).toBeTruthy();
+      fireEvent.press(getByTestId('bundle-status-toggle-bundle-2'));
+      
+      await waitFor(() => {
+        expect(bundleService.updateBundle).toHaveBeenCalledWith('bundle-2', {
+          status: 'active',
+        });
+      });
+    });
+
+    it('should duplicate bundle', async () => {
+      const { getByTestId } = render(
+        <BundleManagementScreen navigation={mockNavigation} />
+      );
+      
+      await waitFor(() => {
+        expect(getByTestId('bundle-card-bundle-1')).toBeTruthy();
+      });
+      
+      fireEvent.press(getByTestId('duplicate-bundle-1'));
+      
+      await waitFor(() => {
+        expect(bundleService.createBundle).toHaveBeenCalledWith(
+          expect.objectContaining({
+            name: 'Summer Collection (Copy)',
+            products: ['product-1', 'product-2'],
+          })
+        );
+      });
     });
   });
-  
+
+  describe('Inventory Impact', () => {
+    it('should display inventory impact', async () => {
+      const { getByTestId, getByText } = render(
+        <BundleManagementScreen navigation={mockNavigation} />
+      );
+      
+      await waitFor(() => {
+        fireEvent.press(getByTestId('view-inventory-impact-bundle-1'));
+      });
+      
+      expect(getByTestId('inventory-impact-modal')).toBeTruthy();
+      expect(getByText('Product 1: 100 units')).toBeTruthy();
+      expect(getByText('Product 2: 50 units')).toBeTruthy();
+    });
+
+    it('should show low stock warning', async () => {
+      (marketingService.getProducts as jest.Mock).mockResolvedValue([
+        { id: 'product-1', name: 'Product 1', price: 50, stock: 5 },
+      ]);
+      
+      const { getByTestId, getByText } = render(
+        <BundleManagementScreen navigation={mockNavigation} />
+      );
+      
+      fireEvent.press(getByTestId('create-bundle-button'));
+      
+      await waitFor(() => {
+        fireEvent.press(getByTestId('product-checkbox-1'));
+      });
+      
+      expect(getByText('⚠️ Low stock: 5 units')).toBeTruthy();
+    });
+
+    it('should calculate max bundle quantity', async () => {
+      const { getByTestId, getByText } = render(
+        <BundleManagementScreen navigation={mockNavigation} />
+      );
+      
+      await waitFor(() => {
+        fireEvent.press(getByTestId('view-inventory-impact-bundle-1'));
+      });
+      
+      // Product 2 has 50 units, limiting factor
+      expect(getByText('Max bundles available: 50')).toBeTruthy();
+    });
+  });
+
+  describe('Filtering and Search', () => {
+    it('should filter bundles by status', async () => {
+      const { getByTestId, queryByText } = render(
+        <BundleManagementScreen navigation={mockNavigation} />
+      );
+      
+      await waitFor(() => {
+        expect(getByTestId('filter-button')).toBeTruthy();
+      });
+      
+      fireEvent.press(getByTestId('filter-button'));
+      fireEvent.press(getByTestId('filter-active'));
+      
+      await waitFor(() => {
+        expect(queryByText('Summer Collection')).toBeTruthy();
+        expect(queryByText('Starter Pack')).toBeNull();
+      });
+    });
+
+    it('should search bundles by name', async () => {
+      const { getByPlaceholderText, queryByText } = render(
+        <BundleManagementScreen navigation={mockNavigation} />
+      );
+      
+      await waitFor(() => {
+        expect(queryByText('Summer Collection')).toBeTruthy();
+      });
+      
+      const searchInput = getByPlaceholderText('Search bundles...');
+      fireEvent.changeText(searchInput, 'Starter');
+      
+      await waitFor(() => {
+        expect(queryByText('Starter Pack')).toBeTruthy();
+        expect(queryByText('Summer Collection')).toBeNull();
+      });
+    });
+
+    it('should sort bundles', async () => {
+      const { getByTestId, getAllByTestId } = render(
+        <BundleManagementScreen navigation={mockNavigation} />
+      );
+      
+      await waitFor(() => {
+        expect(getByTestId('sort-button')).toBeTruthy();
+      });
+      
+      fireEvent.press(getByTestId('sort-button'));
+      fireEvent.press(getByTestId('sort-price-asc'));
+      
+      await waitFor(() => {
+        const bundles = getAllByTestId(/^bundle-card-/);
+        expect(bundles[0].props.testID).toBe('bundle-card-bundle-1'); // $120
+        expect(bundles[1].props.testID).toBe('bundle-card-bundle-2'); // $150
+      });
+    });
+  });
+
+  describe('Analytics Integration', () => {
+    it('should display bundle performance metrics', async () => {
+      const { getByTestId, getByText } = render(
+        <BundleManagementScreen navigation={mockNavigation} />
+      );
+      
+      await waitFor(() => {
+        fireEvent.press(getByTestId('view-analytics-bundle-1'));
+      });
+      
+      expect(getByTestId('bundle-analytics-modal')).toBeTruthy();
+      expect(getByText('Sales: 45 units')).toBeTruthy();
+      expect(getByText('Revenue: $5,400')).toBeTruthy();
+      expect(getByText('Conversion Rate: 3.2%')).toBeTruthy();
+    });
+
+    it('should show bundle popularity score', async () => {
+      const { getByTestId } = render(
+        <BundleManagementScreen navigation={mockNavigation} />
+      );
+      
+      await waitFor(() => {
+        expect(getByTestId('popularity-score-bundle-1')).toBeTruthy();
+      });
+      
+      const popularityBadge = getByTestId('popularity-score-bundle-1');
+      expect(popularityBadge.props.children).toContain('⭐ 4.5');
+    });
+  });
+
   describe('Accessibility', () => {
     it('should have proper accessibility labels', async () => {
-      const { getByLabelText } = renderScreen();
+      const { getByLabelText } = render(
+        <BundleManagementScreen navigation={mockNavigation} />
+      );
       
       await waitFor(() => {
-        expect(getByLabelText('Bundle Management')).toBeTruthy();
-        expect(getByLabelText('Create New Bundle')).toBeTruthy();
-        expect(getByLabelText('Bundle List')).toBeTruthy();
+        expect(getByLabelText('Create new bundle')).toBeTruthy();
+        expect(getByLabelText('Search bundles')).toBeTruthy();
+        expect(getByLabelText('Filter bundles')).toBeTruthy();
       });
     });
-    
-    it('should announce bundle actions', async () => {
-      const { getByTestId } = renderScreen();
+
+    it('should announce bundle creation success', async () => {
+      const { getByTestId, getByText } = render(
+        <BundleManagementScreen navigation={mockNavigation} />
+      );
+      
+      fireEvent.press(getByTestId('create-bundle-button'));
+      fireEvent.changeText(getByTestId('bundle-name-input'), 'Test Bundle');
+      fireEvent.press(getByTestId('save-bundle-button'));
       
       await waitFor(() => {
-        fireEvent.press(getByTestId('create-bundle-button'));
-        fireEvent.press(getByTestId('add-product-p1'));
-        
-        const announcement = getByTestId('screen-reader-announcement');
-        expect(announcement).toHaveTextContent('Product added to bundle');
+        const successMessage = getByText('Bundle created successfully');
+        expect(successMessage.props.accessibilityRole).toBe('alert');
+        expect(successMessage.props.accessibilityLiveRegion).toBe('polite');
       });
     });
-    
-    it('should have proper roles for interactive elements', async () => {
-      const { getByTestId } = renderScreen();
+
+    it('should have keyboard navigation support', () => {
+      const { getByTestId } = render(
+        <BundleManagementScreen navigation={mockNavigation} />
+      );
       
-      await waitFor(() => {
-        const createButton = getByTestId('create-bundle-button');
-        expect(createButton.props.accessibilityRole).toBe('button');
-        
-        const slider = getByTestId('discount-slider');
-        expect(slider.props.accessibilityRole).toBe('adjustable');
-      });
-    });
-  });
-  
-  describe('Loading and Error States', () => {
-    it('should show loading state', async () => {
-      require('@/hooks/marketing/useBundleManagement').useBundleManagement.mockReturnValue({
-        isLoading: true,
-        bundles: []
-      });
-      
-      const { getByTestId } = renderScreen();
-      
-      expect(getByTestId('bundles-loading')).toBeTruthy();
-    });
-    
-    it('should display error message', async () => {
-      require('@/hooks/marketing/useBundleManagement').useBundleManagement.mockReturnValue({
-        isError: true,
-        error: new Error('Failed to load bundles'),
-        bundles: []
-      });
-      
-      const { getByText } = renderScreen();
-      
-      expect(getByText('Failed to load bundles')).toBeTruthy();
+      const bundleList = getByTestId('bundle-list');
+      expect(bundleList.props.keyboardShouldPersistTaps).toBe('handled');
     });
   });
 });

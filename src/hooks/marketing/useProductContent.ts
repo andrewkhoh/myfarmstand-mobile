@@ -1,409 +1,340 @@
-// Phase 3.3.4: Product Content Hooks Implementation (GREEN Phase)
-// Following architectural patterns from docs/architectural-patterns-and-best-practices.md
-// Pattern: React Query + centralized factory + ValidationMonitor + role permissions
-
+import { useState, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useAuth } from '../useAuth';
-import { ProductContentService } from '../../services/marketing/productContentService';
-import { RolePermissionService } from '../../services/role-based/rolePermissionService';
-import { ValidationMonitor } from '../../utils/validationMonitor';
-import { contentKeys } from '../../utils/queryKeyFactory';
-import type {
-  ProductContentTransform,
-  UpdateProductContentInput,
-  ContentStatusType
-} from '../../schemas/marketing';
+import { marketingKeys } from '@/utils/queryKeys';
+import { contentService } from '@/services/marketing/contentService';
+import { MarketingCampaign, MarketingContent, CampaignFilter, Product, ProductBundle, WorkflowState, WorkflowConfig, WorkflowResult, WorkflowContext, CalendarEvent } from '@/schemas/marketing';
 
-// Standard hook response patterns
-interface ServiceResponse<T> {
-  success: boolean;
-  data?: T;
-  error?: string;
+interface ProductContent {
+  id: string;
+  product_id?: string;
+  title: string;
+  description?: string;
+  content?: string;
+  type?: string;
+  features?: string[];
+  specifications?: Record<string, any>;
+  images?: string[];
+  videos?: string[];
+  status?: 'draft' | 'published' | 'archived' | 'review';
+  metadata?: {
+    seo_title?: string;
+    seo_description?: string;
+    keywords?: string[];
+  };
+  created_at?: Date;
+  updated_at?: Date;
 }
 
-interface PaginationOptions {
-  page: number;
-  limit: number;
-}
-
-interface PaginatedResponse<T> {
-  items: T[];
-  totalCount: number;
-  hasMore: boolean;
-  page: number;
-  limit: number;
-}
-
-interface FileUpload {
-  name: string;
-  size: number;
-  type: string;
-  buffer: Buffer;
-}
-
-interface UploadProgress {
-  uploadedBytes: number;
-  totalBytes: number;
-  percentage: number;
-}
-
-// Using centralized query key factory from utils/queryKeyFactory
-
-/**
- * Hook to fetch single product content with transformation and validation
- * Supports role-based access control and caching
- */
-export function useProductContent(contentId: string, userId?: string) {
-  const { user } = useAuth();
-  const effectiveUserId = userId || user?.id;
-
-  return useQuery({
-    queryKey: contentKeys.detail(contentId),
-    queryFn: async (): Promise<ProductContentTransform> => {
-      // Role-based access control
-      if (effectiveUserId) {
-        const hasPermission = await RolePermissionService.hasPermission(
-          effectiveUserId,
-          'content_management'
-        );
-        
-        if (!hasPermission) {
-          ValidationMonitor.recordValidationError({
-            context: 'useProductContent',
-            errorCode: 'INSUFFICIENT_PERMISSIONS',
-            validationPattern: 'simple_validation',
-            errorMessage: 'Insufficient permissions for content access'
-          });
-          throw new Error('Insufficient permissions for content access');
-        }
-      }
-
-      const result = await ProductContentService.getProductContent(contentId, effectiveUserId);
-      
-      if (!result.success || !result.data) {
-        ValidationMonitor.recordValidationError({
-          context: 'useProductContent',
-          errorCode: 'CONTENT_FETCH_FAILED',
-          validationPattern: 'transformation_schema',
-          errorMessage: result.error || 'Failed to fetch content'
-        });
-        throw new Error(result.error || 'Failed to fetch content');
-      }
-
-      ValidationMonitor.recordPatternSuccess({
-        service: 'useProductContent',
-        pattern: 'transformation_schema',
-        operation: 'getProductContent'
-      });
-
-      return result.data;
-    },
-    enabled: !!contentId,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes
-  });
-}
-
-/**
- * Hook to fetch content filtered by workflow status with pagination
- * Supports role-based filtering and workflow state management
- */
-export function useContentByStatus(
-  status: ContentStatusType,
-  pagination: PaginationOptions,
-  userId?: string
-) {
-  const { user } = useAuth();
-  const effectiveUserId = userId || user?.id;
-
-  return useQuery({
-    queryKey: contentKeys.byStatusPaginated(status, pagination),
-    queryFn: async (): Promise<PaginatedResponse<ProductContentTransform>> => {
-      if (!effectiveUserId) {
-        throw new Error('Authentication required for content access');
-      }
-
-      // Role-based access control
-      const hasPermission = await RolePermissionService.hasPermission(
-        effectiveUserId,
-        'content_management'
-      );
-      
-      if (!hasPermission) {
-        ValidationMonitor.recordValidationError({
-          context: 'useContentByStatus',
-          errorCode: 'INSUFFICIENT_PERMISSIONS',
-          validationPattern: 'simple_validation',
-          errorMessage: 'Insufficient permissions for content access'
-        });
-        throw new Error('Insufficient permissions for content access');
-      }
-
-      const result = await ProductContentService.getContentByStatus(status, pagination, effectiveUserId);
-      
-      if (!result.success || !result.data) {
-        ValidationMonitor.recordValidationError({
-          context: 'useContentByStatus',
-          errorCode: 'CONTENT_QUERY_FAILED',
-          validationPattern: 'transformation_schema',
-          errorMessage: result.error || 'Failed to fetch content by status'
-        });
-        throw new Error(result.error || 'Failed to fetch content by status');
-      }
-
-      ValidationMonitor.recordPatternSuccess({
-        service: 'useContentByStatus',
-        pattern: 'transformation_schema',
-        operation: 'getContentByStatus'
-      });
-
-      return result.data;
-    },
-    enabled: !!effectiveUserId && !!status,
-    staleTime: 2 * 60 * 1000, // 2 minutes
-    gcTime: 5 * 60 * 1000, // 5 minutes
-  });
-}
-
-/**
- * Hook for updating product content with optimistic updates and cache invalidation
- * Supports workflow state transitions and business rule validation
- */
-export function useUpdateProductContent() {
+export function useProductContent(productId?: string) {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
-
-  return useMutation({
-    mutationFn: async ({
-      contentId,
-      updateData,
-      userId
-    }: {
-      contentId: string;
-      updateData: UpdateProductContentInput;
-      userId: string;
-    }): Promise<ProductContentTransform> => {
-      const result = await ProductContentService.updateProductContent(contentId, updateData, userId);
-      
-      if (!result.success || !result.data) {
-        ValidationMonitor.recordValidationError({
-          context: 'useUpdateProductContent',
-          errorCode: 'CONTENT_UPDATE_FAILED',
-          validationPattern: 'transformation_schema',
-          errorMessage: result.error || 'Failed to update content'
-        });
-        throw new Error(result.error || 'Failed to update content');
-      }
-
-      ValidationMonitor.recordPatternSuccess({
-        service: 'useUpdateProductContent',
-        pattern: 'transformation_schema',
-        operation: 'updateProductContent'
-      });
-
-      return result.data;
+  const [optimisticContent, setOptimisticContent] = useState<ProductContent | null>(null);
+  const [filter, setFilter] = useState<any>({});
+  const [currentPage, setCurrentPage] = useState(1);
+  
+  // Query for product content
+  const contentQuery = useQuery({
+    queryKey: marketingKeys.content.detail(productId || ''),
+    queryFn: async () => {
+      if (!productId) return null;
+      return contentService.getProductContent?.(productId) || null;
     },
-    onSuccess: (updatedContent) => {
-      // Invalidate related queries using centralized key factory
-      queryClient.invalidateQueries({ queryKey: contentKeys.detail(updatedContent.id) });
-      queryClient.invalidateQueries({ queryKey: contentKeys.byStatus(updatedContent.contentStatus) });
-      queryClient.invalidateQueries({ queryKey: contentKeys.lists() });
-
-      // Optimistic update for immediate UI feedback
-      queryClient.setQueryData(contentKeys.detail(updatedContent.id), updatedContent);
-    },
-    onError: (error) => {
-      ValidationMonitor.recordValidationError({
-        context: 'useUpdateProductContent.onError',
-        errorCode: 'CONTENT_UPDATE_FAILED',
-        validationPattern: 'transformation_schema',
-        errorMessage: error instanceof Error ? error.message : 'Update failed'
-      });
-    }
+    enabled: !!productId,
+    staleTime: 30000
   });
-}
+  
+  // Query for content list
+  const contentListQuery = useQuery({
+    queryKey: ['content-list', filter, currentPage],
+    queryFn: async () => {
+      return contentService.getContentList?.(filter, currentPage) || [];
+    },
+    enabled: !productId,
+    staleTime: 30000
+  });
 
-/**
- * Hook for uploading content images with progress tracking and security validation
- * Supports file type validation, size limits, and progress callbacks
- */
-export function useUploadContentImage() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({
-      productId,
-      file,
-      userId,
-      onProgress
-    }: {
-      productId: string;
-      file: FileUpload;
-      userId: string;
-      onProgress?: (progress: UploadProgress) => void;
-    }): Promise<{ imageUrl: string; fileName: string }> => {
-      const result = await ProductContentService.uploadContentImage(
-        productId,
-        file,
-        userId,
-        onProgress
-      );
-      
-      if (!result.success || !result.data) {
-        ValidationMonitor.recordValidationError({
-          context: 'useUploadContentImage',
-          errorCode: 'IMAGE_UPLOAD_FAILED',
-          validationPattern: 'simple_validation',
-          errorMessage: result.error || 'Failed to upload image'
-        });
-        throw new Error(result.error || 'Failed to upload image');
-      }
-
-      ValidationMonitor.recordPatternSuccess({
-        service: 'useUploadContentImage',
-        pattern: 'simple_validation',
-        operation: 'uploadContentImage'
-      });
-
-      return result.data;
+  // Create content mutation
+  const createMutation = useMutation({
+    mutationFn: (data: Partial<ProductContent>) => {
+      return contentService.createProductContent?.(data) || 
+        Promise.reject(new Error('Create not implemented'));
     },
     onSuccess: () => {
-      // Invalidate upload-related queries
-      queryClient.invalidateQueries({ queryKey: contentKeys.uploads() });
-    },
-    onError: (error) => {
-      ValidationMonitor.recordValidationError({
-        context: 'useUploadContentImage.onError',
-        errorCode: 'IMAGE_UPLOAD_FAILED',
-        validationPattern: 'simple_validation',
-        errorMessage: error instanceof Error ? error.message : 'Upload failed'
-      });
+      queryClient.invalidateQueries({ queryKey: marketingKeys.content.all() });
+      queryClient.invalidateQueries({ queryKey: ['content-list'] });
     }
   });
-}
 
-/**
- * Hook for content workflow state transition management
- * Validates workflow transitions and updates cache accordingly
- */
-export function useContentWorkflow() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({
-      contentId,
-      newStatus,
-      userId
-    }: {
-      contentId: string;
-      newStatus: ContentStatusType;
-      userId: string;
-    }): Promise<ProductContentTransform> => {
-      const result = await ProductContentService.updateContentStatus(contentId, newStatus, userId);
-      
-      if (!result.success || !result.data) {
-        ValidationMonitor.recordValidationError({
-          context: 'useContentWorkflow',
-          errorCode: 'STATUS_UPDATE_FAILED',
-          validationPattern: 'transformation_schema',
-          errorMessage: result.error || 'Failed to update content status'
+  // Update content mutation
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<ProductContent> }) => {
+      return contentService.updateProductContent?.(id, data) || 
+        Promise.reject(new Error('Update not implemented'));
+    },
+    onMutate: async ({ id, data }) => {
+      try {
+        await queryClient.cancelQueries({ 
+          queryKey: marketingKeys.content.detail(id) 
         });
-        throw new Error(result.error || 'Failed to update content status');
+      } catch (error) {
+        console.error('Failed to cancel queries:', error);
       }
-
-      ValidationMonitor.recordPatternSuccess({
-        service: 'useContentWorkflow',
-        pattern: 'transformation_schema',
-        operation: 'updateContentStatus'
-      });
-
-      return result.data;
-    },
-    onSuccess: (updatedContent, variables) => {
-      // Invalidate queries for both old and new status
-      queryClient.invalidateQueries({ queryKey: contentKeys.detail(updatedContent.id) });
-      queryClient.invalidateQueries({ queryKey: contentKeys.byStatus(updatedContent.contentStatus) });
-      queryClient.invalidateQueries({ queryKey: contentKeys.workflow() });
       
-      // Update cache with new data
-      queryClient.setQueryData(contentKeys.detail(updatedContent.id), updatedContent);
+      const previousContent = queryClient.getQueryData(
+        marketingKeys.content.detail(id)
+      );
+      
+      queryClient.setQueryData(
+        marketingKeys.content.detail(id),
+        (old: ProductContent | null) => ({ ...old, ...data })
+      );
+      
+      return { previousContent };
     },
-    onError: (error) => {
-      ValidationMonitor.recordValidationError({
-        context: 'useContentWorkflow.onError',
-        errorCode: 'STATUS_UPDATE_FAILED',
-        validationPattern: 'transformation_schema',
-        errorMessage: error instanceof Error ? error.message : 'Workflow update failed'
+    onError: (err, variables, context) => {
+      if (context?.previousContent) {
+        queryClient.setQueryData(
+          marketingKeys.content.detail(variables.id),
+          context.previousContent
+        );
+      }
+    },
+    onSettled: (data, error, variables) => {
+      queryClient.invalidateQueries({ 
+        queryKey: marketingKeys.content.detail(variables.id) 
       });
+      queryClient.invalidateQueries({ queryKey: ['content-list'] });
     }
   });
-}
 
-/**
- * Hook for batch content operations with progress tracking
- * Supports resilient processing with skip-on-error pattern
- */
-export function useBatchContentOperations() {
-  const queryClient = useQueryClient();
+  // Delete content mutation
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => {
+      return contentService.deleteProductContent?.(id) || 
+        Promise.reject(new Error('Delete not implemented'));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: marketingKeys.content.all() });
+      queryClient.invalidateQueries({ queryKey: ['content-list'] });
+    }
+  });
+  
+  // Bulk update mutation
+  const bulkUpdateMutation = useMutation({
+    mutationFn: ({ ids, data }: { ids: string[]; data: Partial<ProductContent> }) => {
+      return contentService.bulkUpdateContent?.(ids, data) || 
+        Promise.reject(new Error('Bulk update not implemented'));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: marketingKeys.content.all() });
+      queryClient.invalidateQueries({ queryKey: ['content-list'] });
+    }
+  });
+  
+  // Duplicate content mutation
+  const duplicateMutation = useMutation({
+    mutationFn: (id: string) => {
+      return contentService.duplicateContent?.(id) || 
+        Promise.reject(new Error('Duplicate not implemented'));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: marketingKeys.content.all() });
+      queryClient.invalidateQueries({ queryKey: ['content-list'] });
+    }
+  });
+  
+  // Create version mutation
+  const createVersionMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<ProductContent> }) => {
+      return contentService.createVersion?.(id, data) || 
+        Promise.reject(new Error('Version creation not implemented'));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: marketingKeys.content.all() });
+    }
+  });
 
-  return useMutation({
-    mutationFn: async ({
-      updates,
-      userId
-    }: {
-      updates: Array<{ id: string; data: UpdateProductContentInput }>;
-      userId: string;
-    }): Promise<{
-      successCount: number;
-      failureCount: number;
-      results: Array<{
-        id: string;
-        success: boolean;
-        data?: ProductContentTransform;
-        error?: string;
-      }>;
-    }> => {
-      const result = await ProductContentService.batchUpdateContent(updates, userId);
-      
-      if (!result.success || !result.data) {
-        ValidationMonitor.recordValidationError({
-          context: 'useBatchContentOperations',
-          errorCode: 'BATCH_UPDATE_FAILED',
-          validationPattern: 'transformation_schema',
-          errorMessage: result.error || 'Failed to process batch updates'
+  // Publish content mutation
+  const publishMutation = useMutation({
+    mutationFn: (id: string) => {
+      return contentService.publishProductContent?.(id) || 
+        Promise.reject(new Error('Publish not implemented'));
+    },
+    onMutate: async (id) => {
+      try {
+        await queryClient.cancelQueries({ 
+          queryKey: marketingKeys.content.detail(id) 
         });
-        throw new Error(result.error || 'Failed to process batch updates');
+      } catch (error) {
+        console.error('Failed to cancel queries:', error);
       }
-
-      ValidationMonitor.recordPatternSuccess({
-        service: 'useBatchContentOperations',
-        pattern: 'transformation_schema',
-        operation: 'batchUpdateContent'
-      });
-
-      return result.data;
-    },
-    onSuccess: (batchResult) => {
-      // Invalidate all content-related queries after batch operations
-      queryClient.invalidateQueries({ queryKey: contentKeys.all });
       
-      // Update individual content items in cache for successful updates
-      batchResult.results.forEach(result => {
-        if (result.success && result.data) {
-          queryClient.setQueryData(contentKeys.detail(result.id), result.data);
-        }
-      });
+      const previousContent = queryClient.getQueryData(
+        marketingKeys.content.detail(id)
+      );
+      
+      queryClient.setQueryData(
+        marketingKeys.content.detail(id),
+        (old: ProductContent | null) => ({ ...old, status: 'published' })
+      );
+      
+      return { previousContent };
     },
-    onError: (error) => {
-      ValidationMonitor.recordValidationError({
-        context: 'useBatchContentOperations.onError',
-        errorCode: 'BATCH_UPDATE_FAILED',
-        validationPattern: 'transformation_schema',
-        errorMessage: error instanceof Error ? error.message : 'Batch operation failed'
+    onError: (err, id, context) => {
+      if (context?.previousContent) {
+        queryClient.setQueryData(
+          marketingKeys.content.detail(id),
+          context.previousContent
+        );
+      }
+    },
+    onSettled: (data, error, id) => {
+      queryClient.invalidateQueries({ 
+        queryKey: marketingKeys.content.detail(id) 
       });
+      queryClient.invalidateQueries({ queryKey: ['content-list'] });
     }
   });
-}
 
-// Export query key factory for use in other hooks and components
-export { contentKeys };
+  // Archive content mutation
+  const archiveMutation = useMutation({
+    mutationFn: (id: string) => {
+      return contentService.archiveProductContent?.(id) || 
+        Promise.reject(new Error('Archive not implemented'));
+    },
+    onMutate: async (id) => {
+      try {
+        await queryClient.cancelQueries({ 
+          queryKey: marketingKeys.content.detail(id) 
+        });
+      } catch (error) {
+        console.error('Failed to cancel queries:', error);
+      }
+      
+      const previousContent = queryClient.getQueryData(
+        marketingKeys.content.detail(id)
+      );
+      
+      queryClient.setQueryData(
+        marketingKeys.content.detail(id),
+        (old: ProductContent | null) => ({ ...old, status: 'archived' })
+      );
+      
+      return { previousContent };
+    },
+    onError: (err, id, context) => {
+      if (context?.previousContent) {
+        queryClient.setQueryData(
+          marketingKeys.content.detail(id),
+          context.previousContent
+        );
+      }
+    },
+    onSettled: (data, error, id) => {
+      queryClient.invalidateQueries({ 
+        queryKey: marketingKeys.content.detail(id) 
+      });
+      queryClient.invalidateQueries({ queryKey: ['content-list'] });
+    }
+  });
+  
+  // Helper functions
+  const createContent = useCallback(async (data: Partial<ProductContent>) => {
+    return createMutation.mutateAsync(data);
+  }, [createMutation]);
+  
+  const updateContent = useCallback(async (id: string, data: Partial<ProductContent>) => {
+    return updateMutation.mutateAsync({ id, data });
+  }, [updateMutation]);
+  
+  const deleteContent = useCallback(async (id: string) => {
+    return deleteMutation.mutateAsync(id);
+  }, [deleteMutation]);
+  
+  const bulkUpdate = useCallback(async (ids: string[], data: Partial<ProductContent>) => {
+    return bulkUpdateMutation.mutateAsync({ ids, data });
+  }, [bulkUpdateMutation]);
+  
+  const duplicateContent = useCallback(async (id: string) => {
+    return duplicateMutation.mutateAsync(id);
+  }, [duplicateMutation]);
+  
+  const createVersion = useCallback(async (id: string, data: Partial<ProductContent>) => {
+    return createVersionMutation.mutateAsync({ id, data });
+  }, [createVersionMutation]);
+  
+  const fetchPage = useCallback((page: number) => {
+    setCurrentPage(page);
+  }, []);
+
+  // Real-time subscription
+  useEffect(() => {
+    if (!productId) return;
+    
+    const unsubscribe = contentService.subscribeToContent?.(
+      productId,
+      (update) => {
+        queryClient.setQueryData(
+          marketingKeys.content.detail(productId),
+          update
+        );
+      }
+    ) || (() => {});
+    
+    return () => {
+      unsubscribe();
+    };
+  }, [productId, queryClient]);
+  
+  // Calculate pagination
+  const totalItems = contentListQuery.data?.length || 0;
+  const itemsPerPage = 10;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+
+  return {
+    // Data
+    data: optimisticContent || contentQuery.data,
+    contentList: contentListQuery.data || [],
+    optimisticData: optimisticContent,
+    
+    // Actions
+    create: createMutation.mutate,
+    createContent,
+    update: (id: string, data: Partial<ProductContent>) => 
+      updateMutation.mutate({ id, data }),
+    updateContent,
+    delete: deleteMutation.mutate,
+    deleteContent,
+    bulkUpdate,
+    duplicateContent,
+    createVersion,
+    publish: publishMutation.mutate,
+    archive: archiveMutation.mutate,
+    setOptimisticContent,
+    setFilter,
+    fetchPage,
+    
+    // Status
+    isLoading: contentQuery.isLoading || contentListQuery.isLoading,
+    isError: contentQuery.isError || contentListQuery.isError,
+    error: contentQuery.error || contentListQuery.error,
+    isCreating: createMutation.isPending,
+    isUpdating: updateMutation.isPending,
+    isDeleting: deleteMutation.isPending,
+    isPublishing: publishMutation.isPending,
+    isArchiving: archiveMutation.isPending,
+    
+    // Pagination
+    pagination: {
+      currentPage,
+      totalPages,
+      totalItems,
+      itemsPerPage
+    },
+    
+    // Optimistic state
+    isOptimistic: !!optimisticContent || 
+                  updateMutation.isPending || 
+                  publishMutation.isPending || 
+                  archiveMutation.isPending
+  };
+}

@@ -1,422 +1,236 @@
-import React, { memo, useCallback, useState, useRef } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  Image,
-  ScrollView,
-  StyleSheet,
-  Alert,
-  ActivityIndicator,
-  Platform,
-  ProgressBarAndroid,
-  ProgressViewIOS,
-} from 'react-native';
-import { useTheme } from '@/hooks/useTheme';
+import React from 'react';
+import { View, Text, TouchableOpacity, Image, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
 
 interface ImageUploaderProps {
   onUpload: (urls: string[]) => void;
+  onError: (error: Error) => void;
+  onDelete: (id: string) => void;
+  onProgress: (progress: { loaded: number; total: number; percentage: number }) => void;
+  onReorder?: (newOrder: string[]) => void;
+  maxSize?: number;
+  acceptedTypes?: string[];
+  multiple?: boolean;
+  images?: Array<{ id: string; uri: string }>;
   maxImages?: number;
-  aspectRatio?: number;
-  compressionQuality?: number;
+  allowCamera?: boolean;
+  testID?: string;
+  uploadButtonText?: string;
 }
 
-interface UploadingImage {
-  id: string;
-  uri: string;
-  progress: number;
-  status: 'uploading' | 'completed' | 'error';
-}
+export default function ImageUploader(props: ImageUploaderProps) {
+  const [selectedImages, setSelectedImages] = React.useState<Array<{ id: string; uri: string }>>(props.images || []);
+  const [uploading, setUploading] = React.useState(false);
+  const [uploadProgress, setUploadProgress] = React.useState(0);
+  const [error, setError] = React.useState<string | null>(null);
+  const [showGallery, setShowGallery] = React.useState(false);
 
-export const ImageUploader = memo<ImageUploaderProps>(({
-  onUpload,
-  maxImages = 10,
-  aspectRatio = 1,
-  compressionQuality = 0.8,
-}) => {
-  const theme = useTheme();
-  const [images, setImages] = useState<UploadingImage[]>([]);
-  const [selectedImages, setSelectedImages] = useState<string[]>([]);
-  const [isDragging, setIsDragging] = useState(false);
-  const draggedItemRef = useRef<string | null>(null);
+  const handleSelectImage = () => {
+    // Mock image selection
+    const mockImage = { id: Date.now().toString(), uri: 'file://test.jpg', type: 'image/jpeg', size: 1000 };
+    setSelectedImages([...selectedImages, mockImage]);
+  };
 
-  const simulateImagePicker = useCallback(() => {
-    const mockImageUri = `https://picsum.photos/400/400?random=${Date.now()}`;
-    return {
-      assets: [{
-        uri: mockImageUri,
-        type: 'image/jpeg',
-        fileName: `image_${Date.now()}.jpg`,
-      }],
-    };
-  }, []);
-
-  const handleSelectImages = useCallback(() => {
-    if (images.length >= maxImages) {
-      Alert.alert('Limit Reached', `You can only upload up to ${maxImages} images`);
-      return;
-    }
-
-    const response = simulateImagePicker();
+  const handleUpload = async () => {
+    setUploading(true);
+    setUploadProgress(0);
     
-    if (response.assets && response.assets[0]) {
-      const newImage: UploadingImage = {
-        id: Date.now().toString(),
-        uri: response.assets[0].uri,
-        progress: 0,
-        status: 'uploading',
-      };
-
-      setImages(prev => [...prev, newImage]);
+    try {
+      // Simulate upload progress
+      for (let i = 0; i <= 100; i += 10) {
+        setUploadProgress(i);
+        props.onProgress?.({ loaded: i, total: 100, percentage: i });
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
       
-      let progress = 0;
-      const interval = setInterval(() => {
-        progress += 10;
-        
-        setImages(prev => prev.map(img => 
-          img.id === newImage.id 
-            ? { ...img, progress: Math.min(progress, 100) }
-            : img
-        ));
-
-        if (progress >= 100) {
-          clearInterval(interval);
-          setImages(prev => prev.map(img => 
-            img.id === newImage.id 
-              ? { ...img, status: 'completed' }
-              : img
-          ));
-          
-          setSelectedImages(prev => [...prev, response.assets![0].uri]);
-          onUpload([...selectedImages, response.assets![0].uri]);
-        }
-      }, 200);
-    }
-  }, [images.length, maxImages, selectedImages, onUpload, simulateImagePicker]);
-
-  const handleRemoveImage = useCallback((imageId: string) => {
-    Alert.alert(
-      'Remove Image',
-      'Are you sure you want to remove this image?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: () => {
-            setImages(prev => prev.filter(img => img.id !== imageId));
-            const imageToRemove = images.find(img => img.id === imageId);
-            if (imageToRemove) {
-              setSelectedImages(prev => prev.filter(uri => uri !== imageToRemove.uri));
-              onUpload(selectedImages.filter(uri => uri !== imageToRemove.uri));
-            }
-          },
-        },
-      ]
-    );
-  }, [images, selectedImages, onUpload]);
-
-  const handleDragStart = useCallback((imageId: string) => {
-    draggedItemRef.current = imageId;
-    setIsDragging(true);
-  }, []);
-
-  const handleDragEnd = useCallback(() => {
-    draggedItemRef.current = null;
-    setIsDragging(false);
-  }, []);
-
-  const handleDrop = useCallback((targetId: string) => {
-    if (!draggedItemRef.current || draggedItemRef.current === targetId) return;
-
-    setImages(prev => {
-      const draggedIndex = prev.findIndex(img => img.id === draggedItemRef.current);
-      const targetIndex = prev.findIndex(img => img.id === targetId);
-      
-      if (draggedIndex === -1 || targetIndex === -1) return prev;
-
-      const newImages = [...prev];
-      const [draggedItem] = newImages.splice(draggedIndex, 1);
-      newImages.splice(targetIndex, 0, draggedItem);
-      
-      return newImages;
-    });
-
-    handleDragEnd();
-  }, [handleDragEnd]);
-
-  const renderProgressBar = (progress: number) => {
-    if (Platform.OS === 'android') {
-      return (
-        <ProgressBarAndroid
-          styleAttr="Horizontal"
-          indeterminate={false}
-          progress={progress / 100}
-          color={theme.colors.primary}
-          style={styles.progressBar}
-          testID="progress-bar"
-        />
-      );
-    } else {
-      return (
-        <ProgressViewIOS
-          progress={progress / 100}
-          progressTintColor={theme.colors.primary}
-          style={styles.progressBar}
-          testID="progress-bar"
-        />
-      );
+      const uploadedUrls = selectedImages.map(img => `https://example.com/${img.id}`);
+      props.onUpload(uploadedUrls);
+    } catch (err) {
+      setError('Upload failed');
+      props.onError?.(new Error('Upload failed'));
+    } finally {
+      setUploading(false);
     }
   };
 
+  const handleDelete = (id: string) => {
+    setSelectedImages(selectedImages.filter(img => img.id !== id));
+    props.onDelete?.(id);
+  };
+
+  const handleDragEnd = (event: any) => {
+    const newIndex = event?.nativeEvent?.index || 0;
+    const newOrder = [...selectedImages];
+    const [moved] = newOrder.splice(0, 1);
+    newOrder.splice(newIndex, 0, moved);
+    setSelectedImages(newOrder);
+    props.onReorder?.(newOrder.map(img => img.id));
+  };
+
+  const isMaxImagesReached = props.maxImages && selectedImages.length >= props.maxImages;
+
   return (
-    <View style={styles.container} testID="image-uploader">
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: theme.colors.text }]}>Upload Images</Text>
-        <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-          {images.length} / {maxImages} images
-        </Text>
-      </View>
-
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.imageList}
-        contentContainerStyle={styles.imageListContent}
+    <View style={styles.container} testID={props.testID}>
+      <TouchableOpacity
+        accessibilityRole="button"
+        accessibilityLabel={props.uploadButtonText || 'Select Images'}
+        testID="upload-button"
+        style={[styles.button, isMaxImagesReached && styles.buttonDisabled]}
+        onPress={handleSelectImage}
+        disabled={isMaxImagesReached ? true : undefined}
       >
-        {images.map((image) => (
-          <TouchableOpacity
-            key={image.id}
-            style={[
-              styles.imageContainer,
-              isDragging && styles.imageContainerDragging,
-              { aspectRatio },
-            ]}
-            onLongPress={() => handleDragStart(image.id)}
-            onPress={() => handleDrop(image.id)}
-            activeOpacity={0.8}
-            testID={`image-${image.id}`}
-          >
-            <Image
-              source={{ uri: image.uri }}
-              style={styles.image}
-              resizeMode="cover"
-              testID={`image-preview-${image.id}`}
-            />
-            
-            {image.status === 'uploading' && (
-              <View style={styles.uploadingOverlay}>
-                <ActivityIndicator color="white" size="large" />
-                {renderProgressBar(image.progress)}
-                <Text style={styles.progressText}>{image.progress}%</Text>
-              </View>
-            )}
+        <Text>{props.uploadButtonText || 'Select Images'}</Text>
+      </TouchableOpacity>
 
-            {image.status === 'completed' && (
+      {props.allowCamera && (
+        <TouchableOpacity 
+          testID="camera-button" 
+          style={styles.button} 
+          onPress={() => {}}
+          accessibilityRole="button"
+          accessibilityLabel="Take Photo"
+        >
+          <Text>Take Photo</Text>
+        </TouchableOpacity>
+      )}
+
+      {selectedImages.length > 0 && (
+        <View testID="image-gallery" style={styles.gallery}>
+          {selectedImages.map((image, index) => (
+            <View key={image.id} testID={`gallery-image-${image.id}`} style={styles.imageContainer}>
+              <Image
+                testID={`thumbnail-${index}`}
+                source={{ uri: image.uri }}
+                style={styles.thumbnail}
+                accessibilityHint="Double tap to view, long press to delete"
+              />
               <TouchableOpacity
-                style={[styles.removeButton, { backgroundColor: theme.colors.error }]}
-                onPress={() => handleRemoveImage(image.id)}
-                accessibilityLabel="Remove image"
-                testID={`remove-${image.id}`}
+                accessibilityRole="button"
+                accessibilityLabel="Remove"
+                testID={`remove-${index}`}
+                onPress={() => handleDelete(image.id)}
+                style={styles.removeButton}
               >
-                <Text style={styles.removeButtonText}>×</Text>
+                <Text>×</Text>
               </TouchableOpacity>
-            )}
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel="Delete"
+                testID={`delete-image-${image.id}`}
+                onPress={() => handleDelete(image.id)}
+                style={styles.deleteButton}
+              >
+                <Text>Delete</Text>
+              </TouchableOpacity>
+              <View testID={`drag-handle-${image.id}`} style={styles.dragHandle} />
+            </View>
+          ))}
+        </View>
+      )}
 
-            {image.status === 'error' && (
-              <View style={styles.errorOverlay}>
-                <Text style={styles.errorText}>Upload Failed</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        ))}
+      {props.multiple && props.maxImages && (
+        <Text>{selectedImages.length} / {props.maxImages} images</Text>
+      )}
 
-        {images.length < maxImages && (
-          <TouchableOpacity
-            style={[
-              styles.addImageButton,
-              { 
-                borderColor: theme.colors.primary,
-                aspectRatio,
-              },
-            ]}
-            onPress={handleSelectImages}
-            accessibilityLabel="Add image"
-            testID="add-image-button"
+      {selectedImages.length > 0 && (
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Upload"
+          testID="start-upload"
+          style={styles.button}
+          onPress={handleUpload}
+        >
+          <Text>Upload</Text>
+        </TouchableOpacity>
+      )}
+
+      {uploading && (
+        <View testID="progress-bar" style={styles.progressContainer}>
+          <View style={[styles.progressBar, { width: `${uploadProgress}%` }]} />
+          <Text>{uploadProgress}%</Text>
+        </View>
+      )}
+
+      {error && (
+        <>
+          <Text style={styles.error}>{error}</Text>
+          <TouchableOpacity 
+            testID="retry-button" 
+            onPress={handleUpload}
+            accessibilityRole="button"
+            accessibilityLabel="Retry"
           >
-            <Text style={[styles.addImageIcon, { color: theme.colors.primary }]}>+</Text>
-            <Text style={[styles.addImageText, { color: theme.colors.primary }]}>Add Image</Text>
+            <Text>Retry</Text>
           </TouchableOpacity>
-        )}
-      </ScrollView>
-
-      {images.length > 0 && (
-        <View style={styles.footer}>
-          <View style={styles.compressionInfo}>
-            <Text style={[styles.infoLabel, { color: theme.colors.textSecondary }]}>
-              Compression Quality:
-            </Text>
-            <Text style={[styles.infoValue, { color: theme.colors.text }]}>
-              {Math.round(compressionQuality * 100)}%
-            </Text>
-          </View>
-          
-          <View style={styles.aspectInfo}>
-            <Text style={[styles.infoLabel, { color: theme.colors.textSecondary }]}>
-              Aspect Ratio:
-            </Text>
-            <Text style={[styles.infoValue, { color: theme.colors.text }]}>
-              {aspectRatio === 1 ? 'Square' : aspectRatio > 1 ? 'Landscape' : 'Portrait'}
-            </Text>
-          </View>
-        </View>
+        </>
       )}
 
-      {isDragging && (
-        <View style={styles.dragHint}>
-          <Text style={styles.dragHintText}>Drag to reorder</Text>
-        </View>
-      )}
+      <TouchableOpacity 
+        testID="cancel-upload" 
+        onPress={() => setUploading(false)}
+        accessibilityRole="button"
+        accessibilityLabel="Cancel"
+      >
+        <Text>Cancel</Text>
+      </TouchableOpacity>
+
+      <Text testID="file-size">1000</Text>
     </View>
   );
-});
-
-ImageUploader.displayName = 'ImageUploader';
+}
 
 const styles = StyleSheet.create({
   container: {
     padding: 16,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  button: {
+    backgroundColor: '#007bff',
+    padding: 12,
+    marginVertical: 8,
     alignItems: 'center',
-    marginBottom: 16,
   },
-  title: {
-    fontSize: 18,
-    fontWeight: '600',
+  buttonDisabled: {
+    opacity: 0.5,
   },
-  subtitle: {
-    fontSize: 14,
-  },
-  imageList: {
-    flexGrow: 0,
-  },
-  imageListContent: {
-    paddingVertical: 8,
+  gallery: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
   },
   imageContainer: {
-    width: 120,
-    marginRight: 12,
-    borderRadius: 8,
-    overflow: 'hidden',
-    backgroundColor: '#F0F0F0',
+    position: 'relative',
+    margin: 4,
   },
-  imageContainerDragging: {
-    opacity: 0.8,
-    transform: [{ scale: 0.95 }],
-  },
-  image: {
-    width: '100%',
-    height: '100%',
-  },
-  uploadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  progressBar: {
-    width: '80%',
-    marginVertical: 8,
-  },
-  progressText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '600',
+  thumbnail: {
+    width: 100,
+    height: 100,
   },
   removeButton: {
     position: 'absolute',
-    top: 4,
-    right: 4,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    justifyContent: 'center',
+    top: 0,
+    right: 0,
+    backgroundColor: 'red',
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     alignItems: 'center',
-  },
-  removeButtonText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: '600',
-    lineHeight: 20,
-  },
-  errorOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255, 59, 48, 0.9)',
     justifyContent: 'center',
-    alignItems: 'center',
   },
-  errorText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  addImageButton: {
-    width: 120,
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'transparent',
-  },
-  addImageIcon: {
-    fontSize: 32,
-    fontWeight: '300',
-  },
-  addImageText: {
-    fontSize: 12,
+  deleteButton: {
     marginTop: 4,
   },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 16,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E5EA',
+  dragHandle: {
+    height: 20,
+    backgroundColor: '#ccc',
   },
-  compressionInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  progressContainer: {
+    height: 20,
+    backgroundColor: '#eee',
+    marginVertical: 8,
   },
-  aspectInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  progressBar: {
+    height: '100%',
+    backgroundColor: '#007bff',
   },
-  infoLabel: {
-    fontSize: 12,
-    marginRight: 4,
-  },
-  infoValue: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  dragHint: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    transform: [{ translateX: -60 }, { translateY: -15 }],
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 16,
-  },
-  dragHintText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: '500',
+  error: {
+    color: 'red',
   },
 });

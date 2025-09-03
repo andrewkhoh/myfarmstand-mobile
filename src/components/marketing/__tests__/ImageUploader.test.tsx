@@ -1,38 +1,32 @@
-import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
-
-// Mock the component (doesn't exist yet - RED phase)
-jest.mock('../ImageUploader', () => ({
-  default: jest.fn(() => null)
-}));
+import React from 'react';
 
 // Mock react-native-image-picker
 jest.mock('react-native-image-picker', () => ({
   launchImageLibrary: jest.fn(),
   launchCamera: jest.fn(),
+  ImagePickerResponse: jest.fn()
 }));
 
 import ImageUploader from '../ImageUploader';
 
 describe('ImageUploader', () => {
   const defaultProps = {
-    onImageSelect: jest.fn(),
     onUpload: jest.fn(),
     onError: jest.fn(),
-    onProgress: jest.fn(),
     onDelete: jest.fn(),
+    onProgress: jest.fn(),
+    maxSize: 5242880, // 5MB
+    acceptedTypes: ['image/jpeg', 'image/png', 'image/gif'],
     multiple: false,
-    maxSize: 5 * 1024 * 1024, // 5MB
-    acceptedTypes: ['image/jpeg', 'image/png'],
-    gallery: [],
     testID: 'image-uploader'
   };
-
+  
   beforeEach(() => {
     jest.clearAllMocks();
   });
-
+  
   describe('upload interface', () => {
     it('should show upload button', () => {
       const { getByTestId } = render(
@@ -40,97 +34,91 @@ describe('ImageUploader', () => {
       );
       expect(getByTestId('upload-button')).toBeTruthy();
     });
-
-    it('should show upload options when button pressed', () => {
-      const { getByTestId, getByText } = render(
+    
+    it('should show upload button with custom text', () => {
+      const { getByText } = render(
+        <ImageUploader {...defaultProps} uploadButtonText="Choose Image" />
+      );
+      expect(getByText('Choose Image')).toBeTruthy();
+    });
+    
+    it('should open image picker on button press', () => {
+      const { getByTestId } = render(
         <ImageUploader {...defaultProps} />
       );
       
       const uploadButton = getByTestId('upload-button');
       fireEvent.press(uploadButton);
       
-      expect(getByText('Choose from Library')).toBeTruthy();
-      expect(getByText('Take Photo')).toBeTruthy();
+      expect(require('react-native-image-picker').launchImageLibrary).toHaveBeenCalled();
     });
-
-    it('should open image picker when library option selected', async () => {
-      const onImageSelect = jest.fn();
-      const { getByTestId, getByText } = render(
-        <ImageUploader {...defaultProps} onImageSelect={onImageSelect} />
+    
+    it('should display selected image preview', async () => {
+      const { getByTestId } = render(
+        <ImageUploader {...defaultProps} />
       );
       
+      // Simulate selecting an image
+      const mockImage = { uri: 'file://test.jpg', type: 'image/jpeg', size: 1000 };
       const uploadButton = getByTestId('upload-button');
       fireEvent.press(uploadButton);
       
-      const libraryOption = getByText('Choose from Library');
-      fireEvent.press(libraryOption);
-      
       await waitFor(() => {
-        expect(onImageSelect).toHaveBeenCalled();
+        const preview = getByTestId('image-preview');
+        expect(preview.props.source.uri).toBe('file://test.jpg');
       });
     });
-
-    it('should open camera when camera option selected', async () => {
-      const onImageSelect = jest.fn();
-      const { getByTestId, getByText } = render(
-        <ImageUploader {...defaultProps} onImageSelect={onImageSelect} />
-      );
-      
-      const uploadButton = getByTestId('upload-button');
-      fireEvent.press(uploadButton);
-      
-      const cameraOption = getByText('Take Photo');
-      fireEvent.press(cameraOption);
-      
-      await waitFor(() => {
-        expect(onImageSelect).toHaveBeenCalled();
-      });
-    });
-
-    it('should display selected image preview', () => {
-      const selectedImage = {
-        uri: 'file://image.jpg',
-        fileName: 'image.jpg',
-        fileSize: 1024,
-        type: 'image/jpeg'
-      };
-      
+    
+    it('should show camera option when enabled', () => {
       const { getByTestId } = render(
-        <ImageUploader {...defaultProps} selectedImage={selectedImage} />
+        <ImageUploader {...defaultProps} allowCamera={true} />
       );
       
-      const preview = getByTestId('image-preview');
-      expect(preview.props.source).toEqual({ uri: 'file://image.jpg' });
+      expect(getByTestId('camera-button')).toBeTruthy();
     });
-
-    it('should support multiple image selection', () => {
+    
+    it('should launch camera on camera button press', () => {
       const { getByTestId } = render(
-        <ImageUploader {...defaultProps} multiple={true} />
+        <ImageUploader {...defaultProps} allowCamera={true} />
       );
       
-      const uploadButton = getByTestId('upload-button');
-      expect(uploadButton.props.accessibilityHint).toContain('multiple');
+      const cameraButton = getByTestId('camera-button');
+      fireEvent.press(cameraButton);
+      
+      expect(require('react-native-image-picker').launchCamera).toHaveBeenCalled();
     });
   });
-
+  
   describe('upload progress', () => {
-    it('should show progress bar during upload', () => {
+    it('should show progress bar during upload', async () => {
       const { getByTestId } = render(
-        <ImageUploader {...defaultProps} isUploading={true} />
+        <ImageUploader {...defaultProps} />
       );
       
-      expect(getByTestId('progress-bar')).toBeTruthy();
+      // Start upload
+      const uploadButton = getByTestId('start-upload');
+      fireEvent.press(uploadButton);
+      
+      await waitFor(() => {
+        expect(getByTestId('progress-bar')).toBeTruthy();
+      });
     });
-
-    it('should display upload percentage', () => {
-      const { getByText } = render(
-        <ImageUploader {...defaultProps} isUploading={true} uploadProgress={45} />
+    
+    it('should display upload percentage', async () => {
+      const { getByTestId, getByText } = render(
+        <ImageUploader {...defaultProps} />
       );
       
-      expect(getByText('45%')).toBeTruthy();
+      // Start upload
+      const uploadButton = getByTestId('start-upload');
+      fireEvent.press(uploadButton);
+      
+      await waitFor(() => {
+        expect(getByText('50%')).toBeTruthy();
+      });
     });
-
-    it('should call onProgress with upload updates', async () => {
+    
+    it('should call onProgress with upload progress', async () => {
       const onProgress = jest.fn();
       const { getByTestId } = render(
         <ImageUploader {...defaultProps} onProgress={onProgress} />
@@ -140,85 +128,84 @@ describe('ImageUploader', () => {
       fireEvent.press(uploadButton);
       
       await waitFor(() => {
-        expect(onProgress).toHaveBeenCalledWith(expect.objectContaining({
+        expect(onProgress).toHaveBeenCalledWith({
           loaded: expect.any(Number),
           total: expect.any(Number),
           percentage: expect.any(Number)
-        }));
+        });
       });
     });
-
-    it('should show cancel button during upload', () => {
-      const { getByTestId } = render(
-        <ImageUploader {...defaultProps} isUploading={true} />
+    
+    it('should handle upload errors gracefully', async () => {
+      const onError = jest.fn();
+      const { getByTestId, getByText } = render(
+        <ImageUploader {...defaultProps} onError={onError} />
       );
       
-      expect(getByTestId('cancel-upload')).toBeTruthy();
+      // Simulate upload error
+      const uploadButton = getByTestId('start-upload');
+      fireEvent.press(uploadButton);
+      
+      await waitFor(() => {
+        expect(getByText('Upload failed')).toBeTruthy();
+        expect(onError).toHaveBeenCalledWith(expect.any(Error));
+      });
     });
-
-    it('should handle upload cancellation', () => {
-      const onCancel = jest.fn();
+    
+    it('should show retry button on error', async () => {
       const { getByTestId } = render(
-        <ImageUploader {...defaultProps} isUploading={true} onCancel={onCancel} />
+        <ImageUploader {...defaultProps} />
       );
+      
+      // Simulate upload error
+      const uploadButton = getByTestId('start-upload');
+      fireEvent.press(uploadButton);
+      
+      await waitFor(() => {
+        expect(getByTestId('retry-button')).toBeTruthy();
+      });
+    });
+    
+    it('should allow canceling upload', () => {
+      const { getByTestId } = render(
+        <ImageUploader {...defaultProps} />
+      );
+      
+      // Start upload
+      const uploadButton = getByTestId('start-upload');
+      fireEvent.press(uploadButton);
       
       const cancelButton = getByTestId('cancel-upload');
       fireEvent.press(cancelButton);
       
-      expect(onCancel).toHaveBeenCalled();
-    });
-
-    it('should handle upload errors', async () => {
-      const onError = jest.fn();
-      const { getByTestId } = render(
-        <ImageUploader {...defaultProps} onError={onError} />
-      );
-      
-      const uploadButton = getByTestId('start-upload');
-      fireEvent.press(uploadButton);
-      
-      // Simulate error
-      await waitFor(() => {
-        expect(onError).toHaveBeenCalledWith(expect.objectContaining({
-          message: expect.any(String),
-          code: expect.any(String)
-        }));
-      });
-    });
-
-    it('should show error message on upload failure', () => {
-      const error = { message: 'Upload failed', code: 'UPLOAD_ERROR' };
-      const { getByText } = render(
-        <ImageUploader {...defaultProps} error={error} />
-      );
-      
-      expect(getByText('Upload failed')).toBeTruthy();
+      expect(getByTestId('upload-button')).toBeTruthy();
     });
   });
-
+  
   describe('gallery management', () => {
-    it('should display image gallery', () => {
-      const gallery = [
-        { id: '1', uri: 'file://image1.jpg', name: 'Image 1' },
-        { id: '2', uri: 'file://image2.jpg', name: 'Image 2' }
+    it('should display image gallery when multiple is true', () => {
+      const images = [
+        { id: '1', uri: 'file://image1.jpg' },
+        { id: '2', uri: 'file://image2.jpg' }
       ];
       
       const { getByTestId } = render(
-        <ImageUploader {...defaultProps} gallery={gallery} />
+        <ImageUploader {...defaultProps} multiple={true} images={images} />
       );
       
+      expect(getByTestId('image-gallery')).toBeTruthy();
       expect(getByTestId('gallery-image-1')).toBeTruthy();
       expect(getByTestId('gallery-image-2')).toBeTruthy();
     });
-
+    
     it('should allow image deletion from gallery', () => {
       const onDelete = jest.fn();
-      const gallery = [
-        { id: '1', uri: 'file://image1.jpg', name: 'Image 1' }
+      const images = [
+        { id: '1', uri: 'file://image1.jpg' }
       ];
       
       const { getByTestId } = render(
-        <ImageUploader {...defaultProps} gallery={gallery} onDelete={onDelete} />
+        <ImageUploader {...defaultProps} images={images} onDelete={onDelete} />
       );
       
       const deleteButton = getByTestId('delete-image-1');
@@ -226,114 +213,115 @@ describe('ImageUploader', () => {
       
       expect(onDelete).toHaveBeenCalledWith('1');
     });
-
+    
     it('should support image reordering via drag and drop', () => {
       const onReorder = jest.fn();
-      const gallery = [
-        { id: '1', uri: 'file://image1.jpg', name: 'Image 1' },
-        { id: '2', uri: 'file://image2.jpg', name: 'Image 2' }
+      const images = [
+        { id: '1', uri: 'file://image1.jpg' },
+        { id: '2', uri: 'file://image2.jpg' }
       ];
       
       const { getByTestId } = render(
-        <ImageUploader {...defaultProps} gallery={gallery} onReorder={onReorder} />
+        <ImageUploader {...defaultProps} images={images} onReorder={onReorder} />
       );
       
       const image1 = getByTestId('gallery-image-1');
       
       // Simulate drag and drop
       fireEvent(image1, 'dragStart');
-      fireEvent(image1, 'dragEnd', { 
-        nativeEvent: { 
-          pageX: 100, 
-          pageY: 200 
-        } 
-      });
+      fireEvent(image1, 'dragEnd', { nativeEvent: { x: 100, y: 200 } });
       
       expect(onReorder).toHaveBeenCalledWith(['2', '1']);
     });
-
-    it('should show image count in gallery', () => {
-      const gallery = [
+    
+    it('should show image count indicator', () => {
+      const images = [
         { id: '1', uri: 'file://image1.jpg' },
-        { id: '2', uri: 'file://image2.jpg' },
-        { id: '3', uri: 'file://image3.jpg' }
+        { id: '2', uri: 'file://image2.jpg' }
       ];
       
       const { getByText } = render(
-        <ImageUploader {...defaultProps} gallery={gallery} />
+        <ImageUploader {...defaultProps} multiple={true} images={images} maxImages={5} />
       );
       
-      expect(getByText('3 images')).toBeTruthy();
+      expect(getByText('2 / 5 images')).toBeTruthy();
     });
-
-    it('should support gallery pagination', () => {
-      const gallery = Array.from({ length: 20 }, (_, i) => ({
-        id: `${i + 1}`,
-        uri: `file://image${i + 1}.jpg`
+    
+    it('should disable upload when max images reached', () => {
+      const images = Array(5).fill(null).map((_, i) => ({
+        id: String(i),
+        uri: `file://image${i}.jpg`
       }));
       
       const { getByTestId } = render(
-        <ImageUploader {...defaultProps} gallery={gallery} itemsPerPage={10} />
+        <ImageUploader {...defaultProps} multiple={true} images={images} maxImages={5} />
       );
       
-      expect(getByTestId('next-page')).toBeTruthy();
-      expect(getByTestId('page-indicator')).toBeTruthy();
+      const uploadButton = getByTestId('upload-button');
+      expect(uploadButton.props.disabled).toBe(true);
     });
   });
-
-  describe('file validation', () => {
-    it('should validate file size', () => {
+  
+  describe('validation', () => {
+    it('should validate file size', async () => {
       const onError = jest.fn();
-      const largeFile = {
-        uri: 'file://large.jpg',
-        fileSize: 10 * 1024 * 1024 // 10MB
-      };
-      
       const { getByTestId } = render(
-        <ImageUploader {...defaultProps} onError={onError} selectedImage={largeFile} />
+        <ImageUploader {...defaultProps} maxSize={1000} onError={onError} />
       );
       
-      const uploadButton = getByTestId('start-upload');
+      // Select large file
+      const uploadButton = getByTestId('upload-button');
       fireEvent.press(uploadButton);
       
-      expect(onError).toHaveBeenCalledWith(expect.objectContaining({
-        code: 'FILE_TOO_LARGE'
-      }));
+      await waitFor(() => {
+        expect(onError).toHaveBeenCalledWith(
+          expect.objectContaining({
+            message: expect.stringContaining('size')
+          })
+        );
+      });
     });
-
-    it('should validate file type', () => {
+    
+    it('should validate file type', async () => {
       const onError = jest.fn();
-      const invalidFile = {
-        uri: 'file://document.pdf',
-        type: 'application/pdf'
-      };
-      
       const { getByTestId } = render(
-        <ImageUploader {...defaultProps} onError={onError} selectedImage={invalidFile} />
-      );
-      
-      const uploadButton = getByTestId('start-upload');
-      fireEvent.press(uploadButton);
-      
-      expect(onError).toHaveBeenCalledWith(expect.objectContaining({
-        code: 'INVALID_FILE_TYPE'
-      }));
-    });
-
-    it('should show validation errors inline', () => {
-      const { getByText } = render(
         <ImageUploader 
           {...defaultProps} 
-          validationError="File must be less than 5MB"
+          acceptedTypes={['image/jpeg']}
+          onError={onError}
         />
       );
       
-      expect(getByText('File must be less than 5MB')).toBeTruthy();
+      // Select wrong file type
+      const uploadButton = getByTestId('upload-button');
+      fireEvent.press(uploadButton);
+      
+      await waitFor(() => {
+        expect(onError).toHaveBeenCalledWith(
+          expect.objectContaining({
+            message: expect.stringContaining('type')
+          })
+        );
+      });
+    });
+    
+    it('should show validation error messages', async () => {
+      const { getByTestId, getByText } = render(
+        <ImageUploader {...defaultProps} maxSize={1000} />
+      );
+      
+      // Select large file
+      const uploadButton = getByTestId('upload-button');
+      fireEvent.press(uploadButton);
+      
+      await waitFor(() => {
+        expect(getByText(/file size exceeds/i)).toBeTruthy();
+      });
     });
   });
-
+  
   describe('accessibility', () => {
-    it('should have proper accessibility labels', () => {
+    it('should have proper accessibilityLabel for upload button', () => {
       const { getByTestId } = render(
         <ImageUploader {...defaultProps} />
       );
@@ -341,31 +329,34 @@ describe('ImageUploader', () => {
       const uploadButton = getByTestId('upload-button');
       expect(uploadButton.props.accessibilityLabel).toBe('Upload image');
     });
-
-    it('should announce upload progress to screen readers', () => {
+    
+    it('should announce upload progress to screen readers', async () => {
       const { getByTestId } = render(
-        <ImageUploader {...defaultProps} isUploading={true} uploadProgress={50} />
+        <ImageUploader {...defaultProps} />
       );
       
-      const progressBar = getByTestId('progress-bar');
-      expect(progressBar.props.accessibilityValue).toEqual({
-        min: 0,
-        max: 100,
-        now: 50
+      const uploadButton = getByTestId('start-upload');
+      fireEvent.press(uploadButton);
+      
+      await waitFor(() => {
+        const progressBar = getByTestId('progress-bar');
+        expect(progressBar.props.accessibilityValue).toEqual({
+          min: 0,
+          max: 100,
+          now: expect.any(Number)
+        });
       });
     });
-
-    it('should provide image descriptions', () => {
-      const gallery = [
-        { id: '1', uri: 'file://image1.jpg', name: 'Product photo', alt: 'Red shirt front view' }
-      ];
+    
+    it('should provide accessibility hints for gallery images', () => {
+      const images = [{ id: '1', uri: 'file://image1.jpg' }];
       
       const { getByTestId } = render(
-        <ImageUploader {...defaultProps} gallery={gallery} />
+        <ImageUploader {...defaultProps} images={images} />
       );
       
-      const image = getByTestId('gallery-image-1');
-      expect(image.props.accessibilityLabel).toBe('Red shirt front view');
+      const galleryImage = getByTestId('gallery-image-1');
+      expect(galleryImage.props.accessibilityHint).toBe('Double tap to view, long press to delete');
     });
   });
 });

@@ -1,10 +1,12 @@
+import React from 'react';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
-import React from 'react';
+import { useContentUpload } from '../useContentUpload';
+import { fileUploadService } from '@/services/marketing/fileUploadService';
 
-// Mock the hook (doesn't exist yet - RED phase)
-const useContentUpload = jest.fn();
+// Mock the file upload service
+jest.mock('@/services/marketing/fileUploadService');
 
 describe('useContentUpload', () => {
   let queryClient: QueryClient;
@@ -17,6 +19,16 @@ describe('useContentUpload', () => {
       }
     });
     jest.clearAllMocks();
+    
+    // Setup default mocks
+    (fileUploadService.uploadFile as jest.Mock) = jest.fn();
+    (fileUploadService.getUploadUrl as jest.Mock) = jest.fn();
+    (fileUploadService.completeUpload as jest.Mock) = jest.fn();
+    (fileUploadService.cancelUpload as jest.Mock) = jest.fn();
+    (fileUploadService.listFiles as jest.Mock) = jest.fn();
+    (fileUploadService.deleteFile as jest.Mock) = jest.fn();
+    (fileUploadService.batchUpload as jest.Mock) = jest.fn();
+    (fileUploadService.getUploadProgress as jest.Mock) = jest.fn();
   });
   
   const wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -25,483 +37,317 @@ describe('useContentUpload', () => {
     </QueryClientProvider>
   );
   
-  describe('file upload management', () => {
-    it('should handle single file upload with progress tracking', async () => {
-      const mockHookReturn = {
-        upload: jest.fn(),
-        uploadProgress: 0,
-        isUploading: false,
-        uploadedFiles: [],
-        error: null
-      };
-      useContentUpload.mockReturnValue(mockHookReturn);
+  const mockFile = new File(['test content'], 'test.jpg', { type: 'image/jpeg' });
+  const mockUploadData = {
+    id: 'upload-123',
+    fileName: 'test.jpg',
+    fileSize: 1024,
+    contentType: 'image/jpeg',
+    uploadUrl: 'https://storage.example.com/upload-123',
+    status: 'pending' as const,
+    progress: 0,
+    createdAt: new Date()
+  };
+  
+  describe('file upload operations', () => {
+    it('should upload a single file with progress tracking', async () => {
+      (fileUploadService.getUploadUrl as jest.Mock).mockResolvedValue({
+        uploadUrl: 'https://storage.example.com/upload',
+        uploadId: 'upload-123'
+      });
+      
+      (fileUploadService.uploadFile as jest.Mock).mockImplementation(
+        (file, options) => {
+          // Simulate progress updates
+          options?.onProgress?.({ loaded: 50, total: 100 });
+          return Promise.resolve(mockUploadData);
+        }
+      );
       
       const { result } = renderHook(() => useContentUpload(), { wrapper });
       
-      const file = new File(['content'], 'test.png', { type: 'image/png' });
-      
-      mockHookReturn.isUploading = true;
-      
-      act(() => {
-        result.current.upload(file);
-      });
-      
-      expect(result.current.isUploading).toBe(true);
-      
-      // Simulate progress updates
-      for (let progress = 25; progress <= 100; progress += 25) {
-        mockHookReturn.uploadProgress = progress;
-        
-        await waitFor(() => {
-          expect(result.current.uploadProgress).toBe(progress);
+      let progressUpdate: number = 0;
+      await act(async () => {
+        await result.current.uploadFile(mockFile, {
+          onProgress: (progress) => {
+            progressUpdate = progress;
+          }
         });
-      }
-      
-      mockHookReturn.isUploading = false;
-      mockHookReturn.uploadedFiles = [{
-        id: 'file-1',
-        name: 'test.png',
-        size: 7,
-        type: 'image/png',
-        url: 'https://cdn.example.com/test.png'
-      }];
-      
-      await waitFor(() => {
-        expect(result.current.isUploading).toBe(false);
-        expect(result.current.uploadedFiles).toHaveLength(1);
-        expect(result.current.uploadedFiles[0].url).toBeDefined();
       });
+      
+      expect(progressUpdate).toBe(50);
+      expect(fileUploadService.uploadFile).toHaveBeenCalledWith(
+        mockFile,
+        expect.objectContaining({
+          onProgress: expect.any(Function)
+        })
+      );
     });
     
-    it('should handle multiple file uploads concurrently', async () => {
-      const mockHookReturn = {
-        uploadMultiple: jest.fn(),
-        uploadQueue: [],
-        isUploading: false,
-        uploadedFiles: [],
-        totalProgress: 0
-      };
-      useContentUpload.mockReturnValue(mockHookReturn);
-      
-      const { result } = renderHook(() => useContentUpload(), { wrapper });
-      
+    it('should handle batch file uploads', async () => {
       const files = [
-        new File(['content1'], 'image1.jpg', { type: 'image/jpeg' }),
-        new File(['content2'], 'image2.jpg', { type: 'image/jpeg' }),
-        new File(['content3'], 'image3.jpg', { type: 'image/jpeg' })
+        new File(['content1'], 'file1.jpg', { type: 'image/jpeg' }),
+        new File(['content2'], 'file2.jpg', { type: 'image/jpeg' }),
+        new File(['content3'], 'file3.jpg', { type: 'image/jpeg' })
       ];
       
-      mockHookReturn.uploadQueue = files.map((f, i) => ({
-        id: `queue-${i}`,
-        file: f,
-        progress: 0,
-        status: 'pending'
-      }));
-      mockHookReturn.isUploading = true;
+      (fileUploadService.batchUpload as jest.Mock).mockResolvedValue([
+        { ...mockUploadData, id: 'upload-1', fileName: 'file1.jpg' },
+        { ...mockUploadData, id: 'upload-2', fileName: 'file2.jpg' },
+        { ...mockUploadData, id: 'upload-3', fileName: 'file3.jpg' }
+      ]);
       
-      act(() => {
-        result.current.uploadMultiple(files);
+      const { result } = renderHook(() => useContentUpload(), { wrapper });
+      
+      await act(async () => {
+        await result.current.batchUpload(files);
       });
       
+      expect(fileUploadService.batchUpload).toHaveBeenCalledWith(files);
       expect(result.current.uploadQueue).toHaveLength(3);
-      expect(result.current.isUploading).toBe(true);
-      
-      // Simulate individual file progress
-      mockHookReturn.uploadQueue = mockHookReturn.uploadQueue.map((item, i) => ({
-        ...item,
-        progress: 100,
-        status: 'completed'
-      }));
-      mockHookReturn.totalProgress = 100;
-      mockHookReturn.isUploading = false;
-      
-      await waitFor(() => {
-        expect(result.current.totalProgress).toBe(100);
-        expect(result.current.uploadQueue.every(q => q.status === 'completed')).toBe(true);
-        expect(result.current.isUploading).toBe(false);
-      });
     });
     
-    it('should validate file types and sizes', async () => {
-      const mockHookReturn = {
-        upload: jest.fn(),
-        validateFile: jest.fn(),
-        error: null,
-        validationErrors: []
-      };
-      useContentUpload.mockReturnValue(mockHookReturn);
+    it('should validate file size before upload', async () => {
+      const largeFile = new File(['x'.repeat(11 * 1024 * 1024)], 'large.jpg', { 
+        type: 'image/jpeg' 
+      });
       
       const { result } = renderHook(() => useContentUpload({
-        maxFileSize: 5 * 1024 * 1024, // 5MB
+        maxFileSize: 10 * 1024 * 1024 // 10MB
+      }), { wrapper });
+      
+      const validation = result.current.validateFile(largeFile);
+      
+      expect(validation.valid).toBe(false);
+      expect(validation.errors).toContain('File size exceeds 10MB limit');
+    });
+    
+    it('should validate file type restrictions', async () => {
+      const invalidFile = new File(['content'], 'test.exe', { type: 'application/exe' });
+      
+      const { result } = renderHook(() => useContentUpload({
         allowedTypes: ['image/jpeg', 'image/png', 'image/gif']
       }), { wrapper });
       
-      const invalidFile = new File(['x'.repeat(10 * 1024 * 1024)], 'large.jpg', { type: 'image/jpeg' });
-      const invalidType = new File(['content'], 'doc.pdf', { type: 'application/pdf' });
+      const validation = result.current.validateFile(invalidFile);
       
-      mockHookReturn.validateFile.mockImplementation((file) => {
-        if (file.size > 5 * 1024 * 1024) return { valid: false, error: 'File too large' };
-        if (!['image/jpeg', 'image/png', 'image/gif'].includes(file.type)) {
-          return { valid: false, error: 'Invalid file type' };
-        }
-        return { valid: true };
-      });
-      
-      const largeValidation = result.current.validateFile(invalidFile);
-      expect(largeValidation.valid).toBe(false);
-      expect(largeValidation.error).toBe('File too large');
-      
-      const typeValidation = result.current.validateFile(invalidType);
-      expect(typeValidation.valid).toBe(false);
-      expect(typeValidation.error).toBe('Invalid file type');
+      expect(validation.valid).toBe(false);
+      expect(validation.errors).toContain('File type not allowed');
     });
     
     it('should handle upload cancellation', async () => {
-      const mockHookReturn = {
-        upload: jest.fn(),
-        cancelUpload: jest.fn(),
-        isUploading: false,
-        uploadProgress: 0,
-        cancelToken: null
-      };
-      useContentUpload.mockReturnValue(mockHookReturn);
+      const abortController = new AbortController();
+      
+      (fileUploadService.uploadFile as jest.Mock).mockImplementation(
+        () => new Promise((resolve, reject) => {
+          abortController.signal.addEventListener('abort', () => {
+            reject(new Error('Upload cancelled'));
+          });
+        })
+      );
       
       const { result } = renderHook(() => useContentUpload(), { wrapper });
       
-      const file = new File(['content'], 'test.png', { type: 'image/png' });
-      
-      mockHookReturn.isUploading = true;
-      mockHookReturn.uploadProgress = 45;
-      mockHookReturn.cancelToken = { token: 'cancel-123' };
-      
       act(() => {
-        result.current.upload(file);
+        result.current.uploadFile(mockFile, { signal: abortController.signal });
       });
       
-      await waitFor(() => {
-        expect(result.current.uploadProgress).toBe(45);
+      await act(async () => {
+        result.current.cancelUpload('upload-123');
       });
       
-      act(() => {
-        result.current.cancelUpload();
-      });
-      
-      mockHookReturn.isUploading = false;
-      mockHookReturn.uploadProgress = 0;
-      mockHookReturn.cancelToken = null;
-      
-      await waitFor(() => {
-        expect(result.current.isUploading).toBe(false);
-        expect(result.current.uploadProgress).toBe(0);
-        expect(result.current.cancelToken).toBeNull();
-      });
+      expect(fileUploadService.cancelUpload).toHaveBeenCalledWith('upload-123');
     });
     
-    it('should handle upload retry on failure', async () => {
-      const mockHookReturn = {
-        upload: jest.fn(),
-        retry: jest.fn(),
-        isUploading: false,
-        error: null,
-        retryCount: 0,
-        maxRetries: 3
-      };
-      useContentUpload.mockReturnValue(mockHookReturn);
+    it('should track upload progress for multiple files', async () => {
+      const progressMap = new Map<string, number>();
+      
+      (fileUploadService.getUploadProgress as jest.Mock).mockImplementation((id) => {
+        return progressMap.get(id) || 0;
+      });
       
       const { result } = renderHook(() => useContentUpload(), { wrapper });
       
-      const file = new File(['content'], 'test.png', { type: 'image/png' });
-      
-      // First attempt fails
-      mockHookReturn.error = new Error('Network error');
-      mockHookReturn.retryCount = 1;
-      
-      act(() => {
-        result.current.upload(file);
+      await act(async () => {
+        progressMap.set('upload-1', 25);
+        progressMap.set('upload-2', 50);
+        progressMap.set('upload-3', 75);
+        
+        result.current.updateProgress('upload-1', 25);
+        result.current.updateProgress('upload-2', 50);
+        result.current.updateProgress('upload-3', 75);
       });
       
-      await waitFor(() => {
-        expect(result.current.error).toBeDefined();
-        expect(result.current.retryCount).toBe(1);
-      });
-      
-      // Retry
-      mockHookReturn.isUploading = true;
-      mockHookReturn.error = null;
-      
-      act(() => {
-        result.current.retry();
-      });
-      
-      // Success on retry
-      mockHookReturn.isUploading = false;
-      mockHookReturn.retryCount = 0;
-      
-      await waitFor(() => {
-        expect(result.current.error).toBeNull();
-        expect(result.current.isUploading).toBe(false);
-      });
+      expect(result.current.getOverallProgress()).toBe(50); // Average progress
     });
     
-    it('should manage image gallery with sorting and filtering', async () => {
-      const mockHookReturn = {
-        gallery: [],
-        loadGallery: jest.fn(),
-        sortGallery: jest.fn(),
-        filterGallery: jest.fn(),
-        isLoadingGallery: false
-      };
-      useContentUpload.mockReturnValue(mockHookReturn);
-      
-      const { result } = renderHook(() => useContentUpload(), { wrapper });
-      
-      mockHookReturn.isLoadingGallery = true;
-      
-      act(() => {
-        result.current.loadGallery();
+    it('should handle chunked uploads for large files', async () => {
+      const largeFile = new File(['x'.repeat(20 * 1024 * 1024)], 'large.mp4', {
+        type: 'video/mp4'
       });
       
-      mockHookReturn.gallery = [
-        { id: '1', name: 'image1.jpg', uploadedAt: '2025-01-01', size: 1024 },
-        { id: '2', name: 'image2.png', uploadedAt: '2025-01-02', size: 2048 },
-        { id: '3', name: 'image3.gif', uploadedAt: '2025-01-03', size: 512 }
-      ];
-      mockHookReturn.isLoadingGallery = false;
-      
-      await waitFor(() => {
-        expect(result.current.gallery).toHaveLength(3);
-        expect(result.current.isLoadingGallery).toBe(false);
-      });
-      
-      // Sort by size
-      act(() => {
-        result.current.sortGallery('size', 'asc');
-      });
-      
-      mockHookReturn.gallery = [...mockHookReturn.gallery].sort((a, b) => a.size - b.size);
-      
-      expect(result.current.gallery[0].size).toBe(512);
-      
-      // Filter by type
-      act(() => {
-        result.current.filterGallery({ type: 'png' });
-      });
-      
-      mockHookReturn.gallery = mockHookReturn.gallery.filter(img => img.name.endsWith('.png'));
-      
-      expect(result.current.gallery).toHaveLength(1);
-      expect(result.current.gallery[0].name).toBe('image2.png');
-    });
-    
-    it('should handle image deletion from gallery', async () => {
-      const mockHookReturn = {
-        gallery: [
-          { id: '1', name: 'image1.jpg' },
-          { id: '2', name: 'image2.png' },
-          { id: '3', name: 'image3.gif' }
-        ],
-        deleteImage: jest.fn(),
-        isDeleting: false,
-        deleteError: null
-      };
-      useContentUpload.mockReturnValue(mockHookReturn);
-      
-      const { result } = renderHook(() => useContentUpload(), { wrapper });
-      
-      mockHookReturn.isDeleting = true;
-      
-      act(() => {
-        result.current.deleteImage('2');
-      });
-      
-      expect(result.current.isDeleting).toBe(true);
-      
-      mockHookReturn.gallery = mockHookReturn.gallery.filter(img => img.id !== '2');
-      mockHookReturn.isDeleting = false;
-      
-      await waitFor(() => {
-        expect(result.current.gallery).toHaveLength(2);
-        expect(result.current.gallery.find(img => img.id === '2')).toBeUndefined();
-        expect(result.current.isDeleting).toBe(false);
-      });
-    });
-    
-    it('should generate image thumbnails and previews', async () => {
-      const mockHookReturn = {
-        generateThumbnail: jest.fn(),
-        thumbnails: new Map(),
-        isGeneratingThumbnails: false
-      };
-      useContentUpload.mockReturnValue(mockHookReturn);
-      
-      const { result } = renderHook(() => useContentUpload(), { wrapper });
-      
-      const imageId = 'img-123';
-      
-      mockHookReturn.isGeneratingThumbnails = true;
-      
-      act(() => {
-        result.current.generateThumbnail(imageId, { width: 150, height: 150 });
-      });
-      
-      expect(result.current.isGeneratingThumbnails).toBe(true);
-      
-      mockHookReturn.thumbnails.set(imageId, {
-        url: 'https://cdn.example.com/thumb-150x150.jpg',
-        width: 150,
-        height: 150
-      });
-      mockHookReturn.isGeneratingThumbnails = false;
-      
-      await waitFor(() => {
-        const thumbnail = result.current.thumbnails.get(imageId);
-        expect(thumbnail).toBeDefined();
-        expect(thumbnail.width).toBe(150);
-        expect(thumbnail.height).toBe(150);
-        expect(result.current.isGeneratingThumbnails).toBe(false);
-      });
-    });
-    
-    it('should handle drag and drop uploads', async () => {
-      const mockHookReturn = {
-        handleDrop: jest.fn(),
-        isDragging: false,
-        dropZoneRef: { current: null },
-        draggedFiles: []
-      };
-      useContentUpload.mockReturnValue(mockHookReturn);
-      
-      const { result } = renderHook(() => useContentUpload(), { wrapper });
-      
-      const files = [
-        new File(['content'], 'dropped1.jpg', { type: 'image/jpeg' }),
-        new File(['content'], 'dropped2.jpg', { type: 'image/jpeg' })
-      ];
-      
-      const dropEvent = {
-        preventDefault: jest.fn(),
-        dataTransfer: { files }
-      };
-      
-      mockHookReturn.isDragging = true;
-      mockHookReturn.draggedFiles = files;
-      
-      act(() => {
-        result.current.handleDrop(dropEvent);
-      });
-      
-      expect(result.current.draggedFiles).toHaveLength(2);
-      
-      mockHookReturn.isDragging = false;
-      mockHookReturn.draggedFiles = [];
-      
-      await waitFor(() => {
-        expect(result.current.isDragging).toBe(false);
-      });
-    });
-    
-    it('should handle clipboard paste uploads', async () => {
-      const mockHookReturn = {
-        handlePaste: jest.fn(),
-        pastedFiles: [],
-        isPasting: false
-      };
-      useContentUpload.mockReturnValue(mockHookReturn);
-      
-      const { result } = renderHook(() => useContentUpload(), { wrapper });
-      
-      const pasteEvent = {
-        clipboardData: {
-          items: [{
-            kind: 'file',
-            type: 'image/png',
-            getAsFile: () => new File(['content'], 'pasted.png', { type: 'image/png' })
-          }]
-        },
-        preventDefault: jest.fn()
-      };
-      
-      mockHookReturn.isPasting = true;
-      
-      act(() => {
-        result.current.handlePaste(pasteEvent);
-      });
-      
-      mockHookReturn.pastedFiles = [new File(['content'], 'pasted.png', { type: 'image/png' })];
-      mockHookReturn.isPasting = false;
-      
-      await waitFor(() => {
-        expect(result.current.pastedFiles).toHaveLength(1);
-        expect(result.current.pastedFiles[0].name).toBe('pasted.png');
-        expect(result.current.isPasting).toBe(false);
-      });
-    });
-    
-    it('should optimize images before upload', async () => {
-      const mockHookReturn = {
-        upload: jest.fn(),
-        optimizeImage: jest.fn(),
-        isOptimizing: false,
-        optimizationSettings: {
-          maxWidth: 1920,
-          maxHeight: 1080,
-          quality: 0.85,
-          format: 'webp'
+      (fileUploadService.uploadFile as jest.Mock).mockImplementation(
+        (file, options) => {
+          // Simulate chunked upload
+          options?.onChunkComplete?.(1, 4); // 1 of 4 chunks
+          options?.onChunkComplete?.(2, 4);
+          options?.onChunkComplete?.(3, 4);
+          options?.onChunkComplete?.(4, 4);
+          return Promise.resolve(mockUploadData);
         }
-      };
-      useContentUpload.mockReturnValue(mockHookReturn);
+      );
       
-      const { result } = renderHook(() => useContentUpload({ optimize: true }), { wrapper });
+      const { result } = renderHook(() => useContentUpload({
+        chunkSize: 5 * 1024 * 1024 // 5MB chunks
+      }), { wrapper });
       
-      const originalFile = new File(['x'.repeat(5000000)], 'large.jpg', { type: 'image/jpeg' });
-      
-      mockHookReturn.isOptimizing = true;
-      
-      act(() => {
-        result.current.upload(originalFile);
+      let chunksCompleted = 0;
+      await act(async () => {
+        await result.current.uploadFile(largeFile, {
+          onChunkComplete: () => {
+            chunksCompleted++;
+          }
+        });
       });
       
-      expect(result.current.isOptimizing).toBe(true);
+      expect(chunksCompleted).toBe(4);
+    });
+    
+    it('should manage upload gallery with thumbnails', async () => {
+      (fileUploadService.listFiles as jest.Mock).mockResolvedValue([
+        { ...mockUploadData, id: 'img-1', thumbnailUrl: 'thumb-1.jpg' },
+        { ...mockUploadData, id: 'img-2', thumbnailUrl: 'thumb-2.jpg' },
+        { ...mockUploadData, id: 'img-3', thumbnailUrl: 'thumb-3.jpg' }
+      ]);
       
-      const optimizedFile = new File(['x'.repeat(500000)], 'large.webp', { type: 'image/webp' });
-      mockHookReturn.optimizeImage.mockResolvedValue(optimizedFile);
-      mockHookReturn.isOptimizing = false;
+      const { result } = renderHook(() => useContentUpload(), { wrapper });
       
-      await waitFor(() => {
-        expect(result.current.isOptimizing).toBe(false);
-        expect(result.current.optimizeImage).toHaveBeenCalledWith(originalFile);
+      await act(async () => {
+        await result.current.loadGallery('content-123');
       });
+      
+      expect(result.current.gallery).toHaveLength(3);
+      expect(result.current.gallery[0].thumbnailUrl).toBe('thumb-1.jpg');
+    });
+    
+    it('should handle image optimization during upload', async () => {
+      const imageFile = new File(['image data'], 'photo.jpg', { type: 'image/jpeg' });
+      
+      const { result } = renderHook(() => useContentUpload({
+        optimize: true,
+        maxDimensions: { width: 1920, height: 1080 }
+      }), { wrapper });
+      
+      await act(async () => {
+        await result.current.uploadFile(imageFile, {
+          optimize: {
+            quality: 0.8,
+            format: 'webp'
+          }
+        });
+      });
+      
+      expect(fileUploadService.uploadFile).toHaveBeenCalledWith(
+        imageFile,
+        expect.objectContaining({
+          optimize: expect.objectContaining({
+            quality: 0.8,
+            format: 'webp'
+          })
+        })
+      );
+    });
+    
+    it('should retry failed uploads with exponential backoff', async () => {
+      let attempts = 0;
+      (fileUploadService.uploadFile as jest.Mock).mockImplementation(() => {
+        attempts++;
+        if (attempts < 3) {
+          return Promise.reject(new Error('Network error'));
+        }
+        return Promise.resolve(mockUploadData);
+      });
+      
+      const { result } = renderHook(() => useContentUpload({
+        retryAttempts: 3,
+        retryDelay: 100
+      }), { wrapper });
+      
+      await act(async () => {
+        await result.current.uploadFile(mockFile);
+      });
+      
+      expect(attempts).toBe(3);
+      expect(fileUploadService.uploadFile).toHaveBeenCalledTimes(3);
     });
   });
   
-  describe('upload queue management', () => {
-    it('should manage upload queue with priorities', async () => {
-      const mockHookReturn = {
-        uploadQueue: [],
-        addToQueue: jest.fn(),
-        removeFromQueue: jest.fn(),
-        prioritizeUpload: jest.fn(),
-        processQueue: jest.fn()
-      };
-      useContentUpload.mockReturnValue(mockHookReturn);
+  describe('file management', () => {
+    it('should delete uploaded files', async () => {
+      (fileUploadService.deleteFile as jest.Mock).mockResolvedValue(undefined);
       
       const { result } = renderHook(() => useContentUpload(), { wrapper });
       
-      const highPriorityFile = { file: new File([''], 'urgent.jpg'), priority: 10 };
-      const normalFile = { file: new File([''], 'normal.jpg'), priority: 5 };
-      
-      act(() => {
-        result.current.addToQueue(normalFile);
-        result.current.addToQueue(highPriorityFile);
+      await act(async () => {
+        await result.current.deleteFile('upload-123');
       });
       
-      mockHookReturn.uploadQueue = [highPriorityFile, normalFile];
-      
-      expect(result.current.uploadQueue[0].priority).toBe(10);
-      
-      act(() => {
-        result.current.processQueue();
+      expect(fileUploadService.deleteFile).toHaveBeenCalledWith('upload-123');
+    });
+    
+    it('should generate secure pre-signed URLs', async () => {
+      (fileUploadService.getUploadUrl as jest.Mock).mockResolvedValue({
+        uploadUrl: 'https://storage.example.com/secure-upload',
+        uploadId: 'upload-456',
+        expiresAt: new Date(Date.now() + 3600000) // 1 hour
       });
+      
+      const { result } = renderHook(() => useContentUpload(), { wrapper });
+      
+      const { uploadUrl, expiresAt } = await result.current.getPresignedUrl(
+        'document.pdf',
+        'application/pdf'
+      );
+      
+      expect(uploadUrl).toContain('secure-upload');
+      expect(expiresAt.getTime()).toBeGreaterThan(Date.now());
+    });
+  });
+  
+  describe('error handling', () => {
+    it('should handle network errors during upload', async () => {
+      const error = new Error('Network timeout');
+      (fileUploadService.uploadFile as jest.Mock).mockRejectedValue(error);
+      
+      const { result } = renderHook(() => useContentUpload(), { wrapper });
+      
+      await act(async () => {
+        try {
+          await result.current.uploadFile(mockFile);
+        } catch (err) {
+          // Expected error
+        }
+      });
+      
+      expect(result.current.uploadError?.message).toBe('Network timeout');
+    });
+    
+    it('should handle quota exceeded errors', async () => {
+      (fileUploadService.uploadFile as jest.Mock).mockRejectedValue(
+        new Error('Storage quota exceeded')
+      );
+      
+      const { result } = renderHook(() => useContentUpload(), { wrapper });
+      
+      await act(async () => {
+        try {
+          await result.current.uploadFile(mockFile);
+        } catch (err) {
+          // Expected
+        }
+      });
+      
+      expect(result.current.uploadError?.message).toContain('quota exceeded');
     });
   });
 });

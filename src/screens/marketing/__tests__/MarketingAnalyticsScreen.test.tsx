@@ -1,547 +1,528 @@
 import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
-import { NavigationContainer } from '@react-navigation/native';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Share } from 'react-native';
+import { render, waitFor, fireEvent } from '@testing-library/react-native';
+import { MarketingAnalyticsScreen } from '../MarketingAnalyticsScreen';
+import { marketingService } from '../../../services/marketing/marketingService';
 
-// Mock the screen (doesn't exist yet - RED phase)
-const MarketingAnalyticsScreen = jest.fn(() => null);
-jest.mock('../MarketingAnalyticsScreen', () => ({
-  default: jest.fn(() => null)
-}));
+// Mock the marketing service
+jest.mock('../../../services/marketing/marketingService');
 
-// Mock analytics hooks
-jest.mock('@/hooks/marketing/useMarketingAnalytics', () => ({
-  useMarketingAnalytics: jest.fn(() => ({
-    metrics: {
-      revenue: { current: 45000, previous: 38000, change: 18.4 },
-      conversions: { current: 450, previous: 380, change: 18.4 },
-      traffic: { current: 12500, previous: 10000, change: 25 },
-      engagement: { current: 3.5, previous: 3.2, change: 9.4 },
-      roi: { current: 320, previous: 280, change: 14.3 }
-    },
-    chartData: {
-      revenue: [
-        { date: '2025-01-01', value: 1500 },
-        { date: '2025-01-02', value: 1800 },
-        { date: '2025-01-03', value: 2200 },
-        { date: '2025-01-04', value: 1900 },
-        { date: '2025-01-05', value: 2500 }
-      ],
-      conversions: [
-        { date: '2025-01-01', value: 45 },
-        { date: '2025-01-02', value: 52 },
-        { date: '2025-01-03', value: 48 },
-        { date: '2025-01-04', value: 61 },
-        { date: '2025-01-05', value: 58 }
-      ]
-    },
-    campaigns: [
-      { id: '1', name: 'Summer Sale', roi: 450, conversions: 125 },
-      { id: '2', name: 'Flash Deal', roi: 320, conversions: 89 },
-      { id: '3', name: 'Welcome Series', roi: 280, conversions: 156 }
-    ],
-    dateRange: { start: '2025-01-01', end: '2025-01-31' },
-    setDateRange: jest.fn(),
-    isLoading: false,
-    refetch: jest.fn()
-  }))
-}));
-
-jest.mock('@/hooks/marketing/useExportData', () => ({
-  useExportData: jest.fn(() => ({
-    exportToCSV: jest.fn(),
-    exportToPDF: jest.fn(),
-    sendEmail: jest.fn(),
-    isExporting: false
-  }))
-}));
-
-// Mock Share API
-jest.spyOn(Share, 'share');
-
+// Mock navigation
 const mockNavigate = jest.fn();
+const mockNavigation = {
+  navigate: mockNavigate,
+  goBack: jest.fn(),
+};
 
 describe('MarketingAnalyticsScreen', () => {
-  let queryClient: QueryClient;
-  
   beforeEach(() => {
-    queryClient = new QueryClient({
-      defaultOptions: { 
-        queries: { retry: false },
-        mutations: { retry: false }
-      }
-    });
     jest.clearAllMocks();
+    
+    // Setup default mocks
+    (marketingService.getAnalytics as jest.Mock).mockResolvedValue({
+      totalCampaigns: 15,
+      activeCampaigns: 8,
+      totalContent: 125,
+      publishedContent: 98,
+      overallMetrics: {
+        impressions: 2500000,
+        clicks: 125000,
+        conversions: 6250,
+        spend: 25000,
+        roi: 350,
+      },
+      performance: [
+        { date: '2024-03-01', impressions: 50000, clicks: 2500, conversions: 125 },
+        { date: '2024-03-02', impressions: 55000, clicks: 2750, conversions: 138 },
+        { date: '2024-03-03', impressions: 48000, clicks: 2400, conversions: 120 },
+      ],
+      campaignPerformance: [
+        { id: '1', name: 'Spring Sale', impressions: 500000, clicks: 25000, roi: 450 },
+        { id: '2', name: 'Summer Launch', impressions: 300000, clicks: 15000, roi: 320 },
+      ],
+      contentPerformance: [
+        { id: '1', title: 'Blog Post 1', views: 15000, engagement: 0.12 },
+        { id: '2', title: 'Video Content', views: 25000, engagement: 0.18 },
+      ],
+    });
+
+    (marketingService.getDetailedAnalytics as jest.Mock).mockResolvedValue({
+      hourlyData: Array.from({ length: 24 }, (_, i) => ({
+        hour: i,
+        impressions: Math.floor(Math.random() * 10000),
+        clicks: Math.floor(Math.random() * 500),
+      })),
+      demographicData: {
+        age: [
+          { range: '18-24', percentage: 25 },
+          { range: '25-34', percentage: 35 },
+          { range: '35-44', percentage: 22 },
+          { range: '45+', percentage: 18 },
+        ],
+        gender: [
+          { type: 'Male', percentage: 45 },
+          { type: 'Female', percentage: 52 },
+          { type: 'Other', percentage: 3 },
+        ],
+      },
+      geographicData: [
+        { location: 'United States', users: 45000 },
+        { location: 'United Kingdom', users: 12000 },
+        { location: 'Canada', users: 8000 },
+      ],
+    });
   });
-  
-  const renderScreen = (props = {}) => {
-    return render(
-      <QueryClientProvider client={queryClient}>
-        <NavigationContainer>
-          <MarketingAnalyticsScreen {...props} />
-        </NavigationContainer>
-      </QueryClientProvider>
-    );
-  };
-  
-  describe('Metrics Dashboard', () => {
+
+  describe('Rendering', () => {
+    it('should render analytics screen', () => {
+      const { getByText, getByTestId } = render(
+        <MarketingAnalyticsScreen navigation={mockNavigation} />
+      );
+      
+      expect(getByText('Marketing Analytics')).toBeTruthy();
+      expect(getByTestId('analytics-screen')).toBeTruthy();
+    });
+
     it('should display key metrics cards', async () => {
-      const { getByTestId } = renderScreen();
+      const { getByText } = render(
+        <MarketingAnalyticsScreen navigation={mockNavigation} />
+      );
       
       await waitFor(() => {
-        expect(getByTestId('metric-card-revenue')).toBeTruthy();
-        expect(getByTestId('metric-card-conversions')).toBeTruthy();
-        expect(getByTestId('metric-card-traffic')).toBeTruthy();
-        expect(getByTestId('metric-card-engagement')).toBeTruthy();
-        expect(getByTestId('metric-card-roi')).toBeTruthy();
+        expect(getByText('Total Impressions')).toBeTruthy();
+        expect(getByText('2.5M')).toBeTruthy();
+        expect(getByText('Total Clicks')).toBeTruthy();
+        expect(getByText('125K')).toBeTruthy();
+        expect(getByText('Conversions')).toBeTruthy();
+        expect(getByText('6,250')).toBeTruthy();
       });
     });
-    
-    it('should show metric values', async () => {
-      const { getByTestId } = renderScreen();
+
+    it('should show ROI percentage', async () => {
+      const { getByText, getByTestId } = render(
+        <MarketingAnalyticsScreen navigation={mockNavigation} />
+      );
       
       await waitFor(() => {
-        expect(getByTestId('metric-value-revenue')).toHaveTextContent('$45,000');
-        expect(getByTestId('metric-value-conversions')).toHaveTextContent('450');
-        expect(getByTestId('metric-value-traffic')).toHaveTextContent('12,500');
-        expect(getByTestId('metric-value-engagement')).toHaveTextContent('3.5%');
-        expect(getByTestId('metric-value-roi')).toHaveTextContent('320%');
+        expect(getByText('ROI')).toBeTruthy();
+        expect(getByText('350%')).toBeTruthy();
+        expect(getByTestId('roi-indicator').props.style).toContainEqual(
+          expect.objectContaining({ color: expect.stringContaining('green') })
+        );
       });
     });
-    
-    it('should display percentage changes', async () => {
-      const { getByTestId } = renderScreen();
+
+    it('should display performance chart', async () => {
+      const { getByTestId } = render(
+        <MarketingAnalyticsScreen navigation={mockNavigation} />
+      );
       
       await waitFor(() => {
-        expect(getByTestId('metric-change-revenue')).toHaveTextContent('+18.4%');
-        expect(getByTestId('metric-change-conversions')).toHaveTextContent('+18.4%');
-        expect(getByTestId('metric-change-traffic')).toHaveTextContent('+25%');
+        expect(getByTestId('performance-chart')).toBeTruthy();
+        expect(getByTestId('chart-line-impressions')).toBeTruthy();
+        expect(getByTestId('chart-line-clicks')).toBeTruthy();
       });
     });
-    
-    it('should show trend indicators', async () => {
-      const { getByTestId } = renderScreen();
+
+    it('should show loading state initially', () => {
+      const { getByTestId } = render(
+        <MarketingAnalyticsScreen navigation={mockNavigation} />
+      );
       
-      await waitFor(() => {
-        expect(getByTestId('trend-up-revenue')).toBeTruthy();
-        expect(getByTestId('trend-up-conversions')).toBeTruthy();
-        expect(getByTestId('trend-up-traffic')).toBeTruthy();
-      });
-    });
-    
-    it('should navigate to detailed metric view', async () => {
-      const { getByTestId } = renderScreen();
-      
-      await waitFor(() => {
-        fireEvent.press(getByTestId('metric-card-revenue'));
-      });
-      
-      expect(mockNavigate).toHaveBeenCalledWith('MetricDetails', {
-        metric: 'revenue'
-      });
+      expect(getByTestId('loading-indicator')).toBeTruthy();
     });
   });
-  
-  describe('Charts and Visualizations', () => {
-    it('should render revenue chart', async () => {
-      const { getByTestId } = renderScreen();
-      
-      await waitFor(() => {
-        expect(getByTestId('revenue-chart')).toBeTruthy();
-      });
-    });
-    
-    it('should render conversion chart', async () => {
-      const { getByTestId } = renderScreen();
-      
-      await waitFor(() => {
-        expect(getByTestId('conversion-chart')).toBeTruthy();
-      });
-    });
-    
-    it('should switch between chart types', async () => {
-      const { getByTestId, getByText } = renderScreen();
-      
-      await waitFor(() => {
-        fireEvent.press(getByTestId('chart-type-selector'));
-        fireEvent.press(getByText('Bar Chart'));
-      });
-      
-      expect(getByTestId('revenue-bar-chart')).toBeTruthy();
-    });
-    
-    it('should toggle chart visibility', async () => {
-      const { getByTestId, queryByTestId } = renderScreen();
-      
-      await waitFor(() => {
-        fireEvent.press(getByTestId('toggle-conversion-chart'));
-      });
-      
-      expect(queryByTestId('conversion-chart')).toBeNull();
-    });
-    
-    it('should show data points on chart tap', async () => {
-      const { getByTestId } = renderScreen();
-      
-      await waitFor(() => {
-        const chart = getByTestId('revenue-chart');
-        fireEvent.press(chart, { locationX: 100, locationY: 50 });
-      });
-      
-      expect(getByTestId('chart-tooltip')).toBeTruthy();
-      expect(getByTestId('tooltip-value')).toHaveTextContent('$1,800');
-      expect(getByTestId('tooltip-date')).toHaveTextContent('Jan 2, 2025');
-    });
-    
-    it('should zoom in/out on charts', async () => {
-      const { getByTestId } = renderScreen();
-      
-      await waitFor(() => {
-        const chart = getByTestId('revenue-chart');
-        fireEvent(chart, 'onPinch', { scale: 2 });
-      });
-      
-      expect(getByTestId('zoom-level')).toHaveTextContent('200%');
-    });
-  });
-  
+
   describe('Date Range Selection', () => {
     it('should display date range selector', async () => {
-      const { getByTestId, getByText } = renderScreen();
+      const { getByTestId, getByText } = render(
+        <MarketingAnalyticsScreen navigation={mockNavigation} />
+      );
       
       await waitFor(() => {
         expect(getByTestId('date-range-selector')).toBeTruthy();
-        expect(getByText('Jan 1 - Jan 31, 2025')).toBeTruthy();
       });
+      
+      expect(getByText('Last 7 Days')).toBeTruthy();
     });
-    
-    it('should show preset date ranges', async () => {
-      const { getByTestId, getByText } = renderScreen();
+
+    it('should change date range', async () => {
+      const { getByTestId, getByText } = render(
+        <MarketingAnalyticsScreen navigation={mockNavigation} />
+      );
       
       await waitFor(() => {
         fireEvent.press(getByTestId('date-range-selector'));
       });
       
-      expect(getByText('Last 7 days')).toBeTruthy();
-      expect(getByText('Last 30 days')).toBeTruthy();
-      expect(getByText('Last Quarter')).toBeTruthy();
-      expect(getByText('Year to Date')).toBeTruthy();
-      expect(getByText('Custom Range')).toBeTruthy();
+      expect(getByTestId('date-range-modal')).toBeTruthy();
+      fireEvent.press(getByText('Last 30 Days'));
+      
+      await waitFor(() => {
+        expect(marketingService.getAnalytics).toHaveBeenCalledWith(
+          expect.objectContaining({ dateRange: '30days' })
+        );
+      });
     });
-    
-    it('should select preset range', async () => {
-      const { getByTestId, getByText } = renderScreen();
-      const { setDateRange } = require('@/hooks/marketing/useMarketingAnalytics').useMarketingAnalytics();
+
+    it('should allow custom date range', async () => {
+      const { getByTestId, getByText } = render(
+        <MarketingAnalyticsScreen navigation={mockNavigation} />
+      );
       
       await waitFor(() => {
         fireEvent.press(getByTestId('date-range-selector'));
-        fireEvent.press(getByText('Last 7 days'));
       });
       
-      expect(setDateRange).toHaveBeenCalledWith(expect.objectContaining({
-        preset: 'last7days'
-      }));
-    });
-    
-    it('should open custom date picker', async () => {
-      const { getByTestId, getByText } = renderScreen();
+      fireEvent.press(getByText('Custom Range'));
       
-      await waitFor(() => {
-        fireEvent.press(getByTestId('date-range-selector'));
-        fireEvent.press(getByText('Custom Range'));
-      });
-      
-      expect(getByTestId('custom-date-modal')).toBeTruthy();
-      expect(getByTestId('start-date-picker')).toBeTruthy();
-      expect(getByTestId('end-date-picker')).toBeTruthy();
-    });
-    
-    it('should apply custom date range', async () => {
-      const { getByTestId, getByText } = renderScreen();
-      const { setDateRange } = require('@/hooks/marketing/useMarketingAnalytics').useMarketingAnalytics();
-      
-      await waitFor(() => {
-        fireEvent.press(getByTestId('date-range-selector'));
-        fireEvent.press(getByText('Custom Range'));
-        
-        const startPicker = getByTestId('start-date-picker');
-        fireEvent(startPicker, 'onDateChange', new Date('2025-01-15'));
-        
-        const endPicker = getByTestId('end-date-picker');
-        fireEvent(endPicker, 'onDateChange', new Date('2025-01-31'));
-        
-        fireEvent.press(getByTestId('apply-date-range'));
-      });
-      
-      expect(setDateRange).toHaveBeenCalledWith({
-        start: '2025-01-15',
-        end: '2025-01-31'
-      });
+      expect(getByTestId('date-picker-start')).toBeTruthy();
+      expect(getByTestId('date-picker-end')).toBeTruthy();
     });
   });
-  
-  describe('Campaign Performance', () => {
-    it('should display campaign performance table', async () => {
-      const { getByTestId, getAllByTestId } = renderScreen();
+
+  describe('Charts and Visualizations', () => {
+    it('should display line chart for trends', async () => {
+      const { getByTestId } = render(
+        <MarketingAnalyticsScreen navigation={mockNavigation} />
+      );
       
       await waitFor(() => {
-        expect(getByTestId('campaign-performance-table')).toBeTruthy();
-        const rows = getAllByTestId(/campaign-row-/);
-        expect(rows).toHaveLength(3);
+        expect(getByTestId('trends-line-chart')).toBeTruthy();
       });
+      
+      const chart = getByTestId('trends-line-chart');
+      expect(chart.props.data).toHaveLength(3); // 3 days of data
     });
-    
-    it('should show campaign metrics', async () => {
-      const { getByTestId } = renderScreen();
+
+    it('should show bar chart for campaign comparison', async () => {
+      const { getByTestId } = render(
+        <MarketingAnalyticsScreen navigation={mockNavigation} />
+      );
       
       await waitFor(() => {
-        expect(getByTestId('campaign-name-1')).toHaveTextContent('Summer Sale');
-        expect(getByTestId('campaign-roi-1')).toHaveTextContent('450%');
-        expect(getByTestId('campaign-conversions-1')).toHaveTextContent('125');
+        expect(getByTestId('campaign-comparison-chart')).toBeTruthy();
       });
+      
+      const chart = getByTestId('campaign-comparison-chart');
+      expect(chart.props.data).toContainEqual(
+        expect.objectContaining({ name: 'Spring Sale' })
+      );
     });
-    
-    it('should sort campaigns by metric', async () => {
-      const { getByTestId } = renderScreen();
+
+    it('should display pie chart for demographics', async () => {
+      const { getByTestId } = render(
+        <MarketingAnalyticsScreen navigation={mockNavigation} />
+      );
       
       await waitFor(() => {
-        fireEvent.press(getByTestId('sort-by-roi'));
+        fireEvent.press(getByTestId('view-demographics'));
       });
       
-      const firstRow = getByTestId('campaign-row-0');
-      expect(firstRow).toHaveTextContent('Summer Sale');
+      expect(getByTestId('demographics-pie-chart')).toBeTruthy();
+      expect(getByTestId('age-distribution-chart')).toBeTruthy();
+      expect(getByTestId('gender-distribution-chart')).toBeTruthy();
     });
-    
-    it('should filter campaigns', async () => {
-      const { getByTestId, getAllByTestId } = renderScreen();
+
+    it('should show geographic heat map', async () => {
+      const { getByTestId } = render(
+        <MarketingAnalyticsScreen navigation={mockNavigation} />
+      );
       
       await waitFor(() => {
-        const searchInput = getByTestId('campaign-search');
-        fireEvent.changeText(searchInput, 'Summer');
+        fireEvent.press(getByTestId('view-geographic'));
       });
       
-      const rows = getAllByTestId(/campaign-row-/);
-      expect(rows).toHaveLength(1);
-    });
-    
-    it('should navigate to campaign details', async () => {
-      const { getByTestId } = renderScreen();
-      
-      await waitFor(() => {
-        fireEvent.press(getByTestId('campaign-row-1'));
-      });
-      
-      expect(mockNavigate).toHaveBeenCalledWith('CampaignAnalytics', {
-        campaignId: '1'
-      });
-    });
-  });
-  
-  describe('Export and Sharing', () => {
-    it('should show export options', async () => {
-      const { getByTestId } = renderScreen();
-      
-      await waitFor(() => {
-        fireEvent.press(getByTestId('export-button'));
-      });
-      
-      expect(getByTestId('export-modal')).toBeTruthy();
-    });
-    
-    it('should export to CSV', async () => {
-      const { getByTestId, getByText } = renderScreen();
-      const { exportToCSV } = require('@/hooks/marketing/useExportData').useExportData();
-      
-      await waitFor(() => {
-        fireEvent.press(getByTestId('export-button'));
-        fireEvent.press(getByText('Export as CSV'));
-      });
-      
-      expect(exportToCSV).toHaveBeenCalledWith(expect.any(Object));
-    });
-    
-    it('should export to PDF', async () => {
-      const { getByTestId, getByText } = renderScreen();
-      const { exportToPDF } = require('@/hooks/marketing/useExportData').useExportData();
-      
-      await waitFor(() => {
-        fireEvent.press(getByTestId('export-button'));
-        fireEvent.press(getByText('Export as PDF'));
-      });
-      
-      expect(exportToPDF).toHaveBeenCalledWith(expect.any(Object));
-    });
-    
-    it('should send report via email', async () => {
-      const { getByTestId, getByText } = renderScreen();
-      const { sendEmail } = require('@/hooks/marketing/useExportData').useExportData();
-      
-      await waitFor(() => {
-        fireEvent.press(getByTestId('export-button'));
-        fireEvent.press(getByText('Send via Email'));
-        
-        const emailInput = getByTestId('email-input');
-        fireEvent.changeText(emailInput, 'team@company.com');
-        fireEvent.press(getByTestId('send-email-button'));
-      });
-      
-      expect(sendEmail).toHaveBeenCalledWith('team@company.com', expect.any(Object));
-    });
-    
-    it('should share analytics snapshot', async () => {
-      const { getByTestId } = renderScreen();
-      
-      await waitFor(() => {
-        fireEvent.press(getByTestId('share-button'));
-      });
-      
-      expect(Share.share).toHaveBeenCalledWith({
-        message: expect.stringContaining('Marketing Analytics'),
-        title: 'Analytics Report'
-      });
+      expect(getByTestId('geographic-map')).toBeTruthy();
+      expect(getByTestId('country-list')).toBeTruthy();
     });
   });
-  
-  describe('Filters and Segments', () => {
-    it('should display filter options', async () => {
-      const { getByTestId } = renderScreen();
+
+  describe('Metrics Filtering', () => {
+    it('should filter by campaign', async () => {
+      const { getByTestId, getByText } = render(
+        <MarketingAnalyticsScreen navigation={mockNavigation} />
+      );
       
       await waitFor(() => {
         fireEvent.press(getByTestId('filter-button'));
       });
       
-      expect(getByTestId('filter-panel')).toBeTruthy();
-    });
-    
-    it('should filter by channel', async () => {
-      const { getByTestId, getByText } = renderScreen();
+      fireEvent.press(getByText('Spring Sale'));
       
       await waitFor(() => {
-        fireEvent.press(getByTestId('filter-button'));
-        fireEvent.press(getByText('Email'));
-        fireEvent.press(getByText('Social'));
+        expect(marketingService.getAnalytics).toHaveBeenCalledWith(
+          expect.objectContaining({ campaignId: '1' })
+        );
       });
-      
-      expect(getByTestId('active-filters')).toHaveTextContent('Email, Social');
     });
-    
-    it('should filter by product category', async () => {
-      const { getByTestId, getByText } = renderScreen();
+
+    it('should filter by metric type', async () => {
+      const { getByTestId } = render(
+        <MarketingAnalyticsScreen navigation={mockNavigation} />
+      );
       
       await waitFor(() => {
-        fireEvent.press(getByTestId('filter-button'));
-        fireEvent.press(getByTestId('category-filter'));
-        fireEvent.press(getByText('Electronics'));
+        fireEvent.press(getByTestId('metric-selector'));
       });
       
-      expect(getByTestId('active-filters')).toHaveTextContent('Electronics');
+      fireEvent.press(getByTestId('metric-conversions'));
+      
+      const chart = getByTestId('performance-chart');
+      expect(chart.props.primaryMetric).toBe('conversions');
     });
-    
-    it('should clear all filters', async () => {
-      const { getByTestId, getByText, queryByTestId } = renderScreen();
+
+    it('should compare multiple campaigns', async () => {
+      const { getByTestId, getByText } = render(
+        <MarketingAnalyticsScreen navigation={mockNavigation} />
+      );
       
       await waitFor(() => {
-        fireEvent.press(getByTestId('filter-button'));
-        fireEvent.press(getByText('Email'));
-        fireEvent.press(getByTestId('clear-filters'));
+        fireEvent.press(getByTestId('compare-button'));
       });
       
-      expect(queryByTestId('active-filters')).toBeNull();
+      fireEvent.press(getByText('Spring Sale'));
+      fireEvent.press(getByText('Summer Launch'));
+      fireEvent.press(getByTestId('apply-comparison'));
+      
+      expect(getByTestId('comparison-chart')).toBeTruthy();
     });
   });
-  
-  describe('Pull to Refresh', () => {
-    it('should handle pull to refresh', async () => {
-      const { getByTestId } = renderScreen();
-      const { refetch } = require('@/hooks/marketing/useMarketingAnalytics').useMarketingAnalytics();
+
+  describe('Export Functionality', () => {
+    it('should display export options', async () => {
+      const { getByTestId, getByText } = render(
+        <MarketingAnalyticsScreen navigation={mockNavigation} />
+      );
       
       await waitFor(() => {
-        const scrollView = getByTestId('analytics-scroll-view');
-        fireEvent(scrollView, 'refresh');
+        fireEvent.press(getByTestId('export-button'));
       });
       
-      expect(refetch).toHaveBeenCalled();
+      expect(getByText('Export as PDF')).toBeTruthy();
+      expect(getByText('Export as CSV')).toBeTruthy();
+      expect(getByText('Export as Excel')).toBeTruthy();
+    });
+
+    it('should export data as CSV', async () => {
+      const { getByTestId, getByText } = render(
+        <MarketingAnalyticsScreen navigation={mockNavigation} />
+      );
+      
+      await waitFor(() => {
+        fireEvent.press(getByTestId('export-button'));
+      });
+      
+      fireEvent.press(getByText('Export as CSV'));
+      
+      await waitFor(() => {
+        expect(marketingService.exportAnalytics).toHaveBeenCalledWith(
+          expect.objectContaining({ format: 'csv' })
+        );
+      });
+    });
+
+    it('should allow scheduling reports', async () => {
+      const { getByTestId, getByText } = render(
+        <MarketingAnalyticsScreen navigation={mockNavigation} />
+      );
+      
+      await waitFor(() => {
+        fireEvent.press(getByTestId('schedule-report-button'));
+      });
+      
+      expect(getByTestId('schedule-modal')).toBeTruthy();
+      expect(getByText('Daily')).toBeTruthy();
+      expect(getByText('Weekly')).toBeTruthy();
+      expect(getByText('Monthly')).toBeTruthy();
     });
   });
-  
-  describe('Loading and Error States', () => {
-    it('should show loading state', async () => {
-      require('@/hooks/marketing/useMarketingAnalytics').useMarketingAnalytics.mockReturnValue({
-        isLoading: true,
-        metrics: {},
-        chartData: {},
-        campaigns: []
+
+  describe('Performance Insights', () => {
+    it('should display AI-powered insights', async () => {
+      const { getByTestId, getByText } = render(
+        <MarketingAnalyticsScreen navigation={mockNavigation} />
+      );
+      
+      await waitFor(() => {
+        expect(getByTestId('insights-section')).toBeTruthy();
       });
       
-      const { getByTestId } = renderScreen();
-      
-      expect(getByTestId('analytics-loading')).toBeTruthy();
-      expect(getByTestId('skeleton-charts')).toBeTruthy();
+      expect(getByText('Key Insights')).toBeTruthy();
+      expect(getByText(/Conversion rate increased by/)).toBeTruthy();
     });
-    
-    it('should display error message', async () => {
-      require('@/hooks/marketing/useMarketingAnalytics').useMarketingAnalytics.mockReturnValue({
-        isError: true,
-        error: new Error('Failed to load analytics'),
-        metrics: {},
-        chartData: {},
-        campaigns: []
+
+    it('should show performance alerts', async () => {
+      const { getByTestId, getByText } = render(
+        <MarketingAnalyticsScreen navigation={mockNavigation} />
+      );
+      
+      await waitFor(() => {
+        expect(getByTestId('alerts-section')).toBeTruthy();
       });
       
-      const { getByText } = renderScreen();
-      
-      expect(getByText('Failed to load analytics')).toBeTruthy();
+      expect(getByText('⚠️ CTR below average')).toBeTruthy();
+      expect(getByText('✅ ROI exceeds target')).toBeTruthy();
     });
-    
-    it('should show retry button on error', async () => {
-      require('@/hooks/marketing/useMarketingAnalytics').useMarketingAnalytics.mockReturnValue({
-        isError: true,
-        error: new Error('Network error'),
-        refetch: jest.fn(),
-        metrics: {},
-        chartData: {},
-        campaigns: []
+
+    it('should provide recommendations', async () => {
+      const { getByTestId, getByText } = render(
+        <MarketingAnalyticsScreen navigation={mockNavigation} />
+      );
+      
+      await waitFor(() => {
+        fireEvent.press(getByTestId('view-recommendations'));
       });
       
-      const { getByText } = renderScreen();
-      const retryButton = getByText('Retry');
-      
-      fireEvent.press(retryButton);
-      
-      expect(require('@/hooks/marketing/useMarketingAnalytics').useMarketingAnalytics().refetch).toHaveBeenCalled();
+      expect(getByText('Recommendations')).toBeTruthy();
+      expect(getByText(/Increase budget for/)).toBeTruthy();
+      expect(getByText(/Optimize content for/)).toBeTruthy();
     });
   });
-  
+
+  describe('Real-time Updates', () => {
+    it('should show real-time indicator', async () => {
+      const { getByTestId } = render(
+        <MarketingAnalyticsScreen navigation={mockNavigation} />
+      );
+      
+      await waitFor(() => {
+        expect(getByTestId('real-time-indicator')).toBeTruthy();
+      });
+      
+      const indicator = getByTestId('real-time-indicator');
+      expect(indicator.props.style).toContainEqual(
+        expect.objectContaining({ backgroundColor: 'green' })
+      );
+    });
+
+    it('should auto-refresh data', async () => {
+      jest.useFakeTimers();
+      
+      const { getByTestId } = render(
+        <MarketingAnalyticsScreen navigation={mockNavigation} />
+      );
+      
+      await waitFor(() => {
+        expect(getByTestId('auto-refresh-toggle')).toBeTruthy();
+      });
+      
+      fireEvent.press(getByTestId('auto-refresh-toggle'));
+      
+      jest.advanceTimersByTime(30000); // 30 seconds
+      
+      expect(marketingService.getAnalytics).toHaveBeenCalledTimes(2);
+      
+      jest.useRealTimers();
+    });
+  });
+
+  describe('Drill-down Navigation', () => {
+    it('should navigate to campaign details on click', async () => {
+      const { getByTestId } = render(
+        <MarketingAnalyticsScreen navigation={mockNavigation} />
+      );
+      
+      await waitFor(() => {
+        expect(getByTestId('campaign-row-1')).toBeTruthy();
+      });
+      
+      fireEvent.press(getByTestId('campaign-row-1'));
+      
+      expect(mockNavigate).toHaveBeenCalledWith('CampaignDetails', {
+        campaignId: '1',
+        fromAnalytics: true,
+      });
+    });
+
+    it('should navigate to content details', async () => {
+      const { getByTestId } = render(
+        <MarketingAnalyticsScreen navigation={mockNavigation} />
+      );
+      
+      await waitFor(() => {
+        expect(getByTestId('content-row-1')).toBeTruthy();
+      });
+      
+      fireEvent.press(getByTestId('content-row-1'));
+      
+      expect(mockNavigate).toHaveBeenCalledWith('ContentDetails', {
+        contentId: '1',
+        fromAnalytics: true,
+      });
+    });
+  });
+
+  describe('Custom Metrics', () => {
+    it('should allow adding custom metrics', async () => {
+      const { getByTestId, getByPlaceholderText } = render(
+        <MarketingAnalyticsScreen navigation={mockNavigation} />
+      );
+      
+      await waitFor(() => {
+        fireEvent.press(getByTestId('add-custom-metric'));
+      });
+      
+      expect(getByTestId('custom-metric-modal')).toBeTruthy();
+      
+      fireEvent.changeText(getByPlaceholderText('Metric Name'), 'Cost per Acquisition');
+      fireEvent.changeText(getByPlaceholderText('Formula'), 'spend / conversions');
+      
+      fireEvent.press(getByTestId('save-custom-metric'));
+      
+      await waitFor(() => {
+        expect(getByTestId('metric-cost-per-acquisition')).toBeTruthy();
+      });
+    });
+
+    it('should calculate custom metrics', async () => {
+      const { getByTestId, getByText } = render(
+        <MarketingAnalyticsScreen navigation={mockNavigation} />
+      );
+      
+      await waitFor(() => {
+        expect(getByTestId('custom-metrics-section')).toBeTruthy();
+      });
+      
+      // spend: 25000, conversions: 6250
+      expect(getByText('CPA: $4.00')).toBeTruthy();
+    });
+  });
+
   describe('Accessibility', () => {
     it('should have proper accessibility labels', async () => {
-      const { getByLabelText } = renderScreen();
+      const { getByLabelText } = render(
+        <MarketingAnalyticsScreen navigation={mockNavigation} />
+      );
       
       await waitFor(() => {
         expect(getByLabelText('Marketing Analytics Dashboard')).toBeTruthy();
-        expect(getByLabelText('Revenue Chart')).toBeTruthy();
-        expect(getByLabelText('Conversion Chart')).toBeTruthy();
-        expect(getByLabelText('Campaign Performance Table')).toBeTruthy();
+        expect(getByLabelText('Date range selector')).toBeTruthy();
+        expect(getByLabelText('Export analytics data')).toBeTruthy();
       });
     });
-    
+
     it('should announce metric changes', async () => {
-      const { getByTestId } = renderScreen();
+      const { getByTestId, getByText } = render(
+        <MarketingAnalyticsScreen navigation={mockNavigation} />
+      );
       
       await waitFor(() => {
-        const announcement = getByTestId('screen-reader-announcement');
-        expect(announcement).toHaveTextContent('Revenue increased by 18.4%');
+        fireEvent.press(getByTestId('refresh-button'));
       });
+      
+      const updateMessage = getByText('Analytics updated');
+      expect(updateMessage.props.accessibilityRole).toBe('alert');
+      expect(updateMessage.props.accessibilityLiveRegion).toBe('polite');
     });
-    
-    it('should have accessible chart descriptions', async () => {
-      const { getByTestId } = renderScreen();
+
+    it('should support screen reader navigation', () => {
+      const { getByTestId } = render(
+        <MarketingAnalyticsScreen navigation={mockNavigation} />
+      );
       
-      await waitFor(() => {
-        const chart = getByTestId('revenue-chart');
-        expect(chart.props.accessibilityLabel).toBe('Revenue trend chart showing daily values');
-        expect(chart.props.accessibilityHint).toBe('Double tap to view detailed data');
-      });
+      const metricsSection = getByTestId('metrics-section');
+      expect(metricsSection.props.accessibilityRole).toBe('region');
+      expect(metricsSection.props.accessibilityLabel).toBe('Key Performance Metrics');
     });
   });
 });

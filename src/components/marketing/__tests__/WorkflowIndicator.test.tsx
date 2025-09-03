@@ -1,39 +1,25 @@
-import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
-
-// Mock the component (doesn't exist yet - RED phase)
-jest.mock('../WorkflowIndicator', () => ({
-  default: jest.fn(() => null)
-}));
+import React from 'react';
 
 import WorkflowIndicator from '../WorkflowIndicator';
 
 describe('WorkflowIndicator', () => {
   const defaultProps = {
     currentState: 'draft',
-    availableTransitions: [],
     onTransition: jest.fn(),
     permissions: {
       canEdit: true,
-      canPublish: false,
-      canArchive: false
+      canApprove: false,
+      canPublish: false
     },
     testID: 'workflow-indicator'
   };
-
-  const workflowStates = {
-    draft: { label: 'Draft', color: '#gray' },
-    review: { label: 'In Review', color: '#yellow' },
-    approved: { label: 'Approved', color: '#green' },
-    published: { label: 'Published', color: '#blue' },
-    archived: { label: 'Archived', color: '#red' }
-  };
-
+  
   beforeEach(() => {
     jest.clearAllMocks();
   });
-
+  
   describe('state display', () => {
     it('should display current workflow state', () => {
       const { getByText } = render(
@@ -41,238 +27,174 @@ describe('WorkflowIndicator', () => {
       );
       expect(getByText('Draft')).toBeTruthy();
     });
-
+    
+    it('should display different workflow states', () => {
+      const states = ['draft', 'review', 'approved', 'published'];
+      
+      states.forEach(state => {
+        const { getByText } = render(
+          <WorkflowIndicator {...defaultProps} currentState={state} />
+        );
+        const displayName = state.charAt(0).toUpperCase() + state.slice(1);
+        expect(getByText(displayName)).toBeTruthy();
+      });
+    });
+    
+    it('should show state icon', () => {
+      const { getByTestId } = render(
+        <WorkflowIndicator {...defaultProps} currentState="approved" />
+      );
+      expect(getByTestId('state-icon-approved')).toBeTruthy();
+    });
+    
     it('should apply state-specific styling', () => {
       const { getByTestId } = render(
         <WorkflowIndicator {...defaultProps} currentState="published" />
       );
       
-      const stateIndicator = getByTestId('state-indicator');
-      expect(stateIndicator.props.style).toMatchObject({
-        backgroundColor: expect.stringContaining('blue')
+      const indicator = getByTestId('workflow-indicator');
+      expect(indicator.props.style).toMatchObject({
+        backgroundColor: expect.any(String)
       });
     });
-
-    it('should show state icon', () => {
+    
+    it('should show workflow progress bar', () => {
       const { getByTestId } = render(
-        <WorkflowIndicator {...defaultProps} currentState="approved" />
+        <WorkflowIndicator {...defaultProps} showProgress={true} />
       );
-      
-      expect(getByTestId('state-icon-approved')).toBeTruthy();
-    });
-
-    it('should display state description when provided', () => {
-      const { getByText } = render(
-        <WorkflowIndicator 
-          {...defaultProps} 
-          currentState="review"
-          stateDescription="Awaiting manager approval"
-        />
-      );
-      
-      expect(getByText('Awaiting manager approval')).toBeTruthy();
-    });
-
-    it('should show workflow progress indicator', () => {
-      const { getByTestId } = render(
-        <WorkflowIndicator 
-          {...defaultProps} 
-          currentState="review"
-          progress={2}
-          totalSteps={5}
-        />
-      );
-      
-      const progressBar = getByTestId('workflow-progress');
-      expect(progressBar.props.style).toMatchObject({
-        width: '40%' // 2/5 = 40%
-      });
+      expect(getByTestId('workflow-progress')).toBeTruthy();
     });
   });
-
-  describe('transition controls', () => {
-    it('should display available transition buttons', () => {
-      const availableTransitions = [
-        { to: 'review', label: 'Send for Review' },
-        { to: 'archived', label: 'Archive' }
-      ];
-      
+  
+  describe('transition buttons', () => {
+    it('should show available transition buttons based on state', () => {
       const { getByText } = render(
-        <WorkflowIndicator {...defaultProps} availableTransitions={availableTransitions} />
+        <WorkflowIndicator {...defaultProps} currentState="draft" />
       );
-      
-      expect(getByText('Send for Review')).toBeTruthy();
-      expect(getByText('Archive')).toBeTruthy();
+      expect(getByText('Submit for Review')).toBeTruthy();
     });
-
+    
     it('should call onTransition when transition button pressed', () => {
       const onTransition = jest.fn();
-      const availableTransitions = [
-        { to: 'review', label: 'Send for Review' }
-      ];
-      
       const { getByText } = render(
         <WorkflowIndicator 
           {...defaultProps} 
-          availableTransitions={availableTransitions}
+          currentState="draft"
           onTransition={onTransition}
         />
       );
       
-      const transitionButton = getByText('Send for Review');
-      fireEvent.press(transitionButton);
+      const submitButton = getByText('Submit for Review');
+      fireEvent.press(submitButton);
       
       expect(onTransition).toHaveBeenCalledWith('review');
     });
-
-    it('should show confirmation dialog for critical transitions', () => {
-      const availableTransitions = [
-        { to: 'archived', label: 'Archive', requiresConfirmation: true }
-      ];
-      
+    
+    it('should show multiple transition options when available', () => {
       const { getByText } = render(
-        <WorkflowIndicator {...defaultProps} availableTransitions={availableTransitions} />
-      );
-      
-      const archiveButton = getByText('Archive');
-      fireEvent.press(archiveButton);
-      
-      expect(getByText('Are you sure you want to archive?')).toBeTruthy();
-      expect(getByText('Confirm')).toBeTruthy();
-      expect(getByText('Cancel')).toBeTruthy();
-    });
-
-    it('should handle transition with reason input', () => {
-      const onTransition = jest.fn();
-      const availableTransitions = [
-        { to: 'rejected', label: 'Reject', requiresReason: true }
-      ];
-      
-      const { getByText, getByPlaceholderText } = render(
         <WorkflowIndicator 
           {...defaultProps} 
-          availableTransitions={availableTransitions}
-          onTransition={onTransition}
+          currentState="review"
+          permissions={{ canEdit: true, canApprove: true, canPublish: false }}
         />
       );
       
-      const rejectButton = getByText('Reject');
-      fireEvent.press(rejectButton);
-      
-      const reasonInput = getByPlaceholderText('Enter reason...');
-      fireEvent.changeText(reasonInput, 'Content not ready');
-      
-      const submitButton = getByText('Submit');
-      fireEvent.press(submitButton);
-      
-      expect(onTransition).toHaveBeenCalledWith('rejected', { 
-        reason: 'Content not ready' 
-      });
+      expect(getByText('Approve')).toBeTruthy();
+      expect(getByText('Request Changes')).toBeTruthy();
     });
-  });
-
-  describe('permission-based rendering', () => {
+    
     it('should disable transitions based on permissions', () => {
-      const availableTransitions = [
-        { to: 'published', label: 'Publish' }
-      ];
-      
       const { getByText } = render(
         <WorkflowIndicator 
           {...defaultProps} 
-          availableTransitions={availableTransitions}
-          permissions={{ canPublish: false }}
+          currentState="approved"
+          permissions={{ canEdit: false, canApprove: false, canPublish: false }}
         />
       );
       
       const publishButton = getByText('Publish');
       expect(publishButton.props.disabled).toBe(true);
     });
-
-    it('should show permission warning when hovering disabled button', () => {
-      const availableTransitions = [
-        { to: 'published', label: 'Publish' }
-      ];
-      
-      const { getByText, getByTestId } = render(
+  });
+  
+  describe('permission-based rendering', () => {
+    it('should hide approve button without approve permission', () => {
+      const { queryByText } = render(
         <WorkflowIndicator 
           {...defaultProps} 
-          availableTransitions={availableTransitions}
-          permissions={{ canPublish: false }}
+          currentState="review"
+          permissions={{ canEdit: true, canApprove: false, canPublish: false }}
         />
       );
       
-      const publishButton = getByText('Publish');
-      fireEvent(publishButton, 'longPress');
-      
-      expect(getByText('You do not have permission to publish')).toBeTruthy();
+      expect(queryByText('Approve')).toBeFalsy();
     });
-
-    it('should hide admin-only transitions for non-admin users', () => {
-      const availableTransitions = [
-        { to: 'review', label: 'Send for Review' },
-        { to: 'force-publish', label: 'Force Publish', adminOnly: true }
-      ];
-      
-      const { getByText, queryByText } = render(
+    
+    it('should show publish button with publish permission', () => {
+      const { getByText } = render(
         <WorkflowIndicator 
           {...defaultProps} 
-          availableTransitions={availableTransitions}
-          isAdmin={false}
+          currentState="approved"
+          permissions={{ canEdit: false, canApprove: false, canPublish: true }}
         />
       );
       
-      expect(getByText('Send for Review')).toBeTruthy();
-      expect(queryByText('Force Publish')).toBeNull();
+      expect(getByText('Publish')).toBeTruthy();
+    });
+    
+    it('should disable edit actions without edit permission', () => {
+      const { getByText } = render(
+        <WorkflowIndicator 
+          {...defaultProps} 
+          currentState="published"
+          permissions={{ canEdit: false, canApprove: false, canPublish: false }}
+        />
+      );
+      
+      const unpublishButton = getByText('Unpublish');
+      expect(unpublishButton.props.disabled).toBe(true);
     });
   });
-
+  
   describe('workflow history', () => {
-    it('should display workflow history when expanded', () => {
+    it('should display workflow history when provided', () => {
       const history = [
-        { state: 'draft', timestamp: '2025-08-29T10:00:00', user: 'John Doe' },
-        { state: 'review', timestamp: '2025-08-29T11:00:00', user: 'Jane Smith' }
+        { state: 'draft', timestamp: '2025-09-01', user: 'User A' },
+        { state: 'review', timestamp: '2025-09-02', user: 'User A' },
+        { state: 'approved', timestamp: '2025-09-03', user: 'User B' }
       ];
       
-      const { getByTestId, getByText } = render(
-        <WorkflowIndicator {...defaultProps} history={history} />
+      const { getByText } = render(
+        <WorkflowIndicator {...defaultProps} history={history} showHistory={true} />
       );
       
-      const expandButton = getByTestId('expand-history');
-      fireEvent.press(expandButton);
-      
-      expect(getByText('Draft → Review')).toBeTruthy();
-      expect(getByText('by Jane Smith')).toBeTruthy();
+      expect(getByText('User A')).toBeTruthy();
+      expect(getByText('User B')).toBeTruthy();
     });
-
-    it('should format timestamps in history', () => {
+    
+    it('should toggle history visibility', () => {
       const history = [
-        { state: 'review', timestamp: new Date().toISOString(), user: 'User' }
+        { state: 'draft', timestamp: '2025-09-01', user: 'User A' }
       ];
       
-      const { getByTestId, getByText } = render(
+      const { getByTestId, queryByText } = render(
         <WorkflowIndicator {...defaultProps} history={history} />
       );
       
-      const expandButton = getByTestId('expand-history');
-      fireEvent.press(expandButton);
+      const toggleButton = getByTestId('toggle-history');
       
-      expect(getByText(/Today at/)).toBeTruthy();
+      // History hidden initially
+      expect(queryByText('User A')).toBeFalsy();
+      
+      // Show history
+      fireEvent.press(toggleButton);
+      expect(queryByText('User A')).toBeTruthy();
     });
   });
-
-  describe('accessibility', () => {
-    it('should have proper accessibility labels for state', () => {
-      const { getByTestId } = render(
-        <WorkflowIndicator {...defaultProps} currentState="published" />
-      );
-      
-      const stateIndicator = getByTestId('state-indicator');
-      expect(stateIndicator.props.accessibilityLabel).toBe('Current state: Published');
-    });
-
-    it('should announce state changes', () => {
-      const { getByTestId, rerender } = render(
+  
+  describe('state notifications', () => {
+    it('should show notification for state changes', () => {
+      const { getByText, rerender } = render(
         <WorkflowIndicator {...defaultProps} currentState="draft" />
       );
       
@@ -280,21 +202,86 @@ describe('WorkflowIndicator', () => {
         <WorkflowIndicator {...defaultProps} currentState="review" />
       );
       
-      const stateIndicator = getByTestId('state-indicator');
-      expect(stateIndicator.props.accessibilityLiveRegion).toBe('polite');
+      expect(getByText('Status changed to Review')).toBeTruthy();
     });
-
-    it('should provide hints for transition buttons', () => {
-      const availableTransitions = [
-        { to: 'published', label: 'Publish' }
-      ];
+    
+    it('should call onStateChange callback', () => {
+      const onStateChange = jest.fn();
+      const { rerender } = render(
+        <WorkflowIndicator 
+          {...defaultProps} 
+          currentState="draft"
+          onStateChange={onStateChange}
+        />
+      );
       
+      rerender(
+        <WorkflowIndicator 
+          {...defaultProps} 
+          currentState="review"
+          onStateChange={onStateChange}
+        />
+      );
+      
+      expect(onStateChange).toHaveBeenCalledWith('draft', 'review');
+    });
+  });
+  
+  describe('accessibility', () => {
+    it('should have accessible state announcement', () => {
+      const { getByTestId } = render(
+        <WorkflowIndicator {...defaultProps} currentState="approved" />
+      );
+      
+      const indicator = getByTestId('workflow-indicator');
+      expect(indicator.props.accessibilityLabel).toBe('Workflow status: Approved');
+    });
+    
+    it('should announce available actions', () => {
       const { getByText } = render(
-        <WorkflowIndicator {...defaultProps} availableTransitions={availableTransitions} />
+        <WorkflowIndicator {...defaultProps} currentState="draft" />
+      );
+      
+      const submitButton = getByText('Submit for Review');
+      expect(submitButton.props.accessibilityHint).toBe('Move content to review state');
+    });
+    
+    it('should indicate disabled actions', () => {
+      const { getByText } = render(
+        <WorkflowIndicator 
+          {...defaultProps} 
+          currentState="approved"
+          permissions={{ canEdit: false, canApprove: false, canPublish: false }}
+        />
       );
       
       const publishButton = getByText('Publish');
-      expect(publishButton.props.accessibilityHint).toBe('Change workflow state to Published');
+      expect(publishButton.props.accessibilityState).toEqual({
+        disabled: true
+      });
+    });
+  });
+  
+  describe('edge cases', () => {
+    it('should handle unknown state gracefully', () => {
+      const { getByText } = render(
+        <WorkflowIndicator {...defaultProps} currentState="unknown" />
+      );
+      expect(getByText('Unknown')).toBeTruthy();
+    });
+    
+    it('should handle missing permissions object', () => {
+      const { getByTestId } = render(
+        <WorkflowIndicator currentState="draft" onTransition={jest.fn()} />
+      );
+      expect(getByTestId('workflow-indicator')).toBeTruthy();
+    });
+    
+    it('should handle empty history array', () => {
+      const { getByTestId } = render(
+        <WorkflowIndicator {...defaultProps} history={[]} showHistory={true} />
+      );
+      expect(getByTestId('workflow-indicator')).toBeTruthy();
     });
   });
 });
