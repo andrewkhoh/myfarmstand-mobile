@@ -1,5 +1,5 @@
 /**
- * Integration Tests for useUserRole and useRolePermissions Hooks
+ * Integration Tests for useUserRole and useUserPermissions Hooks
  * Following established patterns without complex React Native dependencies
  * Pattern compliance: 100% with architectural patterns
  */
@@ -49,15 +49,15 @@ jest.mock('../../schemas/role-based/rolePermission.schemas', () => ({
   RoleType: {}
 }));
 
-import { useUserRole, getUserRoleType, isUserRoleActive } from '../useUserRole';
+import { useUserRole, getUserRoleType, isUserRoleActive } from '../role-based/useUserRole';
 import { 
-  useRolePermissions, 
+  useUserPermissions, 
   useHasPermission,
   hasAllPermissions,
   hasAnyPermission,
   isAdmin,
   isExecutive 
-} from '../useRolePermissions';
+} from '../role-based/usePermissions';
 import { RolePermissionService } from '../../services/role-based/rolePermissionService';
 
 const mockRoleService = RolePermissionService as jest.Mocked<typeof RolePermissionService>;
@@ -100,7 +100,7 @@ describe('Role Hooks Integration Tests', () => {
   });
 
   describe('Data Flow Integration', () => {
-    it('should properly flow data from useUserRole to useRolePermissions', () => {
+    it('should properly flow data from useUserRole to useUserPermissions', () => {
       // Setup useUserRole to return admin data
       const userRoleQuery = {
         data: adminUser,
@@ -120,10 +120,10 @@ describe('Role Hooks Integration Tests', () => {
       expect(getUserRoleType(userRoleResult)).toBe('admin');
       expect(isUserRoleActive(userRoleResult)).toBe(true);
 
-      // Second call for useRolePermissions
+      // Second call for useUserPermissions
       mockUseQuery.mockReturnValueOnce(userRoleQuery);
       
-      const permissionsResult = useRolePermissions('admin-user-123');
+      const permissionsResult = useUserPermissions('admin-user-123');
       
       // Should have both role-based and custom permissions
       expect(permissionsResult.permissions).toContain('manage_users');
@@ -148,7 +148,7 @@ describe('Role Hooks Integration Tests', () => {
 
       // Initial state - staff user
       let roleResult = useUserRole('staff-user-123');
-      let permResult = useRolePermissions('staff-user-123');
+      let permResult = useUserPermissions('staff-user-123');
       
       expect(roleResult.data?.roleType).toBe('inventory_staff');
       expect(permResult.permissions).toContain('view_inventory');
@@ -168,7 +168,7 @@ describe('Role Hooks Integration Tests', () => {
       
       // After role change
       roleResult = useUserRole('staff-user-123');
-      permResult = useRolePermissions('staff-user-123');
+      permResult = useUserPermissions('staff-user-123');
       
       expect(roleResult.data?.roleType).toBe('admin');
       expect(permResult.permissions).toContain('manage_users');
@@ -177,7 +177,7 @@ describe('Role Hooks Integration Tests', () => {
   });
 
   describe('Permission Checking Integration', () => {
-    it('should coordinate between useRolePermissions and useHasPermission', () => {
+    it('should coordinate between useUserPermissions and useHasPermission', () => {
       // Setup role permissions
       mockUseQuery.mockImplementationOnce((config) => ({
         data: executiveUser,
@@ -188,7 +188,7 @@ describe('Role Hooks Integration Tests', () => {
         refetch: jest.fn(),
       }));
       
-      const permResult = useRolePermissions('executive-user-123');
+      const permResult = useUserPermissions('executive-user-123');
       
       expect(permResult.permissions).toContain('view_reports');
       expect(permResult.permissions).toContain('strategic_planning');
@@ -240,7 +240,7 @@ describe('Role Hooks Integration Tests', () => {
         refetch: jest.fn(),
       });
       
-      const result = useRolePermissions('admin-user-123');
+      const result = useUserPermissions('admin-user-123');
       
       // Check multiple permissions at once
       expect(hasAllPermissions(result, ['manage_users', 'api_access'])).toBe(true);
@@ -284,7 +284,7 @@ describe('Role Hooks Integration Tests', () => {
       // Verify queryFn throws error
       await expect(queryFn()).rejects.toThrow('Service unavailable');
       
-      // useRolePermissions should also handle the error
+      // useUserPermissions should also handle the error
       mockUseQuery.mockImplementation(({ queryFn: qf }) => {
         queryFn = qf;
         return {
@@ -297,7 +297,7 @@ describe('Role Hooks Integration Tests', () => {
         };
       });
       
-      const permResult = useRolePermissions('test-user');
+      const permResult = useUserPermissions('test-user');
       
       expect(permResult.isError).toBe(true);
       expect(permResult.permissions).toEqual([]);
@@ -329,7 +329,7 @@ describe('Role Hooks Integration Tests', () => {
         refetch: jest.fn(),
       }));
       
-      const permResult = useRolePermissions('staff-user-123');
+      const permResult = useUserPermissions('staff-user-123');
       
       expect(permResult.isError).toBe(true);
       expect(permResult.permissions).toEqual([]);
@@ -382,7 +382,7 @@ describe('Role Hooks Integration Tests', () => {
       }));
       
       let roleResult = useUserRole('staff-user-123');
-      let permResult = useRolePermissions('staff-user-123');
+      let permResult = useUserPermissions('staff-user-123');
       
       expect(isUserRoleActive(roleResult)).toBe(true);
       expect(permResult.isActive).toBe(true);
@@ -400,7 +400,7 @@ describe('Role Hooks Integration Tests', () => {
       }));
       
       roleResult = useUserRole('staff-user-123');
-      permResult = useRolePermissions('staff-user-123');
+      permResult = useUserPermissions('staff-user-123');
       
       expect(isUserRoleActive(roleResult)).toBe(false);
       expect(permResult.isActive).toBe(false);
@@ -429,7 +429,7 @@ describe('Role Hooks Integration Tests', () => {
       
       useUserRole(userId);
       
-      // Call useRolePermissions
+      // Call useUserPermissions
       mockUseQuery.mockImplementationOnce((config) => {
         expect(config.queryKey).toEqual(['roles', userId, 'permissions']);
         return {
@@ -442,7 +442,7 @@ describe('Role Hooks Integration Tests', () => {
         };
       });
       
-      useRolePermissions(userId);
+      useUserPermissions(userId);
       
       // Call useHasPermission
       mockUseQuery.mockImplementationOnce((config) => {
@@ -481,7 +481,7 @@ describe('Role Hooks Integration Tests', () => {
       }));
       
       // Check as admin
-      let permResult = useRolePermissions('multi-user-123');
+      let permResult = useUserPermissions('multi-user-123');
       expect(isAdmin(permResult)).toBe(true);
       expect(hasAllPermissions(permResult, ['manage_users', 'system_administration'])).toBe(true);
       
@@ -497,7 +497,7 @@ describe('Role Hooks Integration Tests', () => {
         refetch: jest.fn(),
       }));
       
-      permResult = useRolePermissions('multi-user-123');
+      permResult = useUserPermissions('multi-user-123');
       expect(isAdmin(permResult)).toBe(false);
       expect(hasAllPermissions(permResult, ['view_inventory', 'update_stock'])).toBe(true);
       expect(hasAnyPermission(permResult, ['manage_users'])).toBe(false);
@@ -523,7 +523,7 @@ describe('Role Hooks Integration Tests', () => {
         refetch: jest.fn(),
       });
       
-      const result = useRolePermissions('hybrid-user-123');
+      const result = useUserPermissions('hybrid-user-123');
       
       // Should have executive role permissions
       expect(result.roleType).toBe('executive');

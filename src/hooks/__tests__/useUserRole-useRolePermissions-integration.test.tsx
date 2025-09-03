@@ -3,7 +3,7 @@
  * Following Pattern: docs/architectural-patterns-and-best-practices.md
  * Reference: src/hooks/__tests__/useCart.test.tsx (100% success pattern)
  * 
- * Tests the integration between useUserRole and useRolePermissions hooks
+ * Tests the integration between useUserRole and useUserPermissions hooks
  */
 
 import { renderHook, waitFor, act } from '@testing-library/react-native';
@@ -46,8 +46,8 @@ jest.mock('../useAuth', () => ({
   useCurrentUser: jest.fn(),
 }));
 
-import { useUserRole } from '../useUserRole';
-import { useRolePermissions } from '../useRolePermissions';
+import { useUserRole } from '../role-based/useUserRole';
+import { useUserPermissions } from '../role-based/usePermissions';
 import { RolePermissionService } from '../../services/role-based/rolePermissionService';
 import { useCurrentUser } from '../useAuth';
 
@@ -126,7 +126,7 @@ describe('Role Hooks Integration Tests', () => {
       );
 
       const { result: permResult } = renderHook(
-        () => useRolePermissions('test-user-123'),
+        () => useUserPermissions('test-user-123'),
         { wrapper: createWrapper() }
       );
 
@@ -155,7 +155,7 @@ describe('Role Hooks Integration Tests', () => {
       );
 
       const { result: permResult } = renderHook(
-        () => useRolePermissions('test-user-123'),
+        () => useUserPermissions('test-user-123'),
         { wrapper: createWrapper() }
       );
 
@@ -181,7 +181,7 @@ describe('Role Hooks Integration Tests', () => {
       );
 
       const { result: permResult } = renderHook(
-        () => useRolePermissions('test-user-123'),
+        () => useUserPermissions('test-user-123'),
         { wrapper: createWrapper() }
       );
 
@@ -220,7 +220,7 @@ describe('Role Hooks Integration Tests', () => {
       );
 
       const { result: permResult } = renderHook(
-        () => useRolePermissions('test-user-123'),
+        () => useUserPermissions('test-user-123'),
         { wrapper: createWrapper() }
       );
 
@@ -268,7 +268,7 @@ describe('Role Hooks Integration Tests', () => {
       );
 
       const { result: permResult } = renderHook(
-        () => useRolePermissions('test-user-123'),
+        () => useUserPermissions('test-user-123'),
         { wrapper: createWrapper() }
       );
 
@@ -305,7 +305,7 @@ describe('Role Hooks Integration Tests', () => {
       );
 
       const { result: permResult } = renderHook(
-        () => useRolePermissions('test-user-123'),
+        () => useUserPermissions('test-user-123'),
         { wrapper: createWrapper() }
       );
 
@@ -363,7 +363,7 @@ describe('Role Hooks Integration Tests', () => {
       );
 
       const { result: permResult } = renderHook(
-        () => useRolePermissions('test-user-123'),
+        () => useUserPermissions('test-user-123'),
         { wrapper: createWrapper() }
       );
 

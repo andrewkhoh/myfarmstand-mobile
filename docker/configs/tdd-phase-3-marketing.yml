@@ -5,9 +5,10 @@ project:
   name: "marketing_operations"
   prefix: "tdd_phase_3"
   description: "TDD Phase 3: Marketing Operations with Content Workflows"
-  max_restarts: 5
+  max_restarts: 2
   test_pass_target: 85
   monitoring_port: 3003
+  workspace_strategy: "unified"  # Options: unified (default), layer, isolated
 
 agents:
   # RED Phase - Test Writers (Parallel)

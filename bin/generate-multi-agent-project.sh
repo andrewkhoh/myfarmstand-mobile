@@ -31,8 +31,15 @@ echo ""
 get_config_value() {
     local key="$1"
     local file="$2"
-    # Look for key under project section
-    awk "/^project:/ {found=1; next} found && /^[a-z]/ && !/^  / {found=0} found && /^  ${key}:/ {gsub(/^  ${key}: /, \"\"); gsub(/\"/, \"\"); print}" "$file"
+    # Look for key under project section, strip comments and quotes
+    awk "/^project:/ {found=1; next} found && /^[a-z]/ && !/^  / {found=0} found && /^  ${key}:/ {
+        gsub(/^  ${key}: /, \"\"); 
+        gsub(/\"/, \"\");
+        gsub(/'/, \"\");
+        gsub(/#.*$/, \"\");  # Remove comments
+        gsub(/^[[:space:]]+|[[:space:]]+$/, \"\");  # Trim whitespace
+        print
+    }" "$file"
 }
 
 get_agent_field() {
@@ -66,29 +73,36 @@ get_agent_depends_on() {
     local agent_name="$1"
     local file="$2"
     
-    awk "
-    /^  - name: ${agent_name}/ {
-        found=1
-        in_depends=0
+    # Find the agent block and extract depends_on array
+    # This handles the format: depends_on: ["dep1", "dep2"]
+    local deps=$(awk -v agent="$agent_name" '
+    /^  - name:/ {
+        # Check if this line contains our agent (with or without quotes)
+        name_part = $0
+        gsub(/^  - name:[ ]*/, "", name_part)
+        gsub(/["'\'']/, "", name_part)
+        gsub(/[ ]*$/, "", name_part)
+        if (name_part == agent) {
+            found=1
+        } else {
+            found=0
+        }
         next
     }
-    found && /^  - name:/ {
+    found && /^    depends_on:[ ]*\[/ {
+        # Extract the array content
+        line = $0
+        gsub(/^.*\[/, "", line)
+        gsub(/\].*$/, "", line)
+        gsub(/["'\'']/, "", line)
+        # Keep commas but remove extra spaces
+        gsub(/[ ]+/, "", line)
+        print line
         found=0
     }
-    found && /^    depends_on:/ {
-        in_depends=1
-        next
-    }
-    found && in_depends && /^    - / {
-        gsub(/^    - /, \"\")
-        gsub(/\"/, \"\")
-        gsub(/'/, \"\")
-        printf \"%s,\", \$0
-    }
-    found && in_depends && /^    [a-z]/ {
-        in_depends=0
-    }
-    " "$file" | sed 's/,$//'
+    ' "$file")
+    
+    echo "$deps"
 }
 
 # Get workspace strategy for an agent (layer, unified, or isolated)
@@ -237,20 +251,9 @@ for agent in "${AGENTS[@]}"; do
     test_command=$(get_agent_field "$agent" "test_command" "$CONFIG_FILE")
     prompt_file=$(get_agent_field "$agent" "prompt_file" "$CONFIG_FILE")
     depends_on=$(get_agent_depends_on "$agent" "$CONFIG_FILE")
-    workspace_strategy=$(get_agent_workspace_strategy "$agent" "$CONFIG_FILE")
     
-    # Determine workspace volume based on strategy
-    if [ "$workspace_strategy" = "unified" ]; then
-        # All agents share a single workspace - best for TDD workflow
-        workspace_volume="${PROJECT_PREFIX}-workspace"
-    elif [ "$workspace_strategy" = "layer" ]; then
-        # Test/impl pairs share workspace by layer (e.g., schema-tests + schema-impl)
-        layer_name=$(get_layer_name "$agent")
-        workspace_volume="${PROJECT_PREFIX}-${layer_name}"
-    else
-        # Each agent gets its own isolated workspace
-        workspace_volume="${PROJECT_PREFIX}-${agent}"
-    fi
+    # Phase 2 approach: Each agent gets its own workspace
+    workspace_volume="${PROJECT_PREFIX}-${agent}"
     
     echo "  # $agent agent" >> "$PROJECT_DIR/docker-compose.yml"
     
@@ -302,6 +305,7 @@ EOF
         echo "    depends_on:" >> "$PROJECT_DIR/docker-compose.yml"
         IFS=',' read -ra DEPS <<< "$depends_on"
         for dep in "${DEPS[@]}"; do
+            dep=$(echo "$dep" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')  # Trim whitespace
             echo "      - ${dep}-agent" >> "$PROJECT_DIR/docker-compose.yml"
         done
     fi
@@ -358,6 +362,7 @@ cat >> "$PROJECT_DIR/docker-compose.yml" << EOF
 networks:
   default:
     name: ${PROJECT_PREFIX}-network
+    external: true
 
 volumes:
   ${PROJECT_PREFIX}-data:

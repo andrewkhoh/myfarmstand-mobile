@@ -1,6 +1,6 @@
 /**
  * Role Hooks Integration Tests
- * Testing interaction between useUserRole and useRolePermissions
+ * Testing interaction between useUserRole and useUserPermissions
  * Following established test patterns from successful hooks
  * Pattern compliance: docs/architectural-patterns-and-best-practices.md
  */
@@ -38,20 +38,20 @@ jest.mock('../../utils/queryKeyFactory', () => ({
 // Import after mocks
 import { roleService } from '../../services/roleService';
 
-// Import hooks
+// Import hooks from canonical location
 import { 
   useUserRole,
   useUpdateUserRole,
   useHasRole,
   useHasMinimumRole,
-} from '../useUserRole';
+} from '../role-based/useUserRole';
 
 import { 
-  useRolePermissions,
+  useUserPermissions,
   useHasPermission,
   useCanPerformAction,
   useRolePermissionsByType,
-} from '../useRolePermissions';
+} from '../role-based/usePermissions';
 
 const mockRoleService = roleService as jest.Mocked<typeof roleService>;
 
@@ -216,7 +216,7 @@ describe('Role Hooks Integration Tests', () => {
 
   describe('🔗 Role and Permissions Integration', () => {
     it('should fetch role and corresponding permissions for a user', async () => {
-      if (!useUserRole || !useRolePermissions) {
+      if (!useUserRole || !useUserPermissions) {
         console.log('Skipping - hooks not implemented yet');
         return;
       }
@@ -228,7 +228,7 @@ describe('Role Hooks Integration Tests', () => {
       
       // Render both hooks
       const { result: roleResult } = renderHook(() => useUserRole('user-123'), { wrapper });
-      const { result: permResult } = renderHook(() => useRolePermissions('user-123'), { wrapper });
+      const { result: permResult } = renderHook(() => useUserPermissions('user-123'), { wrapper });
 
       await waitFor(() => {
         expect(roleResult.current.isLoading).toBe(false);
@@ -241,7 +241,7 @@ describe('Role Hooks Integration Tests', () => {
     });
 
     it('should update permissions when user role changes', async () => {
-      if (!useUserRole || !useRolePermissions || !useUpdateUserRole) {
+      if (!useUserRole || !useUserPermissions || !useUpdateUserRole) {
         console.log('Skipping - hooks not implemented yet');
         return;
       }
@@ -260,7 +260,7 @@ describe('Role Hooks Integration Tests', () => {
       const wrapper = createWrapper();
       
       const { result: roleResult } = renderHook(() => useUserRole('user-123'), { wrapper });
-      const { result: permResult } = renderHook(() => useRolePermissions('user-123'), { wrapper });
+      const { result: permResult } = renderHook(() => useUserPermissions('user-123'), { wrapper });
       const { result: updateResult } = renderHook(() => useUpdateUserRole(), { wrapper });
 
       await waitFor(() => {
@@ -312,7 +312,7 @@ describe('Role Hooks Integration Tests', () => {
     });
 
     it('should check specific permissions based on role', async () => {
-      if (!useRolePermissions || !useHasPermission) {
+      if (!useUserPermissions || !useHasPermission) {
         console.log('Skipping - hooks not implemented yet');
         return;
       }
@@ -389,7 +389,7 @@ describe('Role Hooks Integration Tests', () => {
     });
 
     it('should cache role and permission data efficiently', async () => {
-      if (!useUserRole || !useRolePermissions) {
+      if (!useUserRole || !useUserPermissions) {
         console.log('Skipping - hooks not implemented yet');
         return;
       }
@@ -401,7 +401,7 @@ describe('Role Hooks Integration Tests', () => {
       
       // First set of hooks
       const { result: role1 } = renderHook(() => useUserRole('user-123'), { wrapper });
-      const { result: perm1 } = renderHook(() => useRolePermissions('user-123'), { wrapper });
+      const { result: perm1 } = renderHook(() => useUserPermissions('user-123'), { wrapper });
 
       await waitFor(() => {
         expect(role1.current.isLoading).toBe(false);
@@ -410,7 +410,7 @@ describe('Role Hooks Integration Tests', () => {
 
       // Second set of hooks with same userId - should use cache
       const { result: role2 } = renderHook(() => useUserRole('user-123'), { wrapper });
-      const { result: perm2 } = renderHook(() => useRolePermissions('user-123'), { wrapper });
+      const { result: perm2 } = renderHook(() => useUserPermissions('user-123'), { wrapper });
 
       // Should immediately have cached data
       expect(role2.current.role).toBe('manager');
@@ -424,7 +424,7 @@ describe('Role Hooks Integration Tests', () => {
     });
 
     it('should handle concurrent role and permission fetches', async () => {
-      if (!useUserRole || !useRolePermissions) {
+      if (!useUserRole || !useUserPermissions) {
         console.log('Skipping - hooks not implemented yet');
         return;
       }
@@ -442,8 +442,8 @@ describe('Role Hooks Integration Tests', () => {
       // Render multiple hooks simultaneously
       const { result: role1 } = renderHook(() => useUserRole('user-123'), { wrapper });
       const { result: role2 } = renderHook(() => useUserRole('user-123'), { wrapper });
-      const { result: perm1 } = renderHook(() => useRolePermissions('user-123'), { wrapper });
-      const { result: perm2 } = renderHook(() => useRolePermissions('user-123'), { wrapper });
+      const { result: perm1 } = renderHook(() => useUserPermissions('user-123'), { wrapper });
+      const { result: perm2 } = renderHook(() => useUserPermissions('user-123'), { wrapper });
 
       // All should be loading
       expect(role1.current.isLoading).toBe(true);
@@ -470,7 +470,7 @@ describe('Role Hooks Integration Tests', () => {
     });
 
     it('should handle role-based feature flags correctly', async () => {
-      if (!useUserRole || !useHasRole || !useRolePermissions) {
+      if (!useUserRole || !useHasRole || !useUserPermissions) {
         console.log('Skipping - hooks not implemented yet');
         return;
       }

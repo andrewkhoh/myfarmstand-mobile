@@ -1,6 +1,6 @@
 /**
  * Role Hooks Integration Tests
- * Verifies that useUserRole and useRolePermissions work correctly with services
+ * Verifies that useUserRole and useUserPermissions work correctly with services
  * Following established patterns from docs/architectural-patterns-and-best-practices.md
  */
 
@@ -47,8 +47,8 @@ jest.mock('../../utils/queryKeyFactory', () => ({
 }));
 
 // Import hooks and mocked services
-import { useUserRole, getUserRoleType, isUserRoleActive } from '../useUserRole';
-import { useRolePermissions, useHasPermission, hasAllPermissions, hasAnyPermission, isAdmin } from '../useRolePermissions';
+import { useUserRole, getUserRoleType, isUserRoleActive } from '../role-based/useUserRole';
+import { useUserPermissions, useHasPermission, hasAllPermissions, hasAnyPermission, isAdmin } from '../role-based/usePermissions';
 import { RolePermissionService } from '../../services/role-based/rolePermissionService';
 import { roleService } from '../../services/roleService';
 
@@ -97,7 +97,7 @@ describe('Role Hooks Integration Tests', () => {
     jest.clearAllMocks();
   });
 
-  describe('useUserRole and useRolePermissions integration', () => {
+  describe('useUserRole and useUserPermissions integration', () => {
     it('should fetch user role and permissions together', async () => {
       // Setup mocks
       mockRolePermissionService.getUserRole.mockResolvedValue(mockStaffRoleData);
@@ -107,7 +107,7 @@ describe('Role Hooks Integration Tests', () => {
 
       // Render both hooks
       const { result: roleResult } = renderHook(() => useUserRole(testUserId), { wrapper });
-      const { result: permissionsResult } = renderHook(() => useRolePermissions(testUserId), { wrapper });
+      const { result: permissionsResult } = renderHook(() => useUserPermissions(testUserId), { wrapper });
 
       // Wait for both to load
       await waitFor(() => {
@@ -194,7 +194,7 @@ describe('Role Hooks Integration Tests', () => {
       mockRolePermissionService.getUserRole.mockResolvedValue(mockStaffRoleData);
       
       const wrapper = createWrapper();
-      const { result } = renderHook(() => useRolePermissions(testUserId), { wrapper });
+      const { result } = renderHook(() => useUserPermissions(testUserId), { wrapper });
 
       // Wait for data
       await waitFor(() => {
@@ -215,7 +215,7 @@ describe('Role Hooks Integration Tests', () => {
       mockRolePermissionService.getUserRole.mockResolvedValue(mockAdminRoleData);
       
       const wrapper = createWrapper();
-      const { result } = renderHook(() => useRolePermissions('admin-user-456'), { wrapper });
+      const { result } = renderHook(() => useUserPermissions('admin-user-456'), { wrapper });
 
       // Wait for data
       await waitFor(() => {
@@ -231,7 +231,7 @@ describe('Role Hooks Integration Tests', () => {
       mockRolePermissionService.getUserRole.mockResolvedValue(mockStaffRoleData);
       
       const wrapper = createWrapper();
-      const { result } = renderHook(() => useRolePermissions(testUserId), { wrapper });
+      const { result } = renderHook(() => useUserPermissions(testUserId), { wrapper });
 
       // Wait for data
       await waitFor(() => {
@@ -248,7 +248,7 @@ describe('Role Hooks Integration Tests', () => {
       const wrapper = createWrapper();
       
       const { result: roleResult } = renderHook(() => useUserRole(null), { wrapper });
-      const { result: permissionsResult } = renderHook(() => useRolePermissions(null), { wrapper });
+      const { result: permissionsResult } = renderHook(() => useUserPermissions(null), { wrapper });
 
       // Both should handle null gracefully
       expect(roleResult.current.isLoading).toBe(false);
@@ -285,7 +285,7 @@ describe('Role Hooks Integration Tests', () => {
       mockRolePermissionService.getUserRole.mockResolvedValue(roleWithoutPermissions);
       
       const wrapper = createWrapper();
-      const { result } = renderHook(() => useRolePermissions(testUserId), { wrapper });
+      const { result } = renderHook(() => useUserPermissions(testUserId), { wrapper });
 
       // Wait for data
       await waitFor(() => {

@@ -11,7 +11,7 @@ set -e
 PROJECT_NAME="marketing_operations"               # Project identifier
 PROJECT_PREFIX="tdd_phase_3"           # Project prefix for namespacing
 PROJECT_DESCRIPTION="TDD Phase 3: Marketing Operations with Content Workflows" # Project description
-MAX_RESTARTS=5          # Maximum restart cycles
+MAX_RESTARTS=2          # Maximum restart cycles
 TARGET_PASS_RATE=85  # Target test pass rate percentage
 PROJECT_AGENTS=("marketing-schema-tests"
     "marketing-service-tests"
@@ -79,20 +79,17 @@ for agent in "${PROJECT_AGENTS[@]}"; do
 EOF
 done
 
-# Create git worktrees for each agent
-echo -e "${BLUE}🌳 Creating git worktrees for ${PROJECT_NAME} agents...${NC}"
+# Create unified workspace for all agents
+echo -e "${BLUE}🌳 Setting up unified workspace for ${PROJECT_NAME}...${NC}"
 
-for agent in "${PROJECT_AGENTS[@]}"; do
-    WORKSPACE="${PROJECT_PREFIX}-${agent}"
-    BRANCH="${PROJECT_PREFIX}-${agent}"
-    WORKTREE_PATH="docker/volumes/${WORKSPACE}"
-    
-    # Check if worktree already exists
-    if [ -d "$WORKTREE_PATH/.git" ]; then
-        echo -e "${GREEN}  ℹ️  Worktree already exists for ${agent}, keeping it${NC}"
-        continue
-    fi
-    
+WORKSPACE="${PROJECT_PREFIX}-workspace"
+BRANCH="${PROJECT_PREFIX}-main"
+WORKTREE_PATH="docker/volumes/${WORKSPACE}"
+
+# Check if worktree already exists
+if [ -d "$WORKTREE_PATH/.git" ]; then
+    echo -e "${GREEN}  ℹ️  Unified workspace already exists, keeping it${NC}"
+else
     # Remove broken worktree reference if present
     git worktree remove "$WORKTREE_PATH" --force 2>/dev/null || true
     
@@ -101,17 +98,19 @@ for agent in "${PROJECT_AGENTS[@]}"; do
         echo -e "${GREEN}  ℹ️  Branch $BRANCH exists, creating worktree with existing branch${NC}"
         git worktree add "$WORKTREE_PATH" "$BRANCH"
     else
-        echo -e "${GREEN}  ✅ Creating new branch and worktree for ${agent}${NC}"
+        echo -e "${GREEN}  ✅ Creating new branch and worktree for unified workspace${NC}"
         git worktree add "$WORKTREE_PATH" -b "$BRANCH" HEAD
     fi
-    
-    # Ensure npm dependencies are installed
-    cd "$WORKTREE_PATH"
-    echo "  Installing dependencies for ${agent}..."
-    npm ci || npm install
-    
-    cd "$BASE_DIR"
-done
+fi
+
+# Ensure npm dependencies are installed in unified workspace
+cd "$WORKTREE_PATH"
+echo -e "${BLUE}📦 Installing dependencies in unified workspace...${NC}"
+npm ci || npm install
+
+cd "$BASE_DIR"
+
+echo -e "${GREEN}✅ Unified workspace ready at: ${WORKTREE_PATH}${NC}"
 
 # Create Docker network if it doesn't exist
 echo -e "${BLUE}🌐 Creating Docker network...${NC}"
@@ -123,10 +122,9 @@ echo ""
 echo "📋 Next steps:"
 echo "  1. Agent prompts are in: docker/agents/prompts/"
 echo "  2. Launch with: docker-compose -f docker/projects/${PROJECT_PREFIX}/docker-compose.yml up -d"
-echo "  3. Monitor at: http://localhost:MONITORING_PORT_VALUE"
+echo "  3. Monitor at: http://localhost:3003"
 echo ""
-echo "🎯 Agents will run ${MAX_RESTARTS} self-improvement cycles to:"
-AGENT_DESCRIPTIONS
+echo "🎯 Agents will run ${MAX_RESTARTS} self-improvement cycles to achieve ${TARGET_PASS_RATE}% test pass rate"
 echo ""
 echo "🛑 To stop all agents:"
 echo "  ./docker/projects/${PROJECT_PREFIX}/stop.sh"

@@ -1,0 +1,41 @@
+# TDD Phase 2 Inventory Operations Configuration
+# Multi-agent project for test-driven inventory system development
+
+project:
+  name: "inventory_operations"
+  prefix: "tdd_phase_2"
+  description: "TDD Phase 2: Inventory Operations"
+  max_restarts: 5
+  test_pass_target: 85
+  monitoring_port: 3002
+
+agents:
+  - name: "inventory-schema"
+    type: "foundation"
+    depends_on: []
+    test_command: "npm run test:schemas:inventory"
+    prompt_file: "phase2-inventory-schema.md"
+    
+  - name: "inventory-services"
+    type: "service"
+    depends_on: ["inventory-schema"]
+    test_command: "npm run test:services:inventory"
+    prompt_file: "phase2-inventory-services.md"
+    
+  - name: "inventory-hooks"
+    type: "hook"
+    depends_on: ["inventory-services"]
+    test_command: "npm run test:hooks:inventory"
+    prompt_file: "phase2-inventory-hooks.md"
+    
+  - name: "inventory-screens"
+    type: "screen"
+    depends_on: ["inventory-hooks"]
+    test_command: "npm run test:screens:inventory"
+    prompt_file: "phase2-inventory-screens.md"
+    
+  - name: "inventory-integration"
+    type: "integration"
+    depends_on: ["inventory-schema", "inventory-services", "inventory-hooks", "inventory-screens"]
+    test_command: "npm run test:integration:inventory"
+    prompt_file: "phase2-inventory-integration.md"

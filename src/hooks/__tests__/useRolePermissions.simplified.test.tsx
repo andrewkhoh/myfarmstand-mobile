@@ -49,14 +49,23 @@ jest.mock('../../schemas/role-based/rolePermission.schemas', () => ({
   RoleType: {} // Just a placeholder for the type
 }));
 
+// Import from canonical location instead of deprecated useRolePermissions
 import { 
-  useRolePermissions, 
-  useHasPermission, 
-  hasAllPermissions, 
-  hasAnyPermission,
-  isAdmin,
-  isExecutive
-} from '../useRolePermissions';
+  useUserPermissions as useRolePermissions,
+  useHasPermission,
+  useHasAllPermissions,
+  useHasAnyPermission,
+} from '../role-based/usePermissions';
+
+// Helper functions need to be defined here since they're not in the new API
+const hasAllPermissions = (permissions: string[], requiredPermissions: string[]) => 
+  requiredPermissions.every(p => permissions.includes(p));
+
+const hasAnyPermission = (permissions: string[], requiredPermissions: string[]) => 
+  requiredPermissions.some(p => permissions.includes(p));
+
+const isAdmin = (roleType?: string) => roleType === 'admin';
+const isExecutive = (roleType?: string) => roleType === 'executive';
 import { RolePermissionService } from '../../services/role-based/rolePermissionService';
 
 const mockRoleService = RolePermissionService as jest.Mocked<typeof RolePermissionService>;

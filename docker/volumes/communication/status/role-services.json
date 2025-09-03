@@ -4,8 +4,7 @@
   "reason": "max_restarts_reached",
   "cycles": 3,
   "maxRestarts": 3,
-  "timestamp": "2025-08-28T15:07:12Z",
-  "lastUpdate": "2025-08-28T15:07:12Z",
-  "experimentComplete": true,
-  "heartbeat": "2025-08-28T17:57:05Z"
+  "timestamp": "2025-08-29T17:56:33Z",
+  "lastUpdate": "2025-08-29T17:56:33Z",
+  "experimentComplete": true
 }

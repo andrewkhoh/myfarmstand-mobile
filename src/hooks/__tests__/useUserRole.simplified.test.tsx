@@ -31,7 +31,7 @@ jest.mock('../../utils/queryKeyFactory', () => ({
   }
 }));
 
-import { useUserRole, getUserRoleType, isUserRoleActive } from '../useUserRole';
+import { useUserRole, getUserRoleType, isUserRoleActive } from '../role-based/useUserRole';
 import { RolePermissionService } from '../../services/role-based/rolePermissionService';
 
 const mockRoleService = RolePermissionService as jest.Mocked<typeof RolePermissionService>;

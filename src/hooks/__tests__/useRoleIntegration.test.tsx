@@ -1,5 +1,5 @@
 /**
- * Integration Tests for useUserRole and useRolePermissions Hooks
+ * Integration Tests for useUserRole and useUserPermissions Hooks
  * Following Pattern: Integration testing from established patterns
  * Reference: docs/architectural-patterns-and-best-practices.md
  */
@@ -42,14 +42,14 @@ import {
   useUpdateUserRole,
   useHasRole,
   useHasMinimumRole 
-} from '../useUserRole';
+} from '../role-based/useUserRole';
 import { 
-  useRolePermissions,
+  useUserPermissions,
   useHasPermission,
   useCanPerformAction,
   useHasAllPermissions,
   useHasAnyPermission
-} from '../useRolePermissions';
+} from '../role-based/usePermissions';
 
 const mockRoleService = roleService as jest.Mocked<typeof roleService>;
 
@@ -138,7 +138,7 @@ describe('Role Hooks Integration Tests', () => {
       );
       
       const { result: permResult } = renderHook(
-        () => useRolePermissions('user-123'),
+        () => useUserPermissions('user-123'),
         { wrapper }
       );
 
@@ -163,7 +163,7 @@ describe('Role Hooks Integration Tests', () => {
       );
       
       const { result: permResult } = renderHook(
-        () => useRolePermissions('user-123'),
+        () => useUserPermissions('user-123'),
         { wrapper }
       );
       
@@ -406,15 +406,15 @@ describe('Role Hooks Integration Tests', () => {
 
       // Multiple simultaneous renders
       const { result: result1 } = renderHook(
-        () => useRolePermissions('user-123'),
+        () => useUserPermissions('user-123'),
         { wrapper }
       );
       const { result: result2 } = renderHook(
-        () => useRolePermissions('user-123'),
+        () => useUserPermissions('user-123'),
         { wrapper }
       );
       const { result: result3 } = renderHook(
-        () => useRolePermissions('user-123'),
+        () => useUserPermissions('user-123'),
         { wrapper }
       );
 
@@ -454,7 +454,7 @@ describe('Role Hooks Integration Tests', () => {
       
       // Null
       const { result: nullResult } = renderHook(
-        () => useRolePermissions(null as any),
+        () => useUserPermissions(null as any),
         { wrapper }
       );
       
@@ -484,7 +484,7 @@ describe('Role Hooks Integration Tests', () => {
       );
       
       const { result: permResult } = renderHook(
-        () => useRolePermissions('user-123'),
+        () => useUserPermissions('user-123'),
         { wrapper }
       );
 

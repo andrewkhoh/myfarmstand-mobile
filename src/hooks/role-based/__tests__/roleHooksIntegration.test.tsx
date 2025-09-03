@@ -26,7 +26,7 @@ jest.mock('../../useAuth', () => ({
 
 // Import hooks after mocks
 import { useUserRole } from '../useUserRole';
-import { useRolePermissions } from '../useRolePermissions';
+import { useUserPermissions } from '../role-based/usePermissions';
 import { RolePermissionService } from '../../../services/role-based/rolePermissionService';
 import { useCurrentUser } from '../../useAuth';
 import { ROLE_PERMISSIONS } from '../../../schemas/role-based/rolePermission.schemas';
@@ -79,7 +79,7 @@ describe('Role Hooks Integration Tests', () => {
     } as any);
   });
 
-  describe('🔗 useUserRole and useRolePermissions Integration', () => {
+  describe('🔗 useUserRole and useUserPermissions Integration', () => {
     it('should work together for inventory staff', async () => {
       const inventoryRole = createMockRole('inventory_staff');
       mockRoleService.getUserRole.mockResolvedValue(inventoryRole);
@@ -92,7 +92,7 @@ describe('Role Hooks Integration Tests', () => {
 
       // Render both hooks
       const roleHook = renderHook(() => useUserRole(), { wrapper });
-      const permissionsHook = renderHook(() => useRolePermissions(), { wrapper });
+      const permissionsHook = renderHook(() => useUserPermissions(), { wrapper });
 
       await waitFor(() => {
         expect(roleHook.result.current.isSuccess).toBe(true);
@@ -127,7 +127,7 @@ describe('Role Hooks Integration Tests', () => {
       const wrapper = createWrapper();
 
       const roleHook = renderHook(() => useUserRole(), { wrapper });
-      const permissionsHook = renderHook(() => useRolePermissions(), { wrapper });
+      const permissionsHook = renderHook(() => useUserPermissions(), { wrapper });
 
       await waitFor(() => {
         expect(roleHook.result.current.isSuccess).toBe(true);
@@ -162,7 +162,7 @@ describe('Role Hooks Integration Tests', () => {
       const wrapper = createWrapper();
 
       const roleHook = renderHook(() => useUserRole(), { wrapper });
-      const permissionsHook = renderHook(() => useRolePermissions(), { wrapper });
+      const permissionsHook = renderHook(() => useUserPermissions(), { wrapper });
 
       await waitFor(() => {
         expect(roleHook.result.current.isSuccess).toBe(true);
@@ -190,7 +190,7 @@ describe('Role Hooks Integration Tests', () => {
       const wrapper = createWrapper();
 
       const roleHook = renderHook(() => useUserRole(), { wrapper });
-      const permissionsHook = renderHook(() => useRolePermissions(), { wrapper });
+      const permissionsHook = renderHook(() => useUserPermissions(), { wrapper });
 
       await waitFor(() => {
         expect(roleHook.result.current.isSuccess).toBe(true);
@@ -227,7 +227,7 @@ describe('Role Hooks Integration Tests', () => {
       });
 
       const wrapper = createWrapper();
-      const permissionsHook = renderHook(() => useRolePermissions(), { wrapper });
+      const permissionsHook = renderHook(() => useUserPermissions(), { wrapper });
 
       await waitFor(() => {
         expect(permissionsHook.result.current.isSuccess).toBe(true);
@@ -261,7 +261,7 @@ describe('Role Hooks Integration Tests', () => {
       }));
 
       const wrapper = createWrapper();
-      const permissionsHook = renderHook(() => useRolePermissions(), { wrapper });
+      const permissionsHook = renderHook(() => useUserPermissions(), { wrapper });
 
       await waitFor(() => {
         expect(permissionsHook.result.current.isSuccess).toBe(true);
@@ -287,7 +287,7 @@ describe('Role Hooks Integration Tests', () => {
       const wrapper = createWrapper();
 
       const roleHook = renderHook(() => useUserRole(), { wrapper });
-      const permissionsHook = renderHook(() => useRolePermissions(), { wrapper });
+      const permissionsHook = renderHook(() => useUserPermissions(), { wrapper });
 
       // Both hooks should be in error state
       expect(roleHook.result.current.isError).toBe(true);
@@ -304,7 +304,7 @@ describe('Role Hooks Integration Tests', () => {
       const wrapper = createWrapper();
 
       const roleHook = renderHook(() => useUserRole(), { wrapper });
-      const permissionsHook = renderHook(() => useRolePermissions(), { wrapper });
+      const permissionsHook = renderHook(() => useUserPermissions(), { wrapper });
 
       await waitFor(() => {
         expect(roleHook.result.current.isSuccess).toBe(true);
