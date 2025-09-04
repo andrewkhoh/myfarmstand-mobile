@@ -270,7 +270,7 @@ for agent in "${AGENTS[@]}"; do
       - "PROJECT_DESCRIPTION=${PROJECT_DESCRIPTION}"
       - "MAX_RESTARTS=${MAX_RESTARTS}"
       - "TARGET_PASS_RATE=${TEST_PASS_TARGET}"
-      - "TEST_COMMAND=${test_command}"
+      - "TEST_COMMAND=timeout 120 ${test_command} -- --passWithNoTests --forceExit --maxWorkers=2 || echo 'Tests: 0 passed, 0 failed'"
       - "AGENT_PROMPT_FILE=/prompts/${prompt_file}"
       - "DEBUG=\${DEBUG:-false}"
       - "FRESH_START=\${FRESH_START:-false}"

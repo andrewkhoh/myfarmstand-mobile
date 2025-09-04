@@ -170,12 +170,17 @@ run_tests() {
     echo "$(date '+%H:%M:%S') 🧪 Running ${test_type} tests..." >> "$PROGRESS_FILE"
     
     # Run tests and capture output
-    TEST_OUTPUT=$(cd /workspace && $test_command 2>&1 || true)
+    TEST_OUTPUT=$(cd /workspace && eval "$test_command" 2>&1 || true)
     echo "$TEST_OUTPUT" > "${TEST_RESULTS_FILE}"
     
-    # Extract metrics
-    TESTS_PASS=$(echo "$TEST_OUTPUT" | grep -E "Tests:.*passed" | sed -E 's/.*([0-9]+) passed.*/\1/' | tail -1 || echo "0")
-    TESTS_FAIL=$(echo "$TEST_OUTPUT" | grep -E "Tests:.*failed" | sed -E 's/.*([0-9]+) failed.*/\1/' | tail -1 || echo "0")
+    # Extract metrics - Fix #1: Enhanced test output parsing
+    TESTS_PASS=$(echo "$TEST_OUTPUT" | grep -E "Tests:.*pass(ed|ing)" | sed -E 's/.*([0-9]+) pass(ed|ing).*/\1/' | tail -1 || echo "0")
+    TESTS_FAIL=$(echo "$TEST_OUTPUT" | grep -E "Tests:.*fail(ed|ing)" | sed -E 's/.*([0-9]+) fail(ed|ing).*/\1/' | tail -1 || echo "0")
+    
+    # Ensure variables are not empty
+    TESTS_PASS=${TESTS_PASS:-0}
+    TESTS_FAIL=${TESTS_FAIL:-0}
+    
     TOTAL_TESTS=$((TESTS_PASS + TESTS_FAIL))
     
     if [ "$TOTAL_TESTS" -gt 0 ]; then
@@ -186,35 +191,38 @@ run_tests() {
     
     echo "$(date '+%H:%M:%S') 📊 Test Results: ${TESTS_PASS}/${TOTAL_TESTS} passing (${PASS_RATE}%)" >> "$PROGRESS_FILE"
     
-    # Update status
+    # Update status - Fix #4: Status file validation
+    local temp_status="${STATUS_FILE}.tmp"
     jq --arg pass "$TESTS_PASS" --arg fail "$TESTS_FAIL" --arg rate "$PASS_RATE" \
        --arg timestamp "$(date -Iseconds)" \
        '.testsPass = ($pass | tonumber) | 
         .testsFail = ($fail | tonumber) | 
         .testPassRate = ($rate | tonumber) |
         .lastUpdate = $timestamp' \
-       "$STATUS_FILE" > "${STATUS_FILE}.tmp" && mv "${STATUS_FILE}.tmp" "$STATUS_FILE"
+       "$STATUS_FILE" > "$temp_status"
     
-    return $PASS_RATE
+    # Validate JSON before moving
+    if jq empty "$temp_status" 2>/dev/null; then
+        mv "$temp_status" "$STATUS_FILE"
+    else
+        echo "$(date '+%H:%M:%S') ⚠️ Invalid JSON in status update - skipping" >> "$PROGRESS_FILE"
+        rm -f "$temp_status"
+    fi
+    
+    return 0
 }
 
-# Check if we've reached max cycles
-if [ "$RESTART_COUNT" -ge "$MAX_RESTARTS" ]; then
-    echo "$(date '+%Y-%m-%d %H:%M:%S') ✅ Max self-improvement cycles reached ($MAX_RESTARTS)." >> "$LOG_FILE"
-    echo "✅ Completed ${MAX_RESTARTS} self-improvement cycles" >> "$PROGRESS_FILE"
-    
-    # Run final tests to get completion metrics
-    echo "$(date '+%H:%M:%S') 🔍 Final test run..." >> "$PROGRESS_FILE"
-    run_tests "Final"
-    
-    # Generate completion summary
-    WORK_SUMMARY="Completed ${MAX_RESTARTS} cycles with ${TESTS_PASS}/${TOTAL_TESTS} tests passing (${PASS_RATE}%)"
+# Function to handle completion and enter maintenance mode
+enter_maintenance_mode() {
+    local reason="$1"
+    local cycles="$2"
+    local summary="$3"
     
     # Update final status
-    jq -n --arg agent "$AGENT_NAME" --arg status "completed" --arg reason "max_cycles_reached" \
-       --arg cycles "$MAX_RESTARTS" --arg maxRestarts "$MAX_RESTARTS" \
+    jq -n --arg agent "$AGENT_NAME" --arg status "completed" --arg reason "$reason" \
+       --arg cycles "$cycles" --arg maxRestarts "$MAX_RESTARTS" \
        --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-       --arg summary "$WORK_SUMMARY" \
+       --arg summary "$summary" \
        --arg pass "$TESTS_PASS" --arg fail "$TESTS_FAIL" --arg rate "$PASS_RATE" \
        '{
          agent: $agent,
@@ -247,6 +255,22 @@ if [ "$RESTART_COUNT" -ge "$MAX_RESTARTS" ]; then
            '.heartbeat = $heartbeat' \
            "$STATUS_FILE" > "${STATUS_FILE}.tmp" && mv "${STATUS_FILE}.tmp" "$STATUS_FILE"
     done
+}
+
+# Check if we've reached max cycles
+if [ "$RESTART_COUNT" -ge "$MAX_RESTARTS" ]; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') ✅ Max self-improvement cycles reached ($MAX_RESTARTS)." >> "$LOG_FILE"
+    echo "✅ Completed ${MAX_RESTARTS} self-improvement cycles" >> "$PROGRESS_FILE"
+    
+    # Run final tests to get completion metrics
+    echo "$(date '+%H:%M:%S') 🔍 Final test run..." >> "$PROGRESS_FILE"
+    run_tests "Final"
+    
+    # Generate completion summary
+    WORK_SUMMARY="Completed ${MAX_RESTARTS} cycles with ${TESTS_PASS}/${TOTAL_TESTS} tests passing (${PASS_RATE}%)"
+    
+    # Enter maintenance mode
+    enter_maintenance_mode "max_cycles_reached" "$MAX_RESTARTS" "$WORK_SUMMARY"
 else
     # Increment counter for next cycle
     echo $((RESTART_COUNT + 1)) > "$RESTART_COUNT_FILE"
@@ -274,7 +298,7 @@ else
     fi
 fi
 
-# Function to parse Claude output
+# Function to parse Claude output - Fix #2: Additional Claude output patterns
 parse_claude_output() {
     while IFS= read -r line; do
         echo "$(date '+%Y-%m-%d %H:%M:%S') $line" >> "$LOG_FILE"
@@ -283,20 +307,57 @@ parse_claude_output() {
         if [[ "$line" =~ "File created:" ]] || [[ "$line" =~ "File modified:" ]]; then
             FILE=$(echo "$line" | sed 's/.*File [^:]*: //')
             echo "$(date '+%H:%M:%S') 📝 Modified: $FILE" >> "$PROGRESS_FILE"
+            local temp_status="${STATUS_FILE}.tmp"
             jq --arg file "$FILE" '.filesModified += [$file]' \
-               "$STATUS_FILE" > "${STATUS_FILE}.tmp" && mv "${STATUS_FILE}.tmp" "$STATUS_FILE"
+               "$STATUS_FILE" > "$temp_status"
+            if jq empty "$temp_status" 2>/dev/null; then
+                mv "$temp_status" "$STATUS_FILE"
+            else
+                rm -f "$temp_status"
+            fi
         fi
         
-        # Track test results
+        # Track file creation with emoji pattern
+        if [[ "$line" =~ "📝 Created file:" ]]; then
+            FILE=$(echo "$line" | sed 's/.*Created file: //')
+            echo "$(date '+%H:%M:%S') 📝 Created: $FILE" >> "$PROGRESS_FILE"
+            local temp_status="${STATUS_FILE}.tmp"
+            jq --arg file "$FILE" '.filesModified += [$file]' \
+               "$STATUS_FILE" > "$temp_status"
+            if jq empty "$temp_status" 2>/dev/null; then
+                mv "$temp_status" "$STATUS_FILE"
+            else
+                rm -f "$temp_status"
+            fi
+        fi
+        
+        # Track task completion patterns
+        if [[ "$line" =~ ✅.*[Cc]omplete[d]?:?\s*(.+) ]]; then
+            TASK="${BASH_REMATCH[1]}"
+            echo "$(date '+%H:%M:%S') ✅ Task completed: $TASK" >> "$PROGRESS_FILE"
+        elif [[ "$line" =~ ✅.*([A-Za-z]+).*complete ]]; then
+            TASK=$(echo "$line" | sed 's/✅ //' | sed 's/ complete.*//')
+            echo "$(date '+%H:%M:%S') ✅ Task completed: $TASK" >> "$PROGRESS_FILE"
+        fi
+        
+        # Track test results (existing + enhanced patterns)
         if [[ "$line" =~ "tests passing" ]]; then
             echo "$(date '+%H:%M:%S') ✅ $line" >> "$PROGRESS_FILE"
+        elif [[ "$line" =~ Tests:.*([0-9]+.*passing|\([0-9]+%\)) ]]; then
+            echo "$(date '+%H:%M:%S') 📊 Test progress: $line" >> "$PROGRESS_FILE"
         fi
         
         # Track errors
         if [[ "$line" =~ "Error:" ]] || [[ "$line" =~ "FAIL" ]]; then
             echo "$(date '+%H:%M:%S') ❌ $line" >> "$PROGRESS_FILE"
+            local temp_status="${STATUS_FILE}.tmp"
             jq --arg error "$line" '.errors += [$error]' \
-               "$STATUS_FILE" > "${STATUS_FILE}.tmp" && mv "${STATUS_FILE}.tmp" "$STATUS_FILE"
+               "$STATUS_FILE" > "$temp_status"
+            if jq empty "$temp_status" 2>/dev/null; then
+                mv "$temp_status" "$STATUS_FILE"
+            else
+                rm -f "$temp_status"
+            fi
         fi
         
         # Track commits
@@ -312,8 +373,14 @@ parse_claude_output() {
 (
     while true; do
         echo "$(date '+%H:%M:%S') 💓 Heartbeat" >> "$PROGRESS_FILE"
+        local temp_status="${STATUS_FILE}.tmp"
         jq --arg heartbeat "$(date -Iseconds)" '.heartbeat = $heartbeat' \
-           "$STATUS_FILE" > "${STATUS_FILE}.tmp" && mv "${STATUS_FILE}.tmp" "$STATUS_FILE"
+           "$STATUS_FILE" > "$temp_status"
+        if jq empty "$temp_status" 2>/dev/null; then
+            mv "$temp_status" "$STATUS_FILE"
+        else
+            rm -f "$temp_status"
+        fi
         sleep 60
     done
 ) &
@@ -411,7 +478,7 @@ check_dependencies() {
             
             if [ "$dep_ready" = false ]; then
                 all_ready=false
-                echo "$(date '+%H:%M:%S') ⏳ Still waiting for: $dep (no test/impl files or completion)" >> "$PROGRESS_FILE"
+                echo "$(date '+%H:%M:%S') ⏳ Still waiting for: $dep (completion handoff file not found)" >> "$PROGRESS_FILE"
                 break
             fi
         done
@@ -447,18 +514,14 @@ run_tests "Initial"
 
 # Check if already passing
 if [ "$PASS_RATE" -ge "$TARGET_PASS_RATE" ]; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') ✅ Early completion: tests already passing at ${PASS_RATE}%!" >> "$LOG_FILE"
     echo "✅ Tests already passing at ${PASS_RATE}%!" >> "$PROGRESS_FILE"
-    echo "✅ ${AGENT_NAME} complete with ${PASS_RATE}% pass rate" > "/shared/handoffs/${AGENT_NAME}-complete.md"
     
-    # Update status and enter maintenance
-    jq --arg status "completed" --arg reason "tests_passing" \
-       '.status = $status | .reason = $reason' \
-       "$STATUS_FILE" > "${STATUS_FILE}.tmp" && mv "${STATUS_FILE}.tmp" "$STATUS_FILE"
+    # Generate completion summary 
+    WORK_SUMMARY="Early completion: ${TESTS_PASS}/${TOTAL_TESTS} tests passing (${PASS_RATE}%)"
     
-    while true; do
-        sleep 60
-        echo "$(date '+%Y-%m-%d %H:%M:%S') 💓 Maintenance heartbeat - tests passing" >> "$LOG_FILE"
-    done
+    # Enter maintenance mode using shared function
+    enter_maintenance_mode "tests_passing" "$RESTART_COUNT" "$WORK_SUMMARY"
 fi
 
 # Check authentication
@@ -566,9 +629,24 @@ Focus on making tests pass - this is TDD cycle ${RESTART_COUNT}.
 $(cat $PROMPT_FILE)"
 fi
 
-# Execute Claude with the enhanced prompt
+# Execute Claude with the enhanced prompt - Fix #3: Heartbeat during Claude execution
+# Start heartbeat during Claude execution
+(
+    while kill -0 $$ 2>/dev/null; do
+        jq --arg heartbeat "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+           '.lastUpdate = $heartbeat | .status = "working"' \
+           "$STATUS_FILE" > "${STATUS_FILE}.tmp" && mv "${STATUS_FILE}.tmp" "$STATUS_FILE" 2>/dev/null || true
+        sleep 30
+    done
+) &
+CLAUDE_HEARTBEAT_PID=$!
+
 OUTPUT=$(echo "$CLAUDE_PROMPT" | claude --dangerously-skip-permissions 2>&1)
 EXIT_CODE=$?
+
+# Stop Claude execution heartbeat
+kill $CLAUDE_HEARTBEAT_PID 2>/dev/null || true
+wait $CLAUDE_HEARTBEAT_PID 2>/dev/null || true
 
 # Check dependencies again after Claude execution in case they updated during our work
 if ! check_dependency_freshness; then
