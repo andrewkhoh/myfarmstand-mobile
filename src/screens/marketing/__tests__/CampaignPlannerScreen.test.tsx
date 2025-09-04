@@ -1,351 +1,488 @@
 import React from 'react';
-import { render, waitFor, fireEvent } from '@testing-library/react-native';
+import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { CampaignPlannerScreen } from '../CampaignPlannerScreen';
-import { marketingService } from '../../../services/marketing/marketingService';
+import { useCampaignMutation } from '@/hooks/marketing/useCampaignMutation';
+import { useCampaignData } from '@/hooks/marketing/useCampaignData';
+import { Alert } from 'react-native';
 
-// Mock the marketing service
-jest.mock('../../../services/marketing/marketingService');
-
-// Mock navigation
-const mockNavigate = jest.fn();
-const mockNavigation = {
-  navigate: mockNavigate,
-  goBack: jest.fn(),
-};
+jest.mock('@/hooks/marketing/useCampaignMutation');
+jest.mock('@/hooks/marketing/useCampaignData');
 
 describe('CampaignPlannerScreen', () => {
+  const mockNavigation = {
+    navigate: jest.fn(),
+    goBack: jest.fn(),
+    setOptions: jest.fn(),
+  };
+
+  const mockRoute = {
+    params: {},
+    name: 'CampaignPlanner',
+    key: 'campaign-planner',
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
-    
-    // Setup default mocks
-    (marketingService.createCampaign as jest.Mock).mockResolvedValue({
-      id: 'new-campaign-1',
-      name: 'New Campaign',
-      description: 'Campaign description',
-      status: 'draft',
-      startDate: new Date(),
-      endDate: new Date(),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-
-    (marketingService.updateCampaign as jest.Mock).mockResolvedValue({
-      id: 'campaign-1',
-      name: 'Updated Campaign',
-      status: 'active',
-    });
-
-    (marketingService.getCampaigns as jest.Mock).mockResolvedValue([]);
+    Alert.alert = jest.fn();
   });
 
-  describe('Rendering', () => {
-    it('should render the campaign planner screen', () => {
-      const { getByText, getByTestId } = render(
-        <CampaignPlannerScreen navigation={mockNavigation} />
-      );
-      
-      expect(getByText('Campaign Planner')).toBeTruthy();
-      expect(getByTestId('campaign-planner-screen')).toBeTruthy();
-    });
+  describe('Form Rendering', () => {
+    it('should render all form fields', () => {
+      (useCampaignMutation as jest.Mock).mockReturnValue({
+        createCampaign: jest.fn(),
+        updateCampaign: jest.fn(),
+        isCreating: false,
+      });
+      (useCampaignData as jest.Mock).mockReturnValue({
+        campaign: null,
+        isLoading: false,
+      });
 
-    it('should display calendar view', () => {
-      const { getByTestId } = render(
-        <CampaignPlannerScreen navigation={mockNavigation} />
+      const { getByTestId, getByPlaceholderText } = render(
+        <CampaignPlannerScreen route={mockRoute} navigation={mockNavigation} />
       );
-      
-      expect(getByTestId('campaign-calendar')).toBeTruthy();
-    });
 
-    it('should show campaign form fields', () => {
-      const { getByPlaceholderText, getByTestId } = render(
-        <CampaignPlannerScreen navigation={mockNavigation} />
-      );
-      
       expect(getByPlaceholderText('Campaign Name')).toBeTruthy();
-      expect(getByPlaceholderText('Campaign Description')).toBeTruthy();
+      expect(getByPlaceholderText('Description')).toBeTruthy();
       expect(getByTestId('start-date-picker')).toBeTruthy();
       expect(getByTestId('end-date-picker')).toBeTruthy();
+      expect(getByTestId('target-audience-input')).toBeTruthy();
+      expect(getByTestId('budget-input')).toBeTruthy();
     });
 
-    it('should display target audience builder', () => {
-      const { getByTestId, getByText } = render(
-        <CampaignPlannerScreen navigation={mockNavigation} />
+    it('should show create mode UI', () => {
+      const createRoute = {
+        params: { mode: 'create' as 'create' },
+        name: 'CampaignPlanner',
+        key: 'campaign-planner',
+      };
+
+      (useCampaignMutation as jest.Mock).mockReturnValue({
+        createCampaign: jest.fn(),
+        updateCampaign: jest.fn(),
+        isCreating: false,
+      });
+      (useCampaignData as jest.Mock).mockReturnValue({
+        campaign: null,
+        isLoading: false,
+      });
+
+      const { getByText } = render(
+        <CampaignPlannerScreen route={createRoute} navigation={mockNavigation} />
       );
-      
-      expect(getByText('Target Audience')).toBeTruthy();
-      expect(getByTestId('audience-builder')).toBeTruthy();
+
+      expect(getByText('Create Campaign')).toBeTruthy();
     });
 
-    it('should show channel selection', () => {
-      const { getByText, getByTestId } = render(
-        <CampaignPlannerScreen navigation={mockNavigation} />
-      );
-      
-      expect(getByText('Marketing Channels')).toBeTruthy();
-      expect(getByTestId('channel-email')).toBeTruthy();
-      expect(getByTestId('channel-social')).toBeTruthy();
-      expect(getByTestId('channel-sms')).toBeTruthy();
-    });
+    it('should show edit mode UI with existing data', () => {
+      const editRoute = {
+        params: { campaignId: 'campaign-1', mode: 'edit' as 'edit' },
+        name: 'CampaignPlanner',
+        key: 'campaign-planner',
+      };
 
-    it('should display budget settings', () => {
-      const { getByPlaceholderText, getByText } = render(
-        <CampaignPlannerScreen navigation={mockNavigation} />
+      (useCampaignMutation as jest.Mock).mockReturnValue({
+        createCampaign: jest.fn(),
+        updateCampaign: jest.fn(),
+        isCreating: false,
+      });
+      (useCampaignData as jest.Mock).mockReturnValue({
+        campaign: {
+          id: 'campaign-1',
+          name: 'Summer Sale',
+          description: 'Summer promotion',
+          startDate: '2024-06-01',
+          endDate: '2024-08-31',
+          targetAudience: 'All customers',
+          budget: 5000,
+        },
+        isLoading: false,
+      });
+
+      const { getByDisplayValue, getByText } = render(
+        <CampaignPlannerScreen route={editRoute} navigation={mockNavigation} />
       );
-      
-      expect(getByText('Budget')).toBeTruthy();
-      expect(getByPlaceholderText('Total Budget')).toBeTruthy();
-      expect(getByPlaceholderText('Daily Spend Limit')).toBeTruthy();
+
+      expect(getByDisplayValue('Summer Sale')).toBeTruthy();
+      expect(getByDisplayValue('Summer promotion')).toBeTruthy();
+      expect(getByText('Update Campaign')).toBeTruthy();
     });
   });
 
-  describe('User Interactions', () => {
-    it('should handle campaign name input', () => {
-      const { getByPlaceholderText } = render(
-        <CampaignPlannerScreen navigation={mockNavigation} />
+  describe('Form Validation', () => {
+    it('should show error for empty campaign name', async () => {
+      (useCampaignMutation as jest.Mock).mockReturnValue({
+        createCampaign: jest.fn(),
+        updateCampaign: jest.fn(),
+        isCreating: false,
+      });
+      (useCampaignData as jest.Mock).mockReturnValue({
+        campaign: null,
+        isLoading: false,
+      });
+
+      const { getByText } = render(
+        <CampaignPlannerScreen route={mockRoute} navigation={mockNavigation} />
       );
-      
-      const nameInput = getByPlaceholderText('Campaign Name');
-      fireEvent.changeText(nameInput, 'Summer Sale 2024');
-      
-      expect(nameInput.props.value).toBe('Summer Sale 2024');
+
+      const submitButton = getByText('Create Campaign');
+      fireEvent.press(submitButton);
+
+      await waitFor(() => {
+        expect(getByText('Campaign name is required')).toBeTruthy();
+      });
     });
 
-    it('should handle date selection', () => {
-      const { getByTestId } = render(
-        <CampaignPlannerScreen navigation={mockNavigation} />
+    it('should validate date range', async () => {
+      (useCampaignMutation as jest.Mock).mockReturnValue({
+        createCampaign: jest.fn(),
+        updateCampaign: jest.fn(),
+        isCreating: false,
+      });
+      (useCampaignData as jest.Mock).mockReturnValue({
+        campaign: null,
+        isLoading: false,
+      });
+
+      const { getByTestId, getByText } = render(
+        <CampaignPlannerScreen route={mockRoute} navigation={mockNavigation} />
       );
-      
+
       const startDatePicker = getByTestId('start-date-picker');
-      fireEvent.press(startDatePicker);
-      
-      expect(getByTestId('date-picker-modal')).toBeTruthy();
-    });
+      const endDatePicker = getByTestId('end-date-picker');
 
-    it('should handle channel selection', () => {
-      const { getByTestId } = render(
-        <CampaignPlannerScreen navigation={mockNavigation} />
-      );
-      
-      const emailChannel = getByTestId('channel-email');
-      fireEvent.press(emailChannel);
-      
-      expect(emailChannel.props.selected).toBe(true);
-    });
+      // Set end date before start date
+      fireEvent(startDatePicker, 'onChange', new Date('2024-08-01'));
+      fireEvent(endDatePicker, 'onChange', new Date('2024-07-01'));
 
-    it('should create campaign on submit', async () => {
-      const { getByPlaceholderText, getByTestId } = render(
-        <CampaignPlannerScreen navigation={mockNavigation} />
-      );
-      
-      // Fill form
-      fireEvent.changeText(getByPlaceholderText('Campaign Name'), 'Test Campaign');
-      fireEvent.changeText(getByPlaceholderText('Campaign Description'), 'Test Description');
-      
-      // Submit
-      fireEvent.press(getByTestId('create-campaign-button'));
-      
+      const submitButton = getByText('Create Campaign');
+      fireEvent.press(submitButton);
+
       await waitFor(() => {
-        expect(marketingService.createCampaign).toHaveBeenCalledWith(
-          expect.objectContaining({
-            name: 'Test Campaign',
-            description: 'Test Description',
-          })
-        );
+        expect(getByText('End date must be after start date')).toBeTruthy();
       });
     });
 
-    it('should navigate back after successful creation', async () => {
-      const { getByPlaceholderText, getByTestId } = render(
-        <CampaignPlannerScreen navigation={mockNavigation} />
+    it('should validate budget is positive', async () => {
+      (useCampaignMutation as jest.Mock).mockReturnValue({
+        createCampaign: jest.fn(),
+        updateCampaign: jest.fn(),
+        isCreating: false,
+      });
+      (useCampaignData as jest.Mock).mockReturnValue({
+        campaign: null,
+        isLoading: false,
+      });
+
+      const { getByTestId, getByText } = render(
+        <CampaignPlannerScreen route={mockRoute} navigation={mockNavigation} />
       );
-      
-      fireEvent.changeText(getByPlaceholderText('Campaign Name'), 'Test Campaign');
-      fireEvent.press(getByTestId('create-campaign-button'));
-      
+
+      const budgetInput = getByTestId('budget-input');
+      fireEvent.changeText(budgetInput, '-100');
+
+      const submitButton = getByText('Create Campaign');
+      fireEvent.press(submitButton);
+
       await waitFor(() => {
+        expect(getByText('Budget must be positive')).toBeTruthy();
+      });
+    });
+  });
+
+  describe('Campaign Creation', () => {
+    it('should handle successful campaign creation', async () => {
+      const mockCreate = jest.fn().mockResolvedValue({ id: 'new-campaign' });
+      (useCampaignMutation as jest.Mock).mockReturnValue({
+        createCampaign: mockCreate,
+        updateCampaign: jest.fn(),
+        isCreating: false,
+      });
+      (useCampaignData as jest.Mock).mockReturnValue({
+        campaign: null,
+        isLoading: false,
+      });
+
+      const { getByPlaceholderText, getByTestId, getByText } = render(
+        <CampaignPlannerScreen route={mockRoute} navigation={mockNavigation} />
+      );
+
+      fireEvent.changeText(getByPlaceholderText('Campaign Name'), 'New Campaign');
+      fireEvent.changeText(getByPlaceholderText('Description'), 'Test description');
+      // Since we can't actually pick dates in the test, just press the date pickers
+      // which will set them to current date
+      fireEvent.press(getByTestId('start-date-picker'));
+      fireEvent.press(getByTestId('end-date-picker'));
+      fireEvent.changeText(getByTestId('budget-input'), '1000');
+
+      const submitButton = getByText('Create Campaign');
+      fireEvent.press(submitButton);
+
+      await waitFor(() => {
+        expect(mockCreate).toHaveBeenCalledWith({
+          name: 'New Campaign',
+          description: 'Test description',
+          startDate: expect.any(Date),
+          endDate: expect.any(Date),
+          budget: 1000,
+          targetAudience: '',
+        });
         expect(mockNavigation.goBack).toHaveBeenCalled();
+        expect(Alert.alert).toHaveBeenCalledWith('Success', 'Campaign created');
       });
     });
 
-    it('should validate required fields', () => {
-      const { getByTestId, getByText } = render(
-        <CampaignPlannerScreen navigation={mockNavigation} />
-      );
-      
-      // Try to submit without filling required fields
-      fireEvent.press(getByTestId('create-campaign-button'));
-      
-      expect(getByText('Campaign name is required')).toBeTruthy();
-    });
+    it('should show loading state during creation', () => {
+      (useCampaignMutation as jest.Mock).mockReturnValue({
+        createCampaign: jest.fn(),
+        updateCampaign: jest.fn(),
+        isCreating: true,
+      });
+      (useCampaignData as jest.Mock).mockReturnValue({
+        campaign: null,
+        isLoading: false,
+      });
 
-    it('should handle audience segment selection', () => {
       const { getByTestId } = render(
-        <CampaignPlannerScreen navigation={mockNavigation} />
+        <CampaignPlannerScreen route={mockRoute} navigation={mockNavigation} />
       );
-      
-      const segment = getByTestId('segment-young-adults');
-      fireEvent.press(segment);
-      
-      expect(segment.props.selected).toBe(true);
+
+      const submitButton = getByTestId('submit-button');
+      expect(submitButton.props.disabled).toBe(true);
+      expect(getByTestId('submit-loading')).toBeTruthy();
     });
 
-    it('should calculate estimated reach', () => {
-      const { getByTestId, getByText } = render(
-        <CampaignPlannerScreen navigation={mockNavigation} />
-      );
-      
-      // Select audience segments
-      fireEvent.press(getByTestId('segment-young-adults'));
-      fireEvent.press(getByTestId('segment-urban'));
-      
-      expect(getByText('Estimated Reach: 25,000')).toBeTruthy();
-    });
+    it('should handle creation error', async () => {
+      const mockCreate = jest.fn().mockRejectedValue(new Error('Network error'));
+      (useCampaignMutation as jest.Mock).mockReturnValue({
+        createCampaign: mockCreate,
+        updateCampaign: jest.fn(),
+        isCreating: false,
+      });
+      (useCampaignData as jest.Mock).mockReturnValue({
+        campaign: null,
+        isLoading: false,
+      });
 
-    it('should handle budget input', () => {
-      const { getByPlaceholderText } = render(
-        <CampaignPlannerScreen navigation={mockNavigation} />
+      const { getByPlaceholderText, getByTestId, getByText } = render(
+        <CampaignPlannerScreen route={mockRoute} navigation={mockNavigation} />
       );
-      
-      const budgetInput = getByPlaceholderText('Total Budget');
-      fireEvent.changeText(budgetInput, '5000');
-      
-      expect(budgetInput.props.value).toBe('5000');
-    });
 
-    it('should preview campaign before creation', () => {
-      const { getByTestId, getByText } = render(
-        <CampaignPlannerScreen navigation={mockNavigation} />
-      );
-      
-      fireEvent.press(getByTestId('preview-campaign-button'));
-      
-      expect(getByTestId('campaign-preview-modal')).toBeTruthy();
-      expect(getByText('Campaign Preview')).toBeTruthy();
-    });
-  });
+      fireEvent.changeText(getByPlaceholderText('Campaign Name'), 'New Campaign');
+      // Since we can't actually pick dates in the test, just press the date pickers
+      // which will set them to current date
+      fireEvent.press(getByTestId('start-date-picker'));
+      fireEvent.press(getByTestId('end-date-picker'));
 
-  describe('Calendar Features', () => {
-    it('should display current month', () => {
-      const { getByText } = render(
-        <CampaignPlannerScreen navigation={mockNavigation} />
-      );
-      
-      const currentMonth = new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
-      expect(getByText(currentMonth)).toBeTruthy();
-    });
+      const submitButton = getByText('Create Campaign');
+      fireEvent.press(submitButton);
 
-    it('should navigate between months', () => {
-      const { getByTestId, getByText } = render(
-        <CampaignPlannerScreen navigation={mockNavigation} />
-      );
-      
-      const nextButton = getByTestId('calendar-next-month');
-      fireEvent.press(nextButton);
-      
-      const nextMonth = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleString('default', { month: 'long' });
-      expect(getByText(new RegExp(nextMonth))).toBeTruthy();
-    });
-
-    it('should highlight selected dates', () => {
-      const { getByTestId } = render(
-        <CampaignPlannerScreen navigation={mockNavigation} />
-      );
-      
-      const date = getByTestId('calendar-date-15');
-      fireEvent.press(date);
-      
-      expect(date.props.style).toContainEqual(expect.objectContaining({
-        backgroundColor: expect.any(String)
-      }));
-    });
-
-    it('should show existing campaigns on calendar', async () => {
-      (marketingService.getCampaigns as jest.Mock).mockResolvedValue([
-        {
-          id: '1',
-          name: 'Existing Campaign',
-          startDate: new Date(),
-          endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-        }
-      ]);
-      
-      const { getByTestId } = render(
-        <CampaignPlannerScreen navigation={mockNavigation} />
-      );
-      
       await waitFor(() => {
-        expect(getByTestId('calendar-campaign-indicator')).toBeTruthy();
+        expect(Alert.alert).toHaveBeenCalledWith('Error', 'Network error');
       });
     });
   });
 
-  describe('Target Audience Builder', () => {
-    it('should display demographic options', () => {
-      const { getByText } = render(
-        <CampaignPlannerScreen navigation={mockNavigation} />
-      );
-      
-      expect(getByText('Age Range')).toBeTruthy();
-      expect(getByText('Gender')).toBeTruthy();
-      expect(getByText('Location')).toBeTruthy();
-      expect(getByText('Interests')).toBeTruthy();
-    });
+  describe('Campaign Update', () => {
+    it('should handle successful campaign update', async () => {
+      const mockUpdate = jest.fn().mockResolvedValue({ id: 'campaign-1' });
+      const editRoute = {
+        params: { campaignId: 'campaign-1', mode: 'edit' as 'edit' },
+        name: 'CampaignPlanner',
+        key: 'campaign-planner',
+      };
 
-    it('should handle age range selection', () => {
-      const { getByTestId } = render(
-        <CampaignPlannerScreen navigation={mockNavigation} />
-      );
-      
-      const ageSlider = getByTestId('age-range-slider');
-      fireEvent(ageSlider, 'onValueChange', [25, 45]);
-      
-      expect(getByTestId('age-range-display').props.children).toContain('25-45');
-    });
+      (useCampaignMutation as jest.Mock).mockReturnValue({
+        createCampaign: jest.fn(),
+        updateCampaign: mockUpdate,
+        isCreating: false,
+      });
+      (useCampaignData as jest.Mock).mockReturnValue({
+        campaign: {
+          id: 'campaign-1',
+          name: 'Existing Campaign',
+          description: 'Existing description',
+          startDate: '2024-06-01',
+          endDate: '2024-08-31',
+          targetAudience: 'All',
+          budget: 5000,
+        },
+        isLoading: false,
+      });
 
-    it('should handle location input', () => {
-      const { getByPlaceholderText } = render(
-        <CampaignPlannerScreen navigation={mockNavigation} />
+      const { getByDisplayValue, getByText } = render(
+        <CampaignPlannerScreen route={editRoute} navigation={mockNavigation} />
       );
-      
-      const locationInput = getByPlaceholderText('Enter locations');
-      fireEvent.changeText(locationInput, 'New York, Los Angeles');
-      
-      expect(locationInput.props.value).toBe('New York, Los Angeles');
-    });
 
-    it('should show audience size estimate', () => {
-      const { getByTestId, getByText } = render(
-        <CampaignPlannerScreen navigation={mockNavigation} />
-      );
-      
-      // Make selections
-      fireEvent.press(getByTestId('gender-all'));
-      fireEvent(getByTestId('age-range-slider'), 'onValueChange', [18, 65]);
-      
-      expect(getByText(/Estimated Audience:/)).toBeTruthy();
+      const nameInput = getByDisplayValue('Existing Campaign');
+      fireEvent.changeText(nameInput, 'Updated Campaign');
+
+      const submitButton = getByText('Update Campaign');
+      fireEvent.press(submitButton);
+
+      await waitFor(() => {
+        expect(mockUpdate).toHaveBeenCalledWith({
+          id: 'campaign-1',
+          name: 'Updated Campaign',
+          description: 'Existing description',
+          startDate: expect.any(Date),
+          endDate: expect.any(Date),
+          targetAudience: 'All',
+          budget: 5000,
+        });
+        expect(mockNavigation.goBack).toHaveBeenCalled();
+        expect(Alert.alert).toHaveBeenCalledWith('Success', 'Campaign updated');
+      });
     });
   });
 
-  describe('Accessibility', () => {
-    it('should have proper accessibility labels', () => {
-      const { getByLabelText } = render(
-        <CampaignPlannerScreen navigation={mockNavigation} />
+  describe('Target Audience Selection', () => {
+    it('should allow selecting predefined audience segments', () => {
+      (useCampaignMutation as jest.Mock).mockReturnValue({
+        createCampaign: jest.fn(),
+        updateCampaign: jest.fn(),
+        isCreating: false,
+      });
+      (useCampaignData as jest.Mock).mockReturnValue({
+        campaign: null,
+        isLoading: false,
+        audienceSegments: ['New Customers', 'Returning Customers', 'VIP'],
+      });
+
+      const { getByTestId, getByText } = render(
+        <CampaignPlannerScreen route={mockRoute} navigation={mockNavigation} />
       );
-      
-      expect(getByLabelText('Campaign name input')).toBeTruthy();
-      expect(getByLabelText('Start date selector')).toBeTruthy();
-      expect(getByLabelText('Create campaign')).toBeTruthy();
+
+      const audienceDropdown = getByTestId('audience-dropdown');
+      fireEvent.press(audienceDropdown);
+
+      expect(getByText('New Customers')).toBeTruthy();
+      expect(getByText('Returning Customers')).toBeTruthy();
+      expect(getByText('VIP')).toBeTruthy();
     });
 
-    it('should announce form validation errors', () => {
-      const { getByTestId, getByText } = render(
-        <CampaignPlannerScreen navigation={mockNavigation} />
+    it('should allow custom audience input', () => {
+      (useCampaignMutation as jest.Mock).mockReturnValue({
+        createCampaign: jest.fn(),
+        updateCampaign: jest.fn(),
+        isCreating: false,
+      });
+      (useCampaignData as jest.Mock).mockReturnValue({
+        campaign: null,
+        isLoading: false,
+      });
+
+      const { getByTestId } = render(
+        <CampaignPlannerScreen route={mockRoute} navigation={mockNavigation} />
       );
+
+      const audienceInput = getByTestId('target-audience-input');
+      fireEvent.changeText(audienceInput, 'Custom segment');
+
+      expect(audienceInput.props.value).toBe('Custom segment');
+    });
+  });
+
+  describe('Products Selection', () => {
+    it('should allow selecting products for campaign', () => {
+      (useCampaignMutation as jest.Mock).mockReturnValue({
+        createCampaign: jest.fn(),
+        updateCampaign: jest.fn(),
+        isCreating: false,
+      });
+      (useCampaignData as jest.Mock).mockReturnValue({
+        campaign: null,
+        isLoading: false,
+        availableProducts: [
+          { id: 'p1', name: 'Product A' },
+          { id: 'p2', name: 'Product B' },
+        ],
+      });
+
+      const { getByText, getByTestId } = render(
+        <CampaignPlannerScreen route={mockRoute} navigation={mockNavigation} />
+      );
+
+      const productSelector = getByTestId('product-selector');
+      fireEvent.press(productSelector);
+
+      const productA = getByText('Product A');
+      fireEvent.press(productA);
+
+      expect(getByTestId('selected-products')).toBeTruthy();
+    });
+
+    it('should handle removing selected products', () => {
+      (useCampaignMutation as jest.Mock).mockReturnValue({
+        createCampaign: jest.fn(),
+        updateCampaign: jest.fn(),
+        isCreating: false,
+      });
+      (useCampaignData as jest.Mock).mockReturnValue({
+        campaign: {
+          selectedProducts: ['p1'],
+        },
+        isLoading: false,
+      });
+
+      const { getByTestId } = render(
+        <CampaignPlannerScreen route={mockRoute} navigation={mockNavigation} />
+      );
+
+      const removeButton = getByTestId('remove-product-p1');
+      fireEvent.press(removeButton);
+
+      expect(getByTestId('selected-products').children).toHaveLength(0);
+    });
+  });
+
+  describe('Navigation', () => {
+    it('should have cancel button that goes back', () => {
+      (useCampaignMutation as jest.Mock).mockReturnValue({
+        createCampaign: jest.fn(),
+        updateCampaign: jest.fn(),
+        isCreating: false,
+      });
+      (useCampaignData as jest.Mock).mockReturnValue({
+        campaign: null,
+        isLoading: false,
+      });
+
+      const { getByText } = render(
+        <CampaignPlannerScreen route={mockRoute} navigation={mockNavigation} />
+      );
+
+      const cancelButton = getByText('Cancel');
+      fireEvent.press(cancelButton);
+
+      expect(mockNavigation.goBack).toHaveBeenCalled();
+    });
+
+    it('should show unsaved changes warning', () => {
+      (useCampaignMutation as jest.Mock).mockReturnValue({
+        createCampaign: jest.fn(),
+        updateCampaign: jest.fn(),
+        isCreating: false,
+      });
+      (useCampaignData as jest.Mock).mockReturnValue({
+        campaign: null,
+        isLoading: false,
+      });
+
+      const { getByPlaceholderText, getByText } = render(
+        <CampaignPlannerScreen route={mockRoute} navigation={mockNavigation} />
+      );
+
+      fireEvent.changeText(getByPlaceholderText('Campaign Name'), 'Test');
       
-      fireEvent.press(getByTestId('create-campaign-button'));
-      
-      const errorMessage = getByText('Campaign name is required');
-      expect(errorMessage.props.accessibilityRole).toBe('alert');
+      const cancelButton = getByText('Cancel');
+      fireEvent.press(cancelButton);
+
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'Unsaved Changes',
+        'You have unsaved changes. Are you sure you want to leave?',
+        expect.any(Array)
+      );
     });
   });
 });

@@ -1,127 +1,119 @@
-export interface Campaign {
+export type WorkflowState = 'draft' | 'review' | 'approved' | 'published' | 'archived';
+
+export type CampaignStatus = 'planning' | 'active' | 'paused' | 'completed' | 'cancelled';
+
+export type ContentType = 'article' | 'video' | 'infographic' | 'social' | 'email' | 'landing_page';
+
+export type TargetAudience = 'b2b' | 'b2c' | 'enterprise' | 'smb' | 'consumer';
+
+export interface ProductContent {
+  id: string;
+  productId: string;
+  title: string;
+  description: string;
+  shortDescription?: string;
+  contentType: ContentType;
+  workflowState: WorkflowState;
+  imageUrls: string[];
+  videoUrls?: string[];
+  seoTitle?: string;
+  seoDescription?: string;
+  seoKeywords: string[];
+  targetAudience: TargetAudience;
+  createdAt: Date;
+  updatedAt: Date;
+  publishedAt?: Date;
+  lastModified: Date;
+  createdBy: string;
+  approvedBy?: string;
+  version: number;
+}
+
+export interface MarketingCampaign {
   id: string;
   name: string;
   description: string;
-  status: 'draft' | 'active' | 'paused' | 'completed';
+  status: CampaignStatus;
   startDate: Date;
   endDate?: Date;
-  budget?: number;
-  metrics?: CampaignMetrics;
+  budget: number;
+  spentBudget: number;
+  targetAudience: TargetAudience[];
+  channels: string[];
+  goals: CampaignGoal[];
+  productIds: string[];
+  contentIds: string[];
+  metrics: CampaignMetrics;
   createdAt: Date;
   updatedAt: Date;
+  createdBy: string;
+  tags: string[];
+}
+
+export interface CampaignGoal {
+  type: 'impressions' | 'clicks' | 'conversions' | 'revenue' | 'engagement';
+  target: number;
+  current: number;
+  unit: string;
 }
 
 export interface CampaignMetrics {
   impressions: number;
   clicks: number;
   conversions: number;
+  revenue: number;
+  roi: number;
   ctr: number;
   conversionRate: number;
-  spend: number;
-  roi: number;
+  avgOrderValue?: number;
 }
 
-export interface Content {
-  id: string;
-  title: string;
-  type: 'blog' | 'video' | 'social' | 'email' | 'landing';
-  status: 'draft' | 'review' | 'approved' | 'published';
-  body: string;
-  metadata?: ContentMetadata;
-  campaignId?: string;
-  authorId: string;
-  publishedAt?: Date;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface ContentMetadata {
-  tags: string[];
-  category: string;
-  seoTitle?: string;
-  seoDescription?: string;
-  keywords?: string[];
-  targetAudience?: string[];
-}
-
-export interface MarketingAnalytics {
-  totalCampaigns: number;
-  activeCampaigns: number;
-  totalContent: number;
-  publishedContent: number;
-  overallMetrics: {
-    impressions: number;
-    clicks: number;
-    conversions: number;
-    spend: number;
-    roi: number;
-  };
-  performance: PerformanceData[];
-}
-
-export interface PerformanceData {
-  date: string;
-  impressions: number;
-  clicks: number;
-  conversions: number;
-  spend: number;
-}
-
-export interface ContentWorkflow {
-  id: string;
-  contentId: string;
-  steps: WorkflowStep[];
-  currentStep: number;
-  status: 'in_progress' | 'completed' | 'failed';
-  createdAt: Date;
-  completedAt?: Date;
-}
-
-export interface WorkflowStep {
+export interface ProductBundle {
   id: string;
   name: string;
-  type: 'create' | 'review' | 'approve' | 'publish';
-  status: 'pending' | 'in_progress' | 'completed' | 'failed';
-  assigneeId?: string;
-  comments?: string;
-  completedAt?: Date;
-}
-
-export interface ProductContent {
-  id: string;
-  type: string;
-  target?: string;
-  payload?: Record<string, any>;
-  title?: string;
-  description?: string;
-  data?: any;
-  timestamp?: number;
-}
-
-export interface MarketingStore {
-  campaigns: Campaign[];
-  content: Content[];
-  analytics: MarketingAnalytics | null;
-  workflows: ContentWorkflow[];
-  loading: boolean;
-  error: string | null;
-  
-  actions: {
-    loadCampaigns: () => Promise<void>;
-    createCampaign: (campaign: Omit<Campaign, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Campaign>;
-    updateCampaign: (id: string, updates: Partial<Campaign>) => Promise<void>;
-    deleteCampaign: (id: string) => Promise<void>;
-    
-    loadContent: () => Promise<void>;
-    createContent: (content: Omit<Content, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Content>;
-    updateContent: (id: string, updates: Partial<Content>) => Promise<void>;
-    deleteContent: (id: string) => Promise<void>;
-    
-    loadAnalytics: () => Promise<void>;
-    refreshAnalytics: () => Promise<void>;
-    
-    startWorkflow: (contentId: string) => Promise<ContentWorkflow>;
-    updateWorkflowStep: (workflowId: string, stepId: string, updates: Partial<WorkflowStep>) => Promise<void>;
-    completeWorkflow: (workflowId: string) => Promise<void>;
+  description: string;
+  productIds: string[];
+  pricing: BundlePricing;
+  availability: {
+    startDate?: Date;
+    endDate?: Date;
+    quantity?: number;
+    isActive: boolean;
   };
+  marketingContent: {
+    headline: string;
+    features: string[];
+    benefits: string[];
+    targetAudience: TargetAudience;
+  };
+  createdAt: Date;
+  updatedAt: Date;
+  workflowState: WorkflowState;
+}
+
+export interface BundlePricing {
+  basePrice: number;
+  discountType: 'percentage' | 'fixed' | 'tiered';
+  discountValue: number;
+  finalPrice: number;
+  savingsAmount: number;
+  savingsPercentage: number;
+  currency: string;
+  validFrom?: Date;
+  validUntil?: Date;
+  minQuantity?: number;
+  maxQuantity?: number;
+}
+
+export interface ValidationResult {
+  valid: boolean;
+  error?: string;
+  details?: Record<string, any>;
+}
+
+export interface WorkflowTransition {
+  from: WorkflowState;
+  to: WorkflowState;
+  allowedRoles?: string[];
+  requiresApproval?: boolean;
 }

@@ -2,339 +2,300 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
   TextInput,
-  Switch,
-  RefreshControl,
+  ScrollView,
+  TouchableOpacity,
+  StyleSheet,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
-import { LoadingState } from '../../components/common/LoadingState';
-import { ErrorState } from '../../components/common/ErrorState';
-import { EmptyState } from '../../components/common/EmptyState';
+import { useCampaignMutation } from '@/hooks/marketing/useCampaignMutation';
+import { useCampaignData } from '@/hooks/marketing/useCampaignData';
 
-export default function CampaignPlannerScreen() {
-  const navigation = useNavigation();
-  const route = useRoute();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
+interface CampaignPlannerScreenProps {
+  route: {
+    params?: {
+      campaignId?: string;
+      mode?: 'create' | 'edit';
+    };
+  };
+  navigation: any;
+}
+
+export function CampaignPlannerScreen({ route, navigation }: CampaignPlannerScreenProps) {
+  const { campaignId, mode = 'create' } = route.params || {};
+  const isEditMode = mode === 'edit' && campaignId;
   
-  // Campaign data state
-  const [campaign, setCampaign] = useState({
-    id: route.params?.campaignId || '',
-    name: 'Summer Sale 2025',
-    description: 'Annual summer promotion',
-    startDate: '2025-06-01',
-    endDate: '2025-08-31',
-    status: 'scheduled',
-    targetAudience: {
-      segments: ['young-adults', 'fashion-enthusiasts'],
-      demographics: { ageRange: '18-35', gender: 'all' },
-    },
-    channels: ['email', 'social', 'push'],
-    budget: 25000,
-    goals: {
-      impressions: 100000,
-      clicks: 5000,
-      conversions: 250,
-    },
+  const { createCampaign, updateCampaign, isCreating } = useCampaignMutation();
+  const { campaign, isLoading, audienceSegments, availableProducts } = useCampaignData(campaignId);
+  
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    startDate: new Date(),
+    endDate: new Date(),
+    targetAudience: '',
+    budget: 0,
+    selectedProducts: [] as string[],
   });
+  
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [showAudienceDropdown, setShowAudienceDropdown] = useState(false);
+  const [showProductSelector, setShowProductSelector] = useState(false);
 
-  const [schedule, setSchedule] = useState({
-    events: [
-      {
-        id: 'event-1',
-        date: '2025-06-01',
-        type: 'launch',
-        description: 'Campaign launch',
-        channels: ['email', 'social'],
-      },
-      {
-        id: 'event-2',
-        date: '2025-07-15',
-        type: 'milestone',
-        description: 'Mid-campaign boost',
-        channels: ['push'],
-      },
-    ],
-  });
+  useEffect(() => {
+    if (campaign) {
+      setFormData({
+        name: campaign.name || '',
+        description: campaign.description || '',
+        startDate: campaign.startDate ? new Date(campaign.startDate) : new Date(),
+        endDate: campaign.endDate ? new Date(campaign.endDate) : new Date(),
+        targetAudience: campaign.targetAudience || '',
+        budget: campaign.budget || 0,
+        selectedProducts: campaign.selectedProducts || [],
+      });
+    }
+  }, [campaign]);
 
-  const handleRefresh = () => {
-    setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 1000);
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {};
+    
+    if (!formData.name.trim()) {
+      newErrors.name = 'Campaign name is required';
+    }
+    
+    if (formData.endDate <= formData.startDate) {
+      newErrors.dateRange = 'End date must be after start date';
+    }
+    
+    if (formData.budget < 0) {
+      newErrors.budget = 'Budget must be positive';
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
-  const handleSave = () => {
-    Alert.alert('Success', 'Campaign saved successfully');
+  const handleSubmit = async () => {
+    if (!validateForm()) return;
+    
+    try {
+      const campaignData = {
+        name: formData.name,
+        description: formData.description,
+        startDate: formData.startDate,
+        endDate: formData.endDate,
+        targetAudience: formData.targetAudience,
+        budget: formData.budget,
+        selectedProducts: formData.selectedProducts,
+        id: campaignId,
+      };
+      
+      if (isEditMode) {
+        const { selectedProducts, ...updateData } = campaignData;
+        // Only include selectedProducts if not empty
+        const dataForUpdate = formData.selectedProducts.length > 0 
+          ? { ...updateData, selectedProducts: formData.selectedProducts }
+          : updateData;
+        await updateCampaign(dataForUpdate);
+        Alert.alert('Success', 'Campaign updated');
+      } else {
+        const { id, selectedProducts, ...dataForCreate } = campaignData;
+        // Only include selectedProducts if not empty
+        const createData = formData.selectedProducts.length > 0 
+          ? { ...dataForCreate, selectedProducts: formData.selectedProducts }
+          : dataForCreate;
+        await createCampaign(createData);
+        Alert.alert('Success', 'Campaign created');
+      }
+      navigation.goBack();
+    } catch (error: any) {
+      Alert.alert('Error', error.message);
+    }
   };
 
-  const handlePublish = () => {
-    setCampaign({ ...campaign, status: 'active' });
-    Alert.alert('Success', 'Campaign published successfully');
+  const handleCancel = () => {
+    if (hasUnsavedChanges) {
+      Alert.alert(
+        'Unsaved Changes',
+        'You have unsaved changes. Are you sure you want to leave?',
+        [
+          { text: 'Stay', style: 'cancel' },
+          { text: 'Leave', onPress: () => navigation.goBack() },
+        ]
+      );
+    } else {
+      navigation.goBack();
+    }
   };
 
-  const handleScheduleEvent = (event: Campaign) => {
-    setSchedule({
-      ...schedule,
-      events: [...schedule.events, event],
-    });
+  const updateField = (field: string, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    setHasUnsavedChanges(true);
   };
 
-  const handleDeleteEvent = (eventId: string) => {
-    setSchedule({
-      ...schedule,
-      events: schedule.events.filter(e => e.id !== eventId),
-    });
+  const toggleProduct = (productId: string) => {
+    const updated = formData.selectedProducts.includes(productId)
+      ? formData.selectedProducts.filter(p => p !== productId)
+      : [...formData.selectedProducts, productId];
+    updateField('selectedProducts', updated);
   };
 
-  if (loading && !refreshing) {
-    return <LoadingState message="Loading campaign..." />;
-  }
-
-  if (error && !refreshing) {
-    return <ErrorState error={error} onRetry={() => setError(null)} />;
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
   }
 
   return (
-    <ScrollView
-      testID="campaign-planner-screen"
-      style={styles.container}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-      }
-    >
-      {/* Campaign Info Section */}
-      <View testID="campaign-info-section" style={styles.section}>
-        <Text style={styles.sectionTitle}>Campaign Information</Text>
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>Campaign Name</Text>
-          <TextInput
-            testID="campaign-name-input"
-            style={styles.input}
-            value={campaign.name}
-            onChangeText={(text) => setCampaign({ ...campaign, name: text })}
-            placeholder="Enter campaign name"
-          />
-        </View>
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>Description</Text>
-          <TextInput
-            testID="campaign-description-input"
-            style={[styles.input, styles.textArea]}
-            value={campaign.description}
-            onChangeText={(text) => setCampaign({ ...campaign, description: text })}
-            placeholder="Enter campaign description"
-            multiline
-            numberOfLines={3}
-          />
-        </View>
-      </View>
-
-      {/* Date Range Section */}
-      <View testID="date-range-section" style={styles.section}>
-        <Text style={styles.sectionTitle}>Campaign Duration</Text>
-        <View style={styles.dateRow}>
-          <View style={styles.dateField}>
-            <Text style={styles.label}>Start Date</Text>
-            <TouchableOpacity testID="start-date-picker" style={styles.datePicker}
-        accessibilityRole="button"
-        accessibilityLabel="{campaign.startDate}">
-              <Text>{campaign.startDate}</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.dateField}>
-            <Text style={styles.label}>End Date</Text>
-            <TouchableOpacity testID="end-date-picker" style={styles.datePicker}
-        accessibilityRole="button"
-        accessibilityLabel="{campaign.endDate}">
-              <Text>{campaign.endDate}</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-
-      {/* Target Audience Section */}
-      <View testID="audience-section" style={styles.section}>
-        <Text style={styles.sectionTitle}>Target Audience</Text>
-        <View style={styles.audienceSegments}>
-          {campaign.targetAudience.segments.map((segment, index) => (
-            <View key={segment} testID={`audience-segment-${index}`} style={styles.segment}>
-              <Text style={styles.segmentText}>{segment}</Text>
-            </View>
-          ))}
-        </View>
-        <TouchableOpacity testID="add-segment-button" style={styles.addButton}
-        accessibilityRole="button"
-        accessibilityLabel="+ Add Segment">
-          <Text style={styles.addButtonText}>+ Add Segment</Text>
+    <ScrollView style={styles.container}>
+      <View style={styles.form}>
+        <TextInput
+          style={styles.input}
+          placeholder="Campaign Name"
+          value={formData.name}
+          onChangeText={text => updateField('name', text)}
+        />
+        {errors.name && <Text style={styles.error}>{errors.name}</Text>}
+        
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          placeholder="Description"
+          value={formData.description}
+          onChangeText={text => updateField('description', text)}
+          multiline
+        />
+        
+        <TouchableOpacity
+          testID="start-date-picker"
+          style={styles.datePicker}
+          onPress={() => {
+            // Date picker would be shown here
+            // In a real app, this would open a date picker modal
+            // For now, we'll just update with current date
+            updateField('startDate', new Date());
+          }}
+        >
+          <Text>Start Date: {formData.startDate.toLocaleDateString()}</Text>
         </TouchableOpacity>
-      </View>
-
-      {/* Channels Section */}
-      <View testID="channels-section" style={styles.section}>
-        <Text style={styles.sectionTitle}>Marketing Channels</Text>
-        <View style={styles.channelsList}>
-          {['email', 'social', 'push', 'sms'].map((channel) => (
-            <View key={channel} testID={`channel-${channel}`} style={styles.channelItem}>
-              <Text style={styles.channelName}>{channel.charAt(0).toUpperCase() + channel.slice(1)}</Text>
-              <Switch
-                testID={`channel-${channel}-toggle`}
-                value={campaign.channels.includes(channel)}
-                onValueChange={(value) => {
-                  if (value) {
-                    setCampaign({
-                      ...campaign,
-                      channels: [...campaign.channels, channel],
-                    });
-                  } else {
-                    setCampaign({
-                      ...campaign,
-                      channels: campaign.channels.filter(c => c !== channel),
-                    });
-                  }
-                }}
-              />
-            </View>
-          ))}
-        </View>
-      </View>
-
-      {/* Budget Section */}
-      <View testID="budget-section" style={styles.section}>
-        <Text style={styles.sectionTitle}>Budget</Text>
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>Total Budget</Text>
+        
+        <TouchableOpacity
+          testID="end-date-picker"
+          style={styles.datePicker}
+          onPress={() => {
+            // Date picker would be shown here
+            // In a real app, this would open a date picker modal
+            // For now, we'll just update with current date
+            updateField('endDate', new Date());
+          }}
+        >
+          <Text>End Date: {formData.endDate.toLocaleDateString()}</Text>
+        </TouchableOpacity>
+        {errors.dateRange && <Text style={styles.error}>{errors.dateRange}</Text>}
+        
+        <View>
           <TextInput
-            testID="budget-input"
+            testID="target-audience-input"
             style={styles.input}
-            value={campaign.budget.toString()}
-            onChangeText={(text) => setCampaign({ ...campaign, budget: parseInt(text) || 0 })}
-            placeholder="Enter budget"
-            keyboardType="numeric"
+            placeholder="Target Audience"
+            value={formData.targetAudience}
+            onChangeText={text => updateField('targetAudience', text)}
           />
+          <TouchableOpacity
+            testID="audience-dropdown"
+            style={styles.dropdownButton}
+            onPress={() => setShowAudienceDropdown(!showAudienceDropdown)}
+          >
+            <Text>Select Audience Segment</Text>
+          </TouchableOpacity>
+          {showAudienceDropdown && (
+            <View style={styles.dropdown}>
+              {audienceSegments?.map(segment => (
+                <TouchableOpacity
+                  key={segment}
+                  style={styles.dropdownItem}
+                  onPress={() => {
+                    updateField('targetAudience', segment);
+                    setShowAudienceDropdown(false);
+                  }}
+                >
+                  <Text>{segment}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
         </View>
-      </View>
-
-      {/* Goals Section */}
-      <View testID="goals-section" style={styles.section}>
-        <Text style={styles.sectionTitle}>Campaign Goals</Text>
-        <View style={styles.goalsGrid}>
-          <View style={styles.goalItem}>
-            <Text style={styles.goalLabel}>Impressions</Text>
-            <TextInput
-              testID="goal-impressions-input"
-              style={styles.goalInput}
-              value={campaign.goals.impressions.toString()}
-              onChangeText={(text) => 
-                setCampaign({
-                  ...campaign,
-                  goals: { ...campaign.goals, impressions: parseInt(text) || 0 },
-                })
-              }
-              keyboardType="numeric"
-            />
-          </View>
-          <View style={styles.goalItem}>
-            <Text style={styles.goalLabel}>Clicks</Text>
-            <TextInput
-              testID="goal-clicks-input"
-              style={styles.goalInput}
-              value={campaign.goals.clicks.toString()}
-              onChangeText={(text) =>
-                setCampaign({
-                  ...campaign,
-                  goals: { ...campaign.goals, clicks: parseInt(text) || 0 },
-                })
-              }
-              keyboardType="numeric"
-            />
-          </View>
-          <View style={styles.goalItem}>
-            <Text style={styles.goalLabel}>Conversions</Text>
-            <TextInput
-              testID="goal-conversions-input"
-              style={styles.goalInput}
-              value={campaign.goals.conversions.toString()}
-              onChangeText={(text) =>
-                setCampaign({
-                  ...campaign,
-                  goals: { ...campaign.goals, conversions: parseInt(text) || 0 },
-                })
-              }
-              keyboardType="numeric"
-            />
-          </View>
-        </View>
-      </View>
-
-      {/* Schedule Section */}
-      <View testID="schedule-section" style={styles.section}>
-        <Text style={styles.sectionTitle}>Campaign Schedule</Text>
-        <View testID="calendar-view" style={styles.calendar}>
-          {schedule.events.map((event, index) => (
-            <View key={event.id} testID={`schedule-event-${index}`} style={styles.eventCard}>
-              <View style={styles.eventHeader}>
-                <Text style={styles.eventDate}>{event.date}</Text>
-                <Text style={styles.eventType}>{event.type}</Text>
-              </View>
-              <Text style={styles.eventDescription}>{event.description}</Text>
-              <View style={styles.eventChannels}>
-                {event.channels.map((channel) => (
-                  <Text key={channel} style={styles.eventChannel}>
-                    {channel}
-                  </Text>
-                ))}
-              </View>
+        
+        <TextInput
+          testID="budget-input"
+          style={styles.input}
+          placeholder="Budget"
+          value={formData.budget.toString()}
+          onChangeText={text => updateField('budget', parseFloat(text) || 0)}
+          keyboardType="numeric"
+        />
+        {errors.budget && <Text style={styles.error}>{errors.budget}</Text>}
+        
+        <TouchableOpacity
+          testID="product-selector"
+          style={styles.dropdownButton}
+          onPress={() => setShowProductSelector(!showProductSelector)}
+        >
+          <Text>Select Products</Text>
+        </TouchableOpacity>
+        {showProductSelector && availableProducts && (
+          <View style={styles.dropdown}>
+            {availableProducts.map(product => (
               <TouchableOpacity
-        accessibilityRole="button"
-        accessibilityLabel="Delete"
-                testID={`delete-event-${event.id}`}
-                onPress={() => handleDeleteEvent(event.id)}
-                style={styles.deleteButton}
+                key={product.id}
+                style={styles.dropdownItem}
+                onPress={() => {
+                  toggleProduct(product.id);
+                  setShowProductSelector(false);
+                }}
               >
-                <Text style={styles.deleteButtonText}>Delete</Text>
+                <Text>{product.name}</Text>
               </TouchableOpacity>
-            </View>
-          ))}
+            ))}
+          </View>
+        )}
+        
+        <View testID="selected-products">
+          {formData.selectedProducts.map(productId => {
+            const product = availableProducts?.find(p => p.id === productId);
+            return (
+              <View key={productId} style={styles.selectedProduct}>
+                <Text>{product?.name || productId}</Text>
+                <TouchableOpacity
+                  testID={`remove-product-${productId}`}
+                  onPress={() => toggleProduct(productId)}
+                >
+                  <Text>×</Text>
+                </TouchableOpacity>
+              </View>
+            );
+          })}
         </View>
-        <TouchableOpacity testID="add-event-button" style={styles.addButton}
-        accessibilityRole="button"
-        accessibilityLabel="+ Add Event">
-          <Text style={styles.addButtonText}>+ Add Event</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Actions */}
-      <View testID="action-buttons" style={styles.actions}>
-        <TouchableOpacity
-        accessibilityRole="button"
-        accessibilityLabel="Save Draft"
-          testID="save-draft-button"
-          style={[styles.actionButton, styles.saveDraftButton]}
-          onPress={handleSave}
-        >
-          <Text style={styles.saveDraftText}>Save Draft</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-        accessibilityRole="button"
-        accessibilityLabel="Publish Campaign"
-          testID="publish-button"
-          style={[styles.actionButton, styles.publishButton]}
-          onPress={handlePublish}
-        >
-          <Text style={styles.publishText}>Publish Campaign</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Status Indicator */}
-      <View testID="campaign-status" style={styles.statusContainer}>
-        <Text style={styles.statusLabel}>Status: </Text>
-        <Text testID="status-text" style={[styles.statusValue, styles[campaign.status]]}>
-          {campaign.status}
-        </Text>
+        
+        <View style={styles.buttons}>
+          <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
+            <Text>Cancel</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            testID="submit-button"
+            style={[styles.submitButton, isCreating && styles.disabledButton]}
+            onPress={handleSubmit}
+            disabled={isCreating}
+          >
+            {isCreating && <ActivityIndicator testID="submit-loading" />}
+            <Text style={styles.submitButtonText}>
+              {isEditMode ? 'Update Campaign' : 'Create Campaign'}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </ScrollView>
   );
@@ -343,206 +304,93 @@ export default function CampaignPlannerScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  section: {
     backgroundColor: '#fff',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  form: {
     padding: 16,
-    marginBottom: 8,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 16,
-  },
-  formGroup: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 8,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: '#e0e0e0',
     borderRadius: 8,
     padding: 12,
+    marginBottom: 16,
     fontSize: 16,
   },
   textArea: {
-    minHeight: 80,
+    minHeight: 100,
     textAlignVertical: 'top',
-  },
-  dateRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  dateField: {
-    flex: 1,
-    marginHorizontal: 4,
   },
   datePicker: {
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: '#e0e0e0',
     borderRadius: 8,
     padding: 12,
+    marginBottom: 16,
   },
-  audienceSegments: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 12,
-  },
-  segment: {
-    backgroundColor: '#e3f2fd',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    marginRight: 8,
-    marginBottom: 8,
-  },
-  segmentText: {
-    color: '#2196F3',
-    fontSize: 14,
-  },
-  addButton: {
+  dropdownButton: {
     borderWidth: 1,
-    borderColor: '#2196F3',
+    borderColor: '#e0e0e0',
     borderRadius: 8,
     padding: 12,
-    alignItems: 'center',
-  },
-  addButtonText: {
-    color: '#2196F3',
-    fontWeight: '600',
-  },
-  channelsList: {
     marginTop: 8,
+    marginBottom: 16,
   },
-  channelItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
+  dropdown: {
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  dropdownItem: {
+    padding: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
-  channelName: {
-    fontSize: 16,
-  },
-  goalsGrid: {
+  selectedProduct: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-  },
-  goalItem: {
-    flex: 1,
-    marginHorizontal: 4,
-  },
-  goalLabel: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 4,
-  },
-  goalInput: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
     padding: 8,
-    fontSize: 14,
-  },
-  calendar: {
-    marginBottom: 16,
-  },
-  eventCard: {
-    backgroundColor: '#f8f9fa',
-    padding: 12,
-    borderRadius: 8,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 4,
     marginBottom: 8,
   },
-  eventHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  eventDate: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  eventType: {
-    fontSize: 12,
-    color: '#666',
-    textTransform: 'uppercase',
-  },
-  eventDescription: {
-    fontSize: 14,
-    marginBottom: 8,
-  },
-  eventChannels: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  eventChannel: {
-    fontSize: 12,
-    color: '#2196F3',
-    marginRight: 8,
-  },
-  deleteButton: {
-    marginTop: 8,
-    alignSelf: 'flex-end',
-  },
-  deleteButtonText: {
+  error: {
     color: '#f44336',
     fontSize: 12,
+    marginTop: -12,
+    marginBottom: 16,
   },
-  actions: {
+  buttons: {
     flexDirection: 'row',
-    padding: 16,
-    backgroundColor: '#fff',
-    marginBottom: 8,
+    justifyContent: 'space-between',
+    marginTop: 24,
   },
-  actionButton: {
-    flex: 1,
-    padding: 16,
+  cancelButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
     borderRadius: 8,
+  },
+  submitButton: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 4,
-  },
-  saveDraftButton: {
-    backgroundColor: '#f0f0f0',
-  },
-  saveDraftText: {
-    color: '#333',
-    fontWeight: '600',
-  },
-  publishButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
     backgroundColor: '#2196F3',
+    borderRadius: 8,
   },
-  publishText: {
+  disabledButton: {
+    opacity: 0.5,
+  },
+  submitButtonText: {
     color: '#fff',
     fontWeight: '600',
-  },
-  statusContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#fff',
-  },
-  statusLabel: {
-    fontSize: 14,
-    color: '#666',
-  },
-  statusValue: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  scheduled: {
-    color: '#FF9800',
-  },
-  active: {
-    color: '#4CAF50',
-  },
-  draft: {
-    color: '#9E9E9E',
   },
 });

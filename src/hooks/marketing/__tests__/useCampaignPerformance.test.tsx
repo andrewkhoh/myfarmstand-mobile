@@ -1,22 +1,55 @@
 import React from 'react';
-import { renderHook, waitFor, act } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+import { useCampaignPerformance } from '../useCampaignPerformance';
+import { campaignService, realtimeService } from '@/services/marketing';
+import { marketingKeys } from '@/utils/queryKeys';
 
-// Mock the hook (doesn't exist yet - RED phase)
-const useCampaignPerformance = jest.fn();
+// Mock the services
+jest.mock('@/services/marketing');
 
 describe('useCampaignPerformance', () => {
   let queryClient: QueryClient;
+  let unsubscribeSpy: jest.Mock;
   
   beforeEach(() => {
     queryClient = new QueryClient({
       defaultOptions: {
         queries: { retry: false },
-        mutations: { retry: false }
-      }
+        mutations: { retry: false },
+      },
     });
+    
+    unsubscribeSpy = jest.fn();
+    (realtimeService.subscribe as jest.Mock).mockReturnValue(unsubscribeSpy);
+    
+    // Setup default mock for campaign performance
+    (campaignService.getPerformance as jest.Mock).mockResolvedValue({
+      campaignId: 'campaign-1',
+      metrics: {
+        impressions: 150000,
+        clicks: 3000,
+        conversions: 150,
+        ctr: 2.0,
+        conversionRate: 5.0,
+        cpc: 1.5,
+        cpa: 30,
+      },
+      timeline: [
+        {
+          timestamp: new Date('2024-06-01'),
+          impressions: 50000,
+          clicks: 1000,
+          conversions: 50,
+        },
+      ],
+    });
+    
     jest.clearAllMocks();
+  });
+  
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
   
   const wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -25,323 +58,372 @@ describe('useCampaignPerformance', () => {
     </QueryClientProvider>
   );
   
-  describe('performance metrics fetching', () => {
-    it('should fetch campaign performance metrics', async () => {
-      useCampaignPerformance.mockReturnValue({
-        isLoading: false,
-        data: {
-          impressions: 125000,
-          clicks: 3750,
-          conversions: 187,
-          revenue: 9350.50,
-          ctr: 3.0,
-          conversionRate: 5.0
-        }
+  describe('performance data fetching', () => {
+    it('should fetch campaign performance data', async () => {
+      const { result } = renderHook(
+        () => useCampaignPerformance('campaign-1'),
+        { wrapper }
+      );
+      
+      expect(result.current.isLoading).toBe(true);
+      
+      await waitFor(() => {
+        expect(result.current.performance).toBeDefined();
       });
       
-      const { result } = renderHook(() => useCampaignPerformance('campaign-123'), { wrapper });
+      expect(result.current.performance?.campaignId).toBe('campaign-1');
+      expect(result.current.metrics).toBeDefined();
+      expect(result.current.timeline).toBeDefined();
+    });
+    
+    it('should handle fetch errors gracefully', async () => {
+      jest.spyOn(campaignService, 'getPerformance')
+        .mockRejectedValueOnce(new Error('Campaign not found'));
+      
+      const { result } = renderHook(
+        () => useCampaignPerformance('invalid-campaign'),
+        { wrapper }
+      );
       
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
       });
       
-      expect(result.current.data.impressions).toBe(125000);
-      expect(result.current.data.ctr).toBe(3.0);
+      expect(result.current.error).toBeDefined();
+      expect((result.current.error as Error)?.message).toBe('Campaign not found');
+      expect(result.current.performance).toBeUndefined();
     });
     
-    it('should fetch metrics for date range', async () => {
-      const fetchMetrics = jest.fn();
-      useCampaignPerformance.mockReturnValue({
-        isLoading: false,
-        fetchMetrics,
-        data: null
-      });
+    it('should refetch performance data', async () => {
+      const getPerformanceSpy = jest.spyOn(campaignService, 'getPerformance');
       
-      const { result } = renderHook(() => useCampaignPerformance('campaign-123'), { wrapper });
-      
-      await act(async () => {
-        result.current.fetchMetrics({
-          startDate: '2025-01-01',
-          endDate: '2025-01-31'
-        });
-      });
-      
-      expect(fetchMetrics).toHaveBeenCalledWith({
-        startDate: '2025-01-01',
-        endDate: '2025-01-31'
-      });
-    });
-    
-    it('should compare performance across campaigns', async () => {
-      useCampaignPerformance.mockReturnValue({
-        isLoading: false,
-        comparison: [
-          { campaign_id: 'campaign-123', name: 'Summer Sale', ctr: 3.0, roi: 250 },
-          { campaign_id: 'campaign-124', name: 'Black Friday', ctr: 4.5, roi: 320 },
-          { campaign_id: 'campaign-125', name: 'New Year', ctr: 2.8, roi: 180 }
-        ]
-      });
-      
-      const { result } = renderHook(() => 
-        useCampaignPerformance(['campaign-123', 'campaign-124', 'campaign-125']), 
+      const { result } = renderHook(
+        () => useCampaignPerformance('campaign-1'),
         { wrapper }
       );
       
       await waitFor(() => {
-        expect(result.current.comparison).toHaveLength(3);
+        expect(result.current.performance).toBeDefined();
       });
       
-      expect(result.current.comparison[1].roi).toBe(320);
-    });
-    
-    it('should track real-time performance updates', async () => {
-      const subscribe = jest.fn();
-      useCampaignPerformance.mockReturnValue({
-        isLoading: false,
-        data: { impressions: 1000 },
-        subscribe,
-        realTimeUpdates: true
-      });
-      
-      const { result } = renderHook(() => useCampaignPerformance('campaign-123', { realTime: true }), { wrapper });
-      
-      expect(subscribe).toHaveBeenCalledWith('campaign-123');
-      expect(result.current.realTimeUpdates).toBe(true);
-    });
-    
-    it('should calculate ROI and ROAS metrics', async () => {
-      useCampaignPerformance.mockReturnValue({
-        isLoading: false,
-        data: {
-          spend: 1000,
-          revenue: 3500,
-          roi: 250, // (revenue - spend) / spend * 100
-          roas: 3.5 // revenue / spend
-        }
-      });
-      
-      const { result } = renderHook(() => useCampaignPerformance('campaign-123'), { wrapper });
-      
-      await waitFor(() => {
-        expect(result.current.data.roi).toBe(250);
-        expect(result.current.data.roas).toBe(3.5);
-      });
-    });
-    
-    it('should segment performance by audience', async () => {
-      useCampaignPerformance.mockReturnValue({
-        isLoading: false,
-        audienceSegments: [
-          { segment: '18-24', impressions: 30000, ctr: 4.2, conversionRate: 6.1 },
-          { segment: '25-34', impressions: 45000, ctr: 3.8, conversionRate: 5.5 },
-          { segment: '35-44', impressions: 25000, ctr: 2.9, conversionRate: 4.8 },
-          { segment: '45+', impressions: 25000, ctr: 2.1, conversionRate: 3.2 }
-        ]
-      });
-      
-      const { result } = renderHook(() => useCampaignPerformance('campaign-123'), { wrapper });
-      
-      await waitFor(() => {
-        expect(result.current.audienceSegments).toHaveLength(4);
-      });
-      
-      const bestSegment = result.current.audienceSegments[0];
-      expect(bestSegment.segment).toBe('18-24');
-      expect(bestSegment.conversionRate).toBe(6.1);
-    });
-    
-    it('should track attribution across channels', async () => {
-      useCampaignPerformance.mockReturnValue({
-        isLoading: false,
-        attribution: {
-          firstTouch: { email: 40, social: 35, search: 25 },
-          lastTouch: { email: 30, social: 45, search: 25 },
-          linear: { email: 35, social: 40, search: 25 }
-        }
-      });
-      
-      const { result } = renderHook(() => useCampaignPerformance('campaign-123'), { wrapper });
-      
-      await waitFor(() => {
-        expect(result.current.attribution.lastTouch.social).toBe(45);
-      });
-    });
-    
-    it('should generate performance forecasts', async () => {
-      const generateForecast = jest.fn().mockResolvedValue({
-        nextWeek: { impressions: 150000, conversions: 225 },
-        nextMonth: { impressions: 650000, conversions: 975 }
-      });
-      
-      useCampaignPerformance.mockReturnValue({
-        isLoading: false,
-        generateForecast
-      });
-      
-      const { result } = renderHook(() => useCampaignPerformance('campaign-123'), { wrapper });
+      expect(getPerformanceSpy).toHaveBeenCalledTimes(1);
       
       await act(async () => {
-        const forecast = await result.current.generateForecast();
-        expect(forecast.nextWeek.impressions).toBe(150000);
+        await result.current.refetch();
       });
+      
+      expect(getPerformanceSpy).toHaveBeenCalledTimes(2);
     });
     
-    it('should detect performance anomalies', async () => {
-      useCampaignPerformance.mockReturnValue({
-        isLoading: false,
-        anomalies: [
-          { date: '2025-01-15', metric: 'ctr', expected: 3.0, actual: 0.5, severity: 'high' },
-          { date: '2025-01-20', metric: 'conversions', expected: 50, actual: 150, severity: 'medium' }
-        ]
-      });
+    it('should support custom refetch intervals', async () => {
+      jest.useFakeTimers();
+      const getPerformanceSpy = jest.spyOn(campaignService, 'getPerformance');
       
-      const { result } = renderHook(() => useCampaignPerformance('campaign-123'), { wrapper });
+      renderHook(
+        () => useCampaignPerformance('campaign-1', { refetchInterval: 5000 }),
+        { wrapper }
+      );
       
       await waitFor(() => {
-        expect(result.current.anomalies).toHaveLength(2);
+        expect(getPerformanceSpy).toHaveBeenCalledTimes(1);
       });
       
-      expect(result.current.anomalies[0].severity).toBe('high');
-    });
-    
-    it('should handle A/B test performance comparison', async () => {
-      useCampaignPerformance.mockReturnValue({
-        isLoading: false,
-        abTests: {
-          control: { variant: 'A', impressions: 50000, ctr: 2.8, conversionRate: 4.2 },
-          variant: { variant: 'B', impressions: 50000, ctr: 3.4, conversionRate: 5.1 },
-          winner: 'B',
-          confidence: 95
-        }
+      // Advance time to trigger refetch
+      act(() => {
+        jest.advanceTimersByTime(5000);
       });
-      
-      const { result } = renderHook(() => useCampaignPerformance('campaign-123'), { wrapper });
       
       await waitFor(() => {
-        expect(result.current.abTests.winner).toBe('B');
-        expect(result.current.abTests.confidence).toBe(95);
+        expect(getPerformanceSpy).toHaveBeenCalledTimes(2);
       });
+      
+      jest.useRealTimers();
     });
   });
   
-  describe('data aggregation', () => {
-    it('should aggregate metrics by time period', async () => {
-      const aggregateByPeriod = jest.fn().mockResolvedValue({
-        daily: [/* daily data */],
-        weekly: [/* weekly data */],
-        monthly: [/* monthly data */]
-      });
-      
-      useCampaignPerformance.mockReturnValue({
-        isLoading: false,
-        aggregateByPeriod
-      });
-      
-      const { result } = renderHook(() => useCampaignPerformance('campaign-123'), { wrapper });
-      
-      await act(async () => {
-        const aggregated = await result.current.aggregateByPeriod('weekly');
-        expect(aggregated).toBeDefined();
-      });
-    });
-    
-    it('should export performance data', async () => {
-      const exportData = jest.fn().mockResolvedValue({
-        url: 'https://download.example.com/performance-export.csv'
-      });
-      
-      useCampaignPerformance.mockReturnValue({
-        isLoading: false,
-        exportData
-      });
-      
-      const { result } = renderHook(() => useCampaignPerformance('campaign-123'), { wrapper });
-      
-      await act(async () => {
-        const exported = await result.current.exportData('csv');
-        expect(exported.url).toContain('.csv');
-      });
-    });
-    
-    it('should calculate custom KPIs', async () => {
-      const calculateKPI = jest.fn().mockReturnValue(42.5);
-      
-      useCampaignPerformance.mockReturnValue({
-        isLoading: false,
-        calculateKPI,
-        customKPIs: {}
-      });
-      
-      const { result } = renderHook(() => useCampaignPerformance('campaign-123'), { wrapper });
-      
-      const kpiFormula = '(conversions / impressions) * 1000';
-      const value = result.current.calculateKPI(kpiFormula);
-      
-      expect(value).toBe(42.5);
-    });
-  });
-  
-  describe('error handling', () => {
-    it('should handle API errors gracefully', async () => {
-      useCampaignPerformance.mockReturnValue({
-        isLoading: false,
-        isError: true,
-        error: new Error('Failed to fetch performance data')
-      });
-      
-      const { result } = renderHook(() => useCampaignPerformance('campaign-123'), { wrapper });
+  describe('realtime updates', () => {
+    it('should subscribe to realtime updates by default', async () => {
+      const { result } = renderHook(
+        () => useCampaignPerformance('campaign-1'),
+        { wrapper }
+      );
       
       await waitFor(() => {
-        expect(result.current.isError).toBe(true);
+        expect(result.current.performance).toBeDefined();
       });
       
-      expect(result.current.error?.message).toBe('Failed to fetch performance data');
+      expect(realtimeService.subscribe).toHaveBeenCalledWith(
+        'campaign:campaign-1:metrics',
+        expect.any(Function)
+      );
+      
+      expect(result.current.isRealtimeEnabled).toBe(true);
     });
     
-    it('should handle rate limiting', async () => {
-      const retry = jest.fn();
-      useCampaignPerformance.mockReturnValue({
-        isLoading: false,
-        isError: true,
-        error: new Error('Rate limit exceeded'),
-        retry,
-        retryAfter: 60
+    it('should process realtime metric updates', async () => {
+      let capturedCallback: ((update: any) => void) | null = null;
+      
+      jest.spyOn(realtimeService, 'subscribe').mockImplementation((channel, callback) => {
+        capturedCallback = callback;
+        return unsubscribeSpy;
       });
       
-      const { result } = renderHook(() => useCampaignPerformance('campaign-123'), { wrapper });
+      const { result } = renderHook(
+        () => useCampaignPerformance('campaign-1'),
+        { wrapper }
+      );
       
-      expect(result.current.retryAfter).toBe(60);
-    });
-  });
-  
-  describe('caching and optimization', () => {
-    it('should cache performance data', async () => {
-      useCampaignPerformance.mockReturnValue({
-        isLoading: false,
-        data: { impressions: 100000 },
-        isCached: true,
-        cacheTime: new Date('2025-01-01T12:00:00Z')
+      await waitFor(() => {
+        expect(result.current.performance).toBeDefined();
       });
       
-      const { result } = renderHook(() => useCampaignPerformance('campaign-123'), { wrapper });
+      const initialImpressions = result.current.metrics?.impressions || 0;
       
-      expect(result.current.isCached).toBe(true);
+      // Simulate realtime update
+      act(() => {
+        capturedCallback?.({
+          impressions: 100,
+          clicks: 10,
+          conversions: 1,
+          timestamp: new Date(),
+        });
+      });
+      
+      await waitFor(() => {
+        expect(result.current.metrics?.impressions).toBe(initialImpressions + 100);
+      });
+      
+      expect(result.current.realtimeUpdates).toHaveLength(1);
     });
     
-    it('should invalidate cache on data update', async () => {
-      const invalidateCache = jest.fn();
-      useCampaignPerformance.mockReturnValue({
-        isLoading: false,
-        invalidateCache
+    it('should accumulate multiple realtime updates', async () => {
+      let capturedCallback: ((update: any) => void) | null = null;
+      
+      jest.spyOn(realtimeService, 'subscribe').mockImplementation((channel, callback) => {
+        capturedCallback = callback;
+        return unsubscribeSpy;
       });
       
-      const { result } = renderHook(() => useCampaignPerformance('campaign-123'), { wrapper });
+      const { result } = renderHook(
+        () => useCampaignPerformance('campaign-1'),
+        { wrapper }
+      );
+      
+      await waitFor(() => {
+        expect(result.current.performance).toBeDefined();
+      });
+      
+      // Send multiple updates
+      act(() => {
+        capturedCallback?.({
+          impressions: 50,
+          clicks: 5,
+          conversions: 0,
+          timestamp: new Date(),
+        });
+        
+        capturedCallback?.({
+          impressions: 75,
+          clicks: 8,
+          conversions: 1,
+          timestamp: new Date(),
+        });
+      });
+      
+      await waitFor(() => {
+        expect(result.current.realtimeUpdates).toHaveLength(2);
+      });
+    });
+    
+    it('should update CTR and conversion rate in realtime', async () => {
+      let capturedCallback: ((update: any) => void) | null = null;
+      
+      jest.spyOn(realtimeService, 'subscribe').mockImplementation((channel, callback) => {
+        capturedCallback = callback;
+        return unsubscribeSpy;
+      });
+      
+      const { result } = renderHook(
+        () => useCampaignPerformance('campaign-1'),
+        { wrapper }
+      );
+      
+      await waitFor(() => {
+        expect(result.current.performance).toBeDefined();
+      });
+      
+      const initialCtr = result.current.metrics?.ctr || 0;
+      
+      act(() => {
+        capturedCallback?.({
+          impressions: 1000,
+          clicks: 50,
+          conversions: 5,
+          timestamp: new Date(),
+        });
+      });
+      
+      await waitFor(() => {
+        expect(result.current.metrics?.ctr).not.toBe(initialCtr);
+      });
+      
+      // CTR should be recalculated
+      expect(result.current.metrics?.ctr).toBeGreaterThan(0);
+      expect(result.current.metrics?.conversionRate).toBeGreaterThan(0);
+    });
+    
+    it('should limit timeline entries to last 50', async () => {
+      let capturedCallback: ((update: any) => void) | null = null;
+      
+      jest.spyOn(realtimeService, 'subscribe').mockImplementation((channel, callback) => {
+        capturedCallback = callback;
+        return unsubscribeSpy;
+      });
+      
+      // Mock initial data with 45 timeline entries
+      const mockTimeline = Array.from({ length: 45 }, (_, i) => ({
+        timestamp: new Date(Date.now() - i * 1000),
+        impressions: 100,
+        clicks: 10,
+        conversions: 1,
+      }));
+      
+      jest.spyOn(campaignService, 'getPerformance').mockResolvedValue({
+        campaignId: 'campaign-1',
+        metrics: {
+          impressions: 1000,
+          clicks: 100,
+          conversions: 10,
+          ctr: 10,
+          conversionRate: 10,
+          cpc: 1,
+          cpa: 10,
+        },
+        timeline: mockTimeline,
+      });
+      
+      const { result } = renderHook(
+        () => useCampaignPerformance('campaign-1'),
+        { wrapper }
+      );
+      
+      await waitFor(() => {
+        expect(result.current.timeline).toHaveLength(45);
+      });
+      
+      // Add 10 more updates
+      act(() => {
+        for (let i = 0; i < 10; i++) {
+          capturedCallback?.({
+            impressions: 50,
+            clicks: 5,
+            conversions: 0,
+            timestamp: new Date(),
+          });
+        }
+      });
+      
+      await waitFor(() => {
+        expect(result.current.timeline).toHaveLength(50);
+      });
+    });
+    
+    it('should disable realtime when option is false', async () => {
+      renderHook(
+        () => useCampaignPerformance('campaign-1', { enableRealtime: false }),
+        { wrapper }
+      );
+      
+      await waitFor(() => {
+        expect(realtimeService.subscribe).not.toHaveBeenCalled();
+      });
+    });
+    
+    it('should unsubscribe on unmount', async () => {
+      const { unmount } = renderHook(
+        () => useCampaignPerformance('campaign-1'),
+        { wrapper }
+      );
+      
+      await waitFor(() => {
+        expect(realtimeService.subscribe).toHaveBeenCalled();
+      });
+      
+      unmount();
+      
+      expect(unsubscribeSpy).toHaveBeenCalled();
+    });
+    
+    it('should clear realtime updates on refetch', async () => {
+      let capturedCallback: ((update: any) => void) | null = null;
+      
+      jest.spyOn(realtimeService, 'subscribe').mockImplementation((channel, callback) => {
+        capturedCallback = callback;
+        return unsubscribeSpy;
+      });
+      
+      const { result } = renderHook(
+        () => useCampaignPerformance('campaign-1'),
+        { wrapper }
+      );
+      
+      await waitFor(() => {
+        expect(result.current.performance).toBeDefined();
+      });
+      
+      // Add realtime update
+      act(() => {
+        capturedCallback?.({
+          impressions: 100,
+          clicks: 10,
+          conversions: 1,
+          timestamp: new Date(),
+        });
+      });
+      
+      expect(result.current.realtimeUpdates).toHaveLength(1);
       
       await act(async () => {
-        result.current.invalidateCache();
+        await result.current.refetch();
       });
       
-      expect(invalidateCache).toHaveBeenCalled();
+      expect(result.current.realtimeUpdates).toHaveLength(0);
+    });
+    
+    it('should manually clear realtime updates', async () => {
+      let capturedCallback: ((update: any) => void) | null = null;
+      
+      jest.spyOn(realtimeService, 'subscribe').mockImplementation((channel, callback) => {
+        capturedCallback = callback;
+        return unsubscribeSpy;
+      });
+      
+      const { result } = renderHook(
+        () => useCampaignPerformance('campaign-1'),
+        { wrapper }
+      );
+      
+      await waitFor(() => {
+        expect(result.current.performance).toBeDefined();
+      });
+      
+      // Add realtime update
+      act(() => {
+        capturedCallback?.({
+          impressions: 100,
+          clicks: 10,
+          conversions: 1,
+          timestamp: new Date(),
+        });
+      });
+      
+      expect(result.current.realtimeUpdates).toHaveLength(1);
+      
+      act(() => {
+        result.current.clearRealtimeUpdates();
+      });
+      
+      expect(result.current.realtimeUpdates).toHaveLength(0);
     });
   });
 });

@@ -1,53 +1,31 @@
 {
   "compilerOptions": {
-    "strict": true,
-    "module": "preserve",
-    "target": "es2020",
-    "lib": [
-      "es2020"
-    ],
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
-    "resolveJsonModule": true,
-    "moduleResolution": "bundler",
-    "allowJs": true,
-    "declaration": false,
-    "skipLibCheck": true,
-    "jsx": "react-native",
+    "target": "ES2020",
+    "module": "commonjs",
+    "lib": ["ES2020"],
     "outDir": "./dist",
-    "noEmit": true
+    "rootDir": "./src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": true,
+    "noImplicitThis": true,
+    "alwaysStrict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "types": ["node", "jest"]
   },
-  "include": [
-    "src/**/*",
-    "automation/**/*"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "**/*.js",
-    "app.config.js",
-    "jest.config.js",
-    "fix-cart-broadcasts.js",
-    "schema_inspector.js",
-    "src/__tests__/payment-integration.test.ts",
-    "src/hooks/__tests__/usePayment.test.ts",
-    "src/hooks/__tests__/useKiosk.test.tsx",
-    "src/hooks/__tests__/archive/*.ts",
-    "src/ARCHIVE/**/*",
-    "src/hooks/__tests__/useCentralizedRealtime.race.test.tsx",
-    "src/hooks/__tests__/useAuth.race.test.tsx",
-    "src/hooks/__tests__/useAuth.test.ts",
-    "src/hooks/__tests__/useCart.race.test.tsx",
-    "src/hooks/__tests__/useErrorRecovery.test.ts",
-    "src/hooks/__tests__/useKiosk.test.tsx",
-    "src/hooks/__tests__/useNotifications.race.test.tsx"
-  ],
-  "ts-node": {
-    "esm": false,
-    "compilerOptions": {
-      "module": "commonjs",
-      "noEmit": false
-    }
-  },
-  "extends": "expo/tsconfig.base"
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"]
 }
