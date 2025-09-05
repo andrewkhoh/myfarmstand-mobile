@@ -1,0 +1,235 @@
+version: '3.8'
+
+services:
+  # decision-support agent
+  decision-support-agent:
+    build: 
+      context: ../../agents
+      dockerfile: Dockerfile
+    container_name: decision-support-agent
+    environment:
+      - "AGENT_NAME=decision-support"
+      - "AGENT_TYPE=implementation"
+      - "PROJECT_NAME=tdd_phase_4b"
+      - "PROJECT_DESCRIPTION=TDD Phase 4b - Sequential Executive Dashboard with Unified Workspace"
+      - "MAX_RESTARTS="
+      - "TARGET_PASS_RATE="
+      - "TEST_COMMAND=timeout 120  -- --passWithNoTests --forceExit --maxWorkers=2 || echo 'Tests: 0 passed, 0 failed'"
+      - "AGENT_PROMPT_FILE=/prompts/phase4b-decision-support.md"
+      - "DEBUG=${DEBUG:-false}"
+      - "FRESH_START=${FRESH_START:-false}"
+    volumes:
+      - ../../volumes/phase4b-workspace:/workspace:rw
+      - ../../../docker/volumes/communication:/shared:rw
+      - ../../agents/prompts:/prompts:ro
+      - ./entrypoint.sh:/usr/local/bin/entrypoint-enhanced.sh:ro
+      - ~/.claude:/home/agent/.claude:rw
+    working_dir: /workspace
+    entrypoint: ["/usr/local/bin/entrypoint-enhanced.sh"]
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+
+  # executive-components   agent
+  executive-components  -agent:
+    build: 
+      context: ../../agents
+      dockerfile: Dockerfile
+    container_name: executive-components  -agent
+    environment:
+      - "AGENT_NAME=executive-components  "
+      - "AGENT_TYPE=implementation"
+      - "PROJECT_NAME=tdd_phase_4b"
+      - "PROJECT_DESCRIPTION=TDD Phase 4b - Sequential Executive Dashboard with Unified Workspace"
+      - "MAX_RESTARTS="
+      - "TARGET_PASS_RATE="
+      - "TEST_COMMAND=timeout 120  -- --passWithNoTests --forceExit --maxWorkers=2 || echo 'Tests: 0 passed, 0 failed'"
+      - "AGENT_PROMPT_FILE=/prompts/phase4b-executive-components.md"
+      - "DEBUG=${DEBUG:-false}"
+      - "FRESH_START=${FRESH_START:-false}"
+    volumes:
+      - ../../volumes/phase4b-workspace:/workspace:rw
+      - ../../../docker/volumes/communication:/shared:rw
+      - ../../agents/prompts:/prompts:ro
+      - ./entrypoint.sh:/usr/local/bin/entrypoint-enhanced.sh:ro
+      - ~/.claude:/home/agent/.claude:rw
+    working_dir: /workspace
+    entrypoint: ["/usr/local/bin/entrypoint-enhanced.sh"]
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+
+  # executive-hooks agent
+  executive-hooks-agent:
+    build: 
+      context: ../../agents
+      dockerfile: Dockerfile
+    container_name: executive-hooks-agent
+    environment:
+      - "AGENT_NAME=executive-hooks"
+      - "AGENT_TYPE=implementation"
+      - "PROJECT_NAME=tdd_phase_4b"
+      - "PROJECT_DESCRIPTION=TDD Phase 4b - Sequential Executive Dashboard with Unified Workspace"
+      - "MAX_RESTARTS="
+      - "TARGET_PASS_RATE="
+      - "TEST_COMMAND=timeout 120  -- --passWithNoTests --forceExit --maxWorkers=2 || echo 'Tests: 0 passed, 0 failed'"
+      - "AGENT_PROMPT_FILE=/prompts/phase4b-executive-hooks.md"
+      - "DEBUG=${DEBUG:-false}"
+      - "FRESH_START=${FRESH_START:-false}"
+      - "DEPENDS_ON=executive-components"
+    volumes:
+      - ../../volumes/phase4b-workspace:/workspace:rw
+      - ../../../docker/volumes/communication:/shared:rw
+      - ../../agents/prompts:/prompts:ro
+      - ./entrypoint.sh:/usr/local/bin/entrypoint-enhanced.sh:ro
+      - ~/.claude:/home/agent/.claude:rw
+    working_dir: /workspace
+    entrypoint: ["/usr/local/bin/entrypoint-enhanced.sh"]
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+    depends_on:
+      - executive-components-agent
+
+  # executive-screens agent
+  executive-screens-agent:
+    build: 
+      context: ../../agents
+      dockerfile: Dockerfile
+    container_name: executive-screens-agent
+    environment:
+      - "AGENT_NAME=executive-screens"
+      - "AGENT_TYPE=implementation"
+      - "PROJECT_NAME=tdd_phase_4b"
+      - "PROJECT_DESCRIPTION=TDD Phase 4b - Sequential Executive Dashboard with Unified Workspace"
+      - "MAX_RESTARTS="
+      - "TARGET_PASS_RATE="
+      - "TEST_COMMAND=timeout 120  -- --passWithNoTests --forceExit --maxWorkers=2 || echo 'Tests: 0 passed, 0 failed'"
+      - "AGENT_PROMPT_FILE=/prompts/phase4b-executive-screens.md"
+      - "DEBUG=${DEBUG:-false}"
+      - "FRESH_START=${FRESH_START:-false}"
+      - "DEPENDS_ON=executive-hooks"
+    volumes:
+      - ../../volumes/phase4b-workspace:/workspace:rw
+      - ../../../docker/volumes/communication:/shared:rw
+      - ../../agents/prompts:/prompts:ro
+      - ./entrypoint.sh:/usr/local/bin/entrypoint-enhanced.sh:ro
+      - ~/.claude:/home/agent/.claude:rw
+    working_dir: /workspace
+    entrypoint: ["/usr/local/bin/entrypoint-enhanced.sh"]
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+    depends_on:
+      - executive-hooks-agent
+
+  # cross-role-integration agent
+  cross-role-integration-agent:
+    build: 
+      context: ../../agents
+      dockerfile: Dockerfile
+    container_name: cross-role-integration-agent
+    environment:
+      - "AGENT_NAME=cross-role-integration"
+      - "AGENT_TYPE=implementation"
+      - "PROJECT_NAME=tdd_phase_4b"
+      - "PROJECT_DESCRIPTION=TDD Phase 4b - Sequential Executive Dashboard with Unified Workspace"
+      - "MAX_RESTARTS="
+      - "TARGET_PASS_RATE="
+      - "TEST_COMMAND=timeout 120  -- --passWithNoTests --forceExit --maxWorkers=2 || echo 'Tests: 0 passed, 0 failed'"
+      - "AGENT_PROMPT_FILE=/prompts/phase4b-cross-role-integration.md"
+      - "DEBUG=${DEBUG:-false}"
+      - "FRESH_START=${FRESH_START:-false}"
+      - "DEPENDS_ON=executive-screens"
+    volumes:
+      - ../../volumes/phase4b-workspace:/workspace:rw
+      - ../../../docker/volumes/communication:/shared:rw
+      - ../../agents/prompts:/prompts:ro
+      - ./entrypoint.sh:/usr/local/bin/entrypoint-enhanced.sh:ro
+      - ~/.claude:/home/agent/.claude:rw
+    working_dir: /workspace
+    entrypoint: ["/usr/local/bin/entrypoint-enhanced.sh"]
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+    depends_on:
+      - executive-screens-agent
+
+  # Authentication Container
+  phase4b-auth:
+    build:
+      context: ../../agents
+      dockerfile: Dockerfile
+    container_name: phase4b-auth
+    environment:
+      - "AGENT_NAME=auth"
+      - "PROJECT_NAME=tdd_phase_4b"
+    volumes:
+      - ~/.claude:/home/agent/.claude:rw
+    entrypoint: ["sleep", "infinity"]
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  # Monitoring Container
+  phase4b-monitoring:
+    build:
+      context: ../../monitoring
+      dockerfile: Dockerfile
+    container_name: phase4b-monitoring
+    environment:
+      - PORT=
+      - PROJECT=tdd_phase_4b
+    volumes:
+      - ../../../docker/volumes/communication:/shared:rw
+      - ../../monitoring/analyze-logs.sh:/app/analyze-logs.sh:ro
+      - ~/.claude:/home/monitor/.claude:rw
+    ports:
+      - ":"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+# Networks and volumes
+networks:
+  default:
+    name: phase4b-network
+    external: true
+
+volumes:
+  phase4b-data:
+    driver: local

@@ -252,8 +252,14 @@ for agent in "${AGENTS[@]}"; do
     prompt_file=$(get_agent_field "$agent" "prompt_file" "$CONFIG_FILE")
     depends_on=$(get_agent_depends_on "$agent" "$CONFIG_FILE")
     
-    # Phase 2 approach: Each agent gets its own workspace
-    workspace_volume="${PROJECT_PREFIX}-${agent}"
+    # Determine workspace volume based on strategy
+    if [ "$GLOBAL_WORKSPACE_STRATEGY" = "unified" ]; then
+        # Unified approach: All agents share the same workspace
+        workspace_volume="${PROJECT_PREFIX}-workspace"
+    else
+        # Phase 2 approach: Each agent gets its own workspace
+        workspace_volume="${PROJECT_PREFIX}-${agent}"
+    fi
     
     echo "  # $agent agent" >> "$PROJECT_DIR/docker-compose.yml"
     
