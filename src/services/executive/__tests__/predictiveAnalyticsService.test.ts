@@ -1,29 +1,16 @@
-// Test Infrastructure Imports
-import { createProduct, createUser, resetAllFactories } from "../../test/factories";
-
 /**
  * PredictiveAnalyticsService Test - Following Service Test Pattern (REFERENCE)
  */
 
+import { createUser, resetAllFactories } from '../../../test/factories';
+import { PredictiveAnalyticsService } from '../predictiveAnalyticsService';
+
 // Setup all mocks BEFORE any imports
-jest.mock("../../config/supabase", () => {
-  const { SimplifiedSupabaseMock } = require("../../test/mocks/supabase.simplified.mock");
+jest.mock("../../../config/supabase", () => {
+  const { SimplifiedSupabaseMock } = require("../../../test/mocks/supabase.simplified.mock");
   const mockInstance = new SimplifiedSupabaseMock();
   return {
-  const mockFrom = jest.fn(() => ({
-    insert: jest.fn().mockReturnThis(),
-    update: jest.fn().mockReturnThis(),
-    select: jest.fn().mockReturnThis(),
-    eq: jest.fn().mockReturnThis(),
-    gte: jest.fn().mockReturnThis(),
-    order: jest.fn().mockReturnThis(),
-    single: jest.fn(),
-  }));
-  
-  return {
-    supabase: {
-      from: mockFrom,
-    },
+    supabase: mockInstance.createClient(),
     TABLES: {
       USERS: 'users',
       PRODUCTS: 'products',
@@ -32,8 +19,6 @@ jest.mock("../../config/supabase", () => {
       ANALYTICS_MODELS: 'analytics_models',
       REPORTS: 'reports'
     }
-  };
-    TABLES: { /* Add table constants */ }
   };
 });
 

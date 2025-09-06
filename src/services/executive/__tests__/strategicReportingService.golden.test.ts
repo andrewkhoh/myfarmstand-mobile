@@ -1,49 +1,23 @@
 // Test Infrastructure Imports
-import { createProduct, createUser, resetAllFactories } from "../../test/factories";
+import { createProduct, createUser, resetAllFactories } from "../../../test/factories";
 
 /**
  * StrategicReportingService Test - Following Service Test Pattern (REFERENCE)
  */
 
 // Setup all mocks BEFORE any imports
-jest.mock("../../config/supabase", () => {
-  const { SimplifiedSupabaseMock } = require("../../test/mocks/supabase.simplified.mock");
+jest.mock("../../../config/supabase", () => {
+  const { SimplifiedSupabaseMock } = require("../../../test/mocks/supabase.simplified.mock");
   const mockInstance = new SimplifiedSupabaseMock();
   return {
-  const mockFrom = jest.fn(() => ({
-    select: jest.fn().mockReturnThis(),
-    eq: jest.fn().mockReturnThis(),
-    insert: jest.fn().mockReturnThis(),
-    update: jest.fn().mockReturnThis(),
-    delete: jest.fn().mockReturnThis(),
-    single: jest.fn(),
-    order: jest.fn().mockReturnThis(),
-    in: jest.fn().mockReturnThis(),
-    neq: jest.fn().mockReturnThis(),
-    gte: jest.fn().mockReturnThis(),
-    lte: jest.fn().mockReturnThis(),
-    limit: jest.fn().mockReturnThis()
-  }));
-  
-  return {
-    supabase: {
-      from: mockFrom,
-      auth: {
-        getUser: jest.fn().mockResolvedValue({
-          data: { user: { id: 'user-123', role: 'executive' } },
-          error: null
-        })
-      }
-    },
+    supabase: mockInstance.createClient(),
     TABLES: {
       USERS: 'users',
       PRODUCTS: 'products', 
       ORDERS: 'orders',
       REPORTS: 'strategic_reports',
-      ANALYTICS: 'analytics',
+      ANALYTICS: 'analytics'
     }
-  };
-    TABLES: { /* Add table constants */ }
   };
 });
 

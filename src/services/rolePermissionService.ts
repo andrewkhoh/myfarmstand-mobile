@@ -524,6 +524,60 @@ export class RolePermissionService {
     this.permissionsCache.clear();
     this.lastCacheUpdate = 0;
   }
+
+  // ============================================================================
+  // STATIC METHODS (For executive services compatibility)
+  // ============================================================================
+
+  /**
+   * Static helper method for checking permissions (uses default supabase instance)
+   * This is a compatibility method for executive services that expect static access
+   */
+  static async hasPermission(role: string, permission: string): Promise<boolean> {
+    try {
+      // Import supabase here to avoid circular dependencies
+      const { supabase } = await import('../config/supabase');
+      const service = new RolePermissionService(supabase);
+      return await service.hasPermission(role, permission);
+    } catch (error) {
+      ValidationMonitor.recordValidationError({
+        context: 'RolePermissionService.hasPermission(static)',
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        errorCode: 'STATIC_PERMISSION_CHECK_FAILED'
+      });
+      return false;
+    }
+  }
+
+  /**
+   * Static helper method for role checks (alias for compatibility)
+   */
+  static async getUserRole(userId: string): Promise<string | null> {
+    try {
+      const { supabase } = await import('../config/supabase');
+      const { data, error } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', userId)
+        .single();
+
+      if (error || !data) {
+        return null;
+      }
+
+      return data.role || null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Static helper method for role access checks (alias for compatibility) 
+   */
+  static async checkRoleAccess(userId: string, requiredRole: string): Promise<boolean> {
+    const userRole = await this.getUserRole(userId);
+    return userRole === requiredRole;
+  }
 }
 
 // Export singleton instance for convenience

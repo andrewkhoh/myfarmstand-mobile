@@ -32,7 +32,7 @@ export interface ValidationErrorDetails {
   fieldPath?: string;
   receivedValue?: unknown;
   expectedType?: string;
-  validationPattern?: 'direct_schema' | 'simple_validation' | 'transformation_schema';
+  validationPattern?: 'direct_schema' | 'simple_validation' | 'transformation_schema' | 'direct_supabase_query' | 'statistical_calculation' | 'database_schema' | 'atomic_operation' | 'resilient_processing' | 'generate_business_insights' | 'get_insights_by_impact' | 'correlate_business_data' | 'update_insight_status' | 'get_insight_recommendations' | 'detect_anomalies' | 'get_metrics_by_category' | 'generate_correlation_analysis' | 'update_metric_values' | 'batch_process_metrics';
 }
 
 export interface DataQualityIssueDetails {
@@ -146,7 +146,7 @@ export class ValidationMonitor {
    */
   static recordPatternComplianceIssue(details: {
     service: string;
-    pattern: 'cartService' | 'direct_supabase' | 'simple_validation' | 'transformation_schema';
+    pattern: 'cartService' | 'direct_supabase' | 'simple_validation' | 'transformation_schema' | 'direct_supabase_query' | 'statistical_calculation' | 'database_schema' | 'atomic_operation' | 'resilient_processing' | 'generate_business_insights' | 'get_insights_by_impact' | 'correlate_business_data' | 'update_insight_status' | 'get_insight_recommendations' | 'detect_anomalies' | 'get_metrics_by_category' | 'generate_correlation_analysis' | 'update_metric_values' | 'batch_process_metrics';
     issue: string;
     severity: 'info' | 'warning' | 'error';
     recommendation?: string;
@@ -181,9 +181,11 @@ export class ValidationMonitor {
    * Helps track adoption of best practices
    */
   static recordPatternSuccess(details: {
-    service: string;
-    pattern: 'direct_schema_validation' | 'transformation_schema' | 'simple_input_validation' | 'direct_supabase_query';
-    operation: string;
+    service?: string;
+    pattern: 'direct_schema_validation' | 'transformation_schema' | 'simple_input_validation' | 'direct_supabase_query' | 'statistical_calculation' | 'database_schema' | 'atomic_operation' | 'resilient_processing' | 'generate_business_insights' | 'get_insights_by_impact' | 'correlate_business_data' | 'update_insight_status' | 'get_insight_recommendations' | 'detect_anomalies' | 'get_metrics_by_category' | 'generate_correlation_analysis' | 'update_metric_values' | 'batch_process_metrics' | 'generate_strategic_report' | 'schedule_strategic_report' | 'get_report_data' | 'export_report_data' | 'update_report_config' | 'generate_predictive_forecast' | 'validate_model_accuracy' | 'update_forecast_data' | 'get_forecast_by_type' | 'calculate_confidence_intervals';
+    operation?: string;
+    context?: string;
+    description?: string;
     performanceMs?: number;
   }): void {
     // Don't increment error counters for success events
@@ -198,7 +200,9 @@ export class ValidationMonitor {
       }
     };
 
-    console.info(`${this.LOG_PREFIX} Successful pattern usage in ${details.service}.${details.operation}`, logData);
+    // Handle both old context format and new service.operation format
+    const operationDescription = details.context || `${details.service}.${details.operation}`;
+    console.info(`${this.LOG_PREFIX} Successful pattern usage in ${operationDescription}`, logData);
   }
 
   /**

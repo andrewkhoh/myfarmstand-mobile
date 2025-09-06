@@ -148,7 +148,7 @@ export class BusinessMetricsService {
         correlations,
         summary: {
           total_metrics: transformedMetrics.length,
-          categories_included: [...new Set(transformedMetrics.map(m => m.metricCategory))],
+          categories_included: Array.from(new Set(transformedMetrics.map(m => m.metricCategory))),
           date_range: `${startDate} to ${endDate}`,
           aggregation_level: aggregationLevel
         }
@@ -310,7 +310,7 @@ export class BusinessMetricsService {
       const dateMap1 = new Map(metrics1.map(m => [m.metricDate, m.metricValue]));
       const dateMap2 = new Map(metrics2.map(m => [m.metricDate, m.metricValue]));
 
-      for (const [date, value1] of dateMap1) {
+      for (const [date, value1] of Array.from(dateMap1)) {
         const value2 = dateMap2.get(date);
         if (value2 !== undefined) {
           correlationData.push({
@@ -649,7 +649,7 @@ export class BusinessMetricsService {
   ): Promise<Record<string, any>> {
     const correlations: Record<string, any> = {};
     
-    const categories = [...new Set(metrics.map(m => m.metricCategory))];
+    const categories = Array.from(new Set(metrics.map(m => m.metricCategory)));
     
     for (let i = 0; i < categories.length; i++) {
       for (let j = i + 1; j < categories.length; j++) {
