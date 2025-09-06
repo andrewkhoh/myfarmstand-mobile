@@ -44,6 +44,11 @@ const mockService = SimpleBusinessMetricsService as jest.Mocked<typeof SimpleBus
 jest.mock('../../role-based/useUserRole');
 const mockUseUserRole = useUserRole as jest.MockedFunction<typeof useUserRole>;
 
+// Mock useAuth hook
+jest.mock('../../useAuth', () => ({
+  useCurrentUser: () => ({ data: { id: 'test-user-123' } })
+}));
+
 // Mock the query key factory - following useCart pattern exactly
 jest.mock('../../../utils/queryKeyFactory', () => ({
   executiveAnalyticsKeys: {

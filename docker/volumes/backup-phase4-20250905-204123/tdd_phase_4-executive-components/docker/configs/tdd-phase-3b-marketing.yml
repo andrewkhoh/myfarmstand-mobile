@@ -1,0 +1,42 @@
+# TDD Phase 3B Marketing Operations Configuration
+# Multi-agent project for test-driven marketing system development
+# Using Phase 2 approach: Combined test writing and implementation per agent
+
+project:
+  name: "marketing_operations"
+  prefix: "tdd_phase_3b"
+  description: "TDD Phase 3B: Marketing Operations (Phase 2 Architecture)"
+  max_restarts: 5
+  test_pass_target: 85
+  monitoring_port: 3004
+
+agents:
+  - name: "marketing-schema"
+    type: "foundation"
+    depends_on: []
+    test_command: "npm run test:schemas:marketing"
+    prompt_file: "phase3b-marketing-schema.md"
+    
+  - name: "marketing-services"
+    type: "service"
+    depends_on: ["marketing-schema"]
+    test_command: "npm run test:services:marketing"
+    prompt_file: "phase3b-marketing-services.md"
+    
+  - name: "marketing-hooks"
+    type: "hook"
+    depends_on: ["marketing-services"]
+    test_command: "npm run test:hooks:marketing"
+    prompt_file: "phase3b-marketing-hooks.md"
+    
+  - name: "marketing-screens"
+    type: "screen"
+    depends_on: ["marketing-hooks"]
+    test_command: "npm run test:screens:marketing"
+    prompt_file: "phase3b-marketing-screens.md"
+    
+  - name: "marketing-integration"
+    type: "integration"
+    depends_on: ["marketing-schema", "marketing-services", "marketing-hooks", "marketing-screens"]
+    test_command: "npm run test:integration:marketing"
+    prompt_file: "phase3b-marketing-integration.md"

@@ -1,0 +1,39 @@
+# TDD Phase 1 Role-Based System Fixes Configuration
+# Single agent completing all minimal fixes
+# Following Phase 3B approach: Combined test writing and implementation
+
+project:
+  name: "role_based_fixes"
+  prefix: "tdd_phase_1_fixes"
+  description: "TDD Phase 1: Role-Based System Completion (Single Agent, Minimal Fixes)"
+  max_restarts: 3
+  test_pass_target: 85
+  monitoring_port: 3006
+  estimated_hours: 4
+
+agents:
+  - name: "role-complete"
+    type: "complete-cycle"
+    depends_on: []
+    test_commands:
+      - "npx tsc --noEmit"  # TypeScript compilation check
+      - "npm run test:schemas:role || true"
+      - "npm run test:services:role || true"
+      - "npm run test:hooks:role || true"
+      - "npm run test:screens:role || true"
+      - "npm run test:components:role || true"
+      - "npm run test:integration:role || true"
+    prompt_file: "phase1-role-complete.md"
+    expected_tests: 334  # Based on original plan
+    target_pass_rate: 85
+    tasks:
+      - fix_typescript: "Fix ~16 TypeScript syntax errors"
+      - create_configs: "Create missing Jest configurations"
+      - move_services: "Move services to role-based subdirectory"
+      - create_navigation: "Create RoleNavigationService with TDD"
+      - achieve_pass_rate: "Fix tests to achieve 85% pass rate"
+    validation:
+      - typescript_clean: "npx tsc --noEmit"
+      - services_location: "ls src/services/role-based/"
+      - navigation_exists: "test -f src/services/role-based/roleNavigationService.ts"
+      - patterns_compliant: "grep -q 'ValidationMonitor' src/services/role-based/*.ts"

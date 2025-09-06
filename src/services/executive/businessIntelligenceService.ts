@@ -4,7 +4,7 @@
 
 import { supabase } from '../../config/supabase';
 import { ValidationMonitor } from '../../utils/validationMonitor';
-import { RolePermissionService } from '../role-based/rolePermissionService';
+import { RolePermissionService } from '../rolePermissionService';
 import { 
   BusinessIntelligenceDatabaseSchema,
   BusinessIntelligenceTransformSchema,

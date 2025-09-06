@@ -33,11 +33,26 @@ export interface StrategicReportData {
 }
 
 export interface UseStrategicReportingOptions {
-  reportType?: 'performance' | 'growth' | 'competitive' | 'market_analysis';
+  reportId?: string;
+  reportType?: 'performance' | 'growth' | 'competitive' | 'market_analysis' | 'executive_summary' | 'monthly';
   period?: 'monthly' | 'quarterly' | 'yearly';
   includeCharts?: boolean;
   includeRecommendations?: boolean;
   departments?: string[];
+  includeAllDataSources?: boolean;
+  detailLevel?: 'summary' | 'detailed' | 'comprehensive' | 'maximum';
+  dateRange?: string;
+  exportFormat?: 'pdf' | 'csv' | 'json' | 'xlsx';
+  includePredictiveAnalytics?: boolean;
+  realtime?: boolean;
+  schedule?: string;
+  frequency?: string;
+  delivery_method?: string;
+  recipients?: string[];
+  format?: 'pdf' | 'excel' | 'json';
+  include_charts?: boolean;
+  compress?: boolean;
+  optimize_for_size?: boolean;
 }
 
 export class SimpleStrategicReportingService {

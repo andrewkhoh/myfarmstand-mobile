@@ -54,12 +54,25 @@ jest.mock('@tanstack/react-query', () => ({
 
 jest.mock('../../../services/executive/predictiveAnalyticsService');
 
+// Mock realtime service
+jest.mock('../../../services/realtimeService', () => ({
+  realtimeService: {
+    subscribe: jest.fn(() => jest.fn()), // Returns unsubscribe function
+    emit: jest.fn(),
+  }
+}));
+
 // Mock the user role hook
 jest.mock('../../../hooks/role-based/useUserRole', () => ({
   useUserRole: jest.fn(() => ({
     role: 'executive',
     hasPermission: jest.fn().mockResolvedValue(true)
   }))
+}));
+
+// Mock useAuth hook
+jest.mock('../../useAuth', () => ({
+  useCurrentUser: () => ({ data: { id: 'test-user-123' } })
 }));
 
 // Import React Query types for proper mocking

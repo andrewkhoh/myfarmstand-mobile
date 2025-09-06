@@ -1,0 +1,433 @@
+version: '3.8'
+
+services:
+  # Prompt generator service - runs once to create all prompts
+  prompt-generator:
+    image: alpine
+    container_name: phase1-prompt-generator
+    volumes:
+      - ./agents/prompts:/prompts:rw
+      - ../scripts:/scripts:ro
+    command: /scripts/generate-phase1-prompts.sh
+    restart: "no"  # Run once and exit
+  
+  # Foundation Agents (run in parallel)
+  role-services-agent:
+    build: 
+      context: ./agents
+      dockerfile: Dockerfile
+    container_name: role-services-agent
+    environment:
+      - AGENT_NAME=role-services
+      - AGENT_TYPE=foundation
+      - PHASE=1
+      - AGENT_PROMPT_FILE=/prompts/role-services-agent.md
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+    volumes:
+      - ./volumes/phase1-role-foundation-role-services:/workspace:rw
+      - ./volumes/communication:/shared:rw
+      - ./agents/prompts:/prompts:ro
+      - ./agents/entrypoint-enhanced.sh:/usr/local/bin/entrypoint-enhanced.sh:ro
+    working_dir: /workspace
+    command: >
+      bash -c "
+        echo '🚀 Starting role-services agent...';
+        mkdir -p /shared/progress /shared/status /shared/logs /shared/handoffs;
+        
+        # Background status updater
+        (
+          while true; do
+            TIMESTAMP=\$$(date -Iseconds);
+            echo "{\\\"agent\\\":\\\"role-services\\\",\\\"status\\\":\\\"running\\\",\\\"heartbeat\\\":\\\"\$$TIMESTAMP\\\",\\\"lastUpdate\\\":\\\"\$$TIMESTAMP\\\"}" > /shared/status/role-services.json;
+            sleep 30;
+          done
+        ) &
+        
+        # Run Claude Code CLI or mock
+        if [ -f /prompts/role-services-agent.md ]; then
+          echo '📋 Loading agent prompt...';
+          cat /prompts/role-services-agent.md | head -20;
+          echo '';
+          echo '🚀 Starting Claude Code...';
+          claude-code --dangerous-permissions --prompt-file /prompts/role-services-agent.md 2>&1 | tee /shared/logs/role-services.log
+        else
+          echo '⚠️  No prompt file found, running in mock mode...';
+          while true; do
+            echo \$$(date) ': Mock agent running...' >> /shared/progress/role-services.md;
+            sleep 60;
+          done
+        fi
+      "
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - SETUID
+      - SETGID
+    read_only: false
+    tmpfs:
+      - /tmp:rw,size=1G
+    mem_limit: 2G
+    cpus: 1.0
+    depends_on:
+      - prompt-generator
+      - monitor
+
+  role-hooks-agent:
+    build: 
+      context: ./agents
+      dockerfile: Dockerfile
+    container_name: role-hooks-agent
+    environment:
+      - AGENT_NAME=role-hooks
+      - AGENT_TYPE=foundation
+      - PHASE=1
+      - AGENT_PROMPT_FILE=/prompts/role-hooks-agent.md
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+    volumes:
+      - ./volumes/phase1-role-foundation-role-hooks:/workspace:rw
+      - ./volumes/communication:/shared:rw
+      - ./agents/prompts:/prompts:ro
+      - ./agents/entrypoint-enhanced.sh:/usr/local/bin/entrypoint-enhanced.sh:ro
+    working_dir: /workspace
+    command: >
+      bash -c "
+        echo '🚀 Starting role-hooks agent...';
+        mkdir -p /shared/progress /shared/status /shared/logs /shared/handoffs;
+        
+        # Background status updater
+        (
+          while true; do
+            TIMESTAMP=\$$(date -Iseconds);
+            echo "{\\\"agent\\\":\\\"role-hooks\\\",\\\"status\\\":\\\"running\\\",\\\"heartbeat\\\":\\\"\$$TIMESTAMP\\\",\\\"lastUpdate\\\":\\\"\$$TIMESTAMP\\\"}" > /shared/status/role-hooks.json;
+            sleep 30;
+          done
+        ) &
+        
+        # Run Claude Code CLI or mock
+        if [ -f /prompts/role-hooks-agent.md ]; then
+          echo '📋 Loading agent prompt...';
+          cat /prompts/role-hooks-agent.md | head -20;
+          echo '';
+          echo '🚀 Starting Claude Code...';
+          claude-code --dangerous-permissions --prompt-file /prompts/role-hooks-agent.md 2>&1 | tee /shared/logs/role-hooks.log
+        else
+          echo '⚠️  No prompt file found, running in mock mode...';
+          while true; do
+            echo \$$(date) ': Mock agent running...' >> /shared/progress/role-hooks.md;
+            sleep 60;
+          done
+        fi
+      "
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+    mem_limit: 2G
+    cpus: 1.0
+    depends_on:
+      - prompt-generator
+      - monitor
+
+  role-navigation-agent:
+    build: 
+      context: ./agents
+      dockerfile: Dockerfile
+    container_name: role-navigation-agent
+    environment:
+      - AGENT_NAME=role-navigation
+      - AGENT_TYPE=foundation
+      - PHASE=1
+      - AGENT_PROMPT_FILE=/prompts/role-navigation-agent.md
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+    volumes:
+      - ./volumes/phase1-role-foundation-role-navigation:/workspace:rw
+      - ./volumes/communication:/shared:rw
+      - ./agents/prompts:/prompts:ro
+      - ./agents/entrypoint-enhanced.sh:/usr/local/bin/entrypoint-enhanced.sh:ro
+    working_dir: /workspace
+    command: >
+      bash -c "
+        echo '🚀 Starting role-navigation agent...';
+        mkdir -p /shared/progress /shared/status /shared/logs /shared/handoffs;
+        
+        # Background status updater
+        (
+          while true; do
+            TIMESTAMP=\$$(date -Iseconds);
+            echo "{\\\"agent\\\":\\\"role-navigation\\\",\\\"status\\\":\\\"running\\\",\\\"heartbeat\\\":\\\"\$$TIMESTAMP\\\",\\\"lastUpdate\\\":\\\"\$$TIMESTAMP\\\"}" > /shared/status/role-navigation.json;
+            sleep 30;
+          done
+        ) &
+        
+        # Run Claude Code CLI or mock
+        if [ -f /prompts/role-navigation-agent.md ]; then
+          echo '📋 Loading agent prompt...';
+          cat /prompts/role-navigation-agent.md | head -20;
+          echo '';
+          echo '🚀 Starting Claude Code...';
+          claude-code --dangerous-permissions --prompt-file /prompts/role-navigation-agent.md 2>&1 | tee /shared/logs/role-navigation.log
+        else
+          echo '⚠️  No prompt file found, running in mock mode...';
+          while true; do
+            echo \$$(date) ': Mock agent running...' >> /shared/progress/role-navigation.md;
+            sleep 60;
+          done
+        fi
+      "
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+    mem_limit: 2G
+    cpus: 1.0
+    depends_on:
+      - prompt-generator
+      - monitor
+
+  # Extension Agents (wait for foundation)
+  role-screens-agent:
+    build: 
+      context: ./agents
+      dockerfile: Dockerfile
+    container_name: role-screens-agent
+    environment:
+      - AGENT_NAME=role-screens
+      - AGENT_TYPE=extension
+      - PHASE=1
+      - AGENT_PROMPT_FILE=/prompts/role-screens-agent.md
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - DEPENDS_ON=role-services,role-hooks,role-navigation
+    volumes:
+      - ./volumes/phase1-role-foundation-role-screens:/workspace:rw
+      - ./volumes/communication:/shared:rw
+      - ./agents/prompts:/prompts:ro
+      - ./agents/entrypoint-enhanced.sh:/usr/local/bin/entrypoint-enhanced.sh:ro
+    working_dir: /workspace
+    command: >
+      bash -c "
+        echo '🚀 Starting role-screens agent...';
+        mkdir -p /shared/progress /shared/status /shared/logs;
+        echo '# Role Screens Progress' > /shared/progress/role-screens.md;
+        echo 'Started: '\$$(date) >> /shared/progress/role-screens.md;
+        
+        # Wait for foundation agents
+        echo '⏳ Waiting for foundation agents...';
+        while [ ! -f /shared/handoffs/role-services-complete.md ] || 
+              [ ! -f /shared/handoffs/role-hooks-complete.md ] || 
+              [ ! -f /shared/handoffs/role-navigation-complete.md ]; do
+          echo '   Still waiting for foundation agents...';
+          echo "{\\\"agent\\\":\\\"role-screens\\\",\\\"status\\\":\\\"waiting\\\",\\\"heartbeat\\\":\\\"\$$(date -Iseconds)\\\",\\\"lastUpdate\\\":\\\"\$$(date -Iseconds)\\\",\\\"progress\\\":0}" > /shared/status/role-screens.json
+          sleep 30;
+        done;
+        
+        echo '✅ Foundation agents ready! Starting work...';
+        START_TIME=\$$(date +%s);
+        
+        while true; do
+          TIMESTAMP=\$$(date -Iseconds);
+          echo 'role-screens running at:' \$$(date);
+          echo \$$(date) ': Working on screens...' >> /shared/progress/role-screens.md;
+          
+          echo "{\\\"agent\\\":\\\"role-screens\\\",\\\"status\\\":\\\"running\\\",\\\"heartbeat\\\":\\\"\$$TIMESTAMP\\\",\\\"lastUpdate\\\":\\\"\$$TIMESTAMP\\\",\\\"testsPass\\\":0,\\\"testSummary\\\":\\\"Mock agent - no real tests yet\\\",\\\"progress\\\":50}" > /shared/status/role-screens.json
+          
+          if [ ! -f /shared/handoffs/role-screens-complete.md ] && [ \$$(date +%s) -gt \$$((START_TIME + 300)) ]; then
+            echo 'Extension work complete (mock)' > /shared/handoffs/role-screens-complete.md;
+          fi
+          
+          sleep 30;
+        done
+      "
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+    mem_limit: 2G
+    cpus: 1.0
+    depends_on:
+      - role-services-agent
+      - role-hooks-agent
+      - role-navigation-agent
+
+  permission-ui-agent:
+    build: 
+      context: ./agents
+      dockerfile: Dockerfile
+    container_name: permission-ui-agent
+    environment:
+      - AGENT_NAME=permission-ui
+      - AGENT_TYPE=extension
+      - PHASE=1
+      - AGENT_PROMPT_FILE=/prompts/permission-ui-agent.md
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - DEPENDS_ON=role-services,role-hooks,role-navigation
+    volumes:
+      - ./volumes/phase1-role-foundation-permission-ui:/workspace:rw
+      - ./volumes/communication:/shared:rw
+      - ./agents/prompts:/prompts:ro
+      - ./agents/entrypoint-enhanced.sh:/usr/local/bin/entrypoint-enhanced.sh:ro
+    working_dir: /workspace
+    command: >
+      bash -c "
+        echo '🚀 Starting permission-ui agent...';
+        mkdir -p /shared/progress /shared/status /shared/logs;
+        echo '# Permission UI Progress' > /shared/progress/permission-ui.md;
+        echo 'Started: '\$$(date) >> /shared/progress/permission-ui.md;
+        
+        # Wait for foundation agents
+        echo '⏳ Waiting for foundation agents...';
+        while [ ! -f /shared/handoffs/role-services-complete.md ] || 
+              [ ! -f /shared/handoffs/role-hooks-complete.md ] || 
+              [ ! -f /shared/handoffs/role-navigation-complete.md ]; do
+          echo '   Still waiting for foundation agents...';
+          echo "{\\\"agent\\\":\\\"permission-ui\\\",\\\"status\\\":\\\"waiting\\\",\\\"heartbeat\\\":\\\"\$$(date -Iseconds)\\\",\\\"lastUpdate\\\":\\\"\$$(date -Iseconds)\\\",\\\"progress\\\":0}" > /shared/status/permission-ui.json
+          sleep 30;
+        done;
+        
+        echo '✅ Foundation agents ready! Starting work...';
+        START_TIME=\$$(date +%s);
+        
+        while true; do
+          TIMESTAMP=\$$(date -Iseconds);
+          echo 'permission-ui running at:' \$$(date);
+          echo \$$(date) ': Working on UI components...' >> /shared/progress/permission-ui.md;
+          
+          echo "{\\\"agent\\\":\\\"permission-ui\\\",\\\"status\\\":\\\"running\\\",\\\"heartbeat\\\":\\\"\$$TIMESTAMP\\\",\\\"lastUpdate\\\":\\\"\$$TIMESTAMP\\\",\\\"testsPass\\\":0,\\\"testSummary\\\":\\\"Mock agent - no real tests yet\\\",\\\"progress\\\":50}" > /shared/status/permission-ui.json
+          
+          if [ ! -f /shared/handoffs/permission-ui-complete.md ] && [ \$$(date +%s) -gt \$$((START_TIME + 300)) ]; then
+            echo 'Extension work complete (mock)' > /shared/handoffs/permission-ui-complete.md;
+          fi
+          
+          sleep 30;
+        done
+      "
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+    mem_limit: 2G
+    cpus: 1.0
+    depends_on:
+      - role-services-agent
+      - role-hooks-agent
+      - role-navigation-agent
+
+  # Integration Agent (waits for all others)
+  integration-agent:
+    build: 
+      context: ./agents
+      dockerfile: Dockerfile
+    container_name: integration-agent
+    environment:
+      - AGENT_NAME=integration
+      - AGENT_TYPE=integration
+      - PHASE=1
+      - AGENT_PROMPT_FILE=/prompts/integration-agent.md
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - DEPENDS_ON=role-services,role-hooks,role-navigation,role-screens,permission-ui
+    volumes:
+      - ./volumes/phase1-role-foundation-integration:/workspace:rw
+      - ./volumes/communication:/shared:rw
+      - ./agents/prompts:/prompts:ro
+      - ./agents/entrypoint-enhanced.sh:/usr/local/bin/entrypoint-enhanced.sh:ro
+    working_dir: /workspace
+    command: >
+      bash -c "
+        echo '🚀 Starting integration agent...';
+        mkdir -p /shared/progress /shared/status /shared/logs;
+        echo '# Integration Progress' > /shared/progress/integration.md;
+        echo 'Started: '\$$(date) >> /shared/progress/integration.md;
+        
+        # Wait for all agents
+        echo '⏳ Waiting for all agents to complete...';
+        while [ ! -f /shared/handoffs/role-services-complete.md ] || 
+              [ ! -f /shared/handoffs/role-hooks-complete.md ] || 
+              [ ! -f /shared/handoffs/role-navigation-complete.md ] ||
+              [ ! -f /shared/handoffs/role-screens-complete.md ] ||
+              [ ! -f /shared/handoffs/permission-ui-complete.md ]; do 
+          echo '   Waiting for all agents...';
+          echo "{\\\"agent\\\":\\\"integration\\\",\\\"status\\\":\\\"waiting\\\",\\\"heartbeat\\\":\\\"\$$(date -Iseconds)\\\",\\\"lastUpdate\\\":\\\"\$$(date -Iseconds)\\\",\\\"progress\\\":0}" > /shared/status/integration.json
+          sleep 30; 
+        done;
+        
+        echo '✅ All agents complete! Starting integration...';
+        START_TIME=\$$(date +%s);
+        
+        while true; do
+          TIMESTAMP=\$$(date -Iseconds);
+          echo 'integration running at:' \$$(date);
+          echo \$$(date) ': Running integration validation...' >> /shared/progress/integration.md;
+          
+          echo "{\\\"agent\\\":\\\"integration\\\",\\\"status\\\":\\\"running\\\",\\\"heartbeat\\\":\\\"\$$TIMESTAMP\\\",\\\"lastUpdate\\\":\\\"\$$TIMESTAMP\\\",\\\"testsPass\\\":0,\\\"testSummary\\\":\\\"Mock agent - no real tests yet\\\",\\\"progress\\\":75}" > /shared/status/integration.json
+          
+          if [ ! -f /shared/handoffs/integration-complete.md ] && [ \$$(date +%s) -gt \$$((START_TIME + 300)) ]; then
+            echo 'Integration complete (mock)' > /shared/handoffs/integration-complete.md;
+            echo 'Phase 1 workflow complete (mock)' > /shared/handoffs/phase1-complete.md;
+          fi
+          
+          sleep 30;
+        done
+      "
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+    mem_limit: 2G
+    cpus: 1.0
+    depends_on:
+      - role-services-agent
+      - role-hooks-agent
+      - role-navigation-agent
+      - role-screens-agent
+      - permission-ui-agent
+
+  # Monitor Container
+  monitor:
+    build:
+      context: ./monitoring
+      dockerfile: Dockerfile
+    container_name: phase1-monitor
+    environment:
+      - PHASE=1
+      - PROJECT=phase1-role-foundation
+      - NODE_ENV=production
+    volumes:
+      - ./volumes/communication:/shared:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+      - "3001:3001"
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 512M
+    cpus: 0.5
+
+networks:
+  default:
+    name: phase1-agents

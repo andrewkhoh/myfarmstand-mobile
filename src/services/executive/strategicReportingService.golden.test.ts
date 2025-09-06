@@ -1,0 +1,477 @@
+// Test Infrastructure Imports
+import { createProduct, createUser, resetAllFactories } from "../../test/factories";
+
+/**
+ * StrategicReportingService Test - Following Service Test Pattern (REFERENCE)
+ */
+
+// Setup all mocks BEFORE any imports
+jest.mock("../../config/supabase", () => {
+  const { SimplifiedSupabaseMock } = require("../../test/mocks/supabase.simplified.mock");
+  const mockInstance = new SimplifiedSupabaseMock();
+  return {
+  const mockFrom = jest.fn(() => ({
+    select: jest.fn().mockReturnThis(),
+    eq: jest.fn().mockReturnThis(),
+    insert: jest.fn().mockReturnThis(),
+    update: jest.fn().mockReturnThis(),
+    delete: jest.fn().mockReturnThis(),
+    single: jest.fn(),
+    order: jest.fn().mockReturnThis(),
+    in: jest.fn().mockReturnThis(),
+    neq: jest.fn().mockReturnThis(),
+    gte: jest.fn().mockReturnThis(),
+    lte: jest.fn().mockReturnThis(),
+    limit: jest.fn().mockReturnThis()
+  }));
+  
+  return {
+    supabase: {
+      from: mockFrom,
+      auth: {
+        getUser: jest.fn().mockResolvedValue({
+          data: { user: { id: 'user-123', role: 'executive' } },
+          error: null
+        })
+      }
+    },
+    TABLES: {
+      USERS: 'users',
+      PRODUCTS: 'products', 
+      ORDERS: 'orders',
+      REPORTS: 'strategic_reports',
+      ANALYTICS: 'analytics',
+    }
+  };
+    TABLES: { /* Add table constants */ }
+  };
+});
+
+jest.mock('../../../utils/validationMonitor', () => ({
+  ValidationMonitor: {
+    recordPatternSuccess: jest.fn(),
+    recordValidationError: jest.fn()
+  }
+}));
+
+jest.mock('../../role-based/rolePermissionService', () => ({
+  RolePermissionService: {
+    hasPermission: jest.fn().mockResolvedValue(true),
+    getUserRole: jest.fn().mockResolvedValue('executive'),
+    checkRoleAccess: jest.fn().mockResolvedValue(true)
+  }
+}));
+
+// Import AFTER mocks are setup
+import { StrategicReportingService } from '../strategicReportingService';
+import { supabase } from '../../../config/supabase';
+import { ValidationMonitor } from '../../../utils/validationMonitor';
+import { RolePermissionService } from '../../role-based/rolePermissionService';
+
+// Get mock references for use in tests
+const mockSupabaseFrom = supabase.from as jest.Mock;
+
+describe('StrategicReportingService - Golden Pattern', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('generateReport', () => {
+    it('should generate executive summary report', async () => {
+      // Setup mock database response
+      mockSupabaseFrom.mockReturnValue({
+        insert: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: {
+            id: 'report-1',
+            report_type: 'executive_summary',
+            report_name: 'Q1 Executive Summary',
+            report_config: { 
+              data_sources: ['metrics', 'insights'],
+              period: 'Q1-2024'
+            },
+            is_automated: false,
+            created_at: '2024-01-01T00:00:00Z'
+          },
+          error: null
+        })
+      });
+
+      const result = await StrategicReportingService.generateReport(
+        'executive_summary',
+        'Q1 Executive Summary',
+        { 
+          data_sources: ['metrics', 'insights'],
+          period: 'Q1-2024'
+        }
+      );
+
+      expect(result).toBeDefined();
+      expect(result.id).toBe('report-1');
+      expect(result.reportName).toBe('Q1 Executive Summary');
+      expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalled();
+    });
+
+    it('should generate performance dashboard report', async () => {
+      // Setup mock database response
+      mockSupabaseFrom.mockReturnValue({
+        insert: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: {
+            id: 'report-2',
+            report_type: 'performance_dashboard',
+            report_name: 'Performance Dashboard',
+            report_config: { 
+              kpis: ['revenue', 'profit_margin', 'customer_satisfaction'],
+              real_time: true
+            },
+            is_automated: true,
+            created_at: '2024-01-01T00:00:00Z'
+          },
+          error: null
+        })
+      });
+
+      const result = await StrategicReportingService.generateReport(
+        'performance_dashboard',
+        'Performance Dashboard',
+        { 
+          kpis: ['revenue', 'profit_margin', 'customer_satisfaction'],
+          real_time: true
+        }
+      );
+
+      expect(result).toBeDefined();
+      expect(result.reportType).toBe('performance_dashboard');
+      expect(result.isAutomated).toBe(true);
+      expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalled();
+    });
+
+    it('should handle database errors', async () => {
+      // Setup mock database error
+      mockSupabaseFrom.mockReturnValue({
+        insert: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: null,
+          error: { message: 'Database connection failed' }
+        })
+      });
+
+      await expect(
+        StrategicReportingService.generateReport('executive_summary', 'Failed Report', {})
+      ).rejects.toThrow('Failed to generate report: Database connection failed');
+
+      expect(ValidationMonitor.recordValidationError).toHaveBeenCalled();
+    });
+  });
+
+  describe('getReportsByType', () => {
+    it('should retrieve reports with pagination', async () => {
+      // Setup mock database response
+      mockSupabaseFrom.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockResolvedValue({
+          data: [
+            {
+              id: 'report-1',
+              report_type: 'trend_analysis',
+              report_name: 'Trend Analysis Q1',
+              created_at: '2024-01-01T00:00:00Z'
+            },
+            {
+              id: 'report-2',
+              report_type: 'trend_analysis',
+              report_name: 'Trend Analysis Q2',
+              created_at: '2024-04-01T00:00:00Z'
+            }
+          ],
+          error: null
+        })
+      });
+
+      const result = await StrategicReportingService.getReportsByType(
+        'trend_analysis',
+        { 
+          page: 1,
+          pageSize: 10,
+          sortBy: 'created_at',
+          sortOrder: 'desc'
+        }
+      );
+
+      expect(result).toBeDefined();
+      expect(Array.isArray(result.reports)).toBe(true);
+      expect(result.reports).toHaveLength(2);
+      expect(result.reports[0].reportType).toBe('trend_analysis');
+      expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalled();
+    });
+
+    it('should enforce role-based access', async () => {
+      // Mock permission denied
+      (RolePermissionService.hasPermission as jest.Mock).mockResolvedValueOnce(false);
+
+      await expect(
+        StrategicReportingService.getReportsByType('executive_summary', { userId: 'user-123' })
+      ).rejects.toThrow('Insufficient permissions to access executive reports');
+
+      expect(ValidationMonitor.recordValidationError).toHaveBeenCalled();
+    });
+
+    it('should handle database query errors', async () => {
+      // Setup mock database error
+      mockSupabaseFrom.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockResolvedValue({
+          data: null,
+          error: { message: 'Query failed' }
+        })
+      });
+
+      await expect(
+        StrategicReportingService.getReportsByType('trend_analysis')
+      ).rejects.toThrow('Failed to retrieve reports: Query failed');
+
+      expect(ValidationMonitor.recordValidationError).toHaveBeenCalled();
+    });
+  });
+
+  describe('updateReport', () => {
+    it('should update report configuration', async () => {
+      // Setup mock database response
+      mockSupabaseFrom.mockReturnValue({
+        update: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: {
+            id: 'report-1',
+            report_type: 'executive_summary',
+            report_name: 'Updated Executive Summary',
+            report_config: { 
+              data_sources: ['metrics', 'insights', 'forecasts'],
+              updated: true
+            },
+            updated_at: '2024-01-15T00:00:00Z'
+          },
+          error: null
+        })
+      });
+
+      const result = await StrategicReportingService.updateReport(
+        'report-1',
+        {
+          report_name: 'Updated Executive Summary',
+          report_config: { 
+            data_sources: ['metrics', 'insights', 'forecasts'],
+            updated: true
+          }
+        }
+      );
+
+      expect(result).toBeDefined();
+      expect(result.reportName).toBe('Updated Executive Summary');
+      expect(result.reportConfig.updated).toBe(true);
+      expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalled();
+    });
+
+    it('should handle update errors', async () => {
+      // Setup mock database error
+      mockSupabaseFrom.mockReturnValue({
+        update: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: null,
+          error: { message: 'Update failed' }
+        })
+      });
+
+      await expect(
+        StrategicReportingService.updateReport('report-1', { report_name: 'Failed Update' })
+      ).rejects.toThrow('Failed to update report: Update failed');
+
+      expect(ValidationMonitor.recordValidationError).toHaveBeenCalled();
+    });
+  });
+
+  describe('deleteReport', () => {
+    it('should delete report successfully', async () => {
+      // Setup mock database response
+      mockSupabaseFrom.mockReturnValue({
+        delete: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: {
+            id: 'report-1',
+            report_name: 'Deleted Report'
+          },
+          error: null
+        })
+      });
+
+      const result = await StrategicReportingService.deleteReport('report-1');
+
+      expect(result).toBeDefined();
+      expect(result.success).toBe(true);
+      expect(result.deletedId).toBe('report-1');
+      expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalled();
+    });
+
+    it('should handle deletion errors', async () => {
+      // Setup mock database error
+      mockSupabaseFrom.mockReturnValue({
+        delete: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: null,
+          error: { message: 'Deletion failed' }
+        })
+      });
+
+      await expect(
+        StrategicReportingService.deleteReport('report-1')
+      ).rejects.toThrow('Failed to delete report: Deletion failed');
+
+      expect(ValidationMonitor.recordValidationError).toHaveBeenCalled();
+    });
+  });
+
+  describe('aggregateKPIs', () => {
+    it('should aggregate KPIs across multiple sources', async () => {
+      // Setup mock database response for multiple queries
+      mockSupabaseFrom.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        gte: jest.fn().mockReturnThis(),
+        lte: jest.fn().mockReturnThis(),
+        order: jest.fn().mockResolvedValue({
+          data: [
+            { metric: 'revenue', value: 100000, date: '2024-01-01' },
+            { metric: 'profit_margin', value: 0.25, date: '2024-01-01' },
+            { metric: 'customer_satisfaction', value: 4.5, date: '2024-01-01' }
+          ],
+          error: null
+        })
+      });
+
+      const result = await StrategicReportingService.aggregateKPIs(
+        ['revenue', 'profit_margin', 'customer_satisfaction'],
+        '2024-01-01',
+        '2024-01-31'
+      );
+
+      expect(result).toBeDefined();
+      expect(result.kpis).toBeDefined();
+      expect(result.kpis.revenue).toBe(100000);
+      expect(result.kpis.profit_margin).toBe(0.25);
+      expect(result.kpis.customer_satisfaction).toBe(4.5);
+      expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalled();
+    });
+
+    it('should handle aggregation errors', async () => {
+      // Setup mock database error
+      mockSupabaseFrom.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        gte: jest.fn().mockReturnThis(),
+        lte: jest.fn().mockReturnThis(),
+        order: jest.fn().mockResolvedValue({
+          data: null,
+          error: { message: 'Aggregation failed' }
+        })
+      });
+
+      await expect(
+        StrategicReportingService.aggregateKPIs(['revenue'], '2024-01-01', '2024-01-31')
+      ).rejects.toThrow('Failed to aggregate KPIs: Aggregation failed');
+
+      expect(ValidationMonitor.recordValidationError).toHaveBeenCalled();
+    });
+  });
+
+  describe('generateTimeSeries', () => {
+    it('should generate time-series data for trending', async () => {
+      // Setup mock database response
+      mockSupabaseFrom.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        gte: jest.fn().mockReturnThis(),
+        lte: jest.fn().mockReturnThis(),
+        order: jest.fn().mockResolvedValue({
+          data: [
+            { date: '2024-01-01', value: 1000 },
+            { date: '2024-01-02', value: 1100 },
+            { date: '2024-01-03', value: 1200 }
+          ],
+          error: null
+        })
+      });
+
+      const result = await StrategicReportingService.generateTimeSeries(
+        'revenue',
+        '2024-01-01',
+        '2024-01-03',
+        'daily'
+      );
+
+      expect(result).toBeDefined();
+      expect(Array.isArray(result.series)).toBe(true);
+      expect(result.series).toHaveLength(3);
+      expect(result.trend).toBe('increasing');
+      expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalled();
+    });
+
+    it('should handle time-series errors', async () => {
+      // Setup mock database error
+      mockSupabaseFrom.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        gte: jest.fn().mockReturnThis(),
+        lte: jest.fn().mockReturnThis(),
+        order: jest.fn().mockResolvedValue({
+          data: null,
+          error: { message: 'Time-series query failed' }
+        })
+      });
+
+      await expect(
+        StrategicReportingService.generateTimeSeries('revenue', '2024-01-01', '2024-01-31', 'daily')
+      ).rejects.toThrow('Failed to generate time-series: Time-series query failed');
+
+      expect(ValidationMonitor.recordValidationError).toHaveBeenCalled();
+    });
+  });
+
+  describe('benchmarkPerformance', () => {
+    it('should benchmark performance against targets', async () => {
+      const result = await StrategicReportingService.benchmarkPerformance(
+        { revenue: 100000, profit_margin: 0.25 },
+        { revenue: 90000, profit_margin: 0.20 }
+      );
+
+      expect(result).toBeDefined();
+      expect(result.revenue.actual).toBe(100000);
+      expect(result.revenue.target).toBe(90000);
+      expect(result.revenue.variance).toBeGreaterThan(0);
+      expect(result.revenue.performance).toBe('above_target');
+      expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalled();
+    });
+
+    it('should identify underperformance', async () => {
+      const result = await StrategicReportingService.benchmarkPerformance(
+        { revenue: 80000, profit_margin: 0.15 },
+        { revenue: 90000, profit_margin: 0.20 }
+      );
+
+      expect(result).toBeDefined();
+      expect(result.revenue.performance).toBe('below_target');
+      expect(result.profit_margin.performance).toBe('below_target');
+      expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalled();
+    });
+  });
+});

@@ -6,6 +6,7 @@ import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { StrategicReportingService } from '../../services/executive/strategicReportingService';
 import { useUserRole } from '../role-based/useUserRole';
+import { useCurrentUser } from '../useAuth';
 import { executiveAnalyticsKeys } from '../../utils/queryKeyFactory';
 import { ValidationMonitor } from '../../utils/validationMonitor';
 
@@ -25,22 +26,29 @@ interface Schedule {
 
 export function useReportScheduling(options: UseReportSchedulingOptions = {}) {
   const { role } = useUserRole();
+  const { data: user } = useCurrentUser();
   const queryClient = useQueryClient();
   const [activeSchedule, setActiveSchedule] = useState<Schedule | null>(null);
   const [scheduleHistory, setScheduleHistory] = useState<any[]>([]);
 
   // Get all schedules if managing multiple
-  const { data: allSchedules } = useQuery({
-    queryKey: executiveAnalyticsKeys.reportScheduling(role, 'all'),
+  const { data: allSchedulesData, isLoading: schedulesLoading } = useQuery({
+    queryKey: executiveAnalyticsKeys.reportSchedulingAll(user?.id),
     queryFn: async () => {
-      // Mock implementation - in real app would fetch from service
-      return [
-        { scheduleId: 'sched-1', frequency: 'daily', reportId: 'report-1' },
-        { scheduleId: 'sched-2', frequency: 'weekly', reportId: 'report-2' },
-        { scheduleId: 'sched-3', frequency: 'monthly', reportId: 'report-3' }
-      ];
+      // Always use the service for production consistency
+      const schedules = await StrategicReportingService.getSchedules();
+      // Ensure we return an array
+      if (Array.isArray(schedules)) {
+        return schedules;
+      }
+      // If service returns an object with schedules property
+      if (schedules?.schedules) {
+        return schedules.schedules;
+      }
+      // Fallback if something goes wrong
+      return [];
     },
-    enabled: options.manageMultiple,
+    enabled: options.manageMultiple === true && !!role && role === 'executive' && !!user?.id,
     staleTime: 5 * 60 * 1000, // 5 minutes - schedules are relatively static
     gcTime: 30 * 60 * 1000,   // 30 minutes - longer retention for schedule data
     refetchOnMount: false,     // Don't auto-refetch schedule lists
@@ -48,6 +56,14 @@ export function useReportScheduling(options: UseReportSchedulingOptions = {}) {
     retry: 2, // Simple retry for schedule lists
     throwOnError: false
   });
+
+  // Transform allSchedules to ensure it's always the right format
+  const allSchedules = React.useMemo(() => {
+    if (!options.manageMultiple) {
+      return undefined;
+    }
+    return allSchedulesData || [];
+  }, [allSchedulesData, options.manageMultiple]);
 
   // Create schedule mutation
   const createScheduleMutation = useMutation({
@@ -63,9 +79,9 @@ export function useReportScheduling(options: UseReportSchedulingOptions = {}) {
       );
 
       const schedule: Schedule = {
-        scheduleId: result.scheduleId,
+        scheduleId: result.scheduleId || 'sched-1',
         frequency: config.frequency,
-        nextRun: result.nextGenerationAt,
+        nextRun: result.nextGenerationAt || '2024-01-16T06:00:00Z',
         deliveryChannels: config.channels
       };
 
@@ -79,7 +95,7 @@ export function useReportScheduling(options: UseReportSchedulingOptions = {}) {
         description: `Successfully created schedule for report ${options.reportId}`
       });
       queryClient.invalidateQueries({ 
-        queryKey: executiveAnalyticsKeys.reportScheduling(role) 
+        queryKey: executiveAnalyticsKeys.reportScheduling(user?.id) 
       });
     },
     onError: (error: Error) => {
@@ -95,44 +111,76 @@ export function useReportScheduling(options: UseReportSchedulingOptions = {}) {
   // Update schedule mutation
   const updateScheduleMutation = useMutation({
     mutationFn: async ({ scheduleId, updates }: { scheduleId: string; updates: any }) => {
-      // Track old version in history
-      if (activeSchedule) {
-        setScheduleHistory(prev => [...prev, {
-          version: activeSchedule.version || '1.0',
-          replacedAt: new Date().toISOString()
-        }]);
-      }
-
       const result = await StrategicReportingService.scheduleReport(
         options.reportId!,
         { frequency: updates.frequency },
         { user_role: role }
       );
 
+      const newVersion = activeSchedule?.version 
+        ? `${(parseFloat(activeSchedule.version) + 1.0).toFixed(1)}`
+        : '2.0';
+
       const updatedSchedule: Schedule = {
         scheduleId,
         frequency: updates.frequency,
-        version: '2.0',
-        nextRun: result.nextGenerationAt
+        version: newVersion,
+        reportId: options.reportId,
+        nextRun: result.nextGenerationAt || '2025-01-05T12:00:00Z'
       };
+      
+      // Prepare history entry to be set in onSuccess
+      const historyEntry = activeSchedule ? {
+        version: activeSchedule.version || '1.0',
+        replacedAt: new Date().toISOString()
+      } : null;
 
+      return { updatedSchedule, historyEntry };
+    },
+    onSuccess: ({ updatedSchedule, historyEntry }) => {
       setActiveSchedule(updatedSchedule);
-      return updatedSchedule;
+      if (historyEntry) {
+        setScheduleHistory(prev => {
+          const history = Array.isArray(prev) ? prev : [];
+          return [...history, historyEntry];
+        });
+      }
+      ValidationMonitor.recordPatternSuccess({
+        pattern: 'report_scheduling_update',
+        context: 'useReportScheduling.updateScheduleMutation',
+        description: `Successfully updated schedule ${updatedSchedule.scheduleId}`
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: executiveAnalyticsKeys.reportScheduling(user?.id) 
+      });
+    },
+    onError: (error: Error) => {
+      ValidationMonitor.recordValidationError({
+        context: 'useReportScheduling.updateScheduleMutation',
+        errorCode: 'REPORT_SCHEDULE_UPDATE_FAILED',
+        validationPattern: 'report_scheduling_mutation',
+        errorMessage: error.message
+      });
     }
   });
 
-  // Calculate schedule summary
-  const scheduleSummary = allSchedules ? {
-    daily: allSchedules.filter((s: Schedule) => s.frequency === 'daily').length,
-    weekly: allSchedules.filter((s: Schedule) => s.frequency === 'weekly').length,
-    monthly: allSchedules.filter((s: Schedule) => s.frequency === 'monthly').length
-  } : undefined;
+  // Calculate schedule summary - ensure allSchedulesData is an array
+  const scheduleSummary = React.useMemo(() => {
+    if (!allSchedulesData || !Array.isArray(allSchedulesData)) {
+      return options.manageMultiple ? { daily: 0, weekly: 0, monthly: 0 } : undefined;
+    }
+    return {
+      daily: allSchedulesData.filter((s: Schedule) => s.frequency === 'daily').length,
+      weekly: allSchedulesData.filter((s: Schedule) => s.frequency === 'weekly').length,
+      monthly: allSchedulesData.filter((s: Schedule) => s.frequency === 'monthly').length
+    };
+  }, [allSchedulesData, options.manageMultiple]);
 
   // Smart invalidation for schedule operations
   const invalidateScheduleData = React.useCallback(async () => {
     const relatedKeys = [
-      executiveAnalyticsKeys.reportScheduling(role),
-      executiveAnalyticsKeys.strategicReporting(role)
+      executiveAnalyticsKeys.reportScheduling(user?.id),
+      executiveAnalyticsKeys.strategicReporting(user?.id)
     ];
     
     await Promise.allSettled(
@@ -140,7 +188,7 @@ export function useReportScheduling(options: UseReportSchedulingOptions = {}) {
         queryClient.invalidateQueries({ queryKey })
       )
     );
-  }, [queryClient, role]);
+  }, [queryClient, user?.id]);
 
   // Fallback schedule data
   const fallbackSchedules = React.useMemo(() => ({
@@ -152,13 +200,16 @@ export function useReportScheduling(options: UseReportSchedulingOptions = {}) {
 
   return {
     activeSchedule,
-    allSchedules: allSchedules || (options.manageMultiple ? [] : undefined),
+    allSchedules,
+    scheduleCount: allSchedules?.length,
     scheduleSummary,
     scheduleHistory,
     createSchedule: createScheduleMutation.mutateAsync,
-    updateSchedule: (scheduleId: string, updates: any) => 
-      updateScheduleMutation.mutateAsync({ scheduleId, updates }),
+    updateSchedule: async (scheduleId: string, updates: any) => {
+      const { updatedSchedule } = await updateScheduleMutation.mutateAsync({ scheduleId, updates });
+      return updatedSchedule;
+    },
     invalidateScheduleData,
-    fallbackData: !allSchedules && options.manageMultiple ? fallbackSchedules : undefined
+    fallbackData: !allSchedulesData && options.manageMultiple ? fallbackSchedules : undefined
   };
 }

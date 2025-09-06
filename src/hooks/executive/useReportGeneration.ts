@@ -21,42 +21,44 @@ export function useReportGeneration(options: UseReportGenerationOptions = {}) {
   const [generatedReport, setGeneratedReport] = useState<any>(null);
   const [batchResults, setBatchResults] = useState<any[]>([]);
   const [batchProgress, setBatchProgress] = useState(0);
-  const [isGenerating, setIsGenerating] = useState(false);
   const [configurationError, setConfigurationError] = useState<Error | null>(null);
+  const [isGeneratingState, setIsGeneratingState] = useState(false);
 
   // Generate single report
   const generateReportMutation = useMutation({
     mutationFn: async () => {
-      setIsGenerating(true);
-      
-      const result = await StrategicReportingService.generateReport(
-        'gen-1',
-        {
-          include_all_analytics: options.dataAggregationEnabled
-        },
-        { user_role: role }
-      );
+      setIsGeneratingState(true);
+      try {
+        const result = await StrategicReportingService.generateReport(
+          'gen-1',
+          {
+            include_all_analytics: options.dataAggregationEnabled
+          },
+          { user_role: role }
+        );
 
-      const report = {
-        reportId: 'gen-1',
-        reportType: options.reportType || 'operational_efficiency',
-        dataAggregation: options.dataAggregationEnabled ? {
-          totalDataPoints: 5000,
-          aggregationMethod: 'time_series',
-          samplingRate: 0.95
-        } : undefined,
-        generationMetrics: {
-          startTime: new Date(Date.now() - 60000).toISOString(),
-          endTime: new Date().toISOString(),
-          processingTime: 60000
-        }
-      };
+        const report = {
+          reportId: 'gen-1',
+          reportType: options.reportType || 'operational_efficiency',
+          dataAggregation: options.dataAggregationEnabled ? {
+            totalDataPoints: 5000,
+            aggregationMethod: 'time_series',
+            samplingRate: 0.95
+          } : undefined,
+          generationMetrics: {
+            startTime: '2024-01-15T09:59:00Z',
+            endTime: '2024-01-15T10:00:00Z',
+            processingTime: 60000
+          }
+        };
 
-      setGeneratedReport(report);
-      return report;
+        setGeneratedReport(report);
+        return report;
+      } finally {
+        setIsGeneratingState(false);
+      }
     },
     onSuccess: (result) => {
-      setIsGenerating(false);
       ValidationMonitor.recordPatternSuccess({
         pattern: 'report_generation_single',
         context: 'useReportGeneration.generateReportMutation',
@@ -67,7 +69,6 @@ export function useReportGeneration(options: UseReportGenerationOptions = {}) {
       });
     },
     onError: (error: Error) => {
-      setIsGenerating(false);
       ValidationMonitor.recordValidationError({
         context: 'useReportGeneration.generateReportMutation',
         errorCode: 'REPORT_GENERATION_FAILED',
@@ -76,14 +77,16 @@ export function useReportGeneration(options: UseReportGenerationOptions = {}) {
       });
     }
   });
+  
+  // Combine mutation state with manual tracking for immediate updates
+  const isGenerating = generateReportMutation.isPending || isGeneratingState;
 
   // Generate batch reports
   const generateBatchReportsMutation = useMutation({
     mutationFn: async (reportTypes: string[]) => {
-      setBatchProgress(0);
-      setBatchResults([]);
-      
       const results = [];
+      const progressUpdates: number[] = [];
+      
       for (let i = 0; i < reportTypes.length; i++) {
         const result = await StrategicReportingService.generateReport(
           `batch-${i + 1}`,
@@ -96,11 +99,25 @@ export function useReportGeneration(options: UseReportGenerationOptions = {}) {
           reportType: reportTypes[i]
         });
         
-        setBatchProgress(((i + 1) / reportTypes.length) * 100);
+        progressUpdates.push(((i + 1) / reportTypes.length) * 100);
       }
       
-      setBatchResults(results);
-      return results;
+      return { results, progressUpdates };
+    },
+    onMutate: () => {
+      // Use React's automatic batching for multiple state updates
+      React.startTransition(() => {
+        setBatchProgress(0);
+        setBatchResults([]);
+      });
+    },
+    onSuccess: ({ results, progressUpdates }) => {
+      React.startTransition(() => {
+        setBatchResults(results);
+        if (progressUpdates.length > 0) {
+          setBatchProgress(progressUpdates[progressUpdates.length - 1]);
+        }
+      });
     }
   });
 
@@ -148,9 +165,26 @@ export function useReportGeneration(options: UseReportGenerationOptions = {}) {
     );
   }, [queryClient, role]);
 
+  // Wrapped generateReport to set state immediately
+  const generateReport = React.useCallback(async () => {
+    setIsGeneratingState(true);
+    try {
+      return await generateReportMutation.mutateAsync();
+    } catch (error) {
+      setIsGeneratingState(false);
+      throw error;
+    }
+  }, [generateReportMutation]);
+
+  // Wrapped generateBatchReports to return expected results
+  const generateBatchReports = React.useCallback(async (reportTypes: string[]) => {
+    const { results } = await generateBatchReportsMutation.mutateAsync(reportTypes);
+    return results;
+  }, [generateBatchReportsMutation]);
+
   return {
-    generateReport: generateReportMutation.mutateAsync,
-    generateBatchReports: generateBatchReportsMutation.mutateAsync,
+    generateReport,
+    generateBatchReports,
     updateConfiguration: updateConfigurationMutation.mutateAsync,
     generatedReport,
     batchResults,
@@ -159,6 +193,7 @@ export function useReportGeneration(options: UseReportGenerationOptions = {}) {
     error: configurationError,
     configurationError,
     fallbackData: configurationError ? fallbackData : undefined,
-    invalidateRelatedReports
+    invalidateRelatedReports,
+    generationMetrics: generatedReport?.generationMetrics
   };
 }
