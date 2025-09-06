@@ -8,12 +8,13 @@ set -e
 # =============================================================================
 # EXTERNAL CONFIGURATION (populated by template substitution)
 # =============================================================================
-PROJECT_NAME="{{PROJECT_NAME}}"               # Project identifier
-PROJECT_PREFIX="{{PROJECT_PREFIX}}"           # Project prefix for namespacing
-PROJECT_DESCRIPTION="{{PROJECT_DESCRIPTION}}" # Project description
-MAX_RESTARTS={{MAX_RESTARTS_VALUE}}          # Maximum restart cycles
-TARGET_PASS_RATE={{TARGET_PASS_RATE_VALUE}}  # Target test pass rate percentage
-PROJECT_AGENTS=({{AGENT_LIST}})              # List of agents
+PROJECT_NAME="Test Individual Repos"               # Project identifier
+PROJECT_PREFIX="test_repos"           # Project prefix for namespacing
+PROJECT_DESCRIPTION="Testing individual git repositories approach" # Project description
+MAX_RESTARTS=          # Maximum restart cycles
+TARGET_PASS_RATE=  # Target test pass rate percentage
+PROJECT_AGENTS=("test-agent-1"
+    "test-agent-2")              # List of agents
 # =============================================================================
 
 # Local configuration
@@ -21,7 +22,7 @@ BASE_DIR=$(cd ../../.. && pwd)  # Navigate to main repository root
 COMMUNICATION_VOLUME="${BASE_DIR}/docker/volumes/communication"
 
 echo "🚀 ${PROJECT_DESCRIPTION} - Multi-Agent Setup"
-echo "{{PROJECT_SEPARATOR}}"
+echo "============================================================"
 
 # Colors for output
 RED='\033[0;31m'
@@ -70,7 +71,7 @@ echo -e "${BLUE}🌳 Creating individual git repositories for ${PROJECT_NAME} ag
 
 for agent in "${PROJECT_AGENTS[@]}"; do
     WORKSPACE="${PROJECT_PREFIX}-${agent}"
-    REPO_PATH="${BASE_DIR}/docker/volumes/${WORKSPACE}"  # Use absolute path
+    REPO_PATH="docker/volumes/${WORKSPACE}"
     
     # Check if repository already exists
     if [ -d "$REPO_PATH/.git" ]; then
@@ -85,8 +86,7 @@ for agent in "${PROJECT_AGENTS[@]}"; do
     echo -e "${GREEN}  ✅ Creating independent repository for ${agent}${NC}"
     git clone "$BASE_DIR" "$REPO_PATH"
     
-    # Navigate to the new repository (save current dir first)
-    PREV_DIR=$(pwd)
+    # Navigate to the new repository
     cd "$REPO_PATH"
     
     # Create and switch to agent-specific branch
@@ -107,8 +107,7 @@ for agent in "${PROJECT_AGENTS[@]}"; do
     echo "  📦 Installing dependencies for ${agent}..."
     npm ci || npm install
     
-    # Always return to previous directory, not BASE_DIR
-    cd "$PREV_DIR"
+    cd "$BASE_DIR"
 done
 
 # Create Docker network if it doesn't exist
@@ -121,7 +120,7 @@ echo ""
 echo "📋 Next steps:"
 echo "  1. Agent prompts are in: docker/agents/prompts/"
 echo "  2. Launch with: docker-compose -f docker/projects/${PROJECT_PREFIX}/docker-compose.yml up -d"
-echo "  3. Monitor at: http://localhost:{{MONITORING_PORT_VALUE}}"
+echo "  3. Monitor at: http://localhost:"
 echo ""
 echo "🎯 Agents will run ${MAX_RESTARTS} self-improvement cycles to achieve ${TARGET_PASS_RATE}% test pass rate"
 echo ""

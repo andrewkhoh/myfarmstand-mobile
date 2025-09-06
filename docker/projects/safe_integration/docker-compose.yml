@@ -1,0 +1,87 @@
+version: '3.8'
+
+services:
+  # repository-integration agent
+  repository-integration-agent:
+    build: 
+      context: ../../agents
+      dockerfile: Dockerfile
+    container_name: repository-integration-agent
+    environment:
+      - "AGENT_NAME=repository-integration"
+      - "AGENT_TYPE=integration"
+      - "PROJECT_NAME=repository_integration"
+      - "PROJECT_DESCRIPTION=Safe Repository Integration with Monitoring"
+      - "MAX_RESTARTS=15"
+      - "TARGET_PASS_RATE=100"
+      - "TEST_COMMAND=timeout 120 npm test -- --passWithNoTests --forceExit --maxWorkers=2 || echo 'Tests: 0 passed, 0 failed'"
+      - "AGENT_PROMPT_FILE=/prompts/safe-repository-integration.md"
+      - "DEBUG=${DEBUG:-false}"
+      - "TARGET_REPO=${TARGET_REPO:-tdd_phase_4-decision-support}"
+      - "FRESH_START=${FRESH_START:-false}"
+    volumes:
+      - ../../volumes/safe_integration-repository-integration:/workspace:rw
+      - ../../../docker/volumes/communication:/shared:rw
+      - ../../agents/prompts:/prompts:ro
+      - ./entrypoint.sh:/usr/local/bin/entrypoint-enhanced.sh:ro
+      - ~/.claude:/home/agent/.claude:rw
+    working_dir: /workspace
+    entrypoint: ["/usr/local/bin/entrypoint-enhanced.sh"]
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+
+  # Authentication Container
+  safe_integration-auth:
+    build:
+      context: ../../agents
+      dockerfile: Dockerfile
+    container_name: safe_integration-auth
+    environment:
+      - "AGENT_NAME=auth"
+      - "PROJECT_NAME=repository_integration"
+    volumes:
+      - ~/.claude:/home/agent/.claude:rw
+    entrypoint: ["sleep", "infinity"]
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  # Monitoring Container
+  safe_integration-monitoring:
+    build:
+      context: ../../monitoring
+      dockerfile: Dockerfile
+    container_name: safe_integration-monitoring
+    environment:
+      - PORT=3011
+      - PROJECT=repository_integration
+    volumes:
+      - ../../../docker/volumes/communication:/shared:rw
+      - ../../monitoring/analyze-logs.sh:/app/analyze-logs.sh:ro
+      - ~/.claude:/home/monitor/.claude:rw
+    ports:
+      - "3011:3011"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3011/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+# Networks and volumes
+networks:
+  default:
+    name: safe_integration-network
+    external: true
+
+volumes:
+  safe_integration-data:
+    driver: local

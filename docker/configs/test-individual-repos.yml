@@ -1,0 +1,16 @@
+project:
+  name: "Test Individual Repos"
+  prefix: "test_repos"
+  description: "Testing individual git repositories approach"
+  maxRestarts: 2
+  targetPassRate: 85
+  monitoringPort: 9901
+
+agents:
+  - name: "test-agent-1"
+    dependencies: []
+    testCommand: "npm run test:services"
+    
+  - name: "test-agent-2"
+    dependencies: ["test-agent-1"]
+    testCommand: "npm run test:hooks"

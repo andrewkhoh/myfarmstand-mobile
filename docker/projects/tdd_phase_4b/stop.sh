@@ -7,10 +7,10 @@
 # EXTERNAL CONFIGURATION (populated by template substitution)
 # =============================================================================
 PROJECT_NAME="tdd_phase_4b"               # Project identifier
-PROJECT_PREFIX="phase4b"           # Project prefix for namespacing
+PROJECT_PREFIX="tdd_phase_4b"           # Project prefix for namespacing
 PROJECT_DESCRIPTION="TDD Phase 4b - Sequential Executive Dashboard with Unified Workspace" # Project description
 PROJECT_AGENTS=("decision-support"
-    "executive-components  "
+    "executive-components"
     "executive-hooks"
     "executive-screens"
     "cross-role-integration")              # List of agents

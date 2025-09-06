@@ -8,12 +8,12 @@ set -e
 # =============================================================================
 # EXTERNAL CONFIGURATION (populated by template substitution)
 # =============================================================================
-PROJECT_NAME="{{PROJECT_NAME}}"               # Project identifier
-PROJECT_PREFIX="{{PROJECT_PREFIX}}"           # Project prefix for namespacing
-PROJECT_DESCRIPTION="{{PROJECT_DESCRIPTION}}" # Project description
-MAX_RESTARTS={{MAX_RESTARTS_VALUE}}          # Maximum restart cycles
-TARGET_PASS_RATE={{TARGET_PASS_RATE_VALUE}}  # Target test pass rate percentage
-PROJECT_AGENTS=({{AGENT_LIST}})              # List of agents
+PROJECT_NAME="repository_integration"               # Project identifier
+PROJECT_PREFIX="safe_integration"           # Project prefix for namespacing
+PROJECT_DESCRIPTION="Safe Repository Integration with Monitoring" # Project description
+MAX_RESTARTS=15          # Maximum restart cycles
+TARGET_PASS_RATE=100  # Target test pass rate percentage
+PROJECT_AGENTS=("repository-integration")              # List of agents
 # =============================================================================
 
 # Local configuration
@@ -21,7 +21,7 @@ BASE_DIR=$(cd ../../.. && pwd)  # Navigate to main repository root
 COMMUNICATION_VOLUME="${BASE_DIR}/docker/volumes/communication"
 
 echo "🚀 ${PROJECT_DESCRIPTION} - Multi-Agent Setup"
-echo "{{PROJECT_SEPARATOR}}"
+echo "============================================================"
 
 # Colors for output
 RED='\033[0;31m'
@@ -121,7 +121,7 @@ echo ""
 echo "📋 Next steps:"
 echo "  1. Agent prompts are in: docker/agents/prompts/"
 echo "  2. Launch with: docker-compose -f docker/projects/${PROJECT_PREFIX}/docker-compose.yml up -d"
-echo "  3. Monitor at: http://localhost:{{MONITORING_PORT_VALUE}}"
+echo "  3. Monitor at: http://localhost:3011"
 echo ""
 echo "🎯 Agents will run ${MAX_RESTARTS} self-improvement cycles to achieve ${TARGET_PASS_RATE}% test pass rate"
 echo ""

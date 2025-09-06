@@ -8,16 +8,17 @@ set -e
 # =============================================================================
 # EXTERNAL CONFIGURATION (populated by template substitution)
 # =============================================================================
-PROJECT_NAME="tdd_phase_4b"               # Project identifier
-PROJECT_PREFIX="phase4b"           # Project prefix for namespacing
-PROJECT_DESCRIPTION="TDD Phase 4b - Sequential Executive Dashboard with Unified Workspace" # Project description
-MAX_RESTARTS=          # Maximum restart cycles
-TARGET_PASS_RATE=  # Target test pass rate percentage
-PROJECT_AGENTS=("decision-support"
-    "executive-components  "
+PROJECT_NAME="executive_analytics"               # Project identifier
+PROJECT_PREFIX="tdd_phase_4"           # Project prefix for namespacing
+PROJECT_DESCRIPTION="TDD Phase 4: Executive Analytics (Phase 3B Architecture)" # Project description
+MAX_RESTARTS=5          # Maximum restart cycles
+TARGET_PASS_RATE=85  # Target test pass rate percentage
+PROJECT_AGENTS=("executive-screens"
+    "executive-components"
     "executive-hooks"
-    "executive-screens"
-    "cross-role-integration")              # List of agents
+    "cross-role-integration"
+    "decision-support"
+    "phase4-integration")              # List of agents
 # =============================================================================
 
 # Local configuration
@@ -125,7 +126,7 @@ echo ""
 echo "📋 Next steps:"
 echo "  1. Agent prompts are in: docker/agents/prompts/"
 echo "  2. Launch with: docker-compose -f docker/projects/${PROJECT_PREFIX}/docker-compose.yml up -d"
-echo "  3. Monitor at: http://localhost:"
+echo "  3. Monitor at: http://localhost:3005"
 echo ""
 echo "🎯 Agents will run ${MAX_RESTARTS} self-improvement cycles to achieve ${TARGET_PASS_RATE}% test pass rate"
 echo ""

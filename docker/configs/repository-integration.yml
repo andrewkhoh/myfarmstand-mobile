@@ -1,0 +1,135 @@
+version: '3.8'
+
+# Repository Integration Agent Configuration
+# Uses existing TDD self-improvement infrastructure
+
+services:
+  repository-integration-agent:
+    build:
+      context: ../agents
+      dockerfile: Dockerfile
+    container_name: repository-integration-agent
+    environment:
+      - AGENT_ROLE=repository-integration
+      - AGENT_ID=repository-integration
+      - WORKSPACE_PATH=/workspace
+      - SHARED_PATH=/shared
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - TARGET_REPO=${TARGET_REPO:-tdd_phase_4-decision-support}
+      - MAX_CYCLES=10
+      - TARGET_PASS_RATE=100
+    volumes:
+      - ../../:/workspace  # Full access to main repository
+      - ../volumes/communication:/shared  # Communication with other agents
+    networks:
+      - agent-network
+    working_dir: /workspace
+    command: ["./docker/agents/entrypoint-generic.sh"]
+    restart: "no"  # Don't restart on completion
+    depends_on:
+      - repository-integration-auth
+      - repository-integration-monitoring
+
+  repository-integration-auth:
+    build:
+      context: ../agents
+      dockerfile: Dockerfile
+    container_name: repository-integration-auth
+    environment:
+      - AGENT_ROLE=auth-service
+      - WORKSPACE_PATH=/workspace
+    volumes:
+      - ../../:/workspace
+    networks:
+      - agent-network
+    ports:
+      - "3010:3000"
+    command: ["node", "-e", "
+      const http = require('http');
+      const server = http.createServer((req, res) => {
+        res.writeHead(200, {'Content-Type': 'application/json'});
+        res.end(JSON.stringify({
+          status: 'authenticated',
+          agent: 'repository-integration',
+          timestamp: new Date().toISOString()
+        }));
+      });
+      server.listen(3000, '0.0.0.0', () => {
+        console.log('Repository Integration Auth service running on port 3000');
+      });
+    "]
+
+  repository-integration-monitoring:
+    build:
+      context: ../agents
+      dockerfile: Dockerfile  
+    container_name: repository-integration-monitoring
+    environment:
+      - AGENT_ROLE=monitoring-service
+      - WORKSPACE_PATH=/workspace
+    volumes:
+      - ../../:/workspace
+      - ../volumes/communication:/shared
+    networks:
+      - agent-network
+    ports:
+      - "3011:3000"
+    command: ["node", "-e", "
+      const http = require('http');
+      const fs = require('fs');
+      const path = require('path');
+      
+      const server = http.createServer((req, res) => {
+        if (req.url === '/status') {
+          const statusFile = '/shared/status/repository-integration.json';
+          if (fs.existsSync(statusFile)) {
+            const status = JSON.parse(fs.readFileSync(statusFile, 'utf8'));
+            res.writeHead(200, {'Content-Type': 'application/json'});
+            res.end(JSON.stringify(status));
+          } else {
+            res.writeHead(404, {'Content-Type': 'application/json'});
+            res.end(JSON.stringify({error: 'Status not found'}));
+          }
+        } else {
+          res.writeHead(200, {'Content-Type': 'text/html'});
+          res.end(`
+            <html>
+              <head><title>Repository Integration Monitor</title></head>
+              <body>
+                <h1>Repository Integration Agent Monitor</h1>
+                <p>Target Repository: ${process.env.TARGET_REPO || 'Not specified'}</p>
+                <p>Status: <a href='/status'>View JSON Status</a></p>
+                <p>Time: ${new Date().toISOString()}</p>
+              </body>
+            </html>
+          `);
+        }
+      });
+      
+      server.listen(3000, '0.0.0.0', () => {
+        console.log('Repository Integration Monitoring service running on port 3000');
+      });
+    "]
+
+networks:
+  agent-network:
+    driver: bridge
+
+# Usage Instructions:
+# 
+# 1. Set target repository:
+#    export TARGET_REPO=tdd_phase_4-decision-support
+#
+# 2. Launch agent:
+#    docker-compose -f docker/configs/repository-integration.yml up -d
+#
+# 3. Monitor progress:
+#    docker logs -f repository-integration-agent
+#    
+# 4. Check status:
+#    curl http://localhost:3011/status
+#
+# 5. After completion, launch next repository:
+#    docker-compose -f docker/configs/repository-integration.yml down
+#    export TARGET_REPO=tdd_phase_4-executive-hooks  
+#    docker-compose -f docker/configs/repository-integration.yml up -d

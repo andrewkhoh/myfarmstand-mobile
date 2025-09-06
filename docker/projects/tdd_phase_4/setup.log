@@ -1,0 +1,115 @@
+🚀 TDD Phase 4: Executive Analytics (Phase 3B Architecture) - Multi-Agent Setup
+============================================================
+[0;34m📁 Setting up communication volume...[0m
+[0;34m📝 Initializing agent status files...[0m
+[0;34m🌳 Creating individual git repositories for executive_analytics agents...[0m
+[0;32m  ℹ️  Repository already exists for executive-screens, keeping it[0m
+[0;32m  ✅ Creating independent repository for executive-components[0m
+Cloning into 'docker/volumes/tdd_phase_4-executive-components'...
+done.
+Updating files:   9% (1473/16016)Updating files:  10% (1602/16016)Updating files:  11% (1762/16016)Updating files:  12% (1922/16016)Updating files:  13% (2083/16016)Updating files:  13% (2227/16016)Updating files:  14% (2243/16016)Updating files:  15% (2403/16016)Updating files:  16% (2563/16016)Updating files:  17% (2723/16016)Updating files:  18% (2883/16016)Updating files:  19% (3044/16016)Updating files:  19% (3160/16016)Updating files:  20% (3204/16016)Updating files:  21% (3364/16016)Updating files:  22% (3524/16016)Updating files:  23% (3684/16016)Updating files:  24% (3844/16016)Updating files:  25% (4004/16016)Updating files:  25% (4054/16016)Updating files:  26% (4165/16016)Updating files:  27% (4325/16016)Updating files:  28% (4485/16016)Updating files:  29% (4645/16016)Updating files:  30% (4805/16016)Updating files:  31% (4965/16016)Updating files:  32% (5126/16016)Updating files:  33% (5286/16016)Updating files:  33% (5307/16016)Updating files:  34% (5446/16016)Updating files:  35% (5606/16016)Updating files:  36% (5766/16016)Updating files:  37% (5926/16016)Updating files:  38% (6087/16016)Updating files:  39% (6247/16016)Updating files:  40% (6407/16016)Updating files:  41% (6567/16016)Updating files:  42% (6727/16016)Updating files:  43% (6887/16016)Updating files:  43% (6920/16016)Updating files:  44% (7048/16016)Updating files:  45% (7208/16016)Updating files:  46% (7368/16016)Updating files:  47% (7528/16016)Updating files:  48% (7688/16016)Updating files:  49% (7848/16016)Updating files:  50% (8008/16016)Updating files:  51% (8169/16016)Updating files:  51% (8239/16016)Updating files:  52% (8329/16016)Updating files:  53% (8489/16016)Updating files:  54% (8649/16016)Updating files:  55% (8809/16016)Updating files:  56% (8969/16016)Updating files:  57% (9130/16016)Updating files:  58% (9290/16016)Updating files:  59% (9450/16016)Updating files:  59% (9576/16016)Updating files:  60% (9610/16016)Updating files:  61% (9770/16016)Updating files:  62% (9930/16016)Updating files:  63% (10091/16016)Updating files:  64% (10251/16016)Updating files:  64% (10345/16016)Updating files:  65% (10411/16016)Updating files:  66% (10571/16016)Updating files:  67% (10731/16016)Updating files:  68% (10891/16016)Updating files:  69% (11052/16016)Updating files:  70% (11212/16016)Updating files:  71% (11372/16016)Updating files:  72% (11532/16016)Updating files:  73% (11692/16016)Updating files:  73% (11787/16016)Updating files:  74% (11852/16016)Updating files:  75% (12012/16016)Updating files:  76% (12173/16016)Updating files:  77% (12333/16016)Updating files:  78% (12493/16016)Updating files:  79% (12653/16016)Updating files:  80% (12813/16016)Updating files:  81% (12973/16016)Updating files:  82% (13134/16016)Updating files:  83% (13294/16016)Updating files:  83% (13405/16016)Updating files:  84% (13454/16016)Updating files:  85% (13614/16016)Updating files:  86% (13774/16016)Updating files:  87% (13934/16016)Updating files:  88% (14095/16016)Updating files:  89% (14255/16016)Updating files:  90% (14415/16016)Updating files:  90% (14554/16016)Updating files:  91% (14575/16016)Updating files:  92% (14735/16016)Updating files:  93% (14895/16016)Updating files:  94% (15056/16016)Updating files:  95% (15216/16016)Updating files:  96% (15376/16016)Updating files:  97% (15536/16016)Updating files:  98% (15696/16016)Updating files:  98% (15815/16016)Updating files:  99% (15856/16016)Updating files: 100% (16016/16016)Updating files: 100% (16016/16016), done.
+  🌿 Creating new branch tdd_phase_4-executive-components
+Switched to a new branch 'tdd_phase_4-executive-components'
+  📦 Installing dependencies for executive-components...
+npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+npm warn deprecated rimraf@3.0.2: Rimraf versions prior to v4 are no longer supported
+npm warn deprecated abab@2.0.6: Use your platform's native atob() and btoa() methods instead
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm warn deprecated domexception@4.0.0: Use your platform's native DOMException instead
+npm warn deprecated text-encoding@0.7.0: no longer maintained
+npm warn deprecated @testing-library/jest-native@5.4.3: DEPRECATED: This package is no longer maintained.
+npm warn deprecated Please use the built-in Jest matchers available in @testing-library/react-native v12.4+.
+npm warn deprecated
+npm warn deprecated See migration guide: https://callstack.github.io/react-native-testing-library/docs/migration/jest-matchers
+npm warn deprecated react-native-vector-icons@10.3.0: react-native-vector-icons package has moved to a new model of per-icon-family packages. See the https://github.com/oblador/react-native-vector-icons/blob/master/MIGRATION.md on how to migrate
+
+added 1104 packages, and audited 1105 packages in 47s
+
+111 packages are looking for funding
+  run `npm fund` for details
+
+found 0 vulnerabilities
+[0;32m  ℹ️  Repository already exists for executive-hooks, keeping it[0m
+[0;32m  ℹ️  Repository already exists for cross-role-integration, keeping it[0m
+[0;32m  ✅ Creating independent repository for decision-support[0m
+Cloning into 'docker/volumes/tdd_phase_4-decision-support'...
+done.
+Updating files:   8% (1282/16016)Updating files:   9% (1442/16016)Updating files:  10% (1602/16016)Updating files:  11% (1762/16016)Updating files:  12% (1922/16016)Updating files:  13% (2083/16016)Updating files:  14% (2243/16016)Updating files:  15% (2403/16016)Updating files:  16% (2563/16016)Updating files:  17% (2723/16016)Updating files:  17% (2822/16016)Updating files:  18% (2883/16016)Updating files:  19% (3044/16016)Updating files:  20% (3204/16016)Updating files:  21% (3364/16016)Updating files:  22% (3524/16016)Updating files:  23% (3684/16016)Updating files:  24% (3844/16016)Updating files:  25% (4004/16016)Updating files:  26% (4165/16016)Updating files:  27% (4325/16016)Updating files:  27% (4481/16016)Updating files:  28% (4485/16016)Updating files:  29% (4645/16016)Updating files:  30% (4805/16016)Updating files:  31% (4965/16016)Updating files:  32% (5126/16016)Updating files:  33% (5286/16016)Updating files:  34% (5446/16016)Updating files:  35% (5606/16016)Updating files:  36% (5766/16016)Updating files:  37% (5926/16016)Updating files:  37% (6012/16016)Updating files:  38% (6087/16016)Updating files:  39% (6247/16016)Updating files:  40% (6407/16016)Updating files:  41% (6567/16016)Updating files:  42% (6727/16016)Updating files:  43% (6887/16016)Updating files:  44% (7048/16016)Updating files:  45% (7208/16016)Updating files:  46% (7368/16016)Updating files:  47% (7528/16016)Updating files:  48% (7688/16016)Updating files:  48% (7718/16016)Updating files:  49% (7848/16016)Updating files:  50% (8008/16016)Updating files:  51% (8169/16016)Updating files:  52% (8329/16016)Updating files:  53% (8489/16016)Updating files:  54% (8649/16016)Updating files:  55% (8809/16016)Updating files:  56% (8969/16016)Updating files:  57% (9130/16016)Updating files:  57% (9270/16016)Updating files:  58% (9290/16016)Updating files:  59% (9450/16016)Updating files:  60% (9610/16016)Updating files:  61% (9770/16016)Updating files:  62% (9930/16016)Updating files:  63% (10091/16016)Updating files:  64% (10251/16016)Updating files:  65% (10411/16016)Updating files:  66% (10571/16016)Updating files:  67% (10731/16016)Updating files:  67% (10849/16016)Updating files:  68% (10891/16016)Updating files:  69% (11052/16016)Updating files:  70% (11212/16016)Updating files:  71% (11372/16016)Updating files:  72% (11532/16016)Updating files:  73% (11692/16016)Updating files:  74% (11852/16016)Updating files:  75% (12012/16016)Updating files:  76% (12173/16016)Updating files:  77% (12333/16016)Updating files:  77% (12444/16016)Updating files:  78% (12493/16016)Updating files:  79% (12653/16016)Updating files:  80% (12813/16016)Updating files:  81% (12973/16016)Updating files:  82% (13134/16016)Updating files:  83% (13294/16016)Updating files:  84% (13454/16016)Updating files:  84% (13549/16016)Updating files:  85% (13614/16016)Updating files:  86% (13774/16016)Updating files:  87% (13934/16016)Updating files:  88% (14095/16016)Updating files:  88% (14221/16016)Updating files:  89% (14255/16016)Updating files:  90% (14415/16016)Updating files:  91% (14575/16016)Updating files:  92% (14735/16016)Updating files:  93% (14895/16016)Updating files:  94% (15056/16016)Updating files:  95% (15216/16016)Updating files:  96% (15376/16016)Updating files:  96% (15418/16016)Updating files:  97% (15536/16016)Updating files:  98% (15696/16016)Updating files:  99% (15856/16016)Updating files: 100% (16016/16016)Updating files: 100% (16016/16016), done.
+  🌿 Creating new branch tdd_phase_4-decision-support
+Switched to a new branch 'tdd_phase_4-decision-support'
+  📦 Installing dependencies for decision-support...
+npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+npm warn deprecated rimraf@3.0.2: Rimraf versions prior to v4 are no longer supported
+npm warn deprecated abab@2.0.6: Use your platform's native atob() and btoa() methods instead
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm warn deprecated domexception@4.0.0: Use your platform's native DOMException instead
+npm warn deprecated text-encoding@0.7.0: no longer maintained
+npm warn deprecated @testing-library/jest-native@5.4.3: DEPRECATED: This package is no longer maintained.
+npm warn deprecated Please use the built-in Jest matchers available in @testing-library/react-native v12.4+.
+npm warn deprecated
+npm warn deprecated See migration guide: https://callstack.github.io/react-native-testing-library/docs/migration/jest-matchers
+npm warn deprecated react-native-vector-icons@10.3.0: react-native-vector-icons package has moved to a new model of per-icon-family packages. See the https://github.com/oblador/react-native-vector-icons/blob/master/MIGRATION.md on how to migrate
+
+added 1104 packages, and audited 1105 packages in 25s
+
+111 packages are looking for funding
+  run `npm fund` for details
+
+found 0 vulnerabilities
+[0;32m  ✅ Creating independent repository for phase4-integration[0m
+Cloning into 'docker/volumes/tdd_phase_4-phase4-integration'...
+done.
+Updating files:  14% (2267/16016)Updating files:  15% (2403/16016)Updating files:  16% (2563/16016)Updating files:  17% (2723/16016)Updating files:  18% (2883/16016)Updating files:  19% (3044/16016)Updating files:  20% (3204/16016)Updating files:  21% (3364/16016)Updating files:  22% (3524/16016)Updating files:  23% (3684/16016)Updating files:  24% (3844/16016)Updating files:  24% (3923/16016)Updating files:  25% (4004/16016)Updating files:  26% (4165/16016)Updating files:  27% (4325/16016)Updating files:  28% (4485/16016)Updating files:  29% (4645/16016)Updating files:  30% (4805/16016)Updating files:  31% (4965/16016)Updating files:  32% (5126/16016)Updating files:  32% (5257/16016)Updating files:  33% (5286/16016)Updating files:  34% (5446/16016)Updating files:  35% (5606/16016)Updating files:  36% (5766/16016)Updating files:  37% (5926/16016)Updating files:  38% (6087/16016)Updating files:  39% (6247/16016)Updating files:  40% (6407/16016)Updating files:  41% (6567/16016)Updating files:  42% (6727/16016)Updating files:  42% (6843/16016)Updating files:  43% (6887/16016)Updating files:  44% (7048/16016)Updating files:  45% (7208/16016)Updating files:  46% (7368/16016)Updating files:  47% (7528/16016)Updating files:  48% (7688/16016)Updating files:  49% (7848/16016)Updating files:  50% (8008/16016)Updating files:  51% (8169/16016)Updating files:  52% (8329/16016)Updating files:  53% (8489/16016)Updating files:  54% (8649/16016)Updating files:  55% (8809/16016)Updating files:  55% (8822/16016)Updating files:  56% (8969/16016)Updating files:  57% (9130/16016)Updating files:  58% (9290/16016)Updating files:  59% (9450/16016)Updating files:  60% (9610/16016)Updating files:  61% (9770/16016)Updating files:  62% (9930/16016)Updating files:  63% (10091/16016)Updating files:  64% (10251/16016)Updating files:  65% (10411/16016)Updating files:  66% (10571/16016)Updating files:  67% (10731/16016)Updating files:  67% (10806/16016)Updating files:  68% (10891/16016)Updating files:  69% (11052/16016)Updating files:  70% (11212/16016)Updating files:  71% (11372/16016)Updating files:  72% (11532/16016)Updating files:  73% (11692/16016)Updating files:  74% (11852/16016)Updating files:  75% (12012/16016)Updating files:  76% (12173/16016)Updating files:  77% (12333/16016)Updating files:  78% (12493/16016)Updating files:  78% (12632/16016)Updating files:  79% (12653/16016)Updating files:  80% (12813/16016)Updating files:  81% (12973/16016)Updating files:  82% (13134/16016)Updating files:  83% (13294/16016)Updating files:  84% (13454/16016)Updating files:  85% (13614/16016)Updating files:  86% (13774/16016)Updating files:  87% (13934/16016)Updating files:  87% (13961/16016)Updating files:  88% (14095/16016)Updating files:  89% (14255/16016)Updating files:  90% (14415/16016)Updating files:  91% (14575/16016)Updating files:  92% (14735/16016)Updating files:  93% (14895/16016)Updating files:  94% (15056/16016)Updating files:  95% (15216/16016)Updating files:  95% (15313/16016)Updating files:  96% (15376/16016)Updating files:  97% (15536/16016)Updating files:  98% (15696/16016)Updating files:  99% (15856/16016)Updating files: 100% (16016/16016)Updating files: 100% (16016/16016), done.
+  🌿 Creating new branch tdd_phase_4-phase4-integration
+Switched to a new branch 'tdd_phase_4-phase4-integration'
+  📦 Installing dependencies for phase4-integration...
+npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+npm warn deprecated rimraf@3.0.2: Rimraf versions prior to v4 are no longer supported
+npm warn deprecated abab@2.0.6: Use your platform's native atob() and btoa() methods instead
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm warn deprecated domexception@4.0.0: Use your platform's native DOMException instead
+npm warn deprecated text-encoding@0.7.0: no longer maintained
+npm warn deprecated @testing-library/jest-native@5.4.3: DEPRECATED: This package is no longer maintained.
+npm warn deprecated Please use the built-in Jest matchers available in @testing-library/react-native v12.4+.
+npm warn deprecated
+npm warn deprecated See migration guide: https://callstack.github.io/react-native-testing-library/docs/migration/jest-matchers
+npm warn deprecated react-native-vector-icons@10.3.0: react-native-vector-icons package has moved to a new model of per-icon-family packages. See the https://github.com/oblador/react-native-vector-icons/blob/master/MIGRATION.md on how to migrate
+
+added 1104 packages, and audited 1105 packages in 38s
+
+111 packages are looking for funding
+  run `npm fund` for details
+
+found 0 vulnerabilities
+[0;34m🌐 Creating Docker network...[0m
+c62f0a3b2c0c794c60c09b99a60c6b9402c8679d97357cee70d7c1e5deb95d83
+
+[0;32m✅ executive_analytics setup complete![0m
+
+📋 Next steps:
+  1. Agent prompts are in: docker/agents/prompts/
+  2. Launch with: docker-compose -f docker/projects/tdd_phase_4/docker-compose.yml up -d
+  3. Monitor at: http://localhost:3005
+
+🎯 Agents will run 5 self-improvement cycles to achieve 85% test pass rate
+
+🛑 To stop all agents:
+  ./docker/projects/tdd_phase_4/stop.sh

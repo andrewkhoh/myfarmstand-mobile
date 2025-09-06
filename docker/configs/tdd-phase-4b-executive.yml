@@ -1,10 +1,11 @@
 project:
   name: tdd_phase_4b
   description: "TDD Phase 4b - Sequential Executive Dashboard with Unified Workspace"
-  prefix: phase4b
+  prefix: tdd_phase_4b
   test_command: "npm test"
-  pass_rate_target: 100
-  max_cycles: 10
+  test_pass_target: 100
+  max_restarts: 5
+  monitoring_port: 3016
   workspace_mode: unified  # All agents share the same worktree
 
 agents:
@@ -12,32 +13,24 @@ agents:
     type: implementation
     prompt_file: phase4b-decision-support.md
     depends_on: []
-    
-  - name: executive-components  
+
+  - name: executive-components
     type: implementation
     prompt_file: phase4b-executive-components.md
     depends_on: [decision-support]
-    
+
   - name: executive-hooks
     type: implementation
     prompt_file: phase4b-executive-hooks.md
     depends_on: [executive-components]
-    
+
   - name: executive-screens
     type: implementation
     prompt_file: phase4b-executive-screens.md
     depends_on: [executive-hooks]
-    
+
   - name: cross-role-integration
     type: implementation
     prompt_file: phase4b-cross-role-integration.md
     depends_on: [executive-screens]
 
-monitoring:
-  dashboard_port: 3016
-  enable_logs: true
-  enable_metrics: true
-
-docker:
-  network: phase4b-network
-  volume_base: docker/volumes

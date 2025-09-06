@@ -38,11 +38,11 @@ DEBUG="${DEBUG:-false}"
 FRESH_START="${FRESH_START:-false}"
 TARGET_REPO="${TARGET_REPO:-}"
 
-PROGRESS_FILE="/shared/progress/${AGENT_NAME}.md"
-LOG_FILE="/shared/logs/${AGENT_NAME}.log"
-STATUS_FILE="/shared/status/${AGENT_NAME}.json"
-TEST_RESULTS_FILE="/shared/test-results/${AGENT_NAME}-latest.txt"
-RESTART_COUNT_FILE="/shared/restart_counters/${AGENT_NAME}_count"
+PROGRESS_FILE="/shared/progress/${PROJECT_NAME}-${AGENT_NAME}.md"
+LOG_FILE="/shared/logs/${PROJECT_NAME}-${AGENT_NAME}.log"
+STATUS_FILE="/shared/status/${PROJECT_NAME}-${AGENT_NAME}.json"
+TEST_RESULTS_FILE="/shared/test-results/${PROJECT_NAME}-${AGENT_NAME}-latest.txt"
+RESTART_COUNT_FILE="/shared/restart_counters/${PROJECT_NAME}-${AGENT_NAME}_count"
 
 # Initialize directories
 mkdir -p /shared/{progress,logs,status,restart_counters,test-results,handoffs,blockers,feedback}
@@ -148,7 +148,7 @@ check_dependency_freshness() {
     fi
     
     # Use a fixed reference file that doesn't change during execution
-    local ref_file="/shared/status/${AGENT_NAME}-start-marker"
+    local ref_file="/shared/status/${PROJECT_NAME}-${AGENT_NAME}-start-marker"
     if [ ! -f "$ref_file" ]; then
         # Create start marker on first check
         touch "$ref_file"
@@ -167,24 +167,24 @@ check_dependency_freshness() {
         
         if [[ "$dep" == *"-tests" ]]; then
             # For test dependencies, check if handoff file is newer than our start
-            if [ -f "/shared/handoffs/${dep}-complete.md" ]; then
-                if [ "/shared/handoffs/${dep}-complete.md" -nt "$ref_file" ]; then
+            if [ -f "/shared/handoffs/${PROJECT_NAME}-${dep}-complete.md" ]; then
+                if [ "/shared/handoffs/${PROJECT_NAME}-${dep}-complete.md" -nt "$ref_file" ]; then
                     dep_updated=true
                     echo "$(date '+%H:%M:%S') 🔄 Test dependency $dep has new completion" >> "$PROGRESS_FILE"
                 fi
             fi
         elif [[ "$dep" == *"-impl" ]]; then
             # For implementation dependencies, check handoff file
-            if [ -f "/shared/handoffs/${dep}-complete.md" ]; then
-                if [ "/shared/handoffs/${dep}-complete.md" -nt "$ref_file" ]; then
+            if [ -f "/shared/handoffs/${PROJECT_NAME}-${dep}-complete.md" ]; then
+                if [ "/shared/handoffs/${PROJECT_NAME}-${dep}-complete.md" -nt "$ref_file" ]; then
                     dep_updated=true
                     echo "$(date '+%H:%M:%S') 🔄 Implementation dependency $dep has new completion" >> "$PROGRESS_FILE"
                 fi
             fi
         elif [[ "$dep" == *"-refactor" || "$dep" == *"-audit" || "$dep" == *"-integration-final" ]]; then
             # For process dependencies, check handoff file  
-            if [ -f "/shared/handoffs/${dep}-complete.md" ]; then
-                if [ "/shared/handoffs/${dep}-complete.md" -nt "$ref_file" ]; then
+            if [ -f "/shared/handoffs/${PROJECT_NAME}-${dep}-complete.md" ]; then
+                if [ "/shared/handoffs/${PROJECT_NAME}-${dep}-complete.md" -nt "$ref_file" ]; then
                     dep_updated=true
                     echo "$(date '+%H:%M:%S') 🔄 Process dependency $dep has new completion" >> "$PROGRESS_FILE"
                 fi
@@ -278,9 +278,9 @@ enter_maintenance_mode() {
     
     # Create handoff if tests are passing
     if [ "$PASS_RATE" -ge "$TARGET_PASS_RATE" ]; then
-        echo "✅ SUCCESS: ${AGENT_NAME} complete with ${PASS_RATE}% pass rate" > "/shared/handoffs/${AGENT_NAME}-complete.md"
+        echo "✅ SUCCESS: ${AGENT_NAME} complete with ${PASS_RATE}% pass rate" > "/shared/handoffs/${PROJECT_NAME}-${AGENT_NAME}-complete.md"
     else
-        echo "⚠️ INCOMPLETE: ${AGENT_NAME} ended with only ${PASS_RATE}% pass rate (target ${TARGET_PASS_RATE}%)" > "/shared/blockers/${AGENT_NAME}-incomplete.md"
+        echo "⚠️ INCOMPLETE: ${AGENT_NAME} ended with only ${PASS_RATE}% pass rate (target ${TARGET_PASS_RATE}%)" > "/shared/blockers/${PROJECT_NAME}-${AGENT_NAME}-incomplete.md"
     fi
     
     # Enter maintenance mode
@@ -323,7 +323,7 @@ else
         # Keep current cycle count to track actual agent improvement progress
         
         # Update reference marker for next execution
-        touch "/shared/status/${AGENT_NAME}-start-marker"
+        touch "/shared/status/${PROJECT_NAME}-${AGENT_NAME}-start-marker"
         
         # Create fresh status to trigger restart
         jq --arg reason "dependency_updated" --arg timestamp "$(date -Iseconds)" \
@@ -494,12 +494,12 @@ check_dependencies() {
             elif [[ "$dep" == *"-refactor" || "$dep" == *"-audit" || "$dep" == *"-integration-final" ]]; then
                 # For process-based agents (refactor, audit, final integration), 
                 # check if they have completed at least one successful cycle
-                if [ -f "/shared/handoffs/${dep}-complete.md" ]; then
+                if [ -f "/shared/handoffs/${PROJECT_NAME}-${dep}-complete.md" ]; then
                     dep_ready=true
                     echo "$(date '+%H:%M:%S') ✅ Found completion handoff for process agent: $dep" >> "$PROGRESS_FILE"
-                elif [ -f "/shared/status/${dep}.json" ]; then
+                elif [ -f "/shared/status/${PROJECT_NAME}-${dep}.json" ]; then
                     # Check if status shows completion or success
-                    local status=$(jq -r '.status // "pending"' "/shared/status/${dep}.json" 2>/dev/null)
+                    local status=$(jq -r '.status // "pending"' "/shared/status/${PROJECT_NAME}-${dep}.json" 2>/dev/null)
                     if [[ "$status" == "completed" || "$status" == "success" ]]; then
                         dep_ready=true
                         echo "$(date '+%H:%M:%S') ✅ Found successful status for process agent: $dep ($status)" >> "$PROGRESS_FILE"
@@ -508,7 +508,7 @@ check_dependencies() {
             fi
             
             # Fallback: check completion handoff if file-based check doesn't apply
-            if [ "$dep_ready" = false ] && [ -f "/shared/handoffs/${dep}-complete.md" ]; then
+            if [ "$dep_ready" = false ] && [ -f "/shared/handoffs/${PROJECT_NAME}-${dep}-complete.md" ]; then
                 dep_ready=true
                 echo "$(date '+%H:%M:%S') ✅ Found completion handoff for: $dep" >> "$PROGRESS_FILE"
             fi
@@ -724,6 +724,18 @@ jq --arg summary "$WORK_SUMMARY" '.workSummary = $summary' \
    "$STATUS_FILE" > "${STATUS_FILE}.tmp" && mv "${STATUS_FILE}.tmp" "$STATUS_FILE"
 
 echo "$(date '+%H:%M:%S') 📊 Cycle ${RESTART_COUNT} complete: ${PASS_RATE}% pass rate" >> "$PROGRESS_FILE"
+
+# Check if we've achieved target pass rate
+if [ "$PASS_RATE" -ge "$TARGET_PASS_RATE" ]; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') ✅ Target achieved: ${PASS_RATE}% >= ${TARGET_PASS_RATE}%!" >> "$LOG_FILE"
+    echo "✅ SUCCESS: Target pass rate achieved!" >> "$PROGRESS_FILE"
+    
+    # Generate success summary
+    WORK_SUMMARY="Success after ${RESTART_COUNT} cycles: ${TESTS_PASS}/${TOTAL_TESTS} tests passing (${PASS_RATE}%)"
+    
+    # Enter maintenance mode
+    enter_maintenance_mode "tests_passing" "$RESTART_COUNT" "$WORK_SUMMARY"
+fi
 
 # Exit to trigger restart for next cycle
 exit 0

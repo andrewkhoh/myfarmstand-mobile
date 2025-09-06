@@ -222,7 +222,15 @@ replace_template_vars() {
 
 # Generate setup script
 echo "🔧 Generating setup script..."
-replace_template_vars "docker/templates/setup-project.template.sh" "$PROJECT_DIR/setup.sh"
+# Check workspace_mode from config to choose correct template
+WORKSPACE_MODE=$(get_config_value "workspace_mode" "$CONFIG_FILE")
+if [ "$WORKSPACE_MODE" = "unified" ]; then
+    echo "  Using unified workspace template"
+    replace_template_vars "docker/templates/setup-project-unified.template.sh" "$PROJECT_DIR/setup.sh"
+else
+    echo "  Using standard worktree template"
+    replace_template_vars "docker/templates/setup-project.template.sh" "$PROJECT_DIR/setup.sh"
+fi
 chmod +x "$PROJECT_DIR/setup.sh"
 
 # Generate stop script  
@@ -268,7 +276,7 @@ for agent in "${AGENTS[@]}"; do
     build: 
       context: ../../agents
       dockerfile: Dockerfile
-    container_name: ${agent}-agent
+    container_name: ${PROJECT_PREFIX}-${agent}-agent
     environment:
       - "AGENT_NAME=${agent}"
       - "AGENT_TYPE=${agent_type}"
@@ -293,6 +301,11 @@ EOF
       - ../../agents/prompts:/prompts:ro
       - ./entrypoint.sh:/usr/local/bin/entrypoint-enhanced.sh:ro
       - ~/.claude:/home/agent/.claude:rw
+      - ../../../docker/volumes/tdd_phase_4-decision-support:/reference/tdd_phase_4-decision-support:ro
+      - ../../../docker/volumes/tdd_phase_4-executive-components:/reference/tdd_phase_4-executive-components:ro
+      - ../../../docker/volumes/tdd_phase_4-executive-hooks:/reference/tdd_phase_4-executive-hooks:ro
+      - ../../../docker/volumes/tdd_phase_4-executive-screens:/reference/tdd_phase_4-executive-screens:ro
+      - ../../../docker/volumes/tdd_phase_4-cross-role-integration:/reference/tdd_phase_4-cross-role-integration:ro
     working_dir: /workspace
     entrypoint: ["/usr/local/bin/entrypoint-enhanced.sh"]
     restart: unless-stopped
