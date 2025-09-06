@@ -1,0 +1,220 @@
+version: '3.8'
+
+services:
+  # Prompt generator service - runs once to create all prompts
+  prompt-generator:
+    image: alpine
+    container_name: phase1-prompt-generator
+    volumes:
+      - ./agents/prompts:/prompts:rw
+      - ../scripts:/scripts:ro
+    command: /scripts/generate-phase1-prompts.sh
+    restart: "no"  # Run once and exit
+  
+  # Foundation Agents (run in parallel)
+  role-services-agent:
+    build: 
+      context: ./agents
+      dockerfile: Dockerfile
+    container_name: role-services-agent
+    environment:
+      - AGENT_NAME=role-services
+      - AGENT_TYPE=foundation
+      - PHASE=1
+      - AGENT_PROMPT_FILE=/prompts/role-services-agent.md
+    volumes:
+      - ./volumes/phase1-role-foundation-role-services:/workspace:rw
+      - ./volumes/communication:/shared:rw
+      - ./agents/prompts:/prompts:ro
+      - ./agents/entrypoint-enhanced.sh:/usr/local/bin/entrypoint-enhanced.sh:ro
+    working_dir: /workspace
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+    depends_on:
+      - prompt-generator
+
+  role-hooks-agent:
+    build: 
+      context: ./agents
+      dockerfile: Dockerfile
+    container_name: role-hooks-agent
+    environment:
+      - AGENT_NAME=role-hooks
+      - AGENT_TYPE=foundation
+      - PHASE=1
+      - AGENT_PROMPT_FILE=/prompts/role-hooks-agent.md
+    volumes:
+      - ./volumes/phase1-role-foundation-role-hooks:/workspace:rw
+      - ./volumes/communication:/shared:rw
+      - ./agents/prompts:/prompts:ro
+      - ./agents/entrypoint-enhanced.sh:/usr/local/bin/entrypoint-enhanced.sh:ro
+    working_dir: /workspace
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+    depends_on:
+      - prompt-generator
+
+  role-navigation-agent:
+    build: 
+      context: ./agents
+      dockerfile: Dockerfile
+    container_name: role-navigation-agent
+    environment:
+      - AGENT_NAME=role-navigation
+      - AGENT_TYPE=foundation
+      - PHASE=1
+      - AGENT_PROMPT_FILE=/prompts/role-navigation-agent.md
+    volumes:
+      - ./volumes/phase1-role-foundation-role-navigation:/workspace:rw
+      - ./volumes/communication:/shared:rw
+      - ./agents/prompts:/prompts:ro
+      - ./agents/entrypoint-enhanced.sh:/usr/local/bin/entrypoint-enhanced.sh:ro
+    working_dir: /workspace
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+    depends_on:
+      - prompt-generator
+
+  # Extension Agents (wait for foundation)
+  role-screens-agent:
+    build: 
+      context: ./agents
+      dockerfile: Dockerfile
+    container_name: role-screens-agent
+    environment:
+      - AGENT_NAME=role-screens
+      - AGENT_TYPE=extension
+      - PHASE=1
+      - AGENT_PROMPT_FILE=/prompts/role-screens-agent.md
+      - DEPENDS_ON=role-services,role-hooks,role-navigation
+    volumes:
+      - ./volumes/phase1-role-foundation-role-screens:/workspace:rw
+      - ./volumes/communication:/shared:rw
+      - ./agents/prompts:/prompts:ro
+      - ./agents/entrypoint-enhanced.sh:/usr/local/bin/entrypoint-enhanced.sh:ro
+    working_dir: /workspace
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+    depends_on:
+      - role-services-agent
+      - role-hooks-agent
+      - role-navigation-agent
+
+  permission-ui-agent:
+    build: 
+      context: ./agents
+      dockerfile: Dockerfile
+    container_name: permission-ui-agent
+    environment:
+      - AGENT_NAME=permission-ui
+      - AGENT_TYPE=extension
+      - PHASE=1
+      - AGENT_PROMPT_FILE=/prompts/permission-ui-agent.md
+      - DEPENDS_ON=role-services,role-hooks,role-navigation
+    volumes:
+      - ./volumes/phase1-role-foundation-permission-ui:/workspace:rw
+      - ./volumes/communication:/shared:rw
+      - ./agents/prompts:/prompts:ro
+      - ./agents/entrypoint-enhanced.sh:/usr/local/bin/entrypoint-enhanced.sh:ro
+    working_dir: /workspace
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+    depends_on:
+      - role-services-agent
+      - role-hooks-agent
+      - role-navigation-agent
+
+  # Integration Agent (waits for all others)
+  integration-agent:
+    build: 
+      context: ./agents
+      dockerfile: Dockerfile
+    container_name: integration-agent
+    environment:
+      - AGENT_NAME=integration
+      - AGENT_TYPE=integration
+      - PHASE=1
+      - AGENT_PROMPT_FILE=/prompts/integration-agent.md
+      - DEPENDS_ON=role-services,role-hooks,role-navigation,role-screens,permission-ui
+    volumes:
+      - ./volumes/phase1-role-foundation-integration:/workspace:rw
+      - ./volumes/communication:/shared:rw
+      - ./agents/prompts:/prompts:ro
+      - ./agents/entrypoint-enhanced.sh:/usr/local/bin/entrypoint-enhanced.sh:ro
+    working_dir: /workspace
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+    depends_on:
+      - role-screens-agent
+      - permission-ui-agent
+
+  # Monitoring Container
+  monitoring:
+    build:
+      context: ./monitoring
+      dockerfile: Dockerfile
+    container_name: phase1-monitoring
+    environment:
+      - PORT=3001
+      - PHASE=1
+    volumes:
+      - ./volumes/communication:/shared:ro
+    ports:
+      - "3001:3001"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+# Networks and volumes
+networks:
+  default:
+    name: phase1-network
+
+volumes:
+  phase1-data:
+    driver: local

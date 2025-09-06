@@ -78,14 +78,21 @@ describe('useSimpleBusinessMetrics Hook', () => {
       const mockMetrics = createMockBusinessMetrics();
       mockService.getMetrics.mockResolvedValue(mockMetrics);
 
-      mockUseQuery.mockReturnValue({
-        data: mockMetrics,
-        isLoading: false,
-        error: null,
-        refetch: jest.fn(),
-        isSuccess: true,
-        isError: false,
-      } as any);
+      // Mock useQuery to actually call the queryFn
+      mockUseQuery.mockImplementation((options: any) => {
+        // Call the queryFn to trigger the service
+        if (options.queryFn) {
+          options.queryFn();
+        }
+        return {
+          data: mockMetrics,
+          isLoading: false,
+          error: null,
+          refetch: jest.fn(),
+          isSuccess: true,
+          isError: false,
+        } as any;
+      });
 
       const { result } = renderHook(() => useSimpleBusinessMetrics(), {
         wrapper: createWrapper(),
@@ -107,14 +114,21 @@ describe('useSimpleBusinessMetrics Hook', () => {
 
       mockService.getMetrics.mockResolvedValue(mockMetrics);
 
-      mockUseQuery.mockReturnValue({
-        data: mockMetrics,
-        isLoading: false,
-        error: null,
-        refetch: jest.fn(),
-        isSuccess: true,
-        isError: false,
-      } as any);
+      // Mock useQuery to actually call the queryFn
+      mockUseQuery.mockImplementation((options: any) => {
+        // Call the queryFn to trigger the service
+        if (options.queryFn) {
+          options.queryFn();
+        }
+        return {
+          data: mockMetrics,
+          isLoading: false,
+          error: null,
+          refetch: jest.fn(),
+          isSuccess: true,
+          isError: false,
+        } as any;
+      });
 
       const { result } = renderHook(
         () => useSimpleBusinessMetrics({

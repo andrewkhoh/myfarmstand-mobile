@@ -1,0 +1,10 @@
+{
+  "agent": "role-services",
+  "status": "completed",
+  "reason": "max_restarts_reached",
+  "cycles": 3,
+  "maxRestarts": 3,
+  "timestamp": "2025-08-29T17:56:33Z",
+  "lastUpdate": "2025-08-29T17:56:33Z",
+  "experimentComplete": true
+}

@@ -15,7 +15,7 @@ import {
 } from '../../schemas/executive';
 
 // Phase 1 Integration: Role Permission Service
-import { RolePermissionService } from '../role-based/rolePermissionService';
+import { RolePermissionService } from '../rolePermissionService';
 
 export class BusinessMetricsService {
   /**

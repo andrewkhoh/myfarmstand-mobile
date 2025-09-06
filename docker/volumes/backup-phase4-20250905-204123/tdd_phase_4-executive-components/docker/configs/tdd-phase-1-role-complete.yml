@@ -1,0 +1,18 @@
+# TDD Phase 1 Role-Based System Complete Configuration
+# Single agent completing all minimal fixes
+# Using Phase 2 approach: Combined test writing and implementation per agent
+
+project:
+  name: "role_based_complete"
+  prefix: "tdd_phase_1"
+  description: "TDD Phase 1: Role-Based System Complete (Single Agent Full Cycle)"
+  max_restarts: 3
+  test_pass_target: 85
+  monitoring_port: 3007
+
+agents:
+  - name: "role-complete"
+    type: "complete"
+    depends_on: []
+    test_command: "npm run test:all:role"
+    prompt_file: "phase1-role-complete-final.md"

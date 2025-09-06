@@ -114,14 +114,21 @@ describe('useSimplePredictiveAnalytics Hook', () => {
 
       mockService.getForecast.mockResolvedValue(mockForecast);
 
-      mockUseQuery.mockReturnValue({
-        data: mockForecast,
-        isLoading: false,
-        error: null,
-        refetch: jest.fn(),
-        isSuccess: true,
-        isError: false,
-      } as any);
+      // Mock useQuery to actually call the queryFn
+      mockUseQuery.mockImplementation((options: any) => {
+        // Call the queryFn to trigger the service
+        if (options.queryFn) {
+          options.queryFn();
+        }
+        return {
+          data: mockForecast,
+          isLoading: false,
+          error: null,
+          refetch: jest.fn(),
+          isSuccess: true,
+          isError: false,
+        } as any;
+      });
 
       const { result } = renderHook(() => useSimplePredictiveAnalytics(), {
         wrapper: createWrapper(),
@@ -164,14 +171,21 @@ describe('useSimplePredictiveAnalytics Hook', () => {
 
       mockService.getForecast.mockResolvedValue(mockForecastWithOptions);
 
-      mockUseQuery.mockReturnValue({
-        data: mockForecastWithOptions,
-        isLoading: false,
-        error: null,
-        refetch: jest.fn(),
-        isSuccess: true,
-        isError: false,
-      } as any);
+      // Mock useQuery to actually call the queryFn
+      mockUseQuery.mockImplementation((options: any) => {
+        // Call the queryFn to trigger the service
+        if (options.queryFn) {
+          options.queryFn();
+        }
+        return {
+          data: mockForecastWithOptions,
+          isLoading: false,
+          error: null,
+          refetch: jest.fn(),
+          isSuccess: true,
+          isError: false,
+        } as any;
+      });
 
       const { result } = renderHook(
         () => useSimplePredictiveAnalytics({

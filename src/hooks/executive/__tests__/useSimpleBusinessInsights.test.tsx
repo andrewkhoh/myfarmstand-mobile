@@ -88,14 +88,21 @@ describe('useSimpleBusinessInsights Hook', () => {
 
       mockService.getInsights.mockResolvedValue(mockInsights);
 
-      mockUseQuery.mockReturnValue({
-        data: mockInsights,
-        isLoading: false,
-        error: null,
-        refetch: jest.fn(),
-        isSuccess: true,
-        isError: false,
-      } as any);
+      // Mock useQuery to actually call the queryFn
+      mockUseQuery.mockImplementation((options: any) => {
+        // Call the queryFn to trigger the service
+        if (options.queryFn) {
+          options.queryFn();
+        }
+        return {
+          data: mockInsights,
+          isLoading: false,
+          error: null,
+          refetch: jest.fn(),
+          isSuccess: true,
+          isError: false,
+        } as any;
+      });
 
       const { result } = renderHook(() => useSimpleBusinessInsights(), {
         wrapper: createWrapper(),
@@ -125,14 +132,21 @@ describe('useSimpleBusinessInsights Hook', () => {
 
       mockService.getInsights.mockResolvedValue(mockFilteredInsights);
 
-      mockUseQuery.mockReturnValue({
-        data: mockFilteredInsights,
-        isLoading: false,
-        error: null,
-        refetch: jest.fn(),
-        isSuccess: true,
-        isError: false,
-      } as any);
+      // Mock useQuery to actually call the queryFn
+      mockUseQuery.mockImplementation((options: any) => {
+        // Call the queryFn to trigger the service
+        if (options.queryFn) {
+          options.queryFn();
+        }
+        return {
+          data: mockFilteredInsights,
+          isLoading: false,
+          error: null,
+          refetch: jest.fn(),
+          isSuccess: true,
+          isError: false,
+        } as any;
+      });
 
       const { result } = renderHook(
         () => useSimpleBusinessInsights({
