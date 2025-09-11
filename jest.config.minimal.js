@@ -1,13 +1,13 @@
 module.exports = {
-  preset: 'jest-expo',
-  testMatch: ['**/services/__tests__/role*.test.ts'],
-  testEnvironment: 'node',
-  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],
-  transform: {
-    '^.+\\.(js|jsx|ts|tsx)$': 'babel-jest'
-  },
-  transformIgnorePatterns: [
-    'node_modules/(?!(jest-)?@?react-native|@react-native-community|@react-navigation|@supabase|expo|@expo)'
+  testEnvironment: "node",
+  testMatch: [
+    "<rootDir>/src/hooks/executive/__tests__/minimal.test.tsx"
   ],
-  testTimeout: 10000
+  testPathIgnorePatterns: ['/node_modules/', '/docker/'],
+  modulePathIgnorePatterns: ['/docker/'],
+  watchPathIgnorePatterns: ['/docker/'],
+  haste: {
+    throwOnModuleCollision: false
+  },
+  roots: ['<rootDir>/src']
 };
