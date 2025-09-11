@@ -42,7 +42,7 @@ import {
   PredictiveAnalyticsTransformSchema
 } from '../../../schemas/executive';
 import { ValidationMonitor } from '../../../utils/validationMonitor';
-import { queryKeyFactory } from '../../../utils/queryKeyFactory';
+import { createQueryKeyFactory } from '../../../utils/queryKeyFactory';
 import { supabase } from '../../../config/supabase';
 
 // Get mock references for use in tests
@@ -68,8 +68,15 @@ describe('Phase 4.5: Pattern Compliance Audit', () => {
         const dbValidation = BusinessMetricsDatabaseSchema.safeParse(mockDbData);
         expect(dbValidation.success).toBe(true);
 
-        // Transform validation (DB → App)
-        const transformValidation = BusinessMetricsTransformSchema.safeParse(mockDbData);
+        // Transform validation (DB → App) - proper transformed data
+        const mockTransformData = {
+          id: 'metric-1',
+          metricCategory: 'revenue',
+          metricValue: 100000,
+          aggregationLevel: 'daily',
+          createdAt: '2024-01-01T00:00:00Z'
+        };
+        const transformValidation = BusinessMetricsTransformSchema.safeParse(mockTransformData);
         expect(transformValidation.success).toBe(true);
 
         // No duplicate validation
@@ -90,7 +97,15 @@ describe('Phase 4.5: Pattern Compliance Audit', () => {
         const dbValidation = BusinessIntelligenceDatabaseSchema.safeParse(mockInsightData);
         expect(dbValidation.success).toBe(true);
 
-        const transformValidation = BusinessIntelligenceTransformSchema.safeParse(mockInsightData);
+        const mockTransformInsightData = {
+          id: 'insight-1',
+          intelligenceType: 'correlation',
+          confidenceScore: 0.89,
+          data: { correlation: 0.75 },
+          isActive: true,
+          createdAt: '2024-01-01T00:00:00Z'
+        };
+        const transformValidation = BusinessIntelligenceTransformSchema.safeParse(mockTransformInsightData);
         expect(transformValidation.success).toBe(true);
       });
 
@@ -107,7 +122,15 @@ describe('Phase 4.5: Pattern Compliance Audit', () => {
         const dbValidation = StrategicReportingDatabaseSchema.safeParse(mockReportData);
         expect(dbValidation.success).toBe(true);
 
-        const transformValidation = StrategicReportingTransformSchema.safeParse(mockReportData);
+        const mockTransformReportData = {
+          id: 'report-1',
+          reportType: 'executive_summary',
+          reportName: 'Monthly Report',
+          reportData: { dataSources: ['metrics', 'insights'] },
+          isAutomated: false,
+          createdAt: '2024-01-01T00:00:00Z'
+        };
+        const transformValidation = StrategicReportingTransformSchema.safeParse(mockTransformReportData);
         expect(transformValidation.success).toBe(true);
       });
 
@@ -124,7 +147,15 @@ describe('Phase 4.5: Pattern Compliance Audit', () => {
         const dbValidation = PredictiveAnalyticsDatabaseSchema.safeParse(mockForecastData);
         expect(dbValidation.success).toBe(true);
 
-        const transformValidation = PredictiveAnalyticsTransformSchema.safeParse(mockForecastData);
+        const mockTransformForecastData = {
+          id: 'forecast-1',
+          modelType: 'demand',
+          forecastData: { predictions: [112000] },
+          confidenceLevel: 0.95,
+          accuracy: 0.92,
+          createdAt: '2024-01-01T00:00:00Z'
+        };
+        const transformValidation = PredictiveAnalyticsTransformSchema.safeParse(mockTransformForecastData);
         expect(transformValidation.success).toBe(true);
       });
     });
@@ -215,7 +246,7 @@ describe('Phase 4.5: Pattern Compliance Audit', () => {
     describe('Centralized Query Key Factory Usage', () => {
       it('should verify no dual query key systems in executive hooks', () => {
         // Check that executive keys are properly defined
-        const executiveKeys = queryKeyFactory.createQueryKeyFactory({ 
+        const executiveKeys = createQueryKeyFactory({ 
           entity: 'businessMetrics' as any, 
           isolation: 'user-specific' 
         });
@@ -228,7 +259,7 @@ describe('Phase 4.5: Pattern Compliance Audit', () => {
 
       it('should validate user-isolated query keys for analytics', () => {
         const userId = 'user-123';
-        const metricsKeys = queryKeyFactory.createQueryKeyFactory({ 
+        const metricsKeys = createQueryKeyFactory({ 
           entity: 'businessMetrics' as any, 
           isolation: 'user-specific' 
         });
@@ -239,7 +270,7 @@ describe('Phase 4.5: Pattern Compliance Audit', () => {
       });
 
       it('should implement proper fallback strategies', () => {
-        const metricsKeys = queryKeyFactory.createQueryKeyFactory({ 
+        const metricsKeys = createQueryKeyFactory({ 
           entity: 'businessMetrics' as any, 
           isolation: 'user-specific' 
         });
@@ -251,7 +282,7 @@ describe('Phase 4.5: Pattern Compliance Audit', () => {
       });
 
       it('should provide entity-specific factory methods', () => {
-        const intelligenceKeys = queryKeyFactory.createQueryKeyFactory({ 
+        const intelligenceKeys = createQueryKeyFactory({ 
           entity: 'businessIntelligence' as any, 
           isolation: 'user-specific' 
         });

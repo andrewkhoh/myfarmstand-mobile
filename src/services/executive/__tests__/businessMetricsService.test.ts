@@ -3,9 +3,7 @@
  * Following the proven pattern from authService.fixed.test.ts
  */
 
-import { BusinessMetricsService } from '../businessMetricsService';
 import { createUser, resetAllFactories } from '../../../test/factories';
-import { ValidationMonitor } from '../../../utils/validationMonitor';
 
 // Mock Supabase using the refactored infrastructure
 jest.mock("../../../config/supabase", () => {
@@ -33,7 +31,7 @@ jest.mock('../../../utils/validationMonitor', () => ({
 }));
 
 // Mock role permissions for graceful degradation
-jest.mock('../../role-based/rolePermissionService', () => ({
+jest.mock('../../rolePermissionService', () => ({
   RolePermissionService: {
     hasPermission: jest.fn().mockResolvedValue(true),
     getUserRole: jest.fn().mockResolvedValue('admin'),
@@ -58,6 +56,10 @@ jest.mock('../predictiveAnalyticsService', () => ({
   }
 }));
 
+// Import AFTER mocks are setup
+import { BusinessMetricsService } from '../businessMetricsService';
+import { ValidationMonitor } from '../../../utils/validationMonitor';
+import { RolePermissionService } from '../../rolePermissionService';
 
 describe('BusinessMetricsService - Refactored', () => {
   let testUser: any;

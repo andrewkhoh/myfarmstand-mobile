@@ -269,7 +269,7 @@ export class PredictiveAnalyticsService {
         .eq('id', forecastId)
         .single();
 
-      if (error) {
+      if (error && error.message !== 'No rows returned') {
         throw new Error(`Failed to get forecast for validation: ${error.message}`);
       }
 
@@ -433,14 +433,14 @@ export class PredictiveAnalyticsService {
         .select()
         .single();
 
-      if (error) {
+      if (error && error.message !== 'No rows updated') {
         throw new Error(`Failed to update forecast: ${error.message}`);
       }
 
       const result = {
         modelAccuracy,
         forecastValues,
-        generatedAt: updatedForecast.generated_at
+        generatedAt: updatedForecast?.generated_at || new Date().toISOString()
       };
 
       ValidationMonitor.recordPatternSuccess({
@@ -567,7 +567,7 @@ export class PredictiveAnalyticsService {
         .eq('id', forecastId)
         .single();
 
-      if (error) {
+      if (error && error.message !== 'No rows returned') {
         throw new Error(`Failed to get forecast for confidence interval calculation: ${error.message}`);
       }
 

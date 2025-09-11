@@ -30,6 +30,14 @@ jest.mock('../../../utils/validationMonitor', () => ({
   }
 }));
 
+// Mock role permissions
+jest.mock('../../rolePermissionService', () => ({
+  RolePermissionService: {
+    hasPermission: jest.fn().mockResolvedValue(true),
+    getUserRole: jest.fn().mockResolvedValue('admin'),
+  }
+}));
+
 
 describe('Performance Integration - Refactored', () => {
   let testUser: any;

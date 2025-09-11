@@ -2,6 +2,8 @@ import { BusinessMetricsService } from '../businessMetricsService';
 import { BusinessIntelligenceService } from '../businessIntelligenceService';
 import { StrategicReportingService } from '../strategicReportingService';
 import { PredictiveAnalyticsService } from '../predictiveAnalyticsService';
+import { RolePermissionService } from '../../rolePermissionService';
+import { ValidationMonitor } from '../../../utils/validationMonitor';
 import { createUser, resetAllFactories } from '../../../test/factories';
 
 // Mock Supabase using the refactored infrastructure
@@ -30,7 +32,7 @@ jest.mock('../../../utils/validationMonitor', () => ({
 }));
 
 // Mock role permissions
-jest.mock('../../role-based/rolePermissionService', () => ({
+jest.mock('../../rolePermissionService', () => ({
   RolePermissionService: {
     hasPermission: jest.fn().mockResolvedValue(true)
   }
@@ -57,24 +59,27 @@ describe('Executive Dashboard Integration - Refactored Infrastructure', () => {
     testUserId = testUser.id;
     
     // Setup default mock responses
-    RolePermissionService.hasPermission.mockResolvedValue(true);
+    (RolePermissionService.hasPermission as jest.Mock).mockResolvedValue(true);
   });
 
   describe('Executive Dashboard Data Aggregation', () => {
     it('should aggregate data from all executive service sources', async () => {
       // Check if services exist before calling
       const servicesAvailable = {
-        metrics: BusinessMetricsService && BusinessMetricsService.getBusinessMetrics,
-        insights: BusinessIntelligenceService && BusinessIntelligenceService.getBusinessInsights,
-        reports: StrategicReportingService && StrategicReportingService.getStrategicReports,
-        forecasts: PredictiveAnalyticsService && PredictiveAnalyticsService.getPredictiveForecasts
+        metrics: BusinessMetricsService && BusinessMetricsService.aggregateBusinessMetrics,
+        insights: BusinessIntelligenceService && (BusinessIntelligenceService as any).getBusinessInsights,
+        reports: StrategicReportingService && (StrategicReportingService as any).getStrategicReports,
+        forecasts: PredictiveAnalyticsService && (PredictiveAnalyticsService as any).getPredictiveForecasts
       };
 
       if (servicesAvailable.metrics) {
-        const metricsResult = await BusinessMetricsService.getBusinessMetrics(
+        const metricsResult = await BusinessMetricsService.aggregateBusinessMetrics(
+          ['revenue'],
+          'monthly',
+          '2024-01-01',
+          '2024-01-31',
           {
-            category: 'revenue',
-            period: '2024-01',
+            user_role: 'executive',
             includeComparisons: true
           },
           testUserId
