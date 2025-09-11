@@ -252,7 +252,7 @@ export default function InventoryAlertsScreen() {
           RNAlert.alert('Permission Denied', 'You do not have permission to configure thresholds');
           return;
         }
-        navigation.navigate('StockManagement', { 
+        navigation.navigate('BulkOperations', { 
           highlightItem: alertId,
           mode: 'threshold_edit' 
         });

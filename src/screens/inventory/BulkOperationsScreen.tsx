@@ -316,7 +316,7 @@ export default function BulkOperationsScreen() {
   }, [templateMutation]);
 
   const handleBatchOperation = useCallback(() => {
-    navigation.navigate('StockManagement', { mode: 'batch_select' });
+    navigation.navigate('InventoryHub');
   }, [navigation]);
 
   return (

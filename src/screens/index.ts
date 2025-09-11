@@ -31,5 +31,42 @@ export { StaffQRScannerScreen } from './StaffQRScannerScreen';
 export { KioskAuthScreen } from './KioskAuthScreen';
 export { KioskDashboardScreen } from './KioskDashboardScreen';
 
+// Export Hub screens
+export { ExecutiveHub } from './executive/ExecutiveHub';
+export { MarketingHub } from './marketing/MarketingHub';
+export { InventoryHub } from './inventory/InventoryHub';
+
+// Export Executive screens
+export { ExecutiveDashboard } from './executive/ExecutiveDashboard';
+export { CustomerAnalytics } from './executive/CustomerAnalytics';
+export { InventoryOverview } from './executive/InventoryOverview';
+export { PerformanceAnalytics } from './executive/PerformanceAnalytics';
+export { RevenueInsights } from './executive/RevenueInsights';
+
+// Export Marketing screens
+export { MarketingDashboard } from './marketing/MarketingDashboard';
+export { default as CampaignManagementScreen } from './marketing/CampaignManagementScreen';
+export { CampaignPlannerScreen } from './marketing/CampaignPlannerScreen';
+export { ProductContentScreen } from './marketing/ProductContentScreen';
+export { BundleManagementScreen } from './marketing/BundleManagementScreen';
+export { MarketingAnalyticsScreen } from './marketing/MarketingAnalyticsScreen';
+
+// Export Inventory screens
+export { InventoryDashboardScreen } from './inventory/InventoryDashboardScreen';
+export { InventoryAlertsScreen } from './inventory/InventoryAlertsScreen';
+export { BulkOperationsScreen } from './inventory/BulkOperationsScreen';
+export { StockMovementHistoryScreen } from './inventory/StockMovementHistoryScreen';
+
+// Export Product Management screens
+export { ProductManagementScreen } from './ProductManagementScreen';
+export { ProductCreateEditScreen } from './ProductCreateEditScreen';
+
+// DEPRECATED: These screens are replaced by the hub architecture
+// StockManagementScreen → Use InventoryHub instead
+// MetricsAnalyticsScreen → Use ExecutiveHub instead
+// Keeping exports for backward compatibility only
+export { StockManagementScreen } from './StockManagementScreen';
+export { default as MetricsAnalyticsScreen } from './MetricsAnalyticsScreen';
+
 // Export test utilities
 export { AutomatedTestRunner } from '../test/AutomatedTestRunner';

@@ -345,7 +345,7 @@ export const ProductManagementScreen: React.FC = () => {
           </View>
           <View 
             style={styles.statItem}
-            onTouchEnd={() => navigation.navigate('StockManagement' as any)}
+            onTouchEnd={() => navigation.navigate('InventoryHub' as any)}
           >
             <Text variant="heading3" color="warning">{statsQuery.lowStockCount}</Text>
             <Text variant="caption" color="secondary">Low Stock</Text>
@@ -360,9 +360,9 @@ export const ProductManagementScreen: React.FC = () => {
       
       <View style={styles.stockManagementActions}>
         <Button
-          title="Advanced Stock Management"
+          title="Advanced Inventory Management"
           variant="outline"
-          onPress={() => navigation.navigate('StockManagement' as any)}
+          onPress={() => navigation.navigate('InventoryHub' as any)}
           style={styles.stockManagementButton}
         />
       </View>

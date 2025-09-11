@@ -180,8 +180,8 @@ export default function InventoryDashboardScreen() {
     }
   }, [dashboardQuery, alertsQuery, performanceQuery, realtimeQuery]);
 
-  const handleNavigateToStockManagement = useCallback(() => {
-    navigation.navigate('StockManagement');
+  const handleNavigateToInventoryHub = useCallback(() => {
+    navigation.navigate('InventoryHub');
   }, [navigation]);
 
   const handleNavigateToAlerts = useCallback(() => {
@@ -200,7 +200,7 @@ export default function InventoryDashboardScreen() {
     if (productId) {
       navigation.navigate('ProductDetail', { productId, highlightAlert: true });
     } else {
-      navigation.navigate('StockManagement', { highlightItem: alertId });
+      navigation.navigate('BulkOperations', { highlightItem: alertId });
     }
   }, [navigation]);
 
@@ -208,7 +208,7 @@ export default function InventoryDashboardScreen() {
   const handleQuickAction = useCallback((action: string) => {
     switch (action) {
       case 'stock-count':
-        navigation.navigate('StockManagement', { mode: 'count' });
+        navigation.navigate('BulkOperations', { mode: 'count' });
         break;
       case 'bulk-update':
         setShowBulkOperationsModal(true);
@@ -315,7 +315,7 @@ export default function InventoryDashboardScreen() {
             title="Total Items"
             value={metrics?.totalItems || 250}
             color="primary"
-            onPress={canViewReports ? handleNavigateToStockManagement : undefined}
+            onPress={canViewReports ? handleNavigateToInventoryHub : undefined}
           />
           <MetricCard
             testID="metric-card-low-stock"
