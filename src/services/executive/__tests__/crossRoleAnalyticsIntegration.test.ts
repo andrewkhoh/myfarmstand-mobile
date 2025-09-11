@@ -3,9 +3,6 @@
  * Following the proven pattern from authService.fixed.test.ts
  */
 
-import { BusinessMetricsService } from '../businessMetricsService';
-import { BusinessIntelligenceService } from '../businessIntelligenceService';
-import { ValidationMonitor } from '../../../utils/validationMonitor';
 import { createUser, resetAllFactories } from '../../../test/factories';
 
 // Mock Supabase using the refactored infrastructure
@@ -36,7 +33,7 @@ jest.mock('../../../utils/validationMonitor', () => ({
 }));
 
 // Mock role permissions
-jest.mock('../../role-based/rolePermissionService', () => ({
+jest.mock('../../rolePermissionService', () => ({
   RolePermissionService: {
     hasPermission: jest.fn().mockResolvedValue(true),
     getUserRole: jest.fn().mockResolvedValue('admin'),
@@ -59,6 +56,11 @@ jest.mock('../../marketing/marketingCampaignService', () => ({
   }
 }));
 
+// Import AFTER mocks are setup
+import { BusinessMetricsService } from '../businessMetricsService';
+import { BusinessIntelligenceService } from '../businessIntelligenceService';
+import { ValidationMonitor } from '../../../utils/validationMonitor';
+import { RolePermissionService } from '../../rolePermissionService';
 
 describe('Cross-Role Analytics Integration - Refactored', () => {
   let testUser: any;
@@ -240,6 +242,12 @@ describe('Cross-Role Analytics Integration - Refactored', () => {
       }));
 
       if (BusinessMetricsService.aggregateBusinessMetrics) {
+        // Ensure permission mock is properly reset and set for this test
+        (RolePermissionService.hasPermission as jest.Mock).mockReset();
+        (RolePermissionService.getUserRole as jest.Mock).mockReset();
+        (RolePermissionService.hasPermission as jest.Mock).mockResolvedValue(true);
+        (RolePermissionService.getUserRole as jest.Mock).mockResolvedValue('admin');
+        
         const result = await BusinessMetricsService.aggregateBusinessMetrics(
           ['inventory', 'marketing'],
           'daily',

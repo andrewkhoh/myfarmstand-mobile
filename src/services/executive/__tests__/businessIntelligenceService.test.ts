@@ -3,9 +3,7 @@
  * Following the proven pattern from authService.fixed.test.ts
  */
 
-import { BusinessIntelligenceService } from '../businessIntelligenceService';
 import { createUser, resetAllFactories } from '../../../test/factories';
-import { ValidationMonitor } from '../../../utils/validationMonitor';
 
 // Mock Supabase using the refactored infrastructure
 jest.mock("../../../config/supabase", () => {
@@ -33,13 +31,17 @@ jest.mock('../../../utils/validationMonitor', () => ({
 }));
 
 // Mock role permissions
-jest.mock('../../role-based/rolePermissionService', () => ({
+jest.mock('../../rolePermissionService', () => ({
   RolePermissionService: {
     hasPermission: jest.fn().mockResolvedValue(true),
     getUserRole: jest.fn().mockResolvedValue('admin'),
   }
 }));
 
+// Import AFTER mocks are setup
+import { BusinessIntelligenceService } from '../businessIntelligenceService';
+import { ValidationMonitor } from '../../../utils/validationMonitor';
+import { RolePermissionService } from '../../rolePermissionService';
 
 describe('BusinessIntelligenceService - Refactored', () => {
 

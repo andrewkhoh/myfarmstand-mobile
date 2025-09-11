@@ -19,7 +19,7 @@ jest.mock("../../../config/supabase", () => {
       ANALYTICS: 'analytics'
     }
   };
-});
+}));
 
 jest.mock('../../../utils/validationMonitor', () => ({
   ValidationMonitor: {
@@ -28,7 +28,7 @@ jest.mock('../../../utils/validationMonitor', () => ({
   }
 }));
 
-jest.mock('../../role-based/rolePermissionService', () => ({
+jest.mock('../../rolePermissionService', () => ({
   RolePermissionService: {
     hasPermission: jest.fn().mockResolvedValue(true),
     getUserRole: jest.fn().mockResolvedValue('executive'),
@@ -40,37 +40,30 @@ jest.mock('../../role-based/rolePermissionService', () => ({
 import { StrategicReportingService } from '../strategicReportingService';
 import { supabase } from '../../../config/supabase';
 import { ValidationMonitor } from '../../../utils/validationMonitor';
-import { RolePermissionService } from '../../role-based/rolePermissionService';
-
-// Get mock references for use in tests
-const mockSupabaseFrom = supabase.from as jest.Mock;
+import { RolePermissionService } from '../../rolePermissionService';
 
 describe('StrategicReportingService - Golden Pattern', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockInstance.clearAllData();
   });
 
   describe('generateReport', () => {
     it('should generate executive summary report', async () => {
-      // Setup mock database response
-      mockSupabaseFrom.mockReturnValue({
-        insert: jest.fn().mockReturnThis(),
-        select: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({
-          data: {
-            id: 'report-1',
-            report_type: 'executive_summary',
-            report_name: 'Q1 Executive Summary',
-            report_config: { 
-              data_sources: ['metrics', 'insights'],
-              period: 'Q1-2024'
-            },
-            is_automated: false,
-            created_at: '2024-01-01T00:00:00Z'
-          },
-          error: null
-        })
-      });
+      // Setup mock data for the strategic_reports table
+      const mockReportData = {
+        id: 'report-1',
+        report_type: 'executive_summary',
+        report_name: 'Q1 Executive Summary',
+        report_config: { 
+          data_sources: ['metrics', 'insights'],
+          period: 'Q1-2024'
+        },
+        is_automated: false,
+        created_at: '2024-01-01T00:00:00Z'
+      };
+      
+      mockInstance.setTableData('strategic_reports', [mockReportData]);
 
       const result = await StrategicReportingService.generateReport(
         'executive_summary',
@@ -88,25 +81,20 @@ describe('StrategicReportingService - Golden Pattern', () => {
     });
 
     it('should generate performance dashboard report', async () => {
-      // Setup mock database response
-      mockSupabaseFrom.mockReturnValue({
-        insert: jest.fn().mockReturnThis(),
-        select: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({
-          data: {
-            id: 'report-2',
-            report_type: 'performance_dashboard',
-            report_name: 'Performance Dashboard',
-            report_config: { 
-              kpis: ['revenue', 'profit_margin', 'customer_satisfaction'],
-              real_time: true
-            },
-            is_automated: true,
-            created_at: '2024-01-01T00:00:00Z'
-          },
-          error: null
-        })
-      });
+      // Setup mock data for the strategic_reports table
+      const mockReportData = {
+        id: 'report-2',
+        report_type: 'performance_dashboard',
+        report_name: 'Performance Dashboard',
+        report_config: { 
+          kpis: ['revenue', 'profit_margin', 'customer_satisfaction'],
+          real_time: true
+        },
+        is_automated: true,
+        created_at: '2024-01-01T00:00:00Z'
+      };
+      
+      mockInstance.setTableData('strategic_reports', [mockReportData]);
 
       const result = await StrategicReportingService.generateReport(
         'performance_dashboard',
@@ -124,19 +112,12 @@ describe('StrategicReportingService - Golden Pattern', () => {
     });
 
     it('should handle database errors', async () => {
-      // Setup mock database error
-      mockSupabaseFrom.mockReturnValue({
-        insert: jest.fn().mockReturnThis(),
-        select: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({
-          data: null,
-          error: { message: 'Database connection failed' }
-        })
-      });
+      // Setup mock database error by queuing an error
+      mockInstance.queueError(new Error('Database connection failed'));
 
       await expect(
         StrategicReportingService.generateReport('executive_summary', 'Failed Report', {})
-      ).rejects.toThrow('Failed to generate report: Database connection failed');
+      ).rejects.toThrow('Database connection failed');
 
       expect(ValidationMonitor.recordValidationError).toHaveBeenCalled();
     });
@@ -144,29 +125,23 @@ describe('StrategicReportingService - Golden Pattern', () => {
 
   describe('getReportsByType', () => {
     it('should retrieve reports with pagination', async () => {
-      // Setup mock database response
-      mockSupabaseFrom.mockReturnValue({
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        order: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockResolvedValue({
-          data: [
-            {
-              id: 'report-1',
-              report_type: 'trend_analysis',
-              report_name: 'Trend Analysis Q1',
-              created_at: '2024-01-01T00:00:00Z'
-            },
-            {
-              id: 'report-2',
-              report_type: 'trend_analysis',
-              report_name: 'Trend Analysis Q2',
-              created_at: '2024-04-01T00:00:00Z'
-            }
-          ],
-          error: null
-        })
-      });
+      // Setup mock data for the strategic_reports table
+      const mockReportData = [
+        {
+          id: 'report-1',
+          report_type: 'trend_analysis',
+          report_name: 'Trend Analysis Q1',
+          created_at: '2024-01-01T00:00:00Z'
+        },
+        {
+          id: 'report-2',
+          report_type: 'trend_analysis',
+          report_name: 'Trend Analysis Q2',
+          created_at: '2024-04-01T00:00:00Z'
+        }
+      ];
+      
+      mockInstance.setTableData('strategic_reports', mockReportData);
 
       const result = await StrategicReportingService.getReportsByType(
         'trend_analysis',
