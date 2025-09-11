@@ -53,4 +53,7 @@ docker/volumes/communication/test-results/
 docker/volumes/tdd_phase_*/
 docker/volumes/phase1-*/
 docker/projects/*/docker/volumes/
+docker/volumes/backup-phase4-*/
+docker/volumes/safe_integration-*/
+docker/volumes/test_repos-*/
 
