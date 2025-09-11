@@ -460,8 +460,8 @@ fi
 echo "$(date '+%H:%M:%S') 🔍 Analyzing current test state..." >> "$PROGRESS_FILE"
 run_tests "Initial"
 
-# Check if already passing (need both good pass rate AND minimum tests)
-if [ "$PASS_RATE" -ge "$TARGET_PASS_RATE" ] && [ "$TOTAL_TESTS" -gt 10 ]; then
+# Check if already passing (restoration needs 2000+ tests AND good pass rate)
+if [ "$PASS_RATE" -ge "$TARGET_PASS_RATE" ] && [ "$TOTAL_TESTS" -gt 2000 ]; then
     echo "$(date '+%Y-%m-%d %H:%M:%S') ✅ Early completion: tests already passing at ${PASS_RATE}%!" >> "$LOG_FILE"
     echo "✅ Tests already passing at ${PASS_RATE}%!" >> "$PROGRESS_FILE"
     
@@ -500,7 +500,7 @@ if ! check_dependency_freshness; then
     echo "$(date '+%H:%M:%S') 🔄 Dependencies updated just before Claude execution - restarting" >> "$PROGRESS_FILE"
 # Don't reset counter - keep tracking actual improvement cycles
     # Update reference marker for next execution
-    touch "/shared/status/${PROJECT_NAME}-${AGENT_NAME}-start-marker"
+    touch "/shared/status/${AGENT_NAME}-start-marker"
     jq --arg reason "dependency_updated_pre_execution" --arg timestamp "$(date -Iseconds)" \
        '.reason = $reason | .lastUpdate = $timestamp' \
        "$STATUS_FILE" > "${STATUS_FILE}.tmp" && mv "${STATUS_FILE}.tmp" "$STATUS_FILE"
@@ -541,8 +541,8 @@ This is test cycle ${RESTART_COUNT} of ${MAX_RESTARTS}.
 2. **Report findings without modifying code**
    - Analyze test failures
    - Identify what needs to be implemented
-   - Write analysis to /shared/progress/${PROJECT_NAME}-${AGENT_NAME}.md
-   - Update status in /shared/status/${PROJECT_NAME}-${AGENT_NAME}.json
+   - Write analysis to /shared/progress/${AGENT_NAME}.md
+   - Update status in /shared/status/${AGENT_NAME}.json
 
 3. **DO NOT modify any source code**
    - Only read and analyze
@@ -601,7 +601,7 @@ if ! check_dependency_freshness; then
     echo "$(date '+%H:%M:%S') 🔄 Dependencies updated during Claude execution - restarting to incorporate changes" >> "$PROGRESS_FILE"
 # Don't reset counter - keep tracking actual improvement cycles
     # Update reference marker for next execution
-    touch "/shared/status/${PROJECT_NAME}-${AGENT_NAME}-start-marker"
+    touch "/shared/status/${AGENT_NAME}-start-marker"
     jq --arg reason "dependency_updated_during_execution" --arg timestamp "$(date -Iseconds)" \
        '.reason = $reason | .lastUpdate = $timestamp' \
        "$STATUS_FILE" > "${STATUS_FILE}.tmp" && mv "${STATUS_FILE}.tmp" "$STATUS_FILE"
@@ -621,7 +621,7 @@ if ! check_dependency_freshness; then
     echo "$(date '+%H:%M:%S') 🔄 Dependencies updated while running tests - restarting to incorporate changes" >> "$PROGRESS_FILE"
 # Don't reset counter - keep tracking actual improvement cycles
     # Update reference marker for next execution
-    touch "/shared/status/${PROJECT_NAME}-${AGENT_NAME}-start-marker"
+    touch "/shared/status/${AGENT_NAME}-start-marker"
     jq --arg reason "dependency_updated_post_tests" --arg timestamp "$(date -Iseconds)" \
        '.reason = $reason | .lastUpdate = $timestamp' \
        "$STATUS_FILE" > "${STATUS_FILE}.tmp" && mv "${STATUS_FILE}.tmp" "$STATUS_FILE"

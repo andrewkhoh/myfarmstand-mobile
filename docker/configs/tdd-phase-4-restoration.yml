@@ -1,0 +1,18 @@
+# TDD Phase 4 Restoration Configuration
+# Single agent completing restoration from TDD Phase 4 repositories
+# Target: Resolve 636 TypeScript errors and achieve 100% test pass rates
+
+project:
+  name: "tdd_restoration"
+  prefix: "tdd_phase_4_restore"
+  description: "TDD Phase 4: Repository Restoration (Single Agent Full Cycle)"
+  max_restarts: 5
+  test_pass_target: 100
+  monitoring_port: 3008
+
+agents:
+  - name: "restoration-complete"
+    type: "complete"
+    depends_on: []
+    test_command: "npm run test:all:executive"
+    prompt_file: "tdd-infrastructure-restoration-v4.md"

@@ -28,20 +28,20 @@ if [ -z "${AGENT_NAME:-}" ]; then
 fi
 
 # Set variables from Docker environment (with defaults for safety)
-export AGENT_NAME="${AGENT_NAME}"
-export PROJECT_NAME="${PROJECT_NAME:-unknown_project}"
-export PROJECT_DESCRIPTION="${PROJECT_DESCRIPTION:-No description}"  
-export TARGET_PASS_RATE="${TARGET_PASS_RATE:-85}"
-export MAX_RESTARTS="${MAX_RESTARTS:-5}"
-export TEST_COMMAND="${TEST_COMMAND:-npm test}"
-export DEBUG="${DEBUG:-false}"
-export FRESH_START="${FRESH_START:-false}"
+AGENT_NAME="${AGENT_NAME}"
+PROJECT_NAME="${PROJECT_NAME:-unknown_project}"
+PROJECT_DESCRIPTION="${PROJECT_DESCRIPTION:-No description}"  
+TARGET_PASS_RATE="${TARGET_PASS_RATE:-85}"
+MAX_RESTARTS="${MAX_RESTARTS:-5}"
+TEST_COMMAND="${TEST_COMMAND:-npm test}"
+DEBUG="${DEBUG:-false}"
+FRESH_START="${FRESH_START:-false}"
 
-PROGRESS_FILE="/shared/progress/${PROJECT_NAME}-${AGENT_NAME}.md"
-LOG_FILE="/shared/logs/${PROJECT_NAME}-${AGENT_NAME}.log"
-STATUS_FILE="/shared/status/${PROJECT_NAME}-${AGENT_NAME}.json"
-TEST_RESULTS_FILE="/shared/test-results/${PROJECT_NAME}-${AGENT_NAME}-latest.txt"
-RESTART_COUNT_FILE="/shared/restart_counters/${PROJECT_NAME}-${AGENT_NAME}_count"
+PROGRESS_FILE="/shared/progress/${AGENT_NAME}.md"
+LOG_FILE="/shared/logs/${AGENT_NAME}.log"
+STATUS_FILE="/shared/status/${AGENT_NAME}.json"
+TEST_RESULTS_FILE="/shared/test-results/${AGENT_NAME}-latest.txt"
+RESTART_COUNT_FILE="/shared/restart_counters/${AGENT_NAME}_count"
 
 # Initialize directories
 mkdir -p /shared/{progress,logs,status,restart_counters,test-results,handoffs,blockers,feedback}
@@ -111,7 +111,7 @@ check_dependency_freshness() {
     fi
     
     # Use a fixed reference file that doesn't change during execution
-    local ref_file="/shared/status/${PROJECT_NAME}-${AGENT_NAME}-start-marker"
+    local ref_file="/shared/status/${AGENT_NAME}-start-marker"
     if [ ! -f "$ref_file" ]; then
         # Create start marker on first check
         touch "$ref_file"
@@ -130,24 +130,24 @@ check_dependency_freshness() {
         
         if [[ "$dep" == *"-tests" ]]; then
             # For test dependencies, check if handoff file is newer than our start
-            if [ -f "/shared/handoffs/${PROJECT_NAME}-${dep}-complete.md" ]; then
-                if [ "/shared/handoffs/${PROJECT_NAME}-${dep}-complete.md" -nt "$ref_file" ]; then
+            if [ -f "/shared/handoffs/${dep}-complete.md" ]; then
+                if [ "/shared/handoffs/${dep}-complete.md" -nt "$ref_file" ]; then
                     dep_updated=true
                     echo "$(date '+%H:%M:%S') 🔄 Test dependency $dep has new completion" >> "$PROGRESS_FILE"
                 fi
             fi
         elif [[ "$dep" == *"-impl" ]]; then
             # For implementation dependencies, check handoff file
-            if [ -f "/shared/handoffs/${PROJECT_NAME}-${dep}-complete.md" ]; then
-                if [ "/shared/handoffs/${PROJECT_NAME}-${dep}-complete.md" -nt "$ref_file" ]; then
+            if [ -f "/shared/handoffs/${dep}-complete.md" ]; then
+                if [ "/shared/handoffs/${dep}-complete.md" -nt "$ref_file" ]; then
                     dep_updated=true
                     echo "$(date '+%H:%M:%S') 🔄 Implementation dependency $dep has new completion" >> "$PROGRESS_FILE"
                 fi
             fi
         elif [[ "$dep" == *"-refactor" || "$dep" == *"-audit" || "$dep" == *"-integration-final" ]]; then
             # For process dependencies, check handoff file  
-            if [ -f "/shared/handoffs/${PROJECT_NAME}-${dep}-complete.md" ]; then
-                if [ "/shared/handoffs/${PROJECT_NAME}-${dep}-complete.md" -nt "$ref_file" ]; then
+            if [ -f "/shared/handoffs/${dep}-complete.md" ]; then
+                if [ "/shared/handoffs/${dep}-complete.md" -nt "$ref_file" ]; then
                     dep_updated=true
                     echo "$(date '+%H:%M:%S') 🔄 Process dependency $dep has new completion" >> "$PROGRESS_FILE"
                 fi
@@ -232,9 +232,9 @@ enter_maintenance_mode() {
     
     # Create handoff if tests are passing
     if [ "$PASS_RATE" -ge "$TARGET_PASS_RATE" ]; then
-        echo "✅ SUCCESS: ${AGENT_NAME} complete with ${PASS_RATE}% pass rate" > "/shared/handoffs/${PROJECT_NAME}-${AGENT_NAME}-complete.md"
+        echo "✅ SUCCESS: ${AGENT_NAME} complete with ${PASS_RATE}% pass rate" > "/shared/handoffs/${AGENT_NAME}-complete.md"
     else
-        echo "⚠️ INCOMPLETE: ${AGENT_NAME} ended with only ${PASS_RATE}% pass rate (target ${TARGET_PASS_RATE}%)" > "/shared/blockers/${PROJECT_NAME}-${AGENT_NAME}-incomplete.md"
+        echo "⚠️ INCOMPLETE: ${AGENT_NAME} ended with only ${PASS_RATE}% pass rate (target ${TARGET_PASS_RATE}%)" > "/shared/blockers/${AGENT_NAME}-incomplete.md"
     fi
     
     # Enter maintenance mode
@@ -277,7 +277,7 @@ else
         # Keep current cycle count to track actual agent improvement progress
         
         # Update reference marker for next execution
-        touch "/shared/status/${PROJECT_NAME}-${AGENT_NAME}-start-marker"
+        touch "/shared/status/${AGENT_NAME}-start-marker"
         
         # Create fresh status to trigger restart
         jq --arg reason "dependency_updated" --arg timestamp "$(date -Iseconds)" \
@@ -405,12 +405,12 @@ check_dependencies() {
             elif [[ "$dep" == *"-refactor" || "$dep" == *"-audit" || "$dep" == *"-integration-final" ]]; then
                 # For process-based agents (refactor, audit, final integration), 
                 # check if they have completed at least one successful cycle
-                if [ -f "/shared/handoffs/${PROJECT_NAME}-${dep}-complete.md" ]; then
+                if [ -f "/shared/handoffs/${dep}-complete.md" ]; then
                     dep_ready=true
                     echo "$(date '+%H:%M:%S') ✅ Found completion handoff for process agent: $dep" >> "$PROGRESS_FILE"
-                elif [ -f "/shared/status/${PROJECT_NAME}-${dep}.json" ]; then
+                elif [ -f "/shared/status/${dep}.json" ]; then
                     # Check if status shows completion or success
-                    local status=$(jq -r '.status // "pending"' "/shared/status/${PROJECT_NAME}-${dep}.json" 2>/dev/null)
+                    local status=$(jq -r '.status // "pending"' "/shared/status/${dep}.json" 2>/dev/null)
                     if [[ "$status" == "completed" || "$status" == "success" ]]; then
                         dep_ready=true
                         echo "$(date '+%H:%M:%S') ✅ Found successful status for process agent: $dep ($status)" >> "$PROGRESS_FILE"
@@ -419,7 +419,7 @@ check_dependencies() {
             fi
             
             # Fallback: check completion handoff if file-based check doesn't apply
-            if [ "$dep_ready" = false ] && [ -f "/shared/handoffs/${PROJECT_NAME}-${dep}-complete.md" ]; then
+            if [ "$dep_ready" = false ] && [ -f "/shared/handoffs/${dep}-complete.md" ]; then
                 dep_ready=true
                 echo "$(date '+%H:%M:%S') ✅ Found completion handoff for: $dep" >> "$PROGRESS_FILE"
             fi
@@ -451,17 +451,17 @@ if ! check_dependencies; then
 fi
 
 # Check for feedback from previous cycles
-if [ -f "/shared/feedback/${PROJECT_NAME}-${AGENT_NAME}-improvements.md" ]; then
+if [ -f "/shared/feedback/${AGENT_NAME}-improvements.md" ]; then
     echo "📋 Found feedback from previous cycle" >> "$PROGRESS_FILE"
-    cat "/shared/feedback/${PROJECT_NAME}-${AGENT_NAME}-improvements.md" >> "$PROGRESS_FILE"
+    cat "/shared/feedback/${AGENT_NAME}-improvements.md" >> "$PROGRESS_FILE"
 fi
 
 # First run tests to understand current state
 echo "$(date '+%H:%M:%S') 🔍 Analyzing current test state..." >> "$PROGRESS_FILE"
 run_tests "Initial"
 
-# Check if already passing (need both good pass rate AND minimum tests)
-if [ "$PASS_RATE" -ge "$TARGET_PASS_RATE" ] && [ "$TOTAL_TESTS" -gt 10 ]; then
+# Check if already passing
+if [ "$PASS_RATE" -ge "$TARGET_PASS_RATE" ]; then
     echo "$(date '+%Y-%m-%d %H:%M:%S') ✅ Early completion: tests already passing at ${PASS_RATE}%!" >> "$LOG_FILE"
     echo "✅ Tests already passing at ${PASS_RATE}%!" >> "$PROGRESS_FILE"
     
@@ -500,7 +500,7 @@ if ! check_dependency_freshness; then
     echo "$(date '+%H:%M:%S') 🔄 Dependencies updated just before Claude execution - restarting" >> "$PROGRESS_FILE"
 # Don't reset counter - keep tracking actual improvement cycles
     # Update reference marker for next execution
-    touch "/shared/status/${PROJECT_NAME}-${AGENT_NAME}-start-marker"
+    touch "/shared/status/${AGENT_NAME}-start-marker"
     jq --arg reason "dependency_updated_pre_execution" --arg timestamp "$(date -Iseconds)" \
        '.reason = $reason | .lastUpdate = $timestamp' \
        "$STATUS_FILE" > "${STATUS_FILE}.tmp" && mv "${STATUS_FILE}.tmp" "$STATUS_FILE"
@@ -541,8 +541,8 @@ This is test cycle ${RESTART_COUNT} of ${MAX_RESTARTS}.
 2. **Report findings without modifying code**
    - Analyze test failures
    - Identify what needs to be implemented
-   - Write analysis to /shared/progress/${PROJECT_NAME}-${AGENT_NAME}.md
-   - Update status in /shared/status/${PROJECT_NAME}-${AGENT_NAME}.json
+   - Write analysis to /shared/progress/${AGENT_NAME}.md
+   - Update status in /shared/status/${AGENT_NAME}.json
 
 3. **DO NOT modify any source code**
    - Only read and analyze
@@ -557,22 +557,8 @@ Your purpose is to verify the multi-agent infrastructure is working.
 
 After analysis, write 'DEBUG ANALYSIS COMPLETE' to your progress file."
 else
-    # Normal mode - check if this is a restoration task
-    if [[ "$AGENT_NAME" == *"restoration"* ]]; then
-        # For restoration tasks, prepend feedback if available, then the restoration prompt
-        if [ -f "/shared/feedback/${PROJECT_NAME}-${AGENT_NAME}-improvements.md" ]; then
-            CLAUDE_PROMPT="## IMPORTANT FEEDBACK FROM PREVIOUS CYCLE:
-$(cat /shared/feedback/${PROJECT_NAME}-${AGENT_NAME}-improvements.md)
-
-## RESTORATION INSTRUCTIONS:
-$(cat $PROMPT_FILE)"
-        else
-            # No feedback, just use the restoration prompt
-            CLAUDE_PROMPT="$(cat $PROMPT_FILE)"
-        fi
-    else
-        # For regular TDD tasks, use the standard preamble
-        CLAUDE_PROMPT="You are working on ${AGENT_NAME} for ${PROJECT_DESCRIPTION}.
+    # Normal mode - full implementation prompt
+    CLAUDE_PROMPT="You are working on ${AGENT_NAME} for ${PROJECT_DESCRIPTION}.
 This is self-improvement cycle ${RESTART_COUNT} of ${MAX_RESTARTS}.
 
 Current test results:
@@ -589,7 +575,6 @@ Follow ALL architectural patterns from docs/architectural-patterns-and-best-prac
 Focus on making tests pass - this is TDD cycle ${RESTART_COUNT}.
 
 $(cat $PROMPT_FILE)"
-    fi
 fi
 
 # Execute Claude with the enhanced prompt
@@ -601,7 +586,7 @@ if ! check_dependency_freshness; then
     echo "$(date '+%H:%M:%S') 🔄 Dependencies updated during Claude execution - restarting to incorporate changes" >> "$PROGRESS_FILE"
 # Don't reset counter - keep tracking actual improvement cycles
     # Update reference marker for next execution
-    touch "/shared/status/${PROJECT_NAME}-${AGENT_NAME}-start-marker"
+    touch "/shared/status/${AGENT_NAME}-start-marker"
     jq --arg reason "dependency_updated_during_execution" --arg timestamp "$(date -Iseconds)" \
        '.reason = $reason | .lastUpdate = $timestamp' \
        "$STATUS_FILE" > "${STATUS_FILE}.tmp" && mv "${STATUS_FILE}.tmp" "$STATUS_FILE"
@@ -621,7 +606,7 @@ if ! check_dependency_freshness; then
     echo "$(date '+%H:%M:%S') 🔄 Dependencies updated while running tests - restarting to incorporate changes" >> "$PROGRESS_FILE"
 # Don't reset counter - keep tracking actual improvement cycles
     # Update reference marker for next execution
-    touch "/shared/status/${PROJECT_NAME}-${AGENT_NAME}-start-marker"
+    touch "/shared/status/${AGENT_NAME}-start-marker"
     jq --arg reason "dependency_updated_post_tests" --arg timestamp "$(date -Iseconds)" \
        '.reason = $reason | .lastUpdate = $timestamp' \
        "$STATUS_FILE" > "${STATUS_FILE}.tmp" && mv "${STATUS_FILE}.tmp" "$STATUS_FILE"

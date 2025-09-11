@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
-import { RolePermissionService, type RolePermissionTransform } from '../../services/rolePermissionService';
+import { RolePermissionService } from '../../services/role-based/rolePermissionService';
 import { useCurrentUser } from '../useAuth';
 import { roleKeys } from '../../utils/queryKeyFactory';
+import type { RolePermissionTransform } from '../../services/role-based/rolePermissionService';
 
 // Create user-friendly role error (following UX patterns)
 const createRoleError = (

@@ -28,14 +28,15 @@ if [ -z "${AGENT_NAME:-}" ]; then
 fi
 
 # Set variables from Docker environment (with defaults for safety)
-export AGENT_NAME="${AGENT_NAME}"
-export PROJECT_NAME="${PROJECT_NAME:-unknown_project}"
-export PROJECT_DESCRIPTION="${PROJECT_DESCRIPTION:-No description}"  
-export TARGET_PASS_RATE="${TARGET_PASS_RATE:-85}"
-export MAX_RESTARTS="${MAX_RESTARTS:-5}"
-export TEST_COMMAND="${TEST_COMMAND:-npm test}"
-export DEBUG="${DEBUG:-false}"
-export FRESH_START="${FRESH_START:-false}"
+AGENT_NAME="${AGENT_NAME}"
+PROJECT_NAME="${PROJECT_NAME:-unknown_project}"
+PROJECT_DESCRIPTION="${PROJECT_DESCRIPTION:-No description}"  
+TARGET_PASS_RATE="${TARGET_PASS_RATE:-85}"
+MAX_RESTARTS="${MAX_RESTARTS:-5}"
+TEST_COMMAND="${TEST_COMMAND:-npm test}"
+DEBUG="${DEBUG:-false}"
+FRESH_START="${FRESH_START:-false}"
+TARGET_REPO="${TARGET_REPO:-}"
 
 PROGRESS_FILE="/shared/progress/${PROJECT_NAME}-${AGENT_NAME}.md"
 LOG_FILE="/shared/logs/${PROJECT_NAME}-${AGENT_NAME}.log"
@@ -45,6 +46,41 @@ RESTART_COUNT_FILE="/shared/restart_counters/${PROJECT_NAME}-${AGENT_NAME}_count
 
 # Initialize directories
 mkdir -p /shared/{progress,logs,status,restart_counters,test-results,handoffs,blockers,feedback}
+
+# Git Discipline Guard - Prevent git init in worktrees
+check_git_discipline() {
+    if [ -f /workspace/.git-discipline-guard ]; then
+        echo "✅ Git discipline guard detected - using worktree" >> "$PROGRESS_FILE"
+    fi
+    
+    # Check if this is a worktree (file) vs full repo (directory)
+    if [ -f /workspace/.git ]; then
+        echo "✅ Working in git worktree - connected to main repo" >> "$PROGRESS_FILE"
+        export GIT_MODE="worktree"
+    elif [ -d /workspace/.git ]; then
+        echo "⚠️ Working in full git repository" >> "$PROGRESS_FILE"
+        export GIT_MODE="full"
+    else
+        echo "❌ No git repository found at /workspace" >> "$PROGRESS_FILE"
+        export GIT_MODE="none"
+    fi
+    
+    # Prevent git init
+    git() {
+        if [ "$1" = "init" ]; then
+            echo "❌ ERROR: 'git init' is FORBIDDEN in worktrees!" >&2
+            echo "This workspace is already connected to the main repository." >&2
+            echo "Use 'git status' to see current state." >&2
+            return 1
+        else
+            command git "$@"
+        fi
+    }
+    export -f git
+}
+
+# Run git discipline check
+check_git_discipline
 
 # Handle FRESH_START - clear restart counter if requested
 if [ "$FRESH_START" = "true" ]; then
@@ -57,6 +93,7 @@ fi
 export RESTART_COUNT=$(cat "$RESTART_COUNT_FILE" 2>/dev/null || echo 0)
 export MAX_RESTARTS=${MAX_RESTARTS:-5}
 export TEST_COMMAND="${TEST_COMMAND:-npm test}"
+export TARGET_REPO="${TARGET_REPO:-}"
 
 # Now safe to write output
 echo "# ${AGENT_NAME} Progress Log - ${PROJECT_DESCRIPTION}" > "$PROGRESS_FILE"
@@ -173,9 +210,9 @@ run_tests() {
     TEST_OUTPUT=$(cd /workspace && eval "$test_command" 2>&1 || true)
     echo "$TEST_OUTPUT" > "${TEST_RESULTS_FILE}"
     
-    # Extract metrics
-    TESTS_PASS=$(echo "$TEST_OUTPUT" | grep -E "Tests:.*passed" | sed -E 's/.*([0-9]+) passed.*/\1/' | tail -1 || echo "0")
-    TESTS_FAIL=$(echo "$TEST_OUTPUT" | grep -E "Tests:.*failed" | sed -E 's/.*([0-9]+) failed.*/\1/' | tail -1 || echo "0")
+    # Extract metrics - Fix #1: Enhanced test output parsing
+    TESTS_PASS=$(echo "$TEST_OUTPUT" | grep -E "Tests:.*pass(ed|ing)" | sed -E 's/.*([0-9]+) pass(ed|ing).*/\1/' | tail -1 || echo "0")
+    TESTS_FAIL=$(echo "$TEST_OUTPUT" | grep -E "Tests:.*fail(ed|ing)" | sed -E 's/.*([0-9]+) fail(ed|ing).*/\1/' | tail -1 || echo "0")
     
     # Ensure variables are not empty
     TESTS_PASS=${TESTS_PASS:-0}
@@ -191,14 +228,23 @@ run_tests() {
     
     echo "$(date '+%H:%M:%S') 📊 Test Results: ${TESTS_PASS}/${TOTAL_TESTS} passing (${PASS_RATE}%)" >> "$PROGRESS_FILE"
     
-    # Update status
+    # Update status - Fix #4: Status file validation
+    local temp_status="${STATUS_FILE}.tmp"
     jq --arg pass "$TESTS_PASS" --arg fail "$TESTS_FAIL" --arg rate "$PASS_RATE" \
        --arg timestamp "$(date -Iseconds)" \
        '.testsPass = ($pass | tonumber) | 
         .testsFail = ($fail | tonumber) | 
         .testPassRate = ($rate | tonumber) |
         .lastUpdate = $timestamp' \
-       "$STATUS_FILE" > "${STATUS_FILE}.tmp" && mv "${STATUS_FILE}.tmp" "$STATUS_FILE"
+       "$STATUS_FILE" > "$temp_status"
+    
+    # Validate JSON before moving
+    if jq empty "$temp_status" 2>/dev/null; then
+        mv "$temp_status" "$STATUS_FILE"
+    else
+        echo "$(date '+%H:%M:%S') ⚠️ Invalid JSON in status update - skipping" >> "$PROGRESS_FILE"
+        rm -f "$temp_status"
+    fi
     
     return 0
 }
@@ -289,7 +335,7 @@ else
     fi
 fi
 
-# Function to parse Claude output
+# Function to parse Claude output - Fix #2: Additional Claude output patterns
 parse_claude_output() {
     while IFS= read -r line; do
         echo "$(date '+%Y-%m-%d %H:%M:%S') $line" >> "$LOG_FILE"
@@ -298,20 +344,57 @@ parse_claude_output() {
         if [[ "$line" =~ "File created:" ]] || [[ "$line" =~ "File modified:" ]]; then
             FILE=$(echo "$line" | sed 's/.*File [^:]*: //')
             echo "$(date '+%H:%M:%S') 📝 Modified: $FILE" >> "$PROGRESS_FILE"
+            local temp_status="${STATUS_FILE}.tmp"
             jq --arg file "$FILE" '.filesModified += [$file]' \
-               "$STATUS_FILE" > "${STATUS_FILE}.tmp" && mv "${STATUS_FILE}.tmp" "$STATUS_FILE"
+               "$STATUS_FILE" > "$temp_status"
+            if jq empty "$temp_status" 2>/dev/null; then
+                mv "$temp_status" "$STATUS_FILE"
+            else
+                rm -f "$temp_status"
+            fi
         fi
         
-        # Track test results
+        # Track file creation with emoji pattern
+        if [[ "$line" =~ "📝 Created file:" ]]; then
+            FILE=$(echo "$line" | sed 's/.*Created file: //')
+            echo "$(date '+%H:%M:%S') 📝 Created: $FILE" >> "$PROGRESS_FILE"
+            local temp_status="${STATUS_FILE}.tmp"
+            jq --arg file "$FILE" '.filesModified += [$file]' \
+               "$STATUS_FILE" > "$temp_status"
+            if jq empty "$temp_status" 2>/dev/null; then
+                mv "$temp_status" "$STATUS_FILE"
+            else
+                rm -f "$temp_status"
+            fi
+        fi
+        
+        # Track task completion patterns
+        if [[ "$line" =~ ✅.*[Cc]omplete[d]?:?\s*(.+) ]]; then
+            TASK="${BASH_REMATCH[1]}"
+            echo "$(date '+%H:%M:%S') ✅ Task completed: $TASK" >> "$PROGRESS_FILE"
+        elif [[ "$line" =~ ✅.*([A-Za-z]+).*complete ]]; then
+            TASK=$(echo "$line" | sed 's/✅ //' | sed 's/ complete.*//')
+            echo "$(date '+%H:%M:%S') ✅ Task completed: $TASK" >> "$PROGRESS_FILE"
+        fi
+        
+        # Track test results (existing + enhanced patterns)
         if [[ "$line" =~ "tests passing" ]]; then
             echo "$(date '+%H:%M:%S') ✅ $line" >> "$PROGRESS_FILE"
+        elif [[ "$line" =~ Tests:.*([0-9]+.*passing|\([0-9]+%\)) ]]; then
+            echo "$(date '+%H:%M:%S') 📊 Test progress: $line" >> "$PROGRESS_FILE"
         fi
         
         # Track errors
         if [[ "$line" =~ "Error:" ]] || [[ "$line" =~ "FAIL" ]]; then
             echo "$(date '+%H:%M:%S') ❌ $line" >> "$PROGRESS_FILE"
+            local temp_status="${STATUS_FILE}.tmp"
             jq --arg error "$line" '.errors += [$error]' \
-               "$STATUS_FILE" > "${STATUS_FILE}.tmp" && mv "${STATUS_FILE}.tmp" "$STATUS_FILE"
+               "$STATUS_FILE" > "$temp_status"
+            if jq empty "$temp_status" 2>/dev/null; then
+                mv "$temp_status" "$STATUS_FILE"
+            else
+                rm -f "$temp_status"
+            fi
         fi
         
         # Track commits
@@ -327,8 +410,14 @@ parse_claude_output() {
 (
     while true; do
         echo "$(date '+%H:%M:%S') 💓 Heartbeat" >> "$PROGRESS_FILE"
+        temp_status="${STATUS_FILE}.tmp"
         jq --arg heartbeat "$(date -Iseconds)" '.heartbeat = $heartbeat' \
-           "$STATUS_FILE" > "${STATUS_FILE}.tmp" && mv "${STATUS_FILE}.tmp" "$STATUS_FILE"
+           "$STATUS_FILE" > "$temp_status"
+        if jq empty "$temp_status" 2>/dev/null; then
+            mv "$temp_status" "$STATUS_FILE"
+        else
+            rm -f "$temp_status"
+        fi
         sleep 60
     done
 ) &
@@ -451,17 +540,17 @@ if ! check_dependencies; then
 fi
 
 # Check for feedback from previous cycles
-if [ -f "/shared/feedback/${PROJECT_NAME}-${AGENT_NAME}-improvements.md" ]; then
+if [ -f "/shared/feedback/${AGENT_NAME}-improvements.md" ]; then
     echo "📋 Found feedback from previous cycle" >> "$PROGRESS_FILE"
-    cat "/shared/feedback/${PROJECT_NAME}-${AGENT_NAME}-improvements.md" >> "$PROGRESS_FILE"
+    cat "/shared/feedback/${AGENT_NAME}-improvements.md" >> "$PROGRESS_FILE"
 fi
 
 # First run tests to understand current state
 echo "$(date '+%H:%M:%S') 🔍 Analyzing current test state..." >> "$PROGRESS_FILE"
 run_tests "Initial"
 
-# Check if already passing (need both good pass rate AND minimum tests)
-if [ "$PASS_RATE" -ge "$TARGET_PASS_RATE" ] && [ "$TOTAL_TESTS" -gt 10 ]; then
+# Check if already passing
+if [ "$PASS_RATE" -ge "$TARGET_PASS_RATE" ]; then
     echo "$(date '+%Y-%m-%d %H:%M:%S') ✅ Early completion: tests already passing at ${PASS_RATE}%!" >> "$LOG_FILE"
     echo "✅ Tests already passing at ${PASS_RATE}%!" >> "$PROGRESS_FILE"
     
@@ -500,7 +589,7 @@ if ! check_dependency_freshness; then
     echo "$(date '+%H:%M:%S') 🔄 Dependencies updated just before Claude execution - restarting" >> "$PROGRESS_FILE"
 # Don't reset counter - keep tracking actual improvement cycles
     # Update reference marker for next execution
-    touch "/shared/status/${PROJECT_NAME}-${AGENT_NAME}-start-marker"
+    touch "/shared/status/${AGENT_NAME}-start-marker"
     jq --arg reason "dependency_updated_pre_execution" --arg timestamp "$(date -Iseconds)" \
        '.reason = $reason | .lastUpdate = $timestamp' \
        "$STATUS_FILE" > "${STATUS_FILE}.tmp" && mv "${STATUS_FILE}.tmp" "$STATUS_FILE"
@@ -541,8 +630,8 @@ This is test cycle ${RESTART_COUNT} of ${MAX_RESTARTS}.
 2. **Report findings without modifying code**
    - Analyze test failures
    - Identify what needs to be implemented
-   - Write analysis to /shared/progress/${PROJECT_NAME}-${AGENT_NAME}.md
-   - Update status in /shared/status/${PROJECT_NAME}-${AGENT_NAME}.json
+   - Write analysis to /shared/progress/${AGENT_NAME}.md
+   - Update status in /shared/status/${AGENT_NAME}.json
 
 3. **DO NOT modify any source code**
    - Only read and analyze
@@ -557,22 +646,8 @@ Your purpose is to verify the multi-agent infrastructure is working.
 
 After analysis, write 'DEBUG ANALYSIS COMPLETE' to your progress file."
 else
-    # Normal mode - check if this is a restoration task
-    if [[ "$AGENT_NAME" == *"restoration"* ]]; then
-        # For restoration tasks, prepend feedback if available, then the restoration prompt
-        if [ -f "/shared/feedback/${PROJECT_NAME}-${AGENT_NAME}-improvements.md" ]; then
-            CLAUDE_PROMPT="## IMPORTANT FEEDBACK FROM PREVIOUS CYCLE:
-$(cat /shared/feedback/${PROJECT_NAME}-${AGENT_NAME}-improvements.md)
-
-## RESTORATION INSTRUCTIONS:
-$(cat $PROMPT_FILE)"
-        else
-            # No feedback, just use the restoration prompt
-            CLAUDE_PROMPT="$(cat $PROMPT_FILE)"
-        fi
-    else
-        # For regular TDD tasks, use the standard preamble
-        CLAUDE_PROMPT="You are working on ${AGENT_NAME} for ${PROJECT_DESCRIPTION}.
+    # Normal mode - full implementation prompt
+    CLAUDE_PROMPT="You are working on ${AGENT_NAME} for ${PROJECT_DESCRIPTION}.
 This is self-improvement cycle ${RESTART_COUNT} of ${MAX_RESTARTS}.
 
 Current test results:
@@ -589,19 +664,33 @@ Follow ALL architectural patterns from docs/architectural-patterns-and-best-prac
 Focus on making tests pass - this is TDD cycle ${RESTART_COUNT}.
 
 $(cat $PROMPT_FILE)"
-    fi
 fi
 
-# Execute Claude with the enhanced prompt
+# Execute Claude with the enhanced prompt - Fix #3: Heartbeat during Claude execution
+# Start heartbeat during Claude execution
+(
+    while kill -0 $$ 2>/dev/null; do
+        jq --arg heartbeat "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+           '.lastUpdate = $heartbeat | .status = "working"' \
+           "$STATUS_FILE" > "${STATUS_FILE}.tmp" && mv "${STATUS_FILE}.tmp" "$STATUS_FILE" 2>/dev/null || true
+        sleep 30
+    done
+) &
+CLAUDE_HEARTBEAT_PID=$!
+
 OUTPUT=$(echo "$CLAUDE_PROMPT" | claude --dangerously-skip-permissions 2>&1)
 EXIT_CODE=$?
+
+# Stop Claude execution heartbeat
+kill $CLAUDE_HEARTBEAT_PID 2>/dev/null || true
+wait $CLAUDE_HEARTBEAT_PID 2>/dev/null || true
 
 # Check dependencies again after Claude execution in case they updated during our work
 if ! check_dependency_freshness; then
     echo "$(date '+%H:%M:%S') 🔄 Dependencies updated during Claude execution - restarting to incorporate changes" >> "$PROGRESS_FILE"
 # Don't reset counter - keep tracking actual improvement cycles
     # Update reference marker for next execution
-    touch "/shared/status/${PROJECT_NAME}-${AGENT_NAME}-start-marker"
+    touch "/shared/status/${AGENT_NAME}-start-marker"
     jq --arg reason "dependency_updated_during_execution" --arg timestamp "$(date -Iseconds)" \
        '.reason = $reason | .lastUpdate = $timestamp' \
        "$STATUS_FILE" > "${STATUS_FILE}.tmp" && mv "${STATUS_FILE}.tmp" "$STATUS_FILE"
@@ -621,7 +710,7 @@ if ! check_dependency_freshness; then
     echo "$(date '+%H:%M:%S') 🔄 Dependencies updated while running tests - restarting to incorporate changes" >> "$PROGRESS_FILE"
 # Don't reset counter - keep tracking actual improvement cycles
     # Update reference marker for next execution
-    touch "/shared/status/${PROJECT_NAME}-${AGENT_NAME}-start-marker"
+    touch "/shared/status/${AGENT_NAME}-start-marker"
     jq --arg reason "dependency_updated_post_tests" --arg timestamp "$(date -Iseconds)" \
        '.reason = $reason | .lastUpdate = $timestamp' \
        "$STATUS_FILE" > "${STATUS_FILE}.tmp" && mv "${STATUS_FILE}.tmp" "$STATUS_FILE"
@@ -635,6 +724,18 @@ jq --arg summary "$WORK_SUMMARY" '.workSummary = $summary' \
    "$STATUS_FILE" > "${STATUS_FILE}.tmp" && mv "${STATUS_FILE}.tmp" "$STATUS_FILE"
 
 echo "$(date '+%H:%M:%S') 📊 Cycle ${RESTART_COUNT} complete: ${PASS_RATE}% pass rate" >> "$PROGRESS_FILE"
+
+# Check if we've achieved target pass rate
+if [ "$PASS_RATE" -ge "$TARGET_PASS_RATE" ]; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') ✅ Target achieved: ${PASS_RATE}% >= ${TARGET_PASS_RATE}%!" >> "$LOG_FILE"
+    echo "✅ SUCCESS: Target pass rate achieved!" >> "$PROGRESS_FILE"
+    
+    # Generate success summary
+    WORK_SUMMARY="Success after ${RESTART_COUNT} cycles: ${TESTS_PASS}/${TOTAL_TESTS} tests passing (${PASS_RATE}%)"
+    
+    # Enter maintenance mode
+    enter_maintenance_mode "tests_passing" "$RESTART_COUNT" "$WORK_SUMMARY"
+fi
 
 # Exit to trigger restart for next cycle
 exit 0
