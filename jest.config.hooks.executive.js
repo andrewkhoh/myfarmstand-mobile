@@ -9,7 +9,10 @@ module.exports = {
   testMatch: [
     '<rootDir>/src/hooks/executive/__tests__/**/*.test.{ts,tsx}'
   ],
-  testPathIgnorePatterns: ['/node_modules/', '<rootDir>/docker/'],
+  testPathIgnorePatterns: ['/node_modules/', '<rootDir>/docker/',
+    '<rootDir>/docker/volumes/',
+    '<rootDir>/docker/projects/'
+  ],
   modulePathIgnorePatterns: ['<rootDir>/docker/'],
   watchPathIgnorePatterns: ['<rootDir>/docker/'],
   moduleNameMapper: {

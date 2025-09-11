@@ -1,4 +1,24 @@
 module.exports = {
+  // Ignore Docker volumes to prevent Jest from scanning them
+  testPathIgnorePatterns: [
+    '<rootDir>/node_modules/',
+    '<rootDir>/docker/volumes/',
+    '<rootDir>/docker/projects/',
+    '<rootDir>/docker/volumes/**',
+    '<rootDir>/docker/projects/**'
+  ],
+  watchPathIgnorePatterns: [
+    '<rootDir>/docker/volumes/',
+    '<rootDir>/docker/projects/',
+    '<rootDir>/node_modules/'
+  ],
+  modulePathIgnorePatterns: [
+    '<rootDir>/docker/volumes/',
+    '<rootDir>/docker/projects/'
+  ],
+  haste: {
+    throwOnModuleCollision: false
+  },
   preset: 'jest-expo',
   
   // Fix: Only scan src directory to avoid Docker volumes
@@ -33,5 +53,6 @@ module.exports = {
   ],
   testTimeout: 10000,
   clearMocks: true,
-  restoreMocks: true
+  restoreMocks: true,
+  coverageDirectory: '<rootDir>/coverage/screens-executive'
 };

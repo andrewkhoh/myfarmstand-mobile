@@ -1,14 +1,30 @@
 module.exports = {
+  // CRITICAL FIX: Only scan src directory to avoid Docker volumes
+  roots: ['<rootDir>/src'],
+  
   setupFilesAfterEnv: ['<rootDir>/src/test/test-setup.ts'],
   testEnvironment: 'node',
   testMatch: [
     '**/__tests__/**/*.(ts|tsx|js)',
     '**/*.(test|spec).(ts|tsx|js)'
   ],
-  testPathIgnorePatterns: [
-    '<rootDir>/node_modules/',
+  testPathIgnorePatterns: ['<rootDir>/node_modules/',
     '.*\\.race\\.test\\.(ts|tsx|js)$',
+    '<rootDir>/docker/volumes/',
+    '<rootDir>/docker/projects/'
   ],
+  watchPathIgnorePatterns: [
+    '<rootDir>/docker/volumes/',
+    '<rootDir>/docker/projects/',
+    '<rootDir>/node_modules/'
+  ],
+  modulePathIgnorePatterns: [
+    '<rootDir>/docker/volumes/',
+    '<rootDir>/docker/projects/'
+  ],
+  haste: {
+    throwOnModuleCollision: false
+  },
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],
   transform: {
     '^.+\\.(js|jsx|ts|tsx)$': ['babel-jest', { configFile: './babel.config.js' }]
@@ -23,5 +39,6 @@ module.exports = {
   },
   transformIgnorePatterns: [
     'node_modules/(?!(@react-native|react-native|@tanstack|@testing-library|expo|@expo|@supabase|isows))'
-  ]
+  ],
+  coverageDirectory: '<rootDir>/coverage/basic'
 };

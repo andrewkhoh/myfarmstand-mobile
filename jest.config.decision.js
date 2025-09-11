@@ -1,7 +1,28 @@
 module.exports = {
+  // Ignore Docker volumes to prevent Jest from scanning them
+  testPathIgnorePatterns: [
+    '<rootDir>/node_modules/',
+    '<rootDir>/docker/volumes/',
+    '<rootDir>/docker/projects/',
+    '<rootDir>/docker/volumes/**',
+    '<rootDir>/docker/projects/**'
+  ],
+  watchPathIgnorePatterns: [
+    '<rootDir>/docker/volumes/',
+    '<rootDir>/docker/projects/',
+    '<rootDir>/node_modules/'
+  ],
+  modulePathIgnorePatterns: [
+    '<rootDir>/docker/volumes/',
+    '<rootDir>/docker/projects/'
+  ],
+  haste: {
+    throwOnModuleCollision: false
+  },
   displayName: 'Decision Support Tests',
   testEnvironment: 'node',
-  roots: ['<rootDir>/src/features/decision-support'],
+  // CRITICAL FIX: Only scan src directory to avoid Docker volumes
+  roots: ['<rootDir>/src'],
   testMatch: ['**/__tests__/**/*.test.ts', '**/__tests__/**/*.test.tsx'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
@@ -39,5 +60,6 @@ module.exports = {
     }
   },
   verbose: true,
-  testTimeout: 10000
+  testTimeout: 10000,
+  coverageDirectory: '<rootDir>/coverage/decision'
 };

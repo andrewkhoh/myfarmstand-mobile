@@ -1,6 +1,9 @@
 module.exports = {
-  preset: 'jest-expo',
   displayName: 'services',
+  
+  // CRITICAL FIX: Only scan src directory to avoid Docker volumes
+  roots: ['<rootDir>/src'],
+  
   testMatch: [
     '**/services/__tests__/**/*.(ts|js)',
     '**/services/**/*.test.(ts|js)'
@@ -10,9 +13,23 @@ module.exports = {
     '/android/',
     '/ios/',
     'simpleServices.test.ts',
-    'allServices.test.ts'
+    'allServices.test.ts',
+    '<rootDir>/docker/volumes/',
+    '<rootDir>/docker/projects/'
   ],
-  setupFilesAfterEnv: ['<rootDir>/src/test/test-setup.ts'],
+  watchPathIgnorePatterns: [
+    '<rootDir>/docker/volumes/',
+    '<rootDir>/docker/projects/',
+    '<rootDir>/node_modules/'
+  ],
+  modulePathIgnorePatterns: [
+    '<rootDir>/docker/volumes/',
+    '<rootDir>/docker/projects/'
+  ],
+  haste: {
+    throwOnModuleCollision: false
+  },
+  setupFilesAfterEnv: ['<rootDir>/src/test/serviceSetup.ts'],
   globals: {
     TEST_MODE: 'service'
   },
@@ -31,5 +48,6 @@ module.exports = {
     'src/services/**/*.{ts,tsx}',
     '!src/services/**/*.d.ts',
     '!src/services/__tests__/**/*'
-  ]
+  ],
+  coverageDirectory: '<rootDir>/coverage/services'
 };

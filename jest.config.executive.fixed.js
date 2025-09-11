@@ -11,7 +11,10 @@ module.exports = {
   ],
   
   // These don't prevent haste map scanning, but keep them for other purposes
-  testPathIgnorePatterns: ['/node_modules/', '<rootDir>/docker/'],
+  testPathIgnorePatterns: ['/node_modules/', '<rootDir>/docker/',
+    '<rootDir>/docker/volumes/',
+    '<rootDir>/docker/projects/'
+  ],
   modulePathIgnorePatterns: ['<rootDir>/docker/'],
   watchPathIgnorePatterns: ['<rootDir>/docker/'],
   
@@ -38,5 +41,6 @@ module.exports = {
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],
   verbose: true,
   bail: false,
-  testTimeout: 10000
+  testTimeout: 10000,
+  coverageDirectory: '<rootDir>/coverage/executive-fixed'
 };

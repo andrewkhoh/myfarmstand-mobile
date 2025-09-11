@@ -3,11 +3,23 @@ module.exports = {
   testMatch: [
     "<rootDir>/src/hooks/executive/__tests__/minimal.test.tsx"
   ],
-  testPathIgnorePatterns: ['/node_modules/', '/docker/'],
-  modulePathIgnorePatterns: ['/docker/'],
-  watchPathIgnorePatterns: ['/docker/'],
+  testPathIgnorePatterns: [
+    '<rootDir>/node_modules/',
+    '<rootDir>/docker/volumes/',
+    '<rootDir>/docker/projects/'
+  ],
+  modulePathIgnorePatterns: [
+    '<rootDir>/docker/volumes/',
+    '<rootDir>/docker/projects/'
+  ],
+  watchPathIgnorePatterns: [
+    '<rootDir>/docker/volumes/',
+    '<rootDir>/docker/projects/',
+    '<rootDir>/node_modules/'
+  ],
   haste: {
     throwOnModuleCollision: false
   },
-  roots: ['<rootDir>/src']
+  roots: ['<rootDir>/src'],
+  coverageDirectory: '<rootDir>/coverage/minimal'
 };

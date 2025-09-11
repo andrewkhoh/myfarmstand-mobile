@@ -1,4 +1,7 @@
 module.exports = {
+  // CRITICAL FIX: Only scan src directory to avoid Docker volumes
+  roots: ['<rootDir>/src'],
+  
   preset: './node_modules/jest-expo/jest-preset.js',
   setupFilesAfterEnv: ['<rootDir>/src/test/test-setup.ts'],
   globals: {
@@ -8,15 +11,28 @@ module.exports = {
     '**/__tests__/**/*.(ts|tsx|js)',
     '**/*.(test|spec).(ts|tsx|js)'
   ],
-  testPathIgnorePatterns: [
-    '<rootDir>/node_modules/',
+  testPathIgnorePatterns: ['<rootDir>/node_modules/',
     '.*\\.race\\.test\\.(ts|tsx|js)$',
     '/src/services/',
     '/src/hooks/__tests__/archive/',
     '/src/hooks/__tests__/prototypes/',
     'src/hooks/__tests__/archive',
-    'src/hooks/__tests__/prototypes'
+    'src/hooks/__tests__/prototypes',
+    '<rootDir>/docker/volumes/',
+    '<rootDir>/docker/projects/'
   ],
+  watchPathIgnorePatterns: [
+    '<rootDir>/docker/volumes/',
+    '<rootDir>/docker/projects/',
+    '<rootDir>/node_modules/'
+  ],
+  modulePathIgnorePatterns: [
+    '<rootDir>/docker/volumes/',
+    '<rootDir>/docker/projects/'
+  ],
+  haste: {
+    throwOnModuleCollision: false
+  },
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',
     '!src/**/*.d.ts',
@@ -37,5 +53,6 @@ module.exports = {
   },
   transformIgnorePatterns: [
     'node_modules/(?!(@react-native|react-native|@tanstack|@testing-library|expo|@expo|@supabase|isows))'
-  ]
+  ],
+  coverageDirectory: '<rootDir>/coverage/hooks-regular'
 };

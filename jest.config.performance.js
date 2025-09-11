@@ -6,6 +6,26 @@
  */
 
 module.exports = {
+  // Ignore Docker volumes to prevent Jest from scanning them
+  testPathIgnorePatterns: [
+    '<rootDir>/node_modules/',
+    '<rootDir>/docker/volumes/',
+    '<rootDir>/docker/projects/',
+    '<rootDir>/docker/volumes/**',
+    '<rootDir>/docker/projects/**'
+  ],
+  watchPathIgnorePatterns: [
+    '<rootDir>/docker/volumes/',
+    '<rootDir>/docker/projects/',
+    '<rootDir>/node_modules/'
+  ],
+  modulePathIgnorePatterns: [
+    '<rootDir>/docker/volumes/',
+    '<rootDir>/docker/projects/'
+  ],
+  haste: {
+    throwOnModuleCollision: false
+  },
   preset: 'react-native',
   testEnvironment: 'node',
   roots: ['<rootDir>/src'],
@@ -32,7 +52,7 @@ module.exports = {
     '!src/**/*.test.{ts,tsx}',
     '!src/test/**/*',
   ],
-  coverageDirectory: 'coverage/performance',
+  coverageDirectory: '<rootDir>/coverage/performance',
   coverageReporters: ['text', 'lcov', 'html'],
   globals: {
     'ts-jest': {

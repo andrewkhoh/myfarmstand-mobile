@@ -1,16 +1,32 @@
 module.exports = {
+  // CRITICAL FIX: Only scan src directory to avoid Docker volumes
+  roots: ['<rootDir>/src'],
+  
   preset: 'jest-expo',
   displayName: 'Navigation Tests',
   testMatch: [
     '**/navigation/__tests__/**/*.(ts|tsx)',
     '**/navigation/**/*.test.(ts|tsx)'
   ],
-  testPathIgnorePatterns: [
-    '/node_modules/',
+  testPathIgnorePatterns: ['/node_modules/',
     '/android/',
     '/ios/',
-    '/.expo/'
+    '/.expo/',
+    '<rootDir>/docker/volumes/',
+    '<rootDir>/docker/projects/'
   ],
+  watchPathIgnorePatterns: [
+    '<rootDir>/docker/volumes/',
+    '<rootDir>/docker/projects/',
+    '<rootDir>/node_modules/'
+  ],
+  modulePathIgnorePatterns: [
+    '<rootDir>/docker/volumes/',
+    '<rootDir>/docker/projects/'
+  ],
+  haste: {
+    throwOnModuleCollision: false
+  },
   setupFilesAfterEnv: [
     '<rootDir>/src/test/test-setup.ts'
   ],

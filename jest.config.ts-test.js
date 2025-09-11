@@ -1,6 +1,29 @@
 const { defaults } = require('ts-jest/presets');
 
 module.exports = {
+  // CRITICAL FIX: Only scan src directory to avoid Docker volumes
+  roots: ['<rootDir>/src'],
+  
+  // Ignore Docker volumes to prevent Jest from scanning them
+  testPathIgnorePatterns: [
+    '<rootDir>/node_modules/',
+    '<rootDir>/docker/volumes/',
+    '<rootDir>/docker/projects/',
+    '<rootDir>/docker/volumes/**',
+    '<rootDir>/docker/projects/**'
+  ],
+  watchPathIgnorePatterns: [
+    '<rootDir>/docker/volumes/',
+    '<rootDir>/docker/projects/',
+    '<rootDir>/node_modules/'
+  ],
+  modulePathIgnorePatterns: [
+    '<rootDir>/docker/volumes/',
+    '<rootDir>/docker/projects/'
+  ],
+  haste: {
+    throwOnModuleCollision: false
+  },
   ...defaults,
   testEnvironment: 'node',
   setupFilesAfterEnv: ['<rootDir>/src/test/test-setup.ts'],
@@ -21,5 +44,6 @@ module.exports = {
   },
   transformIgnorePatterns: [
     'node_modules/(?!(@react-native|react-native|@tanstack|@testing-library|expo|@expo|@supabase|isows))'
-  ]
+  ],
+  coverageDirectory: '<rootDir>/coverage/ts-test'
 };
