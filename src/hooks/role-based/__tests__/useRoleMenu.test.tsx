@@ -289,5 +289,3 @@ describe('useRoleMenu Hook Tests - Refactored Infrastructure', () => {
     });
   });
 });
-
-});

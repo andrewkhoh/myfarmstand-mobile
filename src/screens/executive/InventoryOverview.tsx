@@ -9,8 +9,8 @@ import {
   TouchableOpacity,
   RefreshControl
 } from 'react-native';
-import { useCrossRoleAnalytics } from '@/hooks/executive/useCrossRoleAnalytics';
-import { useMetricTrends } from '@/hooks/executive/useMetricTrends';
+import { useCrossRoleAnalytics } from '../../hooks/executive/useCrossRoleAnalytics';
+import { useMetricTrends } from '../../hooks/executive/useMetricTrends';
 
 interface InventoryMetricProps {
   title: string;

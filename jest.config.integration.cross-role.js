@@ -3,9 +3,7 @@ module.exports = {
   testPathIgnorePatterns: [
     '<rootDir>/node_modules/',
     '<rootDir>/docker/volumes/',
-    '<rootDir>/docker/projects/',
-    '<rootDir>/docker/volumes/**',
-    '<rootDir>/docker/projects/**'
+    '<rootDir>/docker/projects/'
   ],
   watchPathIgnorePatterns: [
     '<rootDir>/docker/volumes/',

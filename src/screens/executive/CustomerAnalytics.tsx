@@ -10,8 +10,8 @@ import {
   RefreshControl,
   Dimensions
 } from 'react-native';
-import { useInsightGeneration } from '@/hooks/executive/useInsightGeneration';
-import { useMetricTrends } from '@/hooks/executive/useMetricTrends';
+import { useInsightGeneration } from '../../hooks/executive/useInsightGeneration';
+import { useMetricTrends } from '../../hooks/executive/useMetricTrends';
 
 const { width: screenWidth } = Dimensions.get('window');
 

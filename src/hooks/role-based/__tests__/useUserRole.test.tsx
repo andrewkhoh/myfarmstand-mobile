@@ -9,7 +9,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 
 // Mock the service first
-jest.mock('../../../services/role-based/rolePermissionService', () => ({
+jest.mock('../../../services/rolePermissionService', () => ({
   RolePermissionService: {
     getUserRole: jest.fn(),
   }
@@ -22,7 +22,7 @@ jest.mock('../../useAuth', () => ({
 
 // Import hook after mocks
 import { useUserRole } from '../useUserRole';
-import { RolePermissionService } from '../../../services/role-based/rolePermissionService';
+import { RolePermissionService } from '../../../services/rolePermissionService';
 import { useCurrentUser } from '../../useAuth';
 
 const mockGetUserRole = RolePermissionService.getUserRole as jest.MockedFunction<typeof RolePermissionService.getUserRole>;

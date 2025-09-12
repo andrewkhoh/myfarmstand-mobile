@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import Svg, { Path, Circle, Text as SvgText } from 'react-native-svg';
-import { formatPercent } from '@/utils/formatters';
+import { formatPercent } from '../../utils/formatters';
 
 export interface PieData {
   label: string;

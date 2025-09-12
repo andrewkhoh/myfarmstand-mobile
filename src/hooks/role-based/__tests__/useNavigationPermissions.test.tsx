@@ -256,5 +256,3 @@ describe('useNavigationPermissions Hook Tests - Refactored Infrastructure', () =
   });
 
 });
-
-});

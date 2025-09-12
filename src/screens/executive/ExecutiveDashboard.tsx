@@ -9,8 +9,8 @@ import {
   TouchableOpacity,
   RefreshControl
 } from 'react-native';
-import { useBusinessMetrics } from '@/hooks/executive/useBusinessMetrics';
-import { useBusinessInsights } from '@/hooks/executive/useBusinessInsights';
+import { useBusinessMetrics } from '../../hooks/executive/useBusinessMetrics';
+import { useBusinessInsights } from '../../hooks/executive/useBusinessInsights';
 
 const formatCurrency = (amount: number): string => {
   return `$${amount.toLocaleString()}`;

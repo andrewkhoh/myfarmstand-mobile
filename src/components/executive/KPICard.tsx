@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, AccessibilityInfo } from 'react-native';
-import { formatCurrency, formatPercent } from '@/utils/formatters';
+import { formatCurrency, formatPercent } from '../../utils/formatters';
 import { TrendIndicator } from './TrendIndicator';
 
 export interface KPICardProps {

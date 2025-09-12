@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import Svg, { Rect, Text as SvgText } from 'react-native-svg';
-import { formatCompactNumber } from '@/utils/formatters';
+import { formatCompactNumber } from '../../utils/formatters';
 
 export interface BarData {
   label: string;

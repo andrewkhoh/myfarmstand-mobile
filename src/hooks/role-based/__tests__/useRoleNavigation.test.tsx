@@ -268,5 +268,3 @@ describe('useRoleNavigation Hook Tests - Refactored Infrastructure', () => {
     });
   });
 });
-
-});

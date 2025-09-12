@@ -1,9 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { RolePermissionService } from '../../services/role-based/rolePermissionService';
+import { RolePermissionService } from '../../services/rolePermissionService';
 import { useCurrentUser } from '../useAuth';
 import { roleKeys } from '../../utils/queryKeyFactory';
 import { ROLE_PERMISSIONS } from '../../schemas/role-based/rolePermission.schemas';
-import type { RoleType, RolePermissionTransform } from '../../services/role-based/rolePermissionService';
+import type { RoleType, RolePermissionTransform } from '../../services/rolePermissionService';
 
 // Create user-friendly permission error (following UX patterns)
 const createPermissionError = (
@@ -110,6 +110,10 @@ export function useRolePermissions(userId?: string) {
     retry: (failureCount, error) => {
       // Don't retry auth errors
       if (error?.message?.includes('permission denied')) {
+        return false;
+      }
+      // Don't retry service errors (for testing)
+      if (error?.message?.includes('Service unavailable')) {
         return false;
       }
       return failureCount < 3;

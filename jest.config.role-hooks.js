@@ -6,9 +6,7 @@ module.exports = {
   testPathIgnorePatterns: [
     '<rootDir>/node_modules/',
     '<rootDir>/docker/volumes/',
-    '<rootDir>/docker/projects/',
-    '<rootDir>/docker/volumes/**',
-    '<rootDir>/docker/projects/**'
+    '<rootDir>/docker/projects/'
   ],
   watchPathIgnorePatterns: [
     '<rootDir>/docker/volumes/',
@@ -23,14 +21,23 @@ module.exports = {
     throwOnModuleCollision: false
   },
   testEnvironment: 'node',
-  setupFilesAfterEnv: ['<rootDir>/src/test/test-setup.ts'],
+  setupFilesAfterEnv: ['<rootDir>/src/test/role-test-setup.ts'],
   testMatch: [
     '**/useUserRole.test.tsx',
     '**/useRolePermissions.test.tsx',
   ],
   transform: {
-    '^.+\\.(ts|tsx)$': ['babel-jest', { presets: ['@babel/preset-typescript'] }],
+    '^.+\\.(js|jsx|ts|tsx)$': ['ts-jest', {
+      tsconfig: {
+        jsx: 'react'
+      },
+      isolatedModules: true,
+      diagnostics: false
+    }]
   },
+  transformIgnorePatterns: [
+    'node_modules/(?!(react-native|@react-native|@testing-library/jest-native|react-native-.*|@react-navigation|@react-native-community|expo|expo-.*|@expo|@unimodules|unimodules|@sentry|sentry-expo|native-base|react-native-svg|react-native-screens|react-native-safe-area-context|react-native-gesture-handler|react-native-reanimated)/)'
+  ],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
   },

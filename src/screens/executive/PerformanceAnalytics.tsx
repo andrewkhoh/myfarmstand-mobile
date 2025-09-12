@@ -10,8 +10,8 @@ import {
   RefreshControl,
   Dimensions
 } from 'react-native';
-import { useMetricTrends } from '@/hooks/executive/useMetricTrends';
-import { useCrossRoleAnalytics } from '@/hooks/executive/useCrossRoleAnalytics';
+import { useMetricTrends } from '../../hooks/executive/useMetricTrends';
+import { useCrossRoleAnalytics } from '../../hooks/executive/useCrossRoleAnalytics';
 
 const { width: screenWidth } = Dimensions.get('window');
 

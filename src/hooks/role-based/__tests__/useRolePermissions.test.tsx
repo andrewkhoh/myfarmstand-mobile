@@ -9,7 +9,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 
 // Mock the service first
-jest.mock('../../../services/role-based/rolePermissionService', () => ({
+jest.mock('../../../services/rolePermissionService', () => ({
   RolePermissionService: {
     getUserRole: jest.fn(),
     hasPermission: jest.fn(),
@@ -24,7 +24,7 @@ jest.mock('../../useAuth', () => ({
 
 // Import hook after mocks
 import { useRolePermissions } from '../useRolePermissions';
-import { RolePermissionService } from '../../../services/role-based/rolePermissionService';
+import { RolePermissionService } from '../../../services/rolePermissionService';
 import { useCurrentUser } from '../../useAuth';
 import { ROLE_PERMISSIONS } from '../../../schemas/role-based/rolePermission.schemas';
 
@@ -81,7 +81,7 @@ describe('useRolePermissions Hook Tests', () => {
     mockGetUserRole.mockResolvedValue(mockRoleData);
   });
 
-  describe('=' Basic Functionality', () => {
+  describe('ðŸ”‘ Basic Functionality', () => {
     it('should fetch user permissions when authenticated', async () => {
       const { result } = renderHook(() => useRolePermissions(), { 
         wrapper: createWrapper() 
@@ -177,7 +177,7 @@ describe('useRolePermissions Hook Tests', () => {
     });
   });
 
-  describe('=Ê Different Role Types', () => {
+  describe('=ï¿½ Different Role Types', () => {
     it('should handle inventory_staff permissions', async () => {
       const { result } = renderHook(() => useRolePermissions(), { 
         wrapper: createWrapper() 
@@ -345,7 +345,7 @@ describe('useRolePermissions Hook Tests', () => {
     });
   });
 
-  describe('<¯ Permission Utilities', () => {
+  describe('<ï¿½ Permission Utilities', () => {
     it('should provide isAdmin utility', async () => {
       mockGetUserRole.mockResolvedValue({
         ...mockRoleData,

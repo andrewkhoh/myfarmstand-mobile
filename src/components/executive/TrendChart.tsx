@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import Svg, { Line, Path, Circle, Text as SvgText } from 'react-native-svg';
-import { formatCompactNumber } from '@/utils/formatters';
+import { formatCompactNumber } from '../../utils/formatters';
 
 export interface DataPoint {
   x: number | Date;
