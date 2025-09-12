@@ -5,7 +5,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../useAuth';
 import { ProductBundleService } from '../../services/marketing/productBundleService';
-import { RolePermissionService } from '../../services/role-based/rolePermissionService';
+import { RolePermissionService } from '../../services/rolePermissionService';
 import { ValidationMonitor } from '../../utils/validationMonitor';
 import { bundleKeys, inventoryKeys } from '../../utils/queryKeyFactory';
 import type {

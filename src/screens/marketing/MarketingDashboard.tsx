@@ -10,16 +10,16 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { useMarketingDashboard } from '@/hooks/marketing/useMarketingDashboard';
-import { useActiveCampaigns } from '@/hooks/marketing/useActiveCampaigns';
-import { usePendingContent } from '@/hooks/marketing/usePendingContent';
-import { StatCard } from '@/components/marketing/StatCard';
-import { CampaignCard } from '@/components/marketing/CampaignCard';
-import { ContentItem } from '@/components/marketing/ContentItem';
-import { Section } from '@/components/marketing/Section';
-import { FloatingActionButton } from '@/components/marketing/FloatingActionButton';
-import { LoadingScreen } from '@/components/marketing/LoadingScreen';
-import { ErrorScreen } from '@/components/marketing/ErrorScreen';
+import { useMarketingDashboard } from '../../hooks/marketing/useMarketingDashboard';
+import { useActiveCampaigns } from '../../hooks/marketing/useActiveCampaigns';
+import { usePendingContent } from '../../hooks/marketing/usePendingContent';
+import { StatCard } from '../../components/marketing/StatCard';
+import { CampaignCard } from '../../components/marketing/CampaignCard';
+import { ContentItem } from '../../components/marketing/ContentItem';
+import { Section } from '../../components/marketing/Section';
+import { FloatingActionButton } from '../../components/marketing/FloatingActionButton';
+import { LoadingScreen } from '../../components/marketing/LoadingScreen';
+import { ErrorScreen } from '../../components/marketing/ErrorScreen';
 
 export function MarketingDashboard() {
   const navigation = useNavigation<any>();

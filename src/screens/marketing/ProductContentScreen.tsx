@@ -12,14 +12,14 @@ import {
   Image,
   ActivityIndicator,
 } from 'react-native';
-import { useContentWorkflow } from '@/hooks/marketing/useContentWorkflow';
-import { useContentUpload } from '@/hooks/marketing/useContentUpload';
-import { RichTextEditor } from '@/components/marketing/RichTextEditor';
-import { ImageGallery } from '@/components/marketing/ImageGallery';
-import { WorkflowBadge } from '@/components/marketing/WorkflowBadge';
-import { LoadingOverlay } from '@/components/marketing/LoadingOverlay';
-import { ProgressBar } from '@/components/marketing/ProgressBar';
-import { TagInput } from '@/components/marketing/TagInput';
+import { useContentWorkflow } from '../../hooks/marketing/useContentWorkflow';
+import { useContentUpload } from '../../hooks/marketing/useContentUpload';
+import { RichTextEditor } from '../../components/marketing/RichTextEditor';
+import { ImageGallery } from '../../components/marketing/ImageGallery';
+import { WorkflowBadge } from '../../components/marketing/WorkflowBadge';
+import { LoadingOverlay } from '../../components/marketing/LoadingOverlay';
+import { ProgressBar } from '../../components/marketing/ProgressBar';
+import { TagInput } from '../../components/marketing/TagInput';
 
 interface ProductContentScreenProps {
   route: {

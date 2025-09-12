@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
   Modal,
 } from 'react-native';
-import { useMarketingAnalytics } from '@/hooks/marketing';
+import { useMarketingAnalytics } from '../../hooks/marketing';
 
 interface MarketingAnalyticsScreenProps {
   navigation?: any;

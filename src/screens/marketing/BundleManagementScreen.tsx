@@ -10,7 +10,7 @@ import {
   RefreshControl,
   Switch,
 } from 'react-native';
-import { useProductBundles } from '@/hooks/marketing/useProductBundles';
+import { useProductBundles } from '../../hooks/marketing/useProductBundles';
 
 interface BundleManagementScreenProps {
   navigation: any;

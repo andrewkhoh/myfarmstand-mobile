@@ -9,8 +9,8 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { useCampaignMutation } from '@/hooks/marketing/useCampaignMutation';
-import { useCampaignData } from '@/hooks/marketing/useCampaignData';
+import { useCampaignMutation } from '../../hooks/marketing/useCampaignMutation';
+import { useCampaignData } from '../../hooks/marketing/useCampaignData';
 
 interface CampaignPlannerScreenProps {
   route: {
