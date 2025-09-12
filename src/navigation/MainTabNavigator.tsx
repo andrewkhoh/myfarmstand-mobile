@@ -29,8 +29,14 @@ const CartBadge: React.FC<{ count: number }> = ({ count }) => {
 export const MainTabNavigator: React.FC = () => {
   const { data: user } = useCurrentUser();
   const { items } = useCart();
-  const isAdmin = user?.role === 'admin' || user?.role === 'manager' || user?.role === 'staff';
-  const isStaff = user?.role === 'admin' || user?.role === 'manager' || user?.role === 'staff';
+  // Check if user has access to admin/staff features (case-insensitive)
+  const userRole = user?.role?.toLowerCase();
+  const hasStaffAccess = ['admin', 'manager', 'staff'].includes(userRole || '');
+  const hasExecutiveAccess = ['admin', 'executive'].includes(userRole || '');
+  const isAdmin = userRole === 'admin';
+  const isExecutive = userRole === 'executive';
+  const isManager = userRole === 'manager';
+  const isStaff = userRole === 'staff';
   const cartItemCount = items.reduce((total, item) => total + item.quantity, 0);
   
   // Debug badge count changes
@@ -124,14 +130,14 @@ export const MainTabNavigator: React.FC = () => {
         component={ProfileScreen}
         options={{ title: 'Profile' }}
       />
-      {isAdmin && (
+      {hasStaffAccess && (
         <Tab.Screen 
           name="Admin" 
           component={AdminStackNavigator}
           options={{ title: 'Admin', headerShown: false }}
         />
       )}
-      {isStaff && (
+      {hasStaffAccess && (
         <Tab.Screen 
           name="StaffQRScanner" 
           component={StaffQRScannerScreen}

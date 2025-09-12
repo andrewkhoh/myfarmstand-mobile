@@ -44,7 +44,7 @@ export function useCrossRoleAnalytics(options: UseCrossRoleAnalyticsOptions = {}
     queryFn: async () => {
       // Check permissions
       const canAccess = await hasPermission('cross_role_analytics_read');
-      if (!canAccess && role !== 'executive' && role !== 'admin') {
+      if (!canAccess && !['executive', 'admin', 'manager'].includes(role.toLowerCase())) {
         const permError = new Error('Insufficient permissions for cross-role analytics');
         (permError as any).isPermissionError = true;
         throw permError;

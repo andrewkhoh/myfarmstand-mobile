@@ -59,9 +59,11 @@ export const MarketingHub: React.FC = () => {
   const navigation = useNavigation<MarketingHubNavigationProp>();
   const { data: user } = useCurrentUser();
   
-  const isAdmin = user?.role === 'admin';
-  const isManager = user?.role === 'manager';
-  const isMarketing = user?.role === 'marketing';
+  // Role-based access checks (case-insensitive)
+  const userRole = user?.role?.toLowerCase();
+  const isAdmin = userRole === 'admin';
+  const isManager = userRole === 'manager';
+  const isMarketing = userRole === 'marketing';
   const canAccessMarketing = isAdmin || isManager || isMarketing;
   
   const menuItems = [

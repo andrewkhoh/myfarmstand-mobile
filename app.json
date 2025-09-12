@@ -7,6 +7,10 @@
     "web": {
       "bundler": "metro"
     },
-    "userInterfaceStyle": "automatic"
+    "userInterfaceStyle": "automatic",
+    "scheme": "myfarmstand",
+    "experiments": {
+      "typedRoutes": false
+    }
   }
 }

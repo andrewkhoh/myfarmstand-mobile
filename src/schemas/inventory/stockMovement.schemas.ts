@@ -29,10 +29,10 @@ export const StockMovementDatabaseSchema = z.object({
   new_stock: z.number().int().min(0),
   reason: z.string().nullable(),
   performed_by: z.string().uuid().nullable(),
-  performed_at: z.string(),
+  performed_at: z.string().nullable(),
   reference_order_id: z.string().uuid().nullable(),
   batch_id: z.string().uuid().nullable(),
-  created_at: z.string()
+  created_at: z.string().nullable()
 });
 
 // Database row type

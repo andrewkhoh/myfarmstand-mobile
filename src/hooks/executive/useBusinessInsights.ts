@@ -402,7 +402,7 @@ export const useBusinessInsights = (options: ExtendedBusinessInsightsOptions = {
     refetchOnMount: true,
     refetchOnWindowFocus: false,
     refetchOnReconnect: true,
-    enabled: !!role && role === 'executive', // Simple enabled guard
+    enabled: !!role && ['executive', 'admin'].includes(role.toLowerCase()), // Simple enabled guard
     retry: (failureCount, error) => {
       // Don't retry on auth errors
       if (error.message?.includes('authentication') || error.message?.includes('permission')) {
@@ -521,7 +521,7 @@ export const useBusinessInsights = (options: ExtendedBusinessInsightsOptions = {
                   (!options.useFallback && !!queryError);
 
   // Authentication guard - following useCart pattern exactly
-  if (!role || role !== 'executive') {
+  if (!role || !['executive', 'admin'].includes(role.toLowerCase())) {
     const authError = createBusinessInsightsError(
       'PERMISSION_DENIED',
       'User lacks executive permissions',
@@ -593,7 +593,7 @@ export const useBusinessInsights = (options: ExtendedBusinessInsightsOptions = {
 
   // Real-time subscription setup
   useEffect(() => {
-    if (!options.realtime || !user?.id || role !== 'executive') return;
+    if (!options.realtime || !user?.id || !['executive', 'admin'].includes(role.toLowerCase())) return;
 
     const channel = `executive:insights:${user.id}`;
     
@@ -690,7 +690,7 @@ export const useBusinessInsights = (options: ExtendedBusinessInsightsOptions = {
   
   // Prefetching for predictive insights
   useEffect(() => {
-    if (options.prefetchPredictive && !isLoading && isSuccess && role === 'executive') {
+    if (options.prefetchPredictive && !isLoading && isSuccess && ['executive', 'admin'].includes(role.toLowerCase())) {
       const predictiveQueryKey = ['executive', 'businessInsights', 'predictive'];
       // Use setTimeout to ensure the prefetch happens after the initial query completes
       const timeoutId = setTimeout(() => {

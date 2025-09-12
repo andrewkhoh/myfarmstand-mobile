@@ -13,11 +13,11 @@ export const AdminScreen: React.FC = () => {
   const { data: user } = useCurrentUser();
   const navigation = useNavigation<AdminScreenNavigationProp>();
   
-  // Role-based visibility helpers
-  const isAdmin = user?.role === 'admin';
-  const isManager = user?.role === 'manager';
-  const isStaff = user?.role === 'staff';
-  const isMarketing = user?.role === 'marketing';
+  // Role-based visibility helpers (case-insensitive)
+  const isAdmin = user?.role?.toLowerCase() === 'admin';
+  const isManager = user?.role?.toLowerCase() === 'manager';
+  const isStaff = user?.role?.toLowerCase() === 'staff';
+  const isMarketing = user?.role?.toLowerCase() === 'marketing';
   const canSeeExecutive = isAdmin || isManager;
   const canSeeMarketing = isAdmin || isManager || isMarketing;
   const canSeeInventory = isAdmin || isManager || isStaff;

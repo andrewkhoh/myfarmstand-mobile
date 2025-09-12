@@ -34,7 +34,7 @@ export function useMetricTrends(options: UseMetricTrendsOptions = {}) {
     queryFn: async () => {
       // Check permissions
       const canAccess = await hasPermission('business_metrics_read');
-      if (!canAccess && role !== 'executive' && role !== 'admin') {
+      if (!canAccess && !['executive', 'admin', 'manager'].includes(role.toLowerCase())) {
         const permError = new Error('Insufficient permissions for metric trends access');
         (permError as any).isPermissionError = true;
         throw permError;

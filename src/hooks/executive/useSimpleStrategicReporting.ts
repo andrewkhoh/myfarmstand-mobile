@@ -48,7 +48,7 @@ export const useSimpleStrategicReporting = (options: UseStrategicReportingOption
     refetchOnMount: true,
     refetchOnWindowFocus: false,
     refetchOnReconnect: true,
-    enabled: !!role && role === 'executive', // Simple enabled guard
+    enabled: !!role && ['executive', 'admin'].includes(role.toLowerCase()), // Simple enabled guard
     retry: (failureCount, error) => {
       // Don't retry on auth errors
       if (error.message?.includes('authentication') || error.message?.includes('permission')) {
@@ -67,7 +67,7 @@ export const useSimpleStrategicReporting = (options: UseStrategicReportingOption
   ) : null;
 
   // Authentication guard - following useCart pattern exactly
-  if (!role || role !== 'executive') {
+  if (!role || !['executive', 'admin'].includes(role.toLowerCase())) {
     const authError = createStrategicReportingError(
       'PERMISSION_DENIED',
       'User lacks executive permissions',

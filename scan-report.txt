@@ -1,0 +1,426 @@
+🔍 Dependency Tree Scanner
+
+📂 Scanning src directory...
+
+📂 Scanning App files...
+
+
+============================================================
+📊 SCAN RESULTS
+============================================================
+
+[31m❌ BROKEN IMPORTS (53 total):[0m
+
+  [33msrc/ARCHIVE/useCentralizedRealtime.ts:[0m
+    Line 4: [31m./useAuth[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/ARCHIVE/useAuth
+
+  [33msrc/ARCHIVE/useEntityQuery.ts:[0m
+    Line 3: [31m./useAuth[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/ARCHIVE/useAuth
+
+  [33msrc/hooks/inventory/backup-before-tdd/cacheIntegration.ts:[0m
+    Line 7: [31m../../utils/queryKeyFactory[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/hooks/utils/queryKeyFactory
+
+  [33msrc/hooks/inventory/backup-before-tdd/cachePerformanceMonitor.ts:[0m
+    Line 6: [31m../../utils/validationMonitor[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/hooks/utils/validationMonitor
+
+  [33msrc/hooks/inventory/backup-before-tdd/performanceOptimization.ts:[0m
+    Line 9: [31m../../utils/validationMonitor[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/hooks/utils/validationMonitor
+
+  [33msrc/hooks/inventory/backup-before-tdd/useBulkOperations.ts:[0m
+    Line 7: [31m../../services/inventory/inventoryService[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/hooks/services/inventory/inventoryService
+    Line 8: [31m../../utils/queryKeyFactory[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/hooks/utils/queryKeyFactory
+    Line 9: [31m../useAuth[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/hooks/inventory/useAuth
+
+  [33msrc/hooks/inventory/backup-before-tdd/useInventoryDashboard.ts:[0m
+    Line 7: [31m../../services/inventory/inventoryService[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/hooks/services/inventory/inventoryService
+    Line 8: [31m../../utils/queryKeyFactory[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/hooks/utils/queryKeyFactory
+    Line 9: [31m../useAuth[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/hooks/inventory/useAuth
+
+  [33msrc/hooks/inventory/backup-before-tdd/useInventoryItems.ts:[0m
+    Line 7: [31m../../services/inventory/inventoryService[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/hooks/services/inventory/inventoryService
+    Line 8: [31m../../utils/queryKeyFactory[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/hooks/utils/queryKeyFactory
+
+  [33msrc/hooks/inventory/backup-before-tdd/useInventoryOperations.ts:[0m
+    Line 7: [31m../../services/inventory/inventoryService[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/hooks/services/inventory/inventoryService
+    Line 8: [31m../../utils/queryKeyFactory[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/hooks/utils/queryKeyFactory
+
+  [33msrc/hooks/inventory/backup-before-tdd/useStockMovements.ts:[0m
+    Line 7: [31m../../services/inventory/stockMovementService[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/hooks/services/inventory/stockMovementService
+    Line 8: [31m../../utils/queryKeyFactory[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/hooks/utils/queryKeyFactory
+
+  [33msrc/hooks/inventory/backup-before-tdd/useStockOperations.ts:[0m
+    Line 7: [31m../../services/inventory/inventoryService[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/hooks/services/inventory/inventoryService
+    Line 8: [31m../../utils/queryKeyFactory[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/hooks/utils/queryKeyFactory
+    Line 9: [31m../useAuth[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/hooks/inventory/useAuth
+
+  [33msrc/hooks/marketing/useMarketingCampaigns.ts:[0m
+    Line 8: [31m../../services/role-based/rolePermissionService[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/services/role-based/rolePermissionService
+
+  [33msrc/hooks/role-based/useNavigationPermissions.ts:[0m
+    Line 8: [31m../../services/role-based/roleNavigationService[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/services/role-based/roleNavigationService
+
+  [33msrc/hooks/role-based/useRoleMenu.ts:[0m
+    Line 8: [31m../../services/role-based/roleNavigationService[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/services/role-based/roleNavigationService
+
+  [33msrc/hooks/role-based/useRoleNavigation.ts:[0m
+    Line 8: [31m../../services/role-based/roleNavigationService[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/services/role-based/roleNavigationService
+
+  [33msrc/integration/marketing/orchestrator.ts:[0m
+    Line 1: [31m@/services/marketing/ContentWorkflowService[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/services/marketing/ContentWorkflowService
+    Line 4: [31m@/services/marketing/MarketingAnalyticsService[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/services/marketing/MarketingAnalyticsService
+    Line 5: [31m@/schema/marketing/types[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/schema/marketing/types
+    Line 6: [31m@/schema/marketing/campaign.types[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/schema/marketing/campaign.types
+
+  [33msrc/integration/marketing/orchestratorExtended.ts:[0m
+    Line 2: [31m@/schema/marketing/types[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/schema/marketing/types
+
+  [33msrc/integration/marketing/stateMachine.ts:[0m
+    Line 1: [31m@/schema/marketing/types[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/schema/marketing/types
+
+  [33msrc/navigation/RoleBasedStackNavigator.tsx:[0m
+    Line 27: [31m../services/role-based/roleNavigationService[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/services/role-based/roleNavigationService
+    Line 33: [31m../screens/HomeScreen[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/screens/HomeScreen
+    Line 34: [31m../screens/ProductsScreen[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/screens/ProductsScreen
+    Line 36: [31m../screens/OrdersScreen[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/screens/OrdersScreen
+    Line 38: [31m../screens/PermissionDeniedScreen[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/screens/PermissionDeniedScreen
+    Line 39: [31m../screens/auth/LoginScreen[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/screens/auth/LoginScreen
+
+  [33msrc/screens/marketing/MarketingAnalyticsScreen.bak.tsx:[0m
+    Line 13: [31m@/components/marketing/Charts[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/components/marketing/Charts
+    Line 14: [31m@/components/marketing/DateRangePicker[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/components/marketing/DateRangePicker
+    Line 15: [31m@/components/marketing/MetricsCard[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/components/marketing/MetricsCard
+
+  [33msrc/screens/role-based/PermissionManagementScreen.tsx:[0m
+    Line 21: [31m../../services/role-based/rolePermissionService[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/services/role-based/rolePermissionService
+
+  [33msrc/screens/role-based/RoleSelectionScreen.tsx:[0m
+    Line 21: [31m../../services/role-based/rolePermissionService[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/services/role-based/rolePermissionService
+
+  [33msrc/services/inventory/backup-before-tdd/inventoryService.ts:[0m
+    Line 1: [31m../../config/supabase[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/services/config/supabase
+    Line 2: [31m../../utils/validationMonitor[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/services/utils/validationMonitor
+    Line 10: [31m../../schemas/inventory[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/services/schemas/inventory
+
+  [33msrc/services/inventory/backup-before-tdd/stockMovementService.ts:[0m
+    Line 1: [31m../../config/supabase[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/services/config/supabase
+    Line 2: [31m../../utils/validationMonitor[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/services/utils/validationMonitor
+    Line 10: [31m../../schemas/inventory[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/services/schemas/inventory
+
+  [33msrc/services/marketing/marketingCampaignService.ts:[0m
+    Line 7: [31m../role-based/rolePermissionService[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/services/role-based/rolePermissionService
+
+  [33msrc/services/marketing/productBundleService.ts:[0m
+    Line 7: [31m../role-based/rolePermissionService[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/services/role-based/rolePermissionService
+
+  [33msrc/services/marketing/productContentService.ts:[0m
+    Line 7: [31m../role-based/rolePermissionService[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/services/role-based/rolePermissionService
+
+  [33msrc/test/service-test-template.ts:[0m
+    Line 131: [31m../serviceUnderTest[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/serviceUnderTest
+    Line 132: [31m../../config/supabase[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/config/supabase
+    Line 133: [31m../tokenService[0m
+      Expected: /Users/andrewkhoh/Documents/myfarmstand-mobile/src/tokenService
+
+[33m⚠️  ORPHANED FILES (181 total):[0m
+  These files are not imported anywhere:
+
+  [34msrc/ARCHIVE/[0m
+    - useCentralizedRealtime.ts
+    - useEntityQuery.ts
+  [34msrc/components/[0m
+    - PaymentForm.tsx
+    - PaymentMethodCard.tsx
+    - PaymentSummary.tsx
+  [34msrc/components/__mocks__/[0m
+    - index.ts
+  [34msrc/components/common/[0m
+    - index.ts
+  [34msrc/components/marketing/[0m
+    - BundleBuilder.tsx
+    - CampaignCalendar.tsx
+    - ContentCard.tsx
+    - ContentEditor.tsx
+    - ImageUploader.tsx
+    - WorkflowIndicator.tsx
+  [34msrc/components/role-based/[0m
+    - index.ts
+  [34msrc/config/[0m
+    - secureConfig.ts
+    - supabaseSecure.ts
+  [34msrc/contexts/[0m
+    - index.ts
+  [34msrc/features/decision-support/services/[0m
+    - recommendationEngine.ts
+  [34msrc/features/decision-support/types/[0m
+    - index.ts
+  [34msrc/features/decision-support/utils/[0m
+    - testDataGenerators.ts
+  [34msrc/features/marketing/[0m
+    - ContentEditor.tsx
+    - hooks.ts
+    - schema.ts
+  [34msrc/hooks/executive/[0m
+    - useAnomalyDetection.ts
+    - useForecastGeneration.ts
+    - useModelValidation.ts
+    - useSimpleBusinessInsights.ts
+    - useSimplePredictiveAnalytics.ts
+    - useSimpleStrategicReporting.ts
+    - useStrategicReporting.ts
+  [34msrc/hooks/inventory/backup-before-tdd/[0m
+    - performanceOptimization.ts
+    - useBulkOperations.ts
+    - useInventoryDashboard.ts
+    - useInventoryItems.ts
+    - useInventoryOperations.ts
+    - useStockMovements.ts
+    - useStockOperations.ts
+  [34msrc/hooks/inventory/[0m
+    - performanceOptimization.ts
+    - useBulkOperations.ts
+    - useInventoryItems.ts
+    - useInventoryOperations.ts
+  [34msrc/hooks/marketing/[0m
+    - index.ts
+    - useContentSearch.ts
+    - useMarketingCampaign.ts
+    - useMarketingCampaigns.ts
+    - useMarketingData.ts
+    - useProductBundle.ts
+    - useProductContent.ts
+  [34msrc/hooks/role-based/[0m
+    - permissions.ts
+    - usePermissions.ts
+  [34msrc/hooks/[0m
+    - useInventory.ts
+    - useRolePermissions.ts
+    - useRolePermissions.tsx
+    - useUserRole.ts
+    - useUserRole.tsx
+  [34msrc/integration/marketing/[0m
+    - orchestratorExtended.ts
+    - stateMachine.ts
+  [34msrc/lib/stateMachine/[0m
+    - StateMachine.ts
+    - index.ts
+  [34msrc/lib/[0m
+    - stateMachine.ts
+    - supabase.ts
+  [34msrc/monitoring/[0m
+    - systemHealth.ts
+  [34msrc/navigation/[0m
+    - RoleBasedStackNavigator.tsx
+  [34msrc/schemas/__contracts__/[0m
+    - strict-failure-test.ts
+  [34msrc/schemas/__utils__/[0m
+    - database-types.ts
+  [34msrc/schemas/executive/__contracts__/[0m
+    - database-mock.types.ts
+  [34msrc/schemas/executive/[0m
+    - index.ts
+  [34msrc/schemas/[0m
+    - index.ts
+    - inventory.ts
+  [34msrc/schemas/inventory/__contracts__/[0m
+    - database-mock.types.ts
+  [34msrc/schemas/inventory/[0m
+    - index.ts
+  [34msrc/schemas/marketing/[0m
+    - common.schema.ts
+    - common.ts
+    - contentWorkflow.ts
+    - file-upload.schema.ts
+    - fileUpload.ts
+    - index.ts
+    - marketing-campaign.schema.ts
+    - marketingCampaign.schema.ts
+    - marketingCampaign.schemas.ts
+    - marketingCampaign.ts
+    - permissions.schema.ts
+    - permissions.ts
+    - product-bundle.schema.ts
+    - product-content.schema.ts
+    - productBundle.schema.ts
+    - productBundle.schemas.ts
+    - productBundle.ts
+    - productContent.schema.ts
+    - productContent.schemas.ts
+    - productContent.ts
+  [34msrc/schemas/role-based/__contracts__/[0m
+    - database-mock.types.ts
+  [34msrc/schemas/role-based/[0m
+    - index.ts
+    - navigationSchemas.ts
+  [34msrc/schemas/types/[0m
+    - index.ts
+  [34msrc/screens/[0m
+    - index.ts
+  [34msrc/screens/inventory/components/[0m
+    - BulkOperationsModal.tsx
+    - StockHistoryView.tsx
+  [34msrc/screens/inventory/[0m
+    - index.ts
+  [34msrc/screens/marketing/[0m
+    - ContentWorkflow.tsx
+    - MarketingAnalyticsScreen.bak.tsx
+  [34msrc/screens/role-based/[0m
+    - PermissionManagementScreen.tsx
+    - RoleDashboard.tsx
+    - RoleSelectionScreen.tsx
+  [34msrc/services/inventory/backup-before-tdd/[0m
+    - stockMovementService.ts
+  [34msrc/services/inventory/[0m
+    - inventoryService.hooks.ts
+  [34msrc/services/marketing/[0m
+    - cacheManager.ts
+    - contentWorkflow.ts
+    - coordinator.ts
+    - index.ts
+    - productContentService.ts
+    - realtime.ts
+    - workflowService.ts
+  [34msrc/services/[0m
+    - supabase.ts
+    - userRoleService.comprehensive.ts
+    - userRoleService.ts
+  [34msrc/store/[0m
+    - index.ts
+    - marketingStore.ts
+  [34msrc/test/__meta__/[0m
+    - test-health-check.ts
+  [34msrc/test/__mocks__/@react-native-async-storage/[0m
+    - async-storage.ts
+  [34msrc/test/__mocks__/@supabase/[0m
+    - supabase-js.ts
+  [34msrc/test/__mocks__/[0m
+    - broadcastFactory.ts
+    - expo-constants.ts
+    - expo-secure-store.ts
+    - inventoryService.js
+    - react-native.js
+  [34msrc/test/[0m
+    - audit-test-compliance.js
+    - component-setup.ts
+    - global-test-fixes.ts
+    - globals.d.ts
+    - globals.js
+    - integration-setup.ts
+    - integration-utils.tsx
+    - inventory-hooks-setup.ts
+    - jest-setup.js
+    - logoutTest.js
+    - marketing-setup.ts
+    - mockData.ts
+    - mockReactQuery.ts
+    - refactor-bridge.ts
+    - role-test-setup.ts
+    - service-test-template.ts
+    - serviceSetup.js
+    - serviceSetup.ts
+    - setup.ts
+    - simple-fixes.ts
+    - test-setup.ts
+    - test-utilities.ts
+    - test-utils.tsx
+    - testUtils.tsx
+  [34msrc/test/contracts/[0m
+    - hook.contracts.ts
+    - service.contracts.ts
+  [34msrc/test/factories/[0m
+    - index.ts
+  [34msrc/test/mocks/[0m
+    - auth.simplified.mock.ts
+    - broadcast.simplified.mock.ts
+    - inventoryServiceAdapter.ts
+    - queryKeyFactory.mock.ts
+    - react-native.js
+    - react-query.mock.ts
+    - storage.simplified.mock.ts
+    - supabase.ts
+    - unified-supabase.mock.ts
+    - zustand.js
+  [34msrc/test-utils/[0m
+    - SimplifiedSupabaseMock.ts
+    - ValidationMonitor.ts
+    - jest-setup.ts
+    - setup.ts
+  [34msrc/tests/[0m
+    - serviceIntegration.js
+    - testRunner.js
+  [34msrc/types/[0m
+    - index.ts
+    - inventory.ts
+  [34msrc/utils/[0m
+    - defensiveDatabase.ts
+    - frontendOptimization.tsx
+    - paymentSecurity.ts
+    - realtimeDiagnostic.ts
+    - resilientProcessing.ts
+    - schemaIntrospection.ts
+    - serviceResponse.ts
+    - validation-pipelines.ts
+  [34msrc/utils/marketing/[0m
+    - queryKeys.ts
+  [34m./[0m
+    - App.debug.tsx
+
+============================================================
+📈 SUMMARY:
+  Total files scanned: 437
+  Broken imports: [31m53[0m
+  Orphaned files: [33m181[0m
+============================================================
+
+💾 Results saved to dependency-scan-results.json

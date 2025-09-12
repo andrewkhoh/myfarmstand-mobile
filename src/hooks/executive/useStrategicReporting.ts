@@ -274,7 +274,7 @@ export const useStrategicReporting = (options: UseStrategicReportingOptions & { 
     refetchOnMount: true,
     refetchOnWindowFocus: false,
     refetchOnReconnect: true,
-    enabled: !!role && role === 'executive', // Simple enabled guard
+    enabled: !!role && ['executive', 'admin'].includes(role.toLowerCase()), // Simple enabled guard
     retry: (failureCount, error: any) => {
       // Don't retry permission errors
       if (error?.isPermissionError || error?.message?.includes('authentication') || error?.message?.includes('permission')) {
@@ -331,7 +331,7 @@ export const useStrategicReporting = (options: UseStrategicReportingOptions & { 
   ) : null;
 
   // Authentication guard - following useCart pattern exactly
-  if (!role || role !== 'executive') {
+  if (!role || !['executive', 'admin'].includes(role.toLowerCase())) {
     const authError = createStrategicReportingError(
       'PERMISSION_DENIED',
       'User lacks executive permissions',
@@ -370,7 +370,7 @@ export const useStrategicReporting = (options: UseStrategicReportingOptions & { 
 
   // Real-time subscription setup
   useEffect(() => {
-    if (!options.realtime || !user?.id || role !== 'executive') return;
+    if (!options.realtime || !user?.id || !['executive', 'admin'].includes(role.toLowerCase())) return;
 
     const channel = `executive:reports:${user.id}`;
     

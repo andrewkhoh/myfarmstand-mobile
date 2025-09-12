@@ -36,8 +36,9 @@ export const StaffQRScannerScreen: React.FC = () => {
   const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Check if user is staff/admin
-  const isStaff = user?.role === 'admin' || user?.role === 'staff';
+  // Check if user is staff/admin (case-insensitive)
+  const userRole = user?.role?.toLowerCase();
+  const isStaff = userRole === 'admin' || userRole === 'staff' || userRole === 'manager';
 
   useEffect(() => {
     // Mock permission granting for testing without native modules

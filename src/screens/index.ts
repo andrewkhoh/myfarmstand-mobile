@@ -2,7 +2,7 @@
 export { LoginScreen } from './LoginScreen';
 export { RegisterScreen } from './RegisterScreen';
 export { ShopScreen } from './ShopScreen';
-export { CartScreen } from './CartScreen';
+export { default as CartScreen } from './CartScreen';
 export { ProfileScreen } from './ProfileScreen';
 export { MyOrdersScreen } from './MyOrdersScreen';
 export { AdminScreen } from './AdminScreen';
@@ -52,20 +52,20 @@ export { BundleManagementScreen } from './marketing/BundleManagementScreen';
 export { MarketingAnalyticsScreen } from './marketing/MarketingAnalyticsScreen';
 
 // Export Inventory screens
-export { InventoryDashboardScreen } from './inventory/InventoryDashboardScreen';
+export { default as InventoryDashboardScreen } from './inventory/InventoryDashboardScreen';
 export { InventoryAlertsScreen } from './inventory/InventoryAlertsScreen';
 export { BulkOperationsScreen } from './inventory/BulkOperationsScreen';
-export { StockMovementHistoryScreen } from './inventory/StockMovementHistoryScreen';
+export { default as StockMovementHistoryScreen } from './inventory/StockMovementHistoryScreen';
 
 // Export Product Management screens
-export { ProductManagementScreen } from './ProductManagementScreen';
-export { ProductCreateEditScreen } from './ProductCreateEditScreen';
+export { default as ProductManagementScreen } from './ProductManagementScreen';
+export { default as ProductCreateEditScreen } from './ProductCreateEditScreen';
 
 // DEPRECATED: These screens are replaced by the hub architecture
 // StockManagementScreen → Use InventoryHub instead
 // MetricsAnalyticsScreen → Use ExecutiveHub instead
 // Keeping exports for backward compatibility only
-export { StockManagementScreen } from './StockManagementScreen';
+export { default as StockManagementScreen } from './StockManagementScreen';
 export { default as MetricsAnalyticsScreen } from './MetricsAnalyticsScreen';
 
 // Export test utilities

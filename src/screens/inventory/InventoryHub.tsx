@@ -140,9 +140,11 @@ export const InventoryHub: React.FC = () => {
   const { metrics, alerts, isLoading } = useInventoryDashboard();
   const [showQuickUpdate, setShowQuickUpdate] = useState(false);
   
-  const isAdmin = user?.role === 'admin';
-  const isManager = user?.role === 'manager';
-  const isStaff = user?.role === 'staff';
+  // Role-based access checks (case-insensitive)
+  const userRole = user?.role?.toLowerCase();
+  const isAdmin = userRole === 'admin';
+  const isManager = userRole === 'manager';
+  const isStaff = userRole === 'staff';
   const canEditInventory = isAdmin || isManager || isStaff;
   const canManageSettings = isAdmin || isManager;
   

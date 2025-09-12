@@ -4,6 +4,21 @@ const exclusionList = require('metro-config/src/defaults/exclusionList');
 /** @type {import('expo/metro-config').MetroConfig} */
 const config = getDefaultConfig(__dirname);
 
+// Add reporter for progress updates
+config.reporter = {
+  update: (event) => {
+    if (event.type === 'bundle_transform_progressed') {
+      console.log(`Bundling: ${event.transformedFileCount}/${event.totalFileCount} files processed`);
+    }
+    if (event.type === 'bundle_build_started') {
+      console.log('Bundle build started...');
+    }
+    if (event.type === 'bundle_build_done') {
+      console.log('Bundle build completed!');
+    }
+  },
+};
+
 // Enhanced resolver configuration
 config.resolver = {
   ...config.resolver,
@@ -82,6 +97,12 @@ if (process.env.NODE_ENV === 'production') {
     ...config.transformer,
     minifierConfig: {}, // Disable minification for faster dev builds
   };
+  
+  // Use more workers for faster bundling
+  config.maxWorkers = 4;
+  
+  // Faster resolver
+  config.resolver.resolverMainFields = ['react-native', 'browser', 'main'];
 }
 
 module.exports = config;

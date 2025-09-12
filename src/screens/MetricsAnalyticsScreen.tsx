@@ -17,8 +17,9 @@ const MetricsAnalyticsScreen: React.FC = () => {
   const { data: user } = useCurrentUser();
   const { data: stats, isLoading, error, refetch } = useOrderStats();
 
-  // Security check - only allow users with financial access
-  const hasFinancialAccess = user?.role === 'admin' || user?.role === 'manager';
+  // Security check - only allow users with financial access (case-insensitive)
+  const userRole = user?.role?.toLowerCase();
+  const hasFinancialAccess = userRole === 'admin' || userRole === 'manager';
 
   useEffect(() => {
     // Refetch stats when screen loads to ensure fresh data

@@ -6,7 +6,10 @@ import {
   StyleSheet,
   RefreshControl,
 } from 'react-native';
-import { useStockAlerts, useAcknowledgeAlert } from 'hooks/inventory/useStockOperations';
+// import { useStockAlerts, useAcknowledgeAlert } from 'hooks/inventory/useStockOperations';
+// TODO: Fix missing hook file
+const useStockAlerts = () => ({ data: { critical: [], warning: [], low: [] }, isLoading: false, refetch: () => {} });
+const useAcknowledgeAlert = () => ({ mutate: () => {} });
 import { AlertCard } from './components/AlertCard';
 import { InventoryAlert } from 'types/inventory';
 

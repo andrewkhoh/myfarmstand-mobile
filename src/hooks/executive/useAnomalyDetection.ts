@@ -37,7 +37,7 @@ export function useAnomalyDetection(options: UseAnomalyDetectionOptions = {}) {
     queryFn: async () => {
       // Check permissions
       const canAccess = await hasPermission('anomaly_detection_read');
-      if (!canAccess && role !== 'executive' && role !== 'admin') {
+      if (!canAccess && !['executive', 'admin'].includes(role.toLowerCase())) {
         const permError = new Error('Insufficient permissions for anomaly detection');
         (permError as any).isPermissionError = true;
         throw permError;

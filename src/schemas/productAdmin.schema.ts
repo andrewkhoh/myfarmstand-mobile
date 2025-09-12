@@ -25,7 +25,7 @@ export const ProductAdminDatabaseSchema = z.object({
   name: z.string(),
   description: z.string(),
   price: z.number(),
-  category: z.string(), // Note: This comes from database view/join
+  category: z.string().optional(), // Note: This comes from database view/join, optional when fetching directly from table
   category_id: z.string(),
   image_url: z.string().nullable(),
   is_available: z.boolean().nullable(),

@@ -27,8 +27,7 @@ import {
   Screen, 
   Text, 
   Card, 
-  Button, 
-  ErrorBoundary 
+  Button
 } from '../components';
 import { 
   useAdminProducts,
@@ -214,14 +213,7 @@ export const ProductManagementScreen: React.FC = () => {
   // Render product item with error boundary
   const renderProductItem = useCallback(({ item: product }: { item: ProductAdminTransform }) => {
     return (
-      <ErrorBoundary
-        fallback={
-          <Card style={styles.productCard}>
-            <Text color="error">Failed to render product. Skipping...</Text>
-          </Card>
-        }
-      >
-        <Card 
+      <Card 
           style={[
             styles.productCard,
             !product.is_available && styles.unavailableProduct
@@ -278,7 +270,6 @@ export const ProductManagementScreen: React.FC = () => {
             </View>
           </View>
         </Card>
-      </ErrorBoundary>
     );
   }, [handleProductPress, handleToggleAvailability, handleQuickStockUpdate, toggleAvailability.isPending, bulkUpdateStock.isPending]);
 
@@ -330,7 +321,7 @@ export const ProductManagementScreen: React.FC = () => {
       <Text variant="heading4" style={styles.statsTitle}>Overview</Text>
       
       {statsQuery.isLoading ? (
-        <ActivityIndicator size="small" color={colors.primary} />
+        <ActivityIndicator size="small" color={colors.primary[600]} />
       ) : statsQuery.error ? (
         <Text color="secondary">Stats temporarily unavailable</Text>
       ) : (
@@ -404,7 +395,7 @@ export const ProductManagementScreen: React.FC = () => {
     return (
       <Screen>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color={colors.primary[600]} />
           <Text variant="body" color="secondary" style={styles.loadingText}>
             Loading products...
           </Text>
@@ -416,24 +407,7 @@ export const ProductManagementScreen: React.FC = () => {
   // Render main interface
   return (
     <Screen>
-      <ErrorBoundary
-        fallback={
-          <View style={styles.errorContainer}>
-            <Text variant="heading3" color="error" align="center">
-              Something went wrong
-            </Text>
-            <Text variant="body" color="secondary" align="center" style={styles.errorSubtext}>
-              We're having trouble loading the product management interface.
-            </Text>
-            <Button
-              title="Try Again"
-              variant="primary"
-              onPress={() => handleRefresh()}
-              style={styles.retryButton}
-            />
-          </View>
-        }
-      >
+      {/* ErrorBoundary not available - removed for now */}
         <FlatList
           data={filteredProducts}
           renderItem={renderProductItem}
@@ -457,12 +431,11 @@ export const ProductManagementScreen: React.FC = () => {
             <RefreshControl
               refreshing={productsQuery.isLoading}
               onRefresh={handleRefresh}
-              colors={[colors.primary]}
+              colors={[colors.primary[600]]}
             />
           }
           showsVerticalScrollIndicator={false}
         />
-      </ErrorBoundary>
     </Screen>
   );
 };
@@ -472,33 +445,33 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: spacing.large,
+    padding: spacing.xl,
   },
   loadingText: {
-    marginTop: spacing.medium,
+    marginTop: spacing.md,
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: spacing.large,
+    padding: spacing.xl,
   },
   errorSubtext: {
-    marginTop: spacing.small,
-    marginBottom: spacing.large,
+    marginTop: spacing.sm,
+    marginBottom: spacing.xl,
   },
   retryButton: {
     minWidth: 120,
   },
   listContainer: {
-    padding: spacing.medium,
-    paddingBottom: spacing.large,
+    padding: spacing.md,
+    paddingBottom: spacing.xl,
   },
   statsCard: {
-    marginBottom: spacing.medium,
+    marginBottom: spacing.md,
   },
   statsTitle: {
-    marginBottom: spacing.medium,
+    marginBottom: spacing.md,
   },
   statsGrid: {
     flexDirection: 'row',
@@ -509,45 +482,45 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   filtersCard: {
-    marginBottom: spacing.medium,
+    marginBottom: spacing.md,
   },
   filtersTitle: {
-    marginBottom: spacing.medium,
+    marginBottom: spacing.md,
   },
   searchInput: {
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.border.light,
     borderRadius: 8,
-    padding: spacing.medium,
-    marginBottom: spacing.medium,
+    padding: spacing.md,
+    marginBottom: spacing.md,
     fontSize: 16,
   },
   filterRow: {
     flexDirection: 'row',
-    gap: spacing.small,
+    gap: spacing.sm,
   },
   filterButton: {
     flex: 1,
   },
   messageCard: {
-    marginBottom: spacing.medium,
+    marginBottom: spacing.md,
   },
   productCard: {
-    marginBottom: spacing.medium,
+    marginBottom: spacing.md,
   },
   unavailableProduct: {
     opacity: 0.7,
-    backgroundColor: colors.backgroundSecondary,
+    backgroundColor: colors.surface,
   },
   productHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: spacing.small,
+    marginBottom: spacing.sm,
   },
   productInfo: {
     flex: 1,
-    marginRight: spacing.medium,
+    marginRight: spacing.md,
   },
   productPrice: {
     alignItems: 'flex-end',
@@ -562,27 +535,27 @@ const styles = StyleSheet.create({
   },
   productActions: {
     flexDirection: 'row',
-    gap: spacing.small,
+    gap: spacing.sm,
   },
   actionButton: {
     minWidth: 60,
   },
   emptyStateCard: {
     alignItems: 'center',
-    padding: spacing.large,
+    padding: spacing.xl,
   },
   emptyStateSubtext: {
-    marginTop: spacing.small,
-    marginBottom: spacing.large,
+    marginTop: spacing.sm,
+    marginBottom: spacing.xl,
   },
   emptyStateButton: {
     minWidth: 120,
   },
   stockManagementActions: {
-    marginTop: spacing.medium,
-    paddingTop: spacing.medium,
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: colors.border.light,
   },
   stockManagementButton: {
     alignSelf: 'stretch',

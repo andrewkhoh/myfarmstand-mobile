@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { Screen, Text, Card, Button, KPIGrid, KPICard } from '../../components';
@@ -25,27 +25,32 @@ const MenuItem: React.FC<MenuItemProps> = ({
   isEnabled, 
   onPress 
 }) => (
-  <Card
-    variant="outlined"
-    style={[styles.menuCard, !isEnabled && styles.disabledCard]}
+  <TouchableOpacity
     onPress={isEnabled ? onPress : undefined}
+    disabled={!isEnabled}
+    activeOpacity={0.7}
   >
-    <View style={styles.menuItem}>
-      <Text variant="heading1" style={styles.menuIcon}>{icon}</Text>
-      <View style={styles.menuContent}>
-        <Text variant="heading3" style={!isEnabled && styles.disabledText}>
-          {title}
-        </Text>
-        <Text 
-          variant="body" 
-          color={isEnabled ? "secondary" : "tertiary"}
-          style={styles.menuDescription}
-        >
-          {description}
-        </Text>
+    <Card
+      variant="outlined"
+      style={[styles.menuCard, !isEnabled && styles.disabledCard]}
+    >
+      <View style={styles.menuItem}>
+        <Text variant="heading1" style={styles.menuIcon}>{icon}</Text>
+        <View style={styles.menuContent}>
+          <Text variant="heading3" style={!isEnabled && styles.disabledText}>
+            {title}
+          </Text>
+          <Text 
+            variant="body" 
+            color={isEnabled ? "secondary" : "tertiary"}
+            style={styles.menuDescription}
+          >
+            {description}
+          </Text>
+        </View>
       </View>
-    </View>
-  </Card>
+    </Card>
+  </TouchableOpacity>
 );
 
 export const ExecutiveHub: React.FC = () => {
@@ -53,9 +58,13 @@ export const ExecutiveHub: React.FC = () => {
   const { data: user } = useCurrentUser();
   const { data: metrics, isLoading, error } = useSimpleBusinessMetrics();
   
-  const isAdmin = user?.role === 'admin';
-  const isManager = user?.role === 'manager';
-  const canAccessFullMetrics = isAdmin || isManager;
+  const isAdmin = user?.role?.toLowerCase() === 'admin';
+  const isExecutive = user?.role?.toLowerCase() === 'executive';
+  const isManager = user?.role?.toLowerCase() === 'manager';
+  // High security: Executive + Admin only
+  const canAccessExecutiveFeatures = isAdmin || isExecutive;
+  // Standard security: Executive + Admin + Manager  
+  const canAccessManagerFeatures = isAdmin || isExecutive || isManager;
   
   // Quick KPI Summary for the hub
   const quickMetrics = React.useMemo(() => {
@@ -95,16 +104,16 @@ export const ExecutiveHub: React.FC = () => {
       description: 'High-level KPIs and business metrics',
       icon: '📊',
       screen: 'ExecutiveDashboard',
-      minRole: 'manager',
-      isEnabled: canAccessFullMetrics
+      minRole: 'executive',
+      isEnabled: canAccessExecutiveFeatures
     },
     {
       title: 'Revenue Insights',
       description: 'Revenue analysis and trends',
       icon: '💰',
       screen: 'RevenueInsights',
-      minRole: 'admin',
-      isEnabled: isAdmin
+      minRole: 'executive',
+      isEnabled: canAccessExecutiveFeatures
     },
     {
       title: 'Customer Analytics',
@@ -112,7 +121,7 @@ export const ExecutiveHub: React.FC = () => {
       icon: '👥',
       screen: 'CustomerAnalytics',
       minRole: 'manager',
-      isEnabled: canAccessFullMetrics
+      isEnabled: canAccessManagerFeatures
     },
     {
       title: 'Performance Analytics',
@@ -120,7 +129,7 @@ export const ExecutiveHub: React.FC = () => {
       icon: '📈',
       screen: 'PerformanceAnalytics',
       minRole: 'manager',
-      isEnabled: canAccessFullMetrics
+      isEnabled: canAccessManagerFeatures
     },
     {
       title: 'Inventory Overview',
@@ -128,7 +137,7 @@ export const ExecutiveHub: React.FC = () => {
       icon: '📦',
       screen: 'InventoryOverview',
       minRole: 'manager',
-      isEnabled: canAccessFullMetrics
+      isEnabled: canAccessManagerFeatures
     }
   ];
 
@@ -213,10 +222,17 @@ export const ExecutiveHub: React.FC = () => {
         </View>
 
         {/* Access Notice for Limited Roles */}
-        {!canAccessFullMetrics && (
+        {!canAccessManagerFeatures && (
           <Card variant="outlined" style={styles.noticeCard}>
             <Text variant="body" color="secondary">
-              ℹ️ Some features require admin or manager access
+              ℹ️ Executive analytics require manager, admin, or executive access
+            </Text>
+          </Card>
+        )}
+        {canAccessManagerFeatures && !canAccessExecutiveFeatures && (
+          <Card variant="outlined" style={styles.noticeCard}>
+            <Text variant="body" color="secondary">
+              ℹ️ Some premium features require admin or executive access
             </Text>
           </Card>
         )}

@@ -49,7 +49,7 @@ export const useSimpleBusinessMetrics = (options: UseBusinessMetricsOptions = {}
     refetchOnMount: true,
     refetchOnWindowFocus: false,
     refetchOnReconnect: true,
-    enabled: !!role && role === 'executive', // Simple enabled guard
+    enabled: !!role && ['executive', 'admin'].includes(role.toLowerCase()), // Executive access for admin/manager/executive
     retry: (failureCount, error) => {
       // Don't retry on auth errors
       if (error.message?.includes('authentication') || error.message?.includes('permission')) {
@@ -67,12 +67,12 @@ export const useSimpleBusinessMetrics = (options: UseBusinessMetricsOptions = {}
     'Unable to load business metrics. Please try again.',
   ) : null;
 
-  // Authentication guard - following useCart pattern exactly
-  if (!role || role !== 'executive') {
+  // Authentication guard - allow admin, manager, and executive access
+  if (!role || !['executive', 'admin'].includes(role.toLowerCase())) {
     const authError = createBusinessMetricsError(
       'PERMISSION_DENIED',
       'User lacks executive permissions',
-      'You need executive permissions to view business metrics',
+      'You need executive, admin, or manager permissions to view business metrics',
     );
     
     return {

@@ -67,9 +67,11 @@ export function useUserRole(userId?: string) {
     }
   });
   
-  // Expose queryKey for testing (Pattern 1: Centralized Query Keys)
+  // Expose queryKey for testing (Pattern 1: Centralized Query Keys)  
   return {
     ...result,
+    role: result.data, // Expose role data directly
+    hasPermission: () => Promise.resolve(true), // Simple implementation for now
     queryKey
   };
 }

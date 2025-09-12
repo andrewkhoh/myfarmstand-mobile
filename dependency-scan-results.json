@@ -1,0 +1,510 @@
+{
+  "errors": [
+    {
+      "file": "src/ARCHIVE/useCentralizedRealtime.ts",
+      "import": "./useAuth",
+      "line": 4,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/ARCHIVE/useAuth"
+    },
+    {
+      "file": "src/ARCHIVE/useEntityQuery.ts",
+      "import": "./useAuth",
+      "line": 3,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/ARCHIVE/useAuth"
+    },
+    {
+      "file": "src/hooks/inventory/backup-before-tdd/cacheIntegration.ts",
+      "import": "../../utils/queryKeyFactory",
+      "line": 7,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/hooks/utils/queryKeyFactory"
+    },
+    {
+      "file": "src/hooks/inventory/backup-before-tdd/cachePerformanceMonitor.ts",
+      "import": "../../utils/validationMonitor",
+      "line": 6,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/hooks/utils/validationMonitor"
+    },
+    {
+      "file": "src/hooks/inventory/backup-before-tdd/performanceOptimization.ts",
+      "import": "../../utils/validationMonitor",
+      "line": 9,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/hooks/utils/validationMonitor"
+    },
+    {
+      "file": "src/hooks/inventory/backup-before-tdd/useBulkOperations.ts",
+      "import": "../../services/inventory/inventoryService",
+      "line": 7,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/hooks/services/inventory/inventoryService"
+    },
+    {
+      "file": "src/hooks/inventory/backup-before-tdd/useBulkOperations.ts",
+      "import": "../../utils/queryKeyFactory",
+      "line": 8,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/hooks/utils/queryKeyFactory"
+    },
+    {
+      "file": "src/hooks/inventory/backup-before-tdd/useBulkOperations.ts",
+      "import": "../useAuth",
+      "line": 9,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/hooks/inventory/useAuth"
+    },
+    {
+      "file": "src/hooks/inventory/backup-before-tdd/useInventoryDashboard.ts",
+      "import": "../../services/inventory/inventoryService",
+      "line": 7,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/hooks/services/inventory/inventoryService"
+    },
+    {
+      "file": "src/hooks/inventory/backup-before-tdd/useInventoryDashboard.ts",
+      "import": "../../utils/queryKeyFactory",
+      "line": 8,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/hooks/utils/queryKeyFactory"
+    },
+    {
+      "file": "src/hooks/inventory/backup-before-tdd/useInventoryDashboard.ts",
+      "import": "../useAuth",
+      "line": 9,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/hooks/inventory/useAuth"
+    },
+    {
+      "file": "src/hooks/inventory/backup-before-tdd/useInventoryItems.ts",
+      "import": "../../services/inventory/inventoryService",
+      "line": 7,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/hooks/services/inventory/inventoryService"
+    },
+    {
+      "file": "src/hooks/inventory/backup-before-tdd/useInventoryItems.ts",
+      "import": "../../utils/queryKeyFactory",
+      "line": 8,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/hooks/utils/queryKeyFactory"
+    },
+    {
+      "file": "src/hooks/inventory/backup-before-tdd/useInventoryOperations.ts",
+      "import": "../../services/inventory/inventoryService",
+      "line": 7,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/hooks/services/inventory/inventoryService"
+    },
+    {
+      "file": "src/hooks/inventory/backup-before-tdd/useInventoryOperations.ts",
+      "import": "../../utils/queryKeyFactory",
+      "line": 8,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/hooks/utils/queryKeyFactory"
+    },
+    {
+      "file": "src/hooks/inventory/backup-before-tdd/useStockMovements.ts",
+      "import": "../../services/inventory/stockMovementService",
+      "line": 7,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/hooks/services/inventory/stockMovementService"
+    },
+    {
+      "file": "src/hooks/inventory/backup-before-tdd/useStockMovements.ts",
+      "import": "../../utils/queryKeyFactory",
+      "line": 8,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/hooks/utils/queryKeyFactory"
+    },
+    {
+      "file": "src/hooks/inventory/backup-before-tdd/useStockOperations.ts",
+      "import": "../../services/inventory/inventoryService",
+      "line": 7,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/hooks/services/inventory/inventoryService"
+    },
+    {
+      "file": "src/hooks/inventory/backup-before-tdd/useStockOperations.ts",
+      "import": "../../utils/queryKeyFactory",
+      "line": 8,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/hooks/utils/queryKeyFactory"
+    },
+    {
+      "file": "src/hooks/inventory/backup-before-tdd/useStockOperations.ts",
+      "import": "../useAuth",
+      "line": 9,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/hooks/inventory/useAuth"
+    },
+    {
+      "file": "src/hooks/marketing/useMarketingCampaigns.ts",
+      "import": "../../services/role-based/rolePermissionService",
+      "line": 8,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/services/role-based/rolePermissionService"
+    },
+    {
+      "file": "src/hooks/role-based/useNavigationPermissions.ts",
+      "import": "../../services/role-based/roleNavigationService",
+      "line": 8,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/services/role-based/roleNavigationService"
+    },
+    {
+      "file": "src/hooks/role-based/useRoleMenu.ts",
+      "import": "../../services/role-based/roleNavigationService",
+      "line": 8,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/services/role-based/roleNavigationService"
+    },
+    {
+      "file": "src/hooks/role-based/useRoleNavigation.ts",
+      "import": "../../services/role-based/roleNavigationService",
+      "line": 8,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/services/role-based/roleNavigationService"
+    },
+    {
+      "file": "src/integration/marketing/orchestrator.ts",
+      "import": "@/services/marketing/ContentWorkflowService",
+      "line": 1,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/services/marketing/ContentWorkflowService"
+    },
+    {
+      "file": "src/integration/marketing/orchestrator.ts",
+      "import": "@/services/marketing/MarketingAnalyticsService",
+      "line": 4,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/services/marketing/MarketingAnalyticsService"
+    },
+    {
+      "file": "src/integration/marketing/orchestrator.ts",
+      "import": "@/schema/marketing/types",
+      "line": 5,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/schema/marketing/types"
+    },
+    {
+      "file": "src/integration/marketing/orchestrator.ts",
+      "import": "@/schema/marketing/campaign.types",
+      "line": 6,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/schema/marketing/campaign.types"
+    },
+    {
+      "file": "src/integration/marketing/orchestratorExtended.ts",
+      "import": "@/schema/marketing/types",
+      "line": 2,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/schema/marketing/types"
+    },
+    {
+      "file": "src/integration/marketing/stateMachine.ts",
+      "import": "@/schema/marketing/types",
+      "line": 1,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/schema/marketing/types"
+    },
+    {
+      "file": "src/navigation/RoleBasedStackNavigator.tsx",
+      "import": "../services/role-based/roleNavigationService",
+      "line": 27,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/services/role-based/roleNavigationService"
+    },
+    {
+      "file": "src/navigation/RoleBasedStackNavigator.tsx",
+      "import": "../screens/HomeScreen",
+      "line": 33,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/screens/HomeScreen"
+    },
+    {
+      "file": "src/navigation/RoleBasedStackNavigator.tsx",
+      "import": "../screens/ProductsScreen",
+      "line": 34,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/screens/ProductsScreen"
+    },
+    {
+      "file": "src/navigation/RoleBasedStackNavigator.tsx",
+      "import": "../screens/OrdersScreen",
+      "line": 36,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/screens/OrdersScreen"
+    },
+    {
+      "file": "src/navigation/RoleBasedStackNavigator.tsx",
+      "import": "../screens/PermissionDeniedScreen",
+      "line": 38,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/screens/PermissionDeniedScreen"
+    },
+    {
+      "file": "src/navigation/RoleBasedStackNavigator.tsx",
+      "import": "../screens/auth/LoginScreen",
+      "line": 39,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/screens/auth/LoginScreen"
+    },
+    {
+      "file": "src/screens/marketing/MarketingAnalyticsScreen.bak.tsx",
+      "import": "@/components/marketing/Charts",
+      "line": 13,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/components/marketing/Charts"
+    },
+    {
+      "file": "src/screens/marketing/MarketingAnalyticsScreen.bak.tsx",
+      "import": "@/components/marketing/DateRangePicker",
+      "line": 14,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/components/marketing/DateRangePicker"
+    },
+    {
+      "file": "src/screens/marketing/MarketingAnalyticsScreen.bak.tsx",
+      "import": "@/components/marketing/MetricsCard",
+      "line": 15,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/components/marketing/MetricsCard"
+    },
+    {
+      "file": "src/screens/role-based/PermissionManagementScreen.tsx",
+      "import": "../../services/role-based/rolePermissionService",
+      "line": 21,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/services/role-based/rolePermissionService"
+    },
+    {
+      "file": "src/screens/role-based/RoleSelectionScreen.tsx",
+      "import": "../../services/role-based/rolePermissionService",
+      "line": 21,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/services/role-based/rolePermissionService"
+    },
+    {
+      "file": "src/services/inventory/backup-before-tdd/inventoryService.ts",
+      "import": "../../config/supabase",
+      "line": 1,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/services/config/supabase"
+    },
+    {
+      "file": "src/services/inventory/backup-before-tdd/inventoryService.ts",
+      "import": "../../utils/validationMonitor",
+      "line": 2,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/services/utils/validationMonitor"
+    },
+    {
+      "file": "src/services/inventory/backup-before-tdd/inventoryService.ts",
+      "import": "../../schemas/inventory",
+      "line": 10,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/services/schemas/inventory"
+    },
+    {
+      "file": "src/services/inventory/backup-before-tdd/stockMovementService.ts",
+      "import": "../../config/supabase",
+      "line": 1,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/services/config/supabase"
+    },
+    {
+      "file": "src/services/inventory/backup-before-tdd/stockMovementService.ts",
+      "import": "../../utils/validationMonitor",
+      "line": 2,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/services/utils/validationMonitor"
+    },
+    {
+      "file": "src/services/inventory/backup-before-tdd/stockMovementService.ts",
+      "import": "../../schemas/inventory",
+      "line": 10,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/services/schemas/inventory"
+    },
+    {
+      "file": "src/services/marketing/marketingCampaignService.ts",
+      "import": "../role-based/rolePermissionService",
+      "line": 7,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/services/role-based/rolePermissionService"
+    },
+    {
+      "file": "src/services/marketing/productBundleService.ts",
+      "import": "../role-based/rolePermissionService",
+      "line": 7,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/services/role-based/rolePermissionService"
+    },
+    {
+      "file": "src/services/marketing/productContentService.ts",
+      "import": "../role-based/rolePermissionService",
+      "line": 7,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/services/role-based/rolePermissionService"
+    },
+    {
+      "file": "src/test/service-test-template.ts",
+      "import": "../serviceUnderTest",
+      "line": 131,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/serviceUnderTest"
+    },
+    {
+      "file": "src/test/service-test-template.ts",
+      "import": "../../config/supabase",
+      "line": 132,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/config/supabase"
+    },
+    {
+      "file": "src/test/service-test-template.ts",
+      "import": "../tokenService",
+      "line": 133,
+      "resolved": "/Users/andrewkhoh/Documents/myfarmstand-mobile/src/tokenService"
+    }
+  ],
+  "orphans": [
+    "src/ARCHIVE/useCentralizedRealtime.ts",
+    "src/ARCHIVE/useEntityQuery.ts",
+    "src/components/PaymentForm.tsx",
+    "src/components/PaymentMethodCard.tsx",
+    "src/components/PaymentSummary.tsx",
+    "src/components/__mocks__/index.ts",
+    "src/components/common/index.ts",
+    "src/components/marketing/BundleBuilder.tsx",
+    "src/components/marketing/CampaignCalendar.tsx",
+    "src/components/marketing/ContentCard.tsx",
+    "src/components/marketing/ContentEditor.tsx",
+    "src/components/marketing/ImageUploader.tsx",
+    "src/components/marketing/WorkflowIndicator.tsx",
+    "src/components/role-based/index.ts",
+    "src/config/secureConfig.ts",
+    "src/config/supabaseSecure.ts",
+    "src/contexts/index.ts",
+    "src/features/decision-support/services/recommendationEngine.ts",
+    "src/features/decision-support/types/index.ts",
+    "src/features/decision-support/utils/testDataGenerators.ts",
+    "src/features/marketing/ContentEditor.tsx",
+    "src/features/marketing/hooks.ts",
+    "src/features/marketing/schema.ts",
+    "src/hooks/executive/useAnomalyDetection.ts",
+    "src/hooks/executive/useForecastGeneration.ts",
+    "src/hooks/executive/useModelValidation.ts",
+    "src/hooks/executive/useSimpleBusinessInsights.ts",
+    "src/hooks/executive/useSimplePredictiveAnalytics.ts",
+    "src/hooks/executive/useSimpleStrategicReporting.ts",
+    "src/hooks/executive/useStrategicReporting.ts",
+    "src/hooks/inventory/backup-before-tdd/performanceOptimization.ts",
+    "src/hooks/inventory/backup-before-tdd/useBulkOperations.ts",
+    "src/hooks/inventory/backup-before-tdd/useInventoryDashboard.ts",
+    "src/hooks/inventory/backup-before-tdd/useInventoryItems.ts",
+    "src/hooks/inventory/backup-before-tdd/useInventoryOperations.ts",
+    "src/hooks/inventory/backup-before-tdd/useStockMovements.ts",
+    "src/hooks/inventory/backup-before-tdd/useStockOperations.ts",
+    "src/hooks/inventory/performanceOptimization.ts",
+    "src/hooks/inventory/useBulkOperations.ts",
+    "src/hooks/inventory/useInventoryItems.ts",
+    "src/hooks/inventory/useInventoryOperations.ts",
+    "src/hooks/marketing/index.ts",
+    "src/hooks/marketing/useContentSearch.ts",
+    "src/hooks/marketing/useMarketingCampaign.ts",
+    "src/hooks/marketing/useMarketingCampaigns.ts",
+    "src/hooks/marketing/useMarketingData.ts",
+    "src/hooks/marketing/useProductBundle.ts",
+    "src/hooks/marketing/useProductContent.ts",
+    "src/hooks/role-based/permissions.ts",
+    "src/hooks/role-based/usePermissions.ts",
+    "src/hooks/useInventory.ts",
+    "src/hooks/useRolePermissions.ts",
+    "src/hooks/useRolePermissions.tsx",
+    "src/hooks/useUserRole.ts",
+    "src/hooks/useUserRole.tsx",
+    "src/integration/marketing/orchestratorExtended.ts",
+    "src/integration/marketing/stateMachine.ts",
+    "src/lib/stateMachine/StateMachine.ts",
+    "src/lib/stateMachine/index.ts",
+    "src/lib/stateMachine.ts",
+    "src/lib/supabase.ts",
+    "src/monitoring/systemHealth.ts",
+    "src/navigation/RoleBasedStackNavigator.tsx",
+    "src/schemas/__contracts__/strict-failure-test.ts",
+    "src/schemas/__utils__/database-types.ts",
+    "src/schemas/executive/__contracts__/database-mock.types.ts",
+    "src/schemas/executive/index.ts",
+    "src/schemas/index.ts",
+    "src/schemas/inventory/__contracts__/database-mock.types.ts",
+    "src/schemas/inventory/index.ts",
+    "src/schemas/inventory.ts",
+    "src/schemas/marketing/common.schema.ts",
+    "src/schemas/marketing/common.ts",
+    "src/schemas/marketing/contentWorkflow.ts",
+    "src/schemas/marketing/file-upload.schema.ts",
+    "src/schemas/marketing/fileUpload.ts",
+    "src/schemas/marketing/index.ts",
+    "src/schemas/marketing/marketing-campaign.schema.ts",
+    "src/schemas/marketing/marketingCampaign.schema.ts",
+    "src/schemas/marketing/marketingCampaign.schemas.ts",
+    "src/schemas/marketing/marketingCampaign.ts",
+    "src/schemas/marketing/permissions.schema.ts",
+    "src/schemas/marketing/permissions.ts",
+    "src/schemas/marketing/product-bundle.schema.ts",
+    "src/schemas/marketing/product-content.schema.ts",
+    "src/schemas/marketing/productBundle.schema.ts",
+    "src/schemas/marketing/productBundle.schemas.ts",
+    "src/schemas/marketing/productBundle.ts",
+    "src/schemas/marketing/productContent.schema.ts",
+    "src/schemas/marketing/productContent.schemas.ts",
+    "src/schemas/marketing/productContent.ts",
+    "src/schemas/role-based/__contracts__/database-mock.types.ts",
+    "src/schemas/role-based/index.ts",
+    "src/schemas/role-based/navigationSchemas.ts",
+    "src/schemas/types/index.ts",
+    "src/screens/index.ts",
+    "src/screens/inventory/components/BulkOperationsModal.tsx",
+    "src/screens/inventory/components/StockHistoryView.tsx",
+    "src/screens/inventory/index.ts",
+    "src/screens/marketing/ContentWorkflow.tsx",
+    "src/screens/marketing/MarketingAnalyticsScreen.bak.tsx",
+    "src/screens/role-based/PermissionManagementScreen.tsx",
+    "src/screens/role-based/RoleDashboard.tsx",
+    "src/screens/role-based/RoleSelectionScreen.tsx",
+    "src/services/inventory/backup-before-tdd/stockMovementService.ts",
+    "src/services/inventory/inventoryService.hooks.ts",
+    "src/services/marketing/cacheManager.ts",
+    "src/services/marketing/contentWorkflow.ts",
+    "src/services/marketing/coordinator.ts",
+    "src/services/marketing/index.ts",
+    "src/services/marketing/productContentService.ts",
+    "src/services/marketing/realtime.ts",
+    "src/services/marketing/workflowService.ts",
+    "src/services/supabase.ts",
+    "src/services/userRoleService.comprehensive.ts",
+    "src/services/userRoleService.ts",
+    "src/store/index.ts",
+    "src/store/marketingStore.ts",
+    "src/test/__meta__/test-health-check.ts",
+    "src/test/__mocks__/@react-native-async-storage/async-storage.ts",
+    "src/test/__mocks__/@supabase/supabase-js.ts",
+    "src/test/__mocks__/broadcastFactory.ts",
+    "src/test/__mocks__/expo-constants.ts",
+    "src/test/__mocks__/expo-secure-store.ts",
+    "src/test/__mocks__/inventoryService.js",
+    "src/test/__mocks__/react-native.js",
+    "src/test/audit-test-compliance.js",
+    "src/test/component-setup.ts",
+    "src/test/contracts/hook.contracts.ts",
+    "src/test/contracts/service.contracts.ts",
+    "src/test/factories/index.ts",
+    "src/test/global-test-fixes.ts",
+    "src/test/globals.d.ts",
+    "src/test/globals.js",
+    "src/test/integration-setup.ts",
+    "src/test/integration-utils.tsx",
+    "src/test/inventory-hooks-setup.ts",
+    "src/test/jest-setup.js",
+    "src/test/logoutTest.js",
+    "src/test/marketing-setup.ts",
+    "src/test/mockData.ts",
+    "src/test/mockReactQuery.ts",
+    "src/test/mocks/auth.simplified.mock.ts",
+    "src/test/mocks/broadcast.simplified.mock.ts",
+    "src/test/mocks/inventoryServiceAdapter.ts",
+    "src/test/mocks/queryKeyFactory.mock.ts",
+    "src/test/mocks/react-native.js",
+    "src/test/mocks/react-query.mock.ts",
+    "src/test/mocks/storage.simplified.mock.ts",
+    "src/test/mocks/supabase.ts",
+    "src/test/mocks/unified-supabase.mock.ts",
+    "src/test/mocks/zustand.js",
+    "src/test/refactor-bridge.ts",
+    "src/test/role-test-setup.ts",
+    "src/test/service-test-template.ts",
+    "src/test/serviceSetup.js",
+    "src/test/serviceSetup.ts",
+    "src/test/setup.ts",
+    "src/test/simple-fixes.ts",
+    "src/test/test-setup.ts",
+    "src/test/test-utilities.ts",
+    "src/test/test-utils.tsx",
+    "src/test/testUtils.tsx",
+    "src/test-utils/SimplifiedSupabaseMock.ts",
+    "src/test-utils/ValidationMonitor.ts",
+    "src/test-utils/jest-setup.ts",
+    "src/test-utils/setup.ts",
+    "src/tests/serviceIntegration.js",
+    "src/tests/testRunner.js",
+    "src/types/index.ts",
+    "src/types/inventory.ts",
+    "src/utils/defensiveDatabase.ts",
+    "src/utils/frontendOptimization.tsx",
+    "src/utils/marketing/queryKeys.ts",
+    "src/utils/paymentSecurity.ts",
+    "src/utils/realtimeDiagnostic.ts",
+    "src/utils/resilientProcessing.ts",
+    "src/utils/schemaIntrospection.ts",
+    "src/utils/serviceResponse.ts",
+    "src/utils/validation-pipelines.ts",
+    "App.debug.tsx"
+  ],
+  "stats": {
+    "totalFiles": 437,
+    "brokenImports": 53,
+    "orphanedFiles": 181
+  }
+}

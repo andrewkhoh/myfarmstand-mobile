@@ -11,9 +11,9 @@ export const InventoryItemDatabaseSchema = z.object({
   maximum_threshold: z.number().int().nullable(),
   is_active: z.boolean(),
   is_visible_to_customers: z.boolean(),
-  last_stock_update: z.string(),
-  created_at: z.string(),
-  updated_at: z.string()
+  last_stock_update: z.string().nullable(),
+  created_at: z.string().nullable(),
+  updated_at: z.string().nullable()
 });
 
 // Database row type

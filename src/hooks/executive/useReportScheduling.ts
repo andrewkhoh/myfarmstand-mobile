@@ -48,7 +48,7 @@ export function useReportScheduling(options: UseReportSchedulingOptions = {}) {
       // Fallback if something goes wrong
       return [];
     },
-    enabled: options.manageMultiple === true && !!role && role === 'executive' && !!user?.id,
+    enabled: options.manageMultiple === true && !!role && ['executive', 'admin'].includes(role.toLowerCase()) && !!user?.id,
     staleTime: 5 * 60 * 1000, // 5 minutes - schedules are relatively static
     gcTime: 30 * 60 * 1000,   // 30 minutes - longer retention for schedule data
     refetchOnMount: false,     // Don't auto-refetch schedule lists

@@ -264,7 +264,7 @@ export const useBusinessMetrics = (options: UseBusinessMetricsOptions & { realti
     refetchOnMount: true,
     refetchOnWindowFocus: false,
     refetchOnReconnect: true,
-    enabled: !!role && role === 'executive', // Simple enabled guard
+    enabled: !!role && ['executive', 'admin'].includes(role.toLowerCase()), // Simple enabled guard
     retry: false, // Disable retries for tests to work properly
   });
   
@@ -283,7 +283,7 @@ export const useBusinessMetrics = (options: UseBusinessMetricsOptions & { realti
 
   // Real-time subscription setup
   useEffect(() => {
-    if (!options.realtime || !user?.id || role !== 'executive') return;
+    if (!options.realtime || !user?.id || !['executive', 'admin'].includes(role.toLowerCase())) return;
 
     const channel = `executive:metrics:${user.id}`;
     
@@ -324,7 +324,7 @@ export const useBusinessMetrics = (options: UseBusinessMetricsOptions & { realti
 
   // Authentication guard - following useCart pattern exactly
   // But don't override query error states if they exist
-  if (!role || role !== 'executive') {
+  if (!role || !['executive', 'admin'].includes(role.toLowerCase())) {
     const authError = createBusinessMetricsError(
       'PERMISSION_DENIED',
       'User lacks executive permissions',
