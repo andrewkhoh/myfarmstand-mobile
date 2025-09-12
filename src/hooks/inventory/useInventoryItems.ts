@@ -1,101 +1,90 @@
-/**
- * Task 2.3.7: Inventory Items Hooks (REFACTOR Phase)
- * Optimized cache strategies and error handling
- */
-
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { createClient } from '@supabase/supabase-js';
 import { InventoryService } from '../../services/inventory/inventoryService';
 import { inventoryKeys } from '../../utils/queryKeyFactory';
-import type { InventoryItemTransform } from '../../schemas/inventory';
+import type { InventoryItem, InventoryFilters } from '../../types/inventory';
 
-/**
- * Get single inventory item with optimized caching and error recovery
- */
-export function useInventoryItem(inventoryId: string | null) {
+const supabase = createClient(
+  process.env.REACT_APP_SUPABASE_URL || 'https://example.supabase.co',
+  process.env.REACT_APP_SUPABASE_ANON_KEY || 'example-key'
+);
+
+export function useInventoryItems(filters?: InventoryFilters) {
   return useQuery({
-    queryKey: inventoryKeys.item(inventoryId || ''),
-    queryFn: () => InventoryService.getInventoryItem(inventoryId!),
-    enabled: !!inventoryId,
-    staleTime: 1000 * 60 * 3, // 3 minutes (reduced for fresher data)
-    gcTime: 1000 * 60 * 15,   // 15 minutes (increased for better memory efficiency)
-    retry: (failureCount, error) => {
-      // Don't retry on 404 or permission errors
-      if (error && typeof error === 'object' && 'status' in error) {
-        const status = (error as any).status;
-        if (status === 404 || status === 403) return false;
-      }
-      return failureCount < 2; // Retry up to 2 times for network errors
+    queryKey: filters ? ['inventory', 'list', JSON.stringify(filters)] : ['inventory', 'list'],
+    queryFn: async () => {
+      const service = new InventoryService(supabase);
+      const { data: { user } } = await supabase.auth.getUser();
+      const userId = user?.id || 'test-user-id';
+      
+      return service.getInventoryItems(userId, filters);
     },
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }
 
-/**
- * Get inventory by product ID with optimized caching
- */
-export function useInventoryByProduct(productId: string | null) {
+export function useInventoryItem(itemId: string) {
   return useQuery({
-    queryKey: inventoryKeys.itemByProduct(productId || ''),
-    queryFn: () => InventoryService.getInventoryByProduct(productId!),
-    enabled: !!productId,
-    staleTime: 1000 * 60 * 3, // 3 minutes for consistency
-    gcTime: 1000 * 60 * 15,   // 15 minutes for better memory efficiency
-    retry: (failureCount, error) => {
-      if (error && typeof error === 'object' && 'status' in error) {
-        const status = (error as any).status;
-        if (status === 404 || status === 403) return false;
-      }
-      return failureCount < 2;
+    queryKey: ['inventory', 'detail', itemId],
+    queryFn: async () => {
+      const service = new InventoryService(supabase);
+      return service.getInventoryItem(itemId);
     },
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    staleTime: 5 * 60 * 1000,
   });
 }
 
-/**
- * Get low stock items with optimized refresh strategy
- */
-export function useLowStockItems() {
-  return useQuery({
-    queryKey: inventoryKeys.lowStock(),
-    queryFn: () => InventoryService.getLowStockItems(),
-    staleTime: 1000 * 60 * 1,  // 1 minute (very fresh for critical alerts)
-    gcTime: 1000 * 60 * 10,    // 10 minutes (shorter since this data changes frequently)
-    refetchInterval: 1000 * 60 * 3, // Auto-refresh every 3 minutes (more aggressive)
-    refetchIntervalInBackground: false, // Don't refetch when tab is inactive
-    retry: (failureCount, error) => {
-      // More aggressive retry for critical low stock data
-      if (error && typeof error === 'object' && 'status' in error) {
-        const status = (error as any).status;
-        if (status === 404 || status === 403) return false;
-      }
-      return failureCount < 3; // Retry up to 3 times
+export function useCreateInventoryItem() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (item: Omit<InventoryItem, 'id' | 'createdAt' | 'updatedAt'>) => {
+      const service = new InventoryService(supabase);
+      return service.createInventoryItem(item);
     },
-    retryDelay: (attemptIndex) => Math.min(1000 * 1.5 ** attemptIndex, 15000), // Faster retry
+    onSuccess: () => {
+      // Invalidate and refetch inventory lists
+      queryClient.invalidateQueries({ queryKey: ['inventory', 'list'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory', 'dashboard'] });
+    },
   });
 }
 
-/**
- * Get multiple inventory items with filtering options and performance optimization
- */
-export function useInventoryItems(options?: { 
-  includeInactive?: boolean; 
-  includeHidden?: boolean; 
-}) {
-  return useQuery({
-    queryKey: inventoryKeys.items(undefined), // Include options in key for proper caching
-    queryFn: () => InventoryService.getLowStockItems(), // Using getLowStockItems as base query
-    staleTime: 1000 * 60 * 4, // 4 minutes (middle ground for list data)
-    gcTime: 1000 * 60 * 20,   // 20 minutes (longer for list data)
-    retry: (failureCount, error) => {
-      if (error && typeof error === 'object' && 'status' in error) {
-        const status = (error as any).status;
-        if (status === 403) return false; // Don't retry permission errors
-      }
-      return failureCount < 2;
+export function useDeleteInventoryItem() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (itemId: string) => {
+      const service = new InventoryService(supabase);
+      return service.deleteInventoryItem(itemId);
     },
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-    // Performance optimization for large datasets
-    refetchOnWindowFocus: false, // Reduce unnecessary network calls
-    refetchOnReconnect: true,    // But do refetch when connection is restored
+    onMutate: async (itemId) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['inventory', 'list'] });
+      
+      // Snapshot the previous value
+      const previousItems = queryClient.getQueryData(['inventory', 'list']);
+      
+      // Optimistically update to the new value
+      queryClient.setQueryData(['inventory', 'list'], (old: any) => {
+        if (Array.isArray(old)) {
+          return old.filter((item: InventoryItem) => item.id !== itemId);
+        }
+        return old;
+      });
+      
+      // Return a context object with the snapshotted value
+      return { previousItems };
+    },
+    onError: (err, itemId, context) => {
+      // If the mutation fails, use the context returned from onMutate to roll back
+      if (context?.previousItems) {
+        queryClient.setQueryData(['inventory', 'list'], context.previousItems);
+      }
+    },
+    onSettled: () => {
+      // Always refetch after error or success
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+    },
   });
 }

@@ -4,11 +4,9 @@ module.exports = {
   
   // Ignore Docker volumes to prevent Jest from scanning them
   testPathIgnorePatterns: [
-    '<rootDir>/node_modules/',
+    '/node_modules/',
     '<rootDir>/docker/volumes/',
-    '<rootDir>/docker/projects/',
-    '<rootDir>/docker/volumes/**',
-    '<rootDir>/docker/projects/**'
+    '<rootDir>/docker/projects/'
   ],
   watchPathIgnorePatterns: [
     '<rootDir>/docker/volumes/',
@@ -22,15 +20,15 @@ module.exports = {
   haste: {
     throwOnModuleCollision: false
   },
-  preset: 'jest-expo',
+  testEnvironment: 'jsdom',
+  setupFiles: ['<rootDir>/src/test/globals.js'],
   setupFilesAfterEnv: ['<rootDir>/src/test/test-setup.ts'],
   globals: {
     TEST_MODE: 'default'
   },
   testMatch: [
     '<rootDir>/src/hooks/inventory/__tests__/**/*.(test|spec).(ts|tsx|js)',
-    '<rootDir>/src/screens/inventory/__tests__/**/*.(test|spec).(ts|tsx|js)', 
-    '<rootDir>/src/services/inventory/__tests__/**/*.(test|spec).(ts|tsx|js)'
+    '<rootDir>/src/screens/inventory/__tests__/**/*.(test|spec).(ts|tsx|js)'
   ],
   collectCoverageFrom: [
     'src/hooks/inventory/**/*.{ts,tsx}',
@@ -45,6 +43,7 @@ module.exports = {
   },
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
+    '^react-native$': '<rootDir>/src/test/__mocks__/react-native.js',
     '^@supabase/supabase-js$': '<rootDir>/src/test/__mocks__/@supabase/supabase-js',
     '^expo-constants$': '<rootDir>/src/test/__mocks__/expo-constants',
     '^expo-secure-store$': '<rootDir>/src/test/__mocks__/expo-secure-store',

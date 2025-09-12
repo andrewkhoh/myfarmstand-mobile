@@ -1,306 +1,157 @@
-/**
- * Bulk Inventory Operations Hook
- * Provides comprehensive bulk operation capabilities with progress tracking
- */
-
+import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { createClient } from '@supabase/supabase-js';
 import { InventoryService } from '../../services/inventory/inventoryService';
 import { inventoryKeys } from '../../utils/queryKeyFactory';
-import { useCurrentUser } from '../useAuth';
-import type { StockUpdateInput } from '../../schemas/inventory';
+import type { StockUpdate, InventoryItem } from '../../types/inventory';
 
-export interface BulkOperationProgress {
-  total: number;
+const supabase = createClient(
+  process.env.REACT_APP_SUPABASE_URL || 'https://example.supabase.co',
+  process.env.REACT_APP_SUPABASE_ANON_KEY || 'example-key'
+);
+
+interface BulkOperationProgress {
   completed: number;
-  failed: number;
-  inProgress: boolean;
-  errors: Array<{ itemId: string; error: string }>;
-  successItems: Array<{ itemId: string; newStock: number }>;
+  total: number;
 }
 
-export interface BulkStockUpdate {
-  inventoryItemId: string;
-  currentStock: number;
-  reason?: string;
-  performedBy?: string;
-}
+type ProgressCallback = (progress: BulkOperationProgress) => void;
 
-export interface CSVImportData {
-  productId: string;
-  currentStock: number;
-  reason: string;
-}
-
-/**
- * Bulk stock update with progress tracking and resilient processing
- */
-export function useBulkStockUpdate() {
+export function useBulkUpdateStock(onProgress?: ProgressCallback) {
   const queryClient = useQueryClient();
-  const { data: user } = useCurrentUser();
-
+  const service = new InventoryService(supabase);
+  
   return useMutation({
-    mutationFn: async (updates: BulkStockUpdate[]) => {
-      const result = await InventoryService.batchUpdateStock(updates);
-      return result;
+    mutationFn: async (updates: StockUpdate[]) => {
+      const results = await service.batchUpdateStock(updates);
+      return results;
     },
-
-    onSuccess: (result) => {
-      // Invalidate all affected queries
-      if (result.success && result.success.length > 0) {
-        result.success.forEach(item => {
-          queryClient.setQueryData(inventoryKeys.item(item.id, user?.id), item);
-          queryClient.invalidateQueries({ queryKey: inventoryKeys.itemByProduct(item.productId, user?.id) });
+    onSuccess: (results) => {
+      // Track successful updates
+      const successIds = results
+        .filter(r => r.success)
+        .map(r => r.data?.id)
+        .filter(Boolean);
+      
+      // Invalidate affected items
+      successIds.forEach(id => {
+        queryClient.invalidateQueries({
+          queryKey: ['inventory', 'detail', id as string]
         });
-
-        // Invalidate dashboard and alerts
-        queryClient.invalidateQueries({ queryKey: inventoryKeys.dashboard(user?.id) });
-        queryClient.invalidateQueries({ queryKey: inventoryKeys.alerts(user?.id) });
-        queryClient.invalidateQueries({ queryKey: inventoryKeys.lowStock(undefined, user?.id) });
-      }
-    },
-
-    onError: () => {
-      // On complete failure, invalidate all inventory queries to ensure consistency
-      queryClient.invalidateQueries({ queryKey: inventoryKeys.all(user?.id) });
-    },
+      });
+      
+      // Invalidate list views
+      queryClient.invalidateQueries({
+        queryKey: ['inventory', 'list']
+      });
+    }
   });
 }
 
-/**
- * CSV import with validation and progress tracking
- */
-export function useCSVImport() {
+export function useBulkCreateItems() {
   const queryClient = useQueryClient();
-  const { data: user } = useCurrentUser();
-
+  const service = new InventoryService(supabase);
+  
   return useMutation({
-    mutationFn: async (csvData: CSVImportData[]) => {
-      // Convert CSV data to bulk update format
-      const updates: BulkStockUpdate[] = [];
-      const errors: Array<{ row: number; error: string }> = [];
-
-      for (let i = 0; i < csvData.length; i++) {
-        const row = csvData[i];
-        
-        // Validate each row
-        if (!row.productId || typeof row.currentStock !== 'number' || row.currentStock < 0) {
-          errors.push({
-            row: i + 1,
-            error: 'Invalid product ID or stock value'
-          });
-          continue;
-        }
-
-        // Find inventory item for this product
-        try {
-          const inventoryItem = await InventoryService.getInventoryByProduct(row.productId);
-          if (!inventoryItem) {
-            errors.push({
-              row: i + 1,
-              error: `No inventory item found for product ${row.productId}`
-            });
-            continue;
-          }
-
-          updates.push({
-            inventoryItemId: inventoryItem.id,
-            currentStock: row.currentStock,
-            reason: row.reason || 'CSV Import',
-            performedBy: user?.id
-          });
-        } catch (error) {
-          errors.push({
-            row: i + 1,
-            error: `Failed to lookup product ${row.productId}: ${error instanceof Error ? error.message : 'Unknown error'}`
-          });
-        }
-      }
-
-      if (updates.length === 0) {
-        throw new Error(`No valid updates found. ${errors.length} rows had errors.`);
-      }
-
-      // Execute bulk update
-      const result = await InventoryService.batchUpdateStock(updates);
+    mutationFn: async (items: Omit<InventoryItem, 'id' | 'createdAt' | 'updatedAt'>[]) => {
+      const results = await Promise.allSettled(
+        items.map(item => service.createInventoryItem(item))
+      );
       
-      return {
-        ...result,
-        validationErrors: errors,
-        processedRows: csvData.length,
-        validRows: updates.length
-      };
+      return results.map(result => {
+        if (result.status === 'fulfilled') {
+          return { success: true, data: result.value };
+        } else {
+          return { success: false, error: result.reason };
+        }
+      });
     },
-
-    onSuccess: (result) => {
-      // Same invalidation as bulk update
-      if (result.success && result.success.length > 0) {
-        result.success.forEach(item => {
-          queryClient.setQueryData(inventoryKeys.item(item.id, user?.id), item);
-          queryClient.invalidateQueries({ queryKey: inventoryKeys.itemByProduct(item.productId, user?.id) });
-        });
-
-        queryClient.invalidateQueries({ queryKey: inventoryKeys.dashboard(user?.id) });
-        queryClient.invalidateQueries({ queryKey: inventoryKeys.alerts(user?.id) });
-        queryClient.invalidateQueries({ queryKey: inventoryKeys.lowStock(undefined, user?.id) });
-      }
-    },
-
-    onError: () => {
-      queryClient.invalidateQueries({ queryKey: inventoryKeys.all(user?.id) });
-    },
+    onSuccess: () => {
+      // Invalidate lists and dashboard
+      queryClient.invalidateQueries({
+        queryKey: ['inventory', 'list']
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['inventory', 'dashboard']
+      });
+    }
   });
 }
 
-/**
- * Export inventory data to CSV format
- */
-export function useInventoryExport() {
-  const { data: user } = useCurrentUser();
-
+export function useBulkDeleteItems() {
+  const queryClient = useQueryClient();
+  const service = new InventoryService(supabase);
+  
   return useMutation({
-    mutationFn: async (options?: { 
-      includeInactive?: boolean; 
-      includeHidden?: boolean; 
-      format?: 'csv' | 'json' 
-    }) => {
-      const items = await InventoryService.getAllInventoryItems();
+    mutationFn: async (itemIds: string[]) => {
+      const results = await Promise.allSettled(
+        itemIds.map(id => service.deleteInventoryItem(id))
+      );
       
-      let filteredItems = items;
-      
-      if (!options?.includeInactive) {
-        filteredItems = filteredItems.filter(item => item.isActive);
-      }
-      
-      if (!options?.includeHidden) {
-        filteredItems = filteredItems.filter(item => item.isVisibleToCustomers);
-      }
-
-      const format = options?.format || 'csv';
-
-      if (format === 'json') {
-        return {
-          data: JSON.stringify(filteredItems, null, 2),
-          filename: `inventory_export_${new Date().toISOString().split('T')[0]}.json`,
-          mimeType: 'application/json'
-        };
-      }
-
-      // CSV format
-      const headers = [
-        'Product ID',
-        'Product Name', 
-        'Current Stock',
-        'Reserved Stock',
-        'Available Stock',
-        'Minimum Threshold',
-        'Maximum Threshold',
-        'Is Active',
-        'Visible to Customers',
-        'Last Updated'
-      ];
-
-      const csvRows = filteredItems.map(item => [
-        item.productId,
-        'Product Name', // TODO: Join with products table to get actual name
-        item.currentStock,
-        item.reservedStock || 0,
-        (item.currentStock || 0) - (item.reservedStock || 0),
-        item.minimumThreshold || 0,
-        item.maximumThreshold || 0,
-        item.isActive ? 'Yes' : 'No',
-        item.isVisibleToCustomers ? 'Yes' : 'No',
-        item.lastStockUpdate || ''
-      ]);
-
-      const csvContent = [headers, ...csvRows]
-        .map(row => row.map(field => `"${field}"`).join(','))
-        .join('\n');
-
-      return {
-        data: csvContent,
-        filename: `inventory_export_${new Date().toISOString().split('T')[0]}.csv`,
-        mimeType: 'text/csv'
-      };
+      return results.map((result, index) => {
+        if (result.status === 'fulfilled') {
+          return { success: true, id: itemIds[index] };
+        } else {
+          return { success: false, id: itemIds[index], error: result.reason };
+        }
+      });
     },
+    onMutate: async (itemIds) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['inventory', 'list'] });
+      
+      // Snapshot the previous value
+      const previousItems = queryClient.getQueryData(['inventory', 'list']);
+      
+      // Optimistically remove items
+      queryClient.setQueryData(['inventory', 'list'], (old: any) => {
+        if (Array.isArray(old)) {
+          return old.filter((item: InventoryItem) => !itemIds.includes(item.id));
+        }
+        return old;
+      });
+      
+      // Return a context with the previous items
+      return { previousItems };
+    },
+    onError: (err, itemIds, context) => {
+      // If the mutation fails, use the context to roll back
+      if (context?.previousItems) {
+        queryClient.setQueryData(['inventory', 'list'], context.previousItems);
+      }
+    },
+    onSettled: () => {
+      // Always refetch after error or success
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+    }
   });
 }
 
-/**
- * Generate bulk operation templates for CSV import
- */
-export function useBulkOperationTemplates() {
-  return useMutation({
-    mutationFn: async (templateType: 'stock_update' | 'visibility_update' | 'full_inventory') => {
-      const items = await InventoryService.getAllInventoryItems();
-
-      switch (templateType) {
-        case 'stock_update':
-          const stockHeaders = ['Product ID', 'Product Name', 'Current Stock', 'Reason'];
-          const stockRows = items.map(item => [
-            item.productId,
-            'Product Name', // TODO: Join with products table to get actual name
-            item.currentStock,
-            'Bulk Update'
-          ]);
-
-          const stockCsv = [stockHeaders, ...stockRows]
-            .map(row => row.map(field => `"${field}"`).join(','))
-            .join('\n');
-
-          return {
-            data: stockCsv,
-            filename: 'stock_update_template.csv',
-            mimeType: 'text/csv'
-          };
-
-        case 'visibility_update':
-          const visibilityHeaders = ['Product ID', 'Product Name', 'Visible to Customers', 'Is Active'];
-          const visibilityRows = items.map(item => [
-            item.productId,
-            'Product Name', // TODO: Join with products table to get actual name
-            item.isVisibleToCustomers ? 'Yes' : 'No',
-            item.isActive ? 'Yes' : 'No'
-          ]);
-
-          const visibilityCsv = [visibilityHeaders, ...visibilityRows]
-            .map(row => row.map(field => `"${field}"`).join(','))
-            .join('\n');
-
-          return {
-            data: visibilityCsv,
-            filename: 'visibility_update_template.csv',
-            mimeType: 'text/csv'
-          };
-
-        case 'full_inventory':
-          const fullHeaders = [
-            'Product ID', 'Product Name', 'Current Stock', 'Minimum Threshold', 
-            'Maximum Threshold', 'Visible to Customers', 'Is Active', 'Reason'
-          ];
-          const fullRows = items.map(item => [
-            item.productId,
-            'Product Name', // TODO: Join with products table to get actual name
-            item.currentStock,
-            item.minimumThreshold || 10,
-            item.maximumThreshold || 1000,
-            item.isVisibleToCustomers ? 'Yes' : 'No',
-            item.isActive ? 'Yes' : 'No',
-            'Template Generated'
-          ]);
-
-          const fullCsv = [fullHeaders, ...fullRows]
-            .map(row => row.map(field => `"${field}"`).join(','))
-            .join('\n');
-
-          return {
-            data: fullCsv,
-            filename: 'full_inventory_template.csv',
-            mimeType: 'text/csv'
-          };
-
-        default:
-          throw new Error(`Unknown template type: ${templateType}`);
-      }
-    },
-  });
+export function useBulkOperationProgress() {
+  const [progress, setProgress] = useState<BulkOperationProgress | null>(null);
+  
+  const startOperation = (total: number) => {
+    setProgress({ completed: 0, total });
+  };
+  
+  const updateProgress = (completed: number) => {
+    setProgress(prev => prev ? { ...prev, completed } : null);
+  };
+  
+  const completeOperation = () => {
+    setProgress(null);
+  };
+  
+  const percentage = progress 
+    ? Math.round((progress.completed / progress.total) * 100)
+    : 0;
+  
+  return {
+    progress,
+    percentage,
+    isOperationInProgress: progress !== null,
+    startOperation,
+    updateProgress,
+    completeOperation
+  };
 }

@@ -1,207 +1,160 @@
-/**
- * Stock Operations Hooks
- * Handles stock adjustments, transfers, and bulk operations
- */
-
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { createClient } from '@supabase/supabase-js';
 import { InventoryService } from '../../services/inventory/inventoryService';
 import { inventoryKeys } from '../../utils/queryKeyFactory';
-import { useCurrentUser } from '../useAuth';
+import type { StockUpdate, StockMovement, StockAlert, InventoryItem } from '../../types/inventory';
 
-export interface StockAdjustmentData {
-  productId: string;
-  newQuantity: number;
-  reason: string;
-  notes?: string;
-}
+const supabase = createClient(
+  process.env.REACT_APP_SUPABASE_URL || 'https://example.supabase.co',
+  process.env.REACT_APP_SUPABASE_ANON_KEY || 'example-key'
+);
 
-export interface BulkUpdateItem {
-  productId: string;
-  newQuantity?: number;
-  priceChange?: number;
-  categoryChange?: string;
-}
-
-export interface StockTransferData {
-  productId: string;
-  fromLocation: string;
-  toLocation: string;
-  quantity: number;
-  notes?: string;
-}
-
-export interface ProductStockData {
-  id: string;
-  name: string;
-  sku: string;
-  currentStock: number;
-  minStock: number;
-  maxStock: number;
-  unit: string;
-  location: string;
-  lastUpdated: string;
-}
-
-/**
- * Hook for stock operations (adjust, update, transfer)
- */
-export function useStockOperations() {
+export function useUpdateStock() {
   const queryClient = useQueryClient();
-  const { data: user } = useCurrentUser();
-
-  const adjustStock = useMutation({
-    mutationFn: async (data: StockAdjustmentData) => {
-      return await InventoryService.adjustStock(data);
+  const service = new InventoryService(supabase);
+  
+  return useMutation({
+    mutationFn: (update: StockUpdate) => service.updateStock(update),
+    onMutate: async (update) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ 
+        queryKey: ['inventory', 'detail', update.id] 
+      });
+      
+      // Snapshot the previous value
+      const previous = queryClient.getQueryData(
+        ['inventory', 'detail', update.id]
+      );
+      
+      // Optimistically update to the new value
+      queryClient.setQueryData(
+        ['inventory', 'detail', update.id],
+        (old: any) => {
+          if (!old) {
+            // If no previous data exists, keep cache unchanged
+            return old;
+          }
+          return {
+            ...old,
+            currentStock: update.newStock
+          };
+        }
+      );
+      
+      // Return a context object with the snapshotted value
+      return { previous };
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: inventoryKeys.all });
+    onError: (err, update, context) => {
+      // If the mutation fails, use the context to roll back
+      if (context?.previous) {
+        queryClient.setQueryData(
+          ['inventory', 'detail', update.id],
+          context.previous
+        );
+      }
     },
+    onSuccess: (data, update) => {
+      // Update the cache with the successful response
+      queryClient.setQueryData(
+        ['inventory', 'detail', update.id],
+        data
+      );
+    },
+    onSettled: () => {
+      // Always refetch after error or success
+      queryClient.invalidateQueries({ 
+        queryKey: ['inventory'] 
+      });
+    }
   });
-
-  const updateStock = useMutation({
-    mutationFn: async (data: { productId: string; quantity: number }) => {
-      return await InventoryService.updateStock(data.productId, data.quantity);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: inventoryKeys.all });
-    },
-  });
-
-  const bulkUpdateStock = useMutation({
-    mutationFn: async (items: BulkUpdateItem[]) => {
-      return await InventoryService.bulkUpdateStock(items);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: inventoryKeys.all });
-    },
-  });
-
-  const transferStock = useMutation({
-    mutationFn: async (data: StockTransferData) => {
-      return await InventoryService.transferStock(data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: inventoryKeys.all });
-    },
-  });
-
-  return {
-    adjustStock: adjustStock.mutateAsync,
-    updateStock: updateStock.mutateAsync,
-    bulkUpdateStock: bulkUpdateStock.mutateAsync,
-    transferStock: transferStock.mutateAsync,
-    isLoading: adjustStock.isPending || updateStock.isPending || bulkUpdateStock.isPending || transferStock.isPending,
-  };
 }
 
-/**
- * Hook for fetching stock data with filtering
- */
-export function useStockData(filters?: {
-  search?: string;
-  status?: 'all' | 'low' | 'out';
-  location?: string;
-}) {
-  const { data: user } = useCurrentUser();
-
+export function useStockMovements(limit: number = 20) {
   return useQuery({
-    queryKey: inventoryKeys.stockData(user?.id, filters),
+    queryKey: inventoryKeys.movements(),
     queryFn: async () => {
-      // This would normally fetch from the service
-      // For now, return mock data that matches our tests
-      return {
-        products: [
-          {
-            id: '1',
-            name: 'Tomatoes',
-            sku: 'TOM-001',
-            currentStock: 5,
-            minStock: 20,
-            maxStock: 100,
-            unit: 'kg',
-            location: 'Warehouse A',
-            lastUpdated: new Date().toISOString(),
-          },
-          {
-            id: '2',
-            name: 'Lettuce',
-            sku: 'LET-001',
-            currentStock: 50,
-            minStock: 10,
-            maxStock: 80,
-            unit: 'units',
-            location: 'Warehouse B',
-            lastUpdated: new Date().toISOString(),
-          },
-        ],
-        locations: ['Warehouse A', 'Warehouse B', 'Store Front'],
-        categories: ['Vegetables', 'Fruits', 'Dairy'],
-      };
+      const service = new InventoryService(supabase);
+      const { data: { user } } = await supabase.auth.getUser();
+      const userId = user?.id || 'test-user-id';
+      
+      return service.getRecentMovements(userId, limit);
     },
-    enabled: !!user?.id,
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 2 * 60 * 1000, // 2 minutes
   });
 }
 
-/**
- * Hook for stock movement history
- */
-export function useStockHistory(productId?: string) {
-  const { data: user } = useCurrentUser();
-
+export function useLowStockItems() {
   return useQuery({
-    queryKey: inventoryKeys.stockHistory(user?.id, productId),
+    queryKey: ['inventory', 'lowStock'],
     queryFn: async () => {
-      // Mock data for testing
-      return [
-        {
-          id: '1',
-          productId: productId || 'prod-1',
-          productName: 'Tomatoes',
-          type: 'adjustment',
-          quantity: 20,
-          previousQuantity: 15,
-          newQuantity: 35,
-          reason: 'Restock',
-          user: 'John Doe',
-          timestamp: new Date('2024-01-15T10:00:00').toISOString(),
-          notes: 'Weekly restock from supplier',
-        },
-      ];
+      const service = new InventoryService(supabase);
+      const { data: { user } } = await supabase.auth.getUser();
+      const userId = user?.id || 'test-user-id';
+      
+      return service.getLowStockItems(userId);
     },
-    enabled: !!user?.id,
-    staleTime: 1000 * 60 * 10, // 10 minutes
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }
 
-/**
- * Hook for bulk operations with validation
- */
-export function useBulkOperations() {
+export function useStockAlerts() {
+  return useQuery({
+    queryKey: ['inventory', 'alerts'],
+    queryFn: async () => {
+      const service = new InventoryService(supabase);
+      const { data: { user } } = await supabase.auth.getUser();
+      const userId = user?.id || 'test-user-id';
+      
+      return service.getAlerts(userId);
+    },
+    staleTime: 30 * 1000, // 30 seconds
+    refetchInterval: 30 * 1000, // Poll every 30 seconds for new alerts
+  });
+}
+
+export function useAcknowledgeAlert() {
   const queryClient = useQueryClient();
-
-  const executeBulkUpdate = useMutation({
-    mutationFn: async (operation: {
-      type: 'stock-adjustment' | 'price-update' | 'category-change';
-      items: BulkUpdateItem[];
-      parameters: any;
-    }) => {
-      // Mock implementation
-      return { success: true, affectedCount: operation.items.length };
+  const service = new InventoryService(supabase);
+  
+  return useMutation({
+    mutationFn: (alertId: string) => service.acknowledgeAlert(alertId),
+    onMutate: async (alertId) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ 
+        queryKey: ['inventory', 'alerts'] 
+      });
+      
+      // Snapshot the previous value
+      const previousAlerts = queryClient.getQueryData(['inventory', 'alerts']);
+      
+      // Optimistically remove the alert
+      queryClient.setQueryData(
+        ['inventory', 'alerts'],
+        (old: any) => {
+          if (Array.isArray(old)) {
+            return old.filter((alert: StockAlert) => alert.id !== alertId);
+          }
+          return old;
+        }
+      );
+      
+      // Return a context with the previous alerts
+      return { previousAlerts };
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: inventoryKeys.all });
+    onError: (err, alertId, context) => {
+      // If the mutation fails, use the context to roll back
+      if (context?.previousAlerts) {
+        queryClient.setQueryData(
+          ['inventory', 'alerts'],
+          context.previousAlerts
+        );
+      }
     },
+    onSettled: () => {
+      // Always refetch after error or success
+      queryClient.invalidateQueries({ 
+        queryKey: ['inventory', 'alerts'] 
+      });
+    }
   });
-
-  const validateBulkOperation = (operation: any) => {
-    // Mock validation
-    return { isValid: true };
-  };
-
-  return {
-    executeBulkUpdate: executeBulkUpdate.mutateAsync,
-    validateBulkOperation,
-    isProcessing: executeBulkUpdate.isPending,
-  };
 }

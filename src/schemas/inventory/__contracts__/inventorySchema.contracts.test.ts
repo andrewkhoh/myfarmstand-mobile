@@ -5,17 +5,18 @@
  */
 
 import type { 
-  InventoryItemTransform,
-  StockMovementTransform,
-  CreateStockMovementInput,
-  StockUpdateInput
+  CreateStockMovementInput
 } from '../index';
+
+import type {
+  InventoryItem,
+  StockMovement
+} from '../../types';
 
 import {
   InventoryItemTransformSchema,
   StockMovementTransformSchema,
-  CreateStockMovementInputSchema,
-  StockUpdateInputSchema
+  CreateStockMovementSchema
 } from '../index';
 
 import { z } from 'zod';
@@ -30,10 +31,10 @@ type AssertExact<T, Expected> = T extends Expected
 // ✅ CONTRACT TEST: InventoryItemTransform schema must match interface exactly
 describe('Inventory Schema Contracts', () => {
   describe('InventoryItemTransformSchema', () => {
-    it('should match InventoryItemTransform interface exactly', () => {
+    it('should match InventoryItem interface exactly', () => {
       // This test ensures the schema transformation produces exactly what the interface expects
       type TransformationOutput = z.infer<typeof InventoryItemTransformSchema>;
-      type ContractMatch = AssertExact<TransformationOutput, InventoryItemTransform>;
+      type ContractMatch = AssertExact<TransformationOutput, InventoryItem>;
       
       const contractTest: ContractMatch = true;
       expect(contractTest).toBe(true);
@@ -41,8 +42,8 @@ describe('Inventory Schema Contracts', () => {
 
     it('should populate all required interface fields', () => {
       const mockRawData = {
-        id: 'inv-1',
-        product_id: 'prod-1',
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        product_id: '550e8400-e29b-41d4-a716-446655440001',
         current_stock: 10,
         reserved_stock: 2,
         available_stock: 8, // current_stock - reserved_stock
@@ -72,7 +73,7 @@ describe('Inventory Schema Contracts', () => {
       expect(result.updatedAt).toBeDefined();
       
       // Verify correct data transformation (snake_case → camelCase)
-      expect(result.productId).toBe('prod-1');
+      expect(result.productId).toBe('550e8400-e29b-41d4-a716-446655440001');
       expect(result.currentStock).toBe(10);
       expect(result.reservedStock).toBe(2);
       expect(result.availableStock).toBe(8);
@@ -82,9 +83,9 @@ describe('Inventory Schema Contracts', () => {
   });
 
   describe('StockMovementTransformSchema', () => {
-    it('should match StockMovementTransform interface exactly', () => {
+    it('should match StockMovement interface exactly', () => {
       type TransformationOutput = z.infer<typeof StockMovementTransformSchema>;
-      type ContractMatch = AssertExact<TransformationOutput, StockMovementTransform>;
+      type ContractMatch = AssertExact<TransformationOutput, StockMovement>;
       
       const contractTest: ContractMatch = true;
       expect(contractTest).toBe(true);
@@ -99,7 +100,7 @@ describe('Inventory Schema Contracts', () => {
         previous_stock: 100,
         new_stock: 95,
         reason: 'Test adjustment',
-        performed_by: 'user-1',
+        performed_by: '550e8400-e29b-41d4-a716-446655440002',
         performed_at: '2024-01-01T00:00:00Z',
         created_at: '2024-01-01T00:00:00Z',
         reference_order_id: null,
@@ -121,16 +122,16 @@ describe('Inventory Schema Contracts', () => {
       expect(result.createdAt).toBeDefined();
       
       // Verify correct data transformation
-      expect(result.inventoryItemId).toBe('inv-1');
+      expect(result.inventoryItemId).toBe('550e8400-e29b-41d4-a716-446655440001');
       expect(result.movementType).toBe('adjustment');
       expect(result.quantityChange).toBe(-5);
-      expect(result.performedBy).toBe('user-1');
+      expect(result.performedBy).toBe('550e8400-e29b-41d4-a716-446655440002');
     });
   });
 
-  describe('CreateStockMovementInputSchema', () => {
+  describe('CreateStockMovementSchema', () => {
     it('should match CreateStockMovementInput interface exactly', () => {
-      type SchemaOutput = z.infer<typeof CreateStockMovementInputSchema>;
+      type SchemaOutput = z.infer<typeof CreateStockMovementSchema>;
       type ContractMatch = AssertExact<SchemaOutput, CreateStockMovementInput>;
       
       const contractTest: ContractMatch = true;
@@ -138,23 +139,14 @@ describe('Inventory Schema Contracts', () => {
     });
   });
 
-  describe('StockUpdateInputSchema', () => {
-    it('should match StockUpdateInput interface exactly', () => {
-      type SchemaOutput = z.infer<typeof StockUpdateInputSchema>;
-      type ContractMatch = AssertExact<SchemaOutput, StockUpdateInput>;
-      
-      const contractTest: ContractMatch = true;
-      expect(contractTest).toBe(true);
-    });
-  });
 
   // ✅ COMPLETENESS VALIDATION: Catch incomplete transformations
   describe('Transformation Completeness', () => {
     it('should catch incomplete inventory item transformations', () => {
       const incompleteRawData = {
-        id: 'inv-1',
-        inventory_item_id: 'item-1',
-        product_id: 'prod-1',
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        inventory_item_id: '550e8400-e29b-41d4-a716-446655440001',
+        product_id: '550e8400-e29b-41d4-a716-446655440002',
         // Missing required fields - should cause TypeScript errors in transformation
       };
 
@@ -169,8 +161,8 @@ describe('Inventory Schema Contracts', () => {
 
     it('should catch incomplete stock movement transformations', () => {
       const incompleteRawData = {
-        id: 'mov-1',
-        inventory_item_id: 'inv-1',
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        inventory_item_id: '550e8400-e29b-41d4-a716-446655440001',
         // Missing required fields
       };
 

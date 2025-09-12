@@ -1,550 +1,323 @@
-import { supabase } from '../../config/supabase';
-import { ValidationMonitor } from '../../utils/validationMonitor';
-import type {
-  StockMovementTransform,
-  CreateStockMovementInput,
-  BatchStockMovementInput,
-  MovementFilterInput,
-  MovementHistoryInput
+import { SupabaseClient } from '@supabase/supabase-js';
+import { 
+  StockMovementTransformSchema,
+  CreateStockMovementSchema,
+  type StockMovement,
+  type CreateStockMovement,
 } from '../../schemas/inventory';
-import { StockMovementTransformSchema } from '../../schemas/inventory';
-import { InventoryService } from './inventoryService';
+import { ValidationMonitor } from '../../utils/validationMonitor';
+
+export interface BatchResult<T = any> {
+  success: boolean;
+  data?: T;
+  error?: any;
+}
+
+export interface MovementSummary {
+  totalIn: number;
+  totalOut: number;
+  netChange: number;
+  movementCount: number;
+}
+
+export interface TransferData {
+  inventoryItemId: string;
+  fromWarehouseId: string;
+  toWarehouseId: string;
+  quantity: number;
+  reason?: string;
+  performedBy: string;
+  notes?: string;
+}
 
 export class StockMovementService {
-  /**
-   * Record a single stock movement with complete audit trail
-   */
-  static async recordMovement(input: CreateStockMovementInput): Promise<StockMovementTransform | null> {
+  constructor(private supabase: SupabaseClient) {}
+
+  async recordMovement(data: CreateStockMovement): Promise<StockMovement> {
     try {
-      console.log('[DEBUG] Recording movement with input:', JSON.stringify(input, null, 2));
-      const { data, error } = await supabase
-        .from('test_stock_movements')
-        .insert({
-          inventory_item_id: input.inventoryItemId,
-          movement_type: input.movementType,
-          quantity_change: input.quantityChange,
-          previous_stock: input.previousStock,
-          new_stock: input.newStock,
-          reason: input.reason,
-          performed_by: input.performedBy,
-          reference_order_id: input.referenceOrderId,
-          batch_id: input.batchId
-        })
+      // Validate input
+      const validated = CreateStockMovementSchema.parse(data);
+
+      // Transform to database format
+      const dbData = {
+        inventory_item_id: validated.inventoryItemId,
+        movement_type: validated.movementType,
+        quantity: validated.quantity,
+        reference_type: validated.referenceType || null,
+        reference_id: validated.referenceId || null,
+        from_warehouse_id: validated.fromWarehouseId || null,
+        to_warehouse_id: validated.toWarehouseId || null,
+        reason: validated.reason || null,
+        performed_by: validated.performedBy,
+        notes: validated.notes || null,
+      };
+
+      const { data: created, error } = await this.supabase
+        .from('stock_movements')
+        .insert(dbData)
         .select()
         .single();
 
-      if (error || !data) {
-        ValidationMonitor.recordValidationError({
-          context: 'StockMovementService.recordMovement',
-          errorCode: 'MOVEMENT_RECORDING_FAILED',
-          validationPattern: 'transformation_schema',
-          errorMessage: error?.message || 'Database operation failed'
-        });
-        return null;
+      if (error) {
+        ValidationMonitor.recordValidationError('movement-record', error);
+        throw error;
       }
 
-      // Ensure all required fields are present before transformation
-      const enrichedData = {
-        ...data,
-        performed_at: data.performed_at || new Date().toISOString(),
-        created_at: data.created_at || new Date().toISOString()
-      };
-
-      const transformResult = StockMovementTransformSchema.safeParse(enrichedData);
-      
-      if (!transformResult.success) {
-        ValidationMonitor.recordValidationError({
-          context: 'StockMovementService.recordMovement',
-          errorCode: 'MOVEMENT_TRANSFORMATION_FAILED',
-          validationPattern: 'transformation_schema',
-          errorMessage: transformResult.error.message
-        });
-        return null;
-      }
-
-      ValidationMonitor.recordPatternSuccess({
-        service: 'stockMovementService',
-        pattern: 'transformation_schema',
-        operation: 'recordMovement'
-      });
-
-      return transformResult.data;
+      const result = StockMovementTransformSchema.parse(created);
+      ValidationMonitor.recordPatternSuccess('movement-record');
+      return result;
     } catch (error) {
-      ValidationMonitor.recordValidationError({
-        context: 'StockMovementService.recordMovement',
-        errorCode: 'MOVEMENT_RECORDING_FAILED',
-        validationPattern: 'transformation_schema',
-        errorMessage: error instanceof Error ? error.message : 'Unknown error'
-      });
-      return null;
+      if (error instanceof Error && !error.message.includes('ValidationMonitor')) {
+        ValidationMonitor.recordValidationError('movement-record', error);
+      }
+      throw error;
     }
   }
 
-  /**
-   * Get movement history for an inventory item with pagination
-   */
-  static async getMovementHistory(input: MovementHistoryInput): Promise<{ success: StockMovementTransform[], totalProcessed: number }> {
+  async getMovementHistory(
+    inventoryItemId: string,
+    startDate?: string,
+    endDate?: string
+  ): Promise<StockMovement[]> {
     try {
-      let query = supabase
-        .from('test_stock_movements')
+      let query = this.supabase
+        .from('stock_movements')
         .select('*')
-        .eq('inventory_item_id', input.inventoryItemId)
-        .order('performed_at', { ascending: false });
+        .eq('inventory_item_id', inventoryItemId);
 
-      if (input.limit) {
-        query = query.limit(input.limit);
-      }
-
-      if (input.offset) {
-        query = query.range(input.offset, input.offset + (input.limit || 10) - 1);
-      }
-
-      if (input.includeSystemMovements === false) {
-        query = query.not('performed_by', 'is', null);
-      }
-
-      const { data, error } = await query;
-
-      if (error) {
-        ValidationMonitor.recordValidationError({
-          context: 'StockMovementService.getMovementHistory',
-          errorCode: 'MOVEMENT_HISTORY_FETCH_FAILED',
-          validationPattern: 'transformation_schema',
-          errorMessage: error?.message || 'Database operation failed'
-        });
-        return { success: [], totalProcessed: 0 };
-      }
-
-      const results: StockMovementTransform[] = [];
-
-      // Resilient processing
-      for (const movement of data || []) {
-        const transformResult = StockMovementTransformSchema.safeParse(movement);
-        if (transformResult.success) {
-          results.push(transformResult.data);
+      if (startDate) {
+        query = query.gte('created_at', startDate);
+        if (endDate) {
+          query = query.lte('created_at', endDate);
         }
       }
 
-      ValidationMonitor.recordPatternSuccess({
-        service: 'stockMovementService',
-        pattern: 'transformation_schema',
-        operation: 'getMovementHistory'
-      });
-
-      return {
-        success: results,
-        totalProcessed: results.length
-      };
-    } catch (error) {
-      ValidationMonitor.recordValidationError({
-        context: 'StockMovementService.getMovementHistory',
-        errorCode: 'MOVEMENT_HISTORY_FETCH_FAILED',
-        validationPattern: 'transformation_schema',
-        errorMessage: error instanceof Error ? error.message : 'Unknown error'
-      });
-      return { success: [], totalProcessed: 0 };
-    }
-  }
-
-  /**
-   * Get movements by filter criteria
-   */
-  static async getMovementsByFilter(filter: MovementFilterInput): Promise<{ success: StockMovementTransform[], totalProcessed: number }> {
-    try {
-      let query = supabase
-        .from('test_stock_movements')
-        .select('*')
-        .order('performed_at', { ascending: false });
-
-      if (filter.movementType) {
-        query = query.eq('movement_type', filter.movementType);
-      }
-
-      if (filter.startDate) {
-        query = query.gte('performed_at', filter.startDate);
-      }
-
-      if (filter.endDate) {
-        query = query.lte('performed_at', filter.endDate);
-      }
-
-      if (filter.performedBy) {
-        query = query.eq('performed_by', filter.performedBy);
-      }
-
-      if (filter.inventoryItemId) {
-        query = query.eq('inventory_item_id', filter.inventoryItemId);
-      }
-
-      if (filter.limit) {
-        query = query.limit(filter.limit);
-      }
-
-      const { data, error } = await query;
+      const { data, error } = await query.order('created_at', { ascending: false });
 
       if (error) {
-        ValidationMonitor.recordValidationError({
-          context: 'StockMovementService.getMovementsByFilter',
-          errorCode: 'MOVEMENT_FILTER_FAILED',
-          validationPattern: 'transformation_schema',
-          errorMessage: error?.message || 'Database operation failed'
-        });
-        return { success: [], totalProcessed: 0 };
+        ValidationMonitor.recordValidationError('movement-history', error);
+        throw error;
       }
 
-      const results: StockMovementTransform[] = [];
-
-      for (const movement of data || []) {
-        const transformResult = StockMovementTransformSchema.safeParse(movement);
-        if (transformResult.success) {
-          results.push(transformResult.data);
+      const results: StockMovement[] = [];
+      for (const item of data || []) {
+        try {
+          const validated = StockMovementTransformSchema.parse(item);
+          results.push(validated);
+        } catch (err) {
+          ValidationMonitor.recordValidationError('movement-history-item', err);
         }
       }
 
-      ValidationMonitor.recordPatternSuccess({
-        service: 'stockMovementService',
-        pattern: 'transformation_schema',
-        operation: 'getMovementsByFilter'
-      });
-
-      return {
-        success: results,
-        totalProcessed: results.length
-      };
+      ValidationMonitor.recordPatternSuccess('movement-history');
+      return results;
     } catch (error) {
-      ValidationMonitor.recordValidationError({
-        context: 'StockMovementService.getMovementsByFilter',
-        errorCode: 'MOVEMENT_FILTER_FAILED',
-        validationPattern: 'transformation_schema',
-        errorMessage: error instanceof Error ? error.message : 'Unknown error'
-      });
-      return { success: [], totalProcessed: 0 };
+      if (error instanceof Error && !error.message.includes('ValidationMonitor')) {
+        ValidationMonitor.recordValidationError('movement-history', error);
+      }
+      throw error;
     }
   }
 
-  /**
-   * Get movements by batch ID for bulk operation tracking
-   */
-  static async getBatchMovements(batchId: string): Promise<{ success: StockMovementTransform[], totalProcessed: number }> {
-    try {
-      const { data, error } = await supabase
-        .from('test_stock_movements')
-        .select('*')
-        .eq('batch_id', batchId)
-        .order('performed_at', { ascending: true });
+  async batchRecordMovements(movements: CreateStockMovement[]): Promise<BatchResult[]> {
+    const results: BatchResult[] = [];
 
-      if (error) {
-        ValidationMonitor.recordValidationError({
-          context: 'StockMovementService.getBatchMovements',
-          errorCode: 'BATCH_MOVEMENTS_FETCH_FAILED',
-          validationPattern: 'transformation_schema',
-          errorMessage: error?.message || 'Database operation failed'
-        });
-        return { success: [], totalProcessed: 0 };
-      }
-
-      const results: StockMovementTransform[] = [];
-
-      for (const movement of data || []) {
-        const transformResult = StockMovementTransformSchema.safeParse(movement);
-        if (transformResult.success) {
-          results.push(transformResult.data);
-        }
-      }
-
-      ValidationMonitor.recordPatternSuccess({
-        service: 'stockMovementService',
-        pattern: 'transformation_schema',
-        operation: 'getBatchMovements'
-      });
-
-      return {
-        success: results,
-        totalProcessed: results.length
-      };
-    } catch (error) {
-      ValidationMonitor.recordValidationError({
-        context: 'StockMovementService.getBatchMovements',
-        errorCode: 'BATCH_MOVEMENTS_FETCH_FAILED',
-        validationPattern: 'transformation_schema',
-        errorMessage: error instanceof Error ? error.message : 'Unknown error'
-      });
-      return { success: [], totalProcessed: 0 };
-    }
-  }
-
-  /**
-   * Record batch movements with resilient processing
-   */
-  static async recordBatchMovements(input: BatchStockMovementInput): Promise<{ 
-    success: StockMovementTransform[], 
-    errors: any[], 
-    totalProcessed: number, 
-    batchId: string 
-  }> {
-    const batchId = crypto.randomUUID();
-    const results: StockMovementTransform[] = [];
-    const errors: any[] = [];
-
-    for (const movement of input.movements) {
+    for (const movement of movements) {
       try {
-        const movementInput: CreateStockMovementInput = {
-          ...movement,
-          performedBy: input.performedBy,
-          batchId,
-          reason: movement.reason || input.reason
-        };
-
-        const result = await this.recordMovement(movementInput);
-        if (result) {
-          results.push(result);
-        } else {
-          errors.push({
-            inventoryItemId: movement.inventoryItemId,
-            error: 'Movement recording failed'
-          });
-        }
+        const result = await this.recordMovement(movement);
+        results.push({ success: true, data: result });
       } catch (error) {
-        errors.push({
-          inventoryItemId: movement.inventoryItemId,
-          error
-        });
+        results.push({ success: false, error });
+        ValidationMonitor.recordValidationError('batch-movement', error);
       }
     }
 
-    ValidationMonitor.recordPatternSuccess({
-      service: 'stockMovementService',
-      pattern: 'transformation_schema',
-      operation: 'recordBatchMovements'
-    });
-
-    return {
-      success: results,
-      errors,
-      totalProcessed: results.length,
-      batchId
-    };
+    ValidationMonitor.recordPatternSuccess('batch-movement');
+    return results;
   }
 
-  /**
-   * Get movement analytics with aggregations
-   */
-  static async getMovementAnalytics(input: { 
-    startDate?: string; 
-    endDate?: string; 
-    groupBy?: 'day' | 'week' | 'month' 
-  }): Promise<{ success: any[], totalProcessed: number }> {
+  async getMovementsByType(movementType: 'in' | 'out' | 'adjustment' | 'transfer'): Promise<StockMovement[]> {
     try {
-      let query = supabase
-        .from('test_stock_movements')
-        .select('movement_type, quantity_change, performed_at');
-
-      if (input.startDate) {
-        query = query.gte('performed_at', input.startDate);
-      }
-
-      if (input.endDate) {
-        query = query.lte('performed_at', input.endDate);
-      }
-
-      const { data, error } = await query;
+      const { data, error } = await this.supabase
+        .from('stock_movements')
+        .select('*')
+        .eq('movement_type', movementType)
+        .order('created_at', { ascending: false });
 
       if (error) {
-        ValidationMonitor.recordValidationError({
-          context: 'StockMovementService.getMovementAnalytics',
-          errorCode: 'ANALYTICS_FETCH_FAILED',
-          validationPattern: 'transformation_schema',
-          errorMessage: error?.message || 'Database operation failed'
-        });
-        return { success: [], totalProcessed: 0 };
+        ValidationMonitor.recordValidationError('movements-by-type', error);
+        throw error;
       }
 
-      // Process analytics - group by movement type
-      const analytics = new Map();
-
-      for (const movement of data || []) {
-        const type = movement.movement_type;
-        if (!analytics.has(type)) {
-          analytics.set(type, {
-            movementType: type,
-            totalQuantity: 0,
-            movementCount: 0,
-            averageQuantity: 0,
-            impact: this.getMovementImpact(type)
-          });
+      const results: StockMovement[] = [];
+      for (const item of data || []) {
+        try {
+          const validated = StockMovementTransformSchema.parse(item);
+          results.push(validated);
+        } catch (err) {
+          ValidationMonitor.recordValidationError('movements-by-type-item', err);
         }
-
-        const current = analytics.get(type);
-        current.totalQuantity += Math.abs(movement.quantity_change);
-        current.movementCount += 1;
-        current.averageQuantity = current.totalQuantity / current.movementCount;
       }
 
-      const results = Array.from(analytics.values());
-
-      ValidationMonitor.recordPatternSuccess({
-        service: 'stockMovementService',
-        pattern: 'transformation_schema',
-        operation: 'getMovementAnalytics'
-      });
-
-      return {
-        success: results,
-        totalProcessed: results.length
-      };
+      ValidationMonitor.recordPatternSuccess('movements-by-type');
+      return results;
     } catch (error) {
-      ValidationMonitor.recordValidationError({
-        context: 'StockMovementService.getMovementAnalytics',
-        errorCode: 'ANALYTICS_FETCH_FAILED',
-        validationPattern: 'transformation_schema',
-        errorMessage: error instanceof Error ? error.message : 'Unknown error'
-      });
-      return { success: [], totalProcessed: 0 };
+      if (error instanceof Error && !error.message.includes('ValidationMonitor')) {
+        ValidationMonitor.recordValidationError('movements-by-type', error);
+      }
+      throw error;
     }
   }
 
-  /**
-   * Record movement with integrated inventory update (atomic operation)
-   */
-  static async recordMovementWithInventoryUpdate(input: CreateStockMovementInput): Promise<{
-    movementRecord: StockMovementTransform;
-    updatedInventory: any;
-  } | null> {
+  async getMovementsByUser(userId: string): Promise<StockMovement[]> {
     try {
-      // Record the movement
-      const movementRecord = await this.recordMovement(input);
-      if (!movementRecord) {
-        return null;
+      const { data, error } = await this.supabase
+        .from('stock_movements')
+        .select('*')
+        .eq('performed_by', userId)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        ValidationMonitor.recordValidationError('movements-by-user', error);
+        throw error;
       }
 
-      // Update the inventory stock levels
-      const updatedInventory = await InventoryService.updateStock(input.inventoryItemId, {
-        currentStock: input.newStock,
-        reason: input.reason,
-        performedBy: input.performedBy
-      });
-
-      if (!updatedInventory) {
-        ValidationMonitor.recordValidationError({
-          context: 'StockMovementService.recordMovementWithInventoryUpdate',
-          errorCode: 'INVENTORY_UPDATE_FAILED',
-          validationPattern: 'transformation_schema',
-          errorMessage: 'Failed to update inventory after movement'
-        });
-        return null;
+      const results: StockMovement[] = [];
+      for (const item of data || []) {
+        try {
+          const validated = StockMovementTransformSchema.parse(item);
+          results.push(validated);
+        } catch (err) {
+          ValidationMonitor.recordValidationError('movements-by-user-item', err);
+        }
       }
 
-      ValidationMonitor.recordPatternSuccess({
-        service: 'stockMovementService',
-        pattern: 'transformation_schema',
-        operation: 'recordMovementWithInventoryUpdate'
-      });
-
-      return {
-        movementRecord,
-        updatedInventory
-      };
+      ValidationMonitor.recordPatternSuccess('movements-by-user');
+      return results;
     } catch (error) {
-      ValidationMonitor.recordValidationError({
-        context: 'StockMovementService.recordMovementWithInventoryUpdate',
-        errorCode: 'INTEGRATED_UPDATE_FAILED',
-        validationPattern: 'transformation_schema',
-        errorMessage: error instanceof Error ? error.message : 'Unknown error'
-      });
-      return null;
+      if (error instanceof Error && !error.message.includes('ValidationMonitor')) {
+        ValidationMonitor.recordValidationError('movements-by-user', error);
+      }
+      throw error;
     }
   }
 
-  /**
-   * Check movement permissions for role-based access control
-   */
-  static async checkMovementPermission(userId: string, permission: string): Promise<boolean> {
+  async getMovementSummary(inventoryItemId: string): Promise<MovementSummary> {
     try {
-      const { data, error } = await supabase
-        .from('test_user_roles')
-        .select('role_type, permissions')
-        .eq('user_id', userId)
-        .eq('is_active', true);
+      const { data, error } = await this.supabase
+        .from('stock_movements')
+        .select('*')
+        .eq('inventory_item_id', inventoryItemId);
 
-      if (error || !data) {
-        ValidationMonitor.recordValidationError({
-          context: 'StockMovementService.checkMovementPermission',
-          errorCode: 'PERMISSION_CHECK_FAILED',
-          validationPattern: 'transformation_schema',
-          errorMessage: error?.message || 'Database operation failed'
-        });
-        return false;
+      if (error) {
+        ValidationMonitor.recordValidationError('movement-summary', error);
+        throw error;
       }
 
-      // Check role-based permissions
-      for (const role of data) {
-        if (permission === 'read_movements') {
-          // Marketing, executive, admin can read
-          if (['marketing_staff', 'executive', 'admin'].includes(role.role_type)) {
-            ValidationMonitor.recordPatternSuccess({
-              service: 'stockMovementService',
-              pattern: 'transformation_schema',
-              operation: 'checkMovementPermission'
-            });
-            return true;
-          }
-        }
+      let totalIn = 0;
+      let totalOut = 0;
+      let movementCount = 0;
 
-        if (permission === 'record_movements') {
-          // Only inventory staff and admin can record movements
-          if (['inventory_staff', 'admin'].includes(role.role_type)) {
-            ValidationMonitor.recordPatternSuccess({
-              service: 'stockMovementService',
-              pattern: 'transformation_schema',
-              operation: 'checkMovementPermission'
-            });
-            return true;
+      for (const item of data || []) {
+        try {
+          const validated = StockMovementTransformSchema.parse(item);
+          movementCount++;
+          
+          if (validated.movementType === 'in') {
+            totalIn += validated.quantity;
+          } else if (validated.movementType === 'out') {
+            totalOut += validated.quantity;
+          } else if (validated.movementType === 'adjustment') {
+            // Adjustments can be positive or negative
+            if (validated.quantity > 0) {
+              totalIn += validated.quantity;
+            } else {
+              totalOut += Math.abs(validated.quantity);
+            }
           }
-        }
-
-        // Check explicit permissions
-        if (role.permissions && (role.permissions as string[]).includes(permission)) {
-          ValidationMonitor.recordPatternSuccess({
-            service: 'stockMovementService',
-            pattern: 'transformation_schema',
-            operation: 'checkMovementPermission'
-          });
-          return true;
+          // Transfer movements don't affect net totals for a single item
+        } catch (err) {
+          ValidationMonitor.recordValidationError('movement-summary-item', err);
         }
       }
 
-      ValidationMonitor.recordPatternSuccess({
-        service: 'stockMovementService',
-        pattern: 'transformation_schema',
-        operation: 'checkMovementPermission'
-      });
+      const result = {
+        totalIn,
+        totalOut,
+        netChange: totalIn - totalOut,
+        movementCount,
+      };
 
-      return false;
+      ValidationMonitor.recordPatternSuccess('movement-summary');
+      return result;
     } catch (error) {
-      ValidationMonitor.recordValidationError({
-        context: 'StockMovementService.checkMovementPermission',
-        errorCode: 'PERMISSION_CHECK_FAILED',
-        validationPattern: 'transformation_schema',
-        errorMessage: error instanceof Error ? error.message : 'Unknown error'
-      });
-      return false;
+      if (error instanceof Error && !error.message.includes('ValidationMonitor')) {
+        ValidationMonitor.recordValidationError('movement-summary', error);
+      }
+      throw error;
     }
   }
 
-  /**
-   * Helper method to determine movement impact
-   */
-  private static getMovementImpact(movementType: string): 'positive' | 'negative' | 'neutral' {
-    switch (movementType) {
-      case 'restock':
-      case 'release':
-        return 'positive';
-      case 'sale':
-      case 'reservation':
-        return 'negative';
-      case 'adjustment':
-      default:
-        return 'neutral';
+  async recordTransfer(data: TransferData): Promise<StockMovement> {
+    try {
+      const movementData: CreateStockMovement = {
+        inventoryItemId: data.inventoryItemId,
+        movementType: 'transfer',
+        quantity: data.quantity,
+        fromWarehouseId: data.fromWarehouseId,
+        toWarehouseId: data.toWarehouseId,
+        reason: data.reason,
+        performedBy: data.performedBy,
+        notes: data.notes,
+      };
+
+      const result = await this.recordMovement(movementData);
+      ValidationMonitor.recordPatternSuccess('movement-transfer');
+      return result;
+    } catch (error) {
+      if (error instanceof Error && !error.message.includes('ValidationMonitor')) {
+        ValidationMonitor.recordValidationError('movement-transfer', error);
+      }
+      throw error;
+    }
+  }
+
+  async getAdjustments(warehouseId?: string): Promise<StockMovement[]> {
+    try {
+      let query = this.supabase
+        .from('stock_movements')
+        .select('*')
+        .eq('movement_type', 'adjustment');
+
+      if (warehouseId) {
+        // For adjustments, we might want to filter by from_warehouse_id
+        query = query.eq('from_warehouse_id', warehouseId);
+      }
+
+      const { data, error } = await query.order('created_at', { ascending: false });
+
+      if (error) {
+        ValidationMonitor.recordValidationError('get-adjustments', error);
+        throw error;
+      }
+
+      const results: StockMovement[] = [];
+      for (const item of data || []) {
+        try {
+          const validated = StockMovementTransformSchema.parse(item);
+          results.push(validated);
+        } catch (err) {
+          ValidationMonitor.recordValidationError('get-adjustments-item', err);
+        }
+      }
+
+      ValidationMonitor.recordPatternSuccess('get-adjustments');
+      return results;
+    } catch (error) {
+      if (error instanceof Error && !error.message.includes('ValidationMonitor')) {
+        ValidationMonitor.recordValidationError('get-adjustments', error);
+      }
+      throw error;
     }
   }
 }

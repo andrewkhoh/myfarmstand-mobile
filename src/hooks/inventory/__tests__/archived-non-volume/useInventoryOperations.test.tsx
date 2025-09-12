@@ -93,7 +93,7 @@ try {
 }
 
 // 7. GET MOCKED DEPENDENCIES
-import { InventoryService } from '../../../services/inventory/inventoryService';
+import { InventoryService } from '../../../test/mocks/inventoryServiceAdapter';
 import { useCurrentUser } from '../../useAuth';
 import { useQuery, useMutation } from '@tanstack/react-query';
 

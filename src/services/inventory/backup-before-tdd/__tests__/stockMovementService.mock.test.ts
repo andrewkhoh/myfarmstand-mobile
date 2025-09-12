@@ -1,34 +1,12 @@
-// Test Infrastructure Imports
-import { createProduct, createUser, resetAllFactories } from "../../test/factories";
+// Store mock instance globally for test access
+let mockSupabaseInstance: any;
 
-// Service import first
-import { StockMovementService } from '../stockMovementService';
-
-// Factory imports
-import { 
-  createUser, 
-  createProduct, 
-  createOrder, 
-  resetAllFactories 
-} from '../../../test/factories';
-
-// Type imports
-import type { 
-  CreateStockMovementInput,
-  BatchStockMovementInput,
-  MovementFilterInput,
-  MovementHistoryInput
-} from '../../../schemas/inventory';
-
-// Mock Supabase - SimplifiedSupabaseMock in jest.mock() call
-jest.mock("../../config/supabase", () => {
-  const { SimplifiedSupabaseMock } = require("../../test/mocks/supabase.simplified.mock");
-  const mockInstance = new SimplifiedSupabaseMock();
+// Mock Supabase - SimplifiedSupabaseMock in jest.mock() call - MUST BE BEFORE IMPORTS
+jest.mock("../../../config/supabase", () => {
+  const { SimplifiedSupabaseMock } = require("../../../test/mocks/supabase.simplified.mock");
+  mockSupabaseInstance = new SimplifiedSupabaseMock();
   return {
-  // Using SimplifiedSupabaseMock pattern
-  
-  return {
-    supabase: mockInstance.createClient(),
+    supabase: mockSupabaseInstance.createClient(),
     TABLES: { 
       STOCK_MOVEMENTS: 'stock_movements',
       INVENTORY_ITEMS: 'inventory_items',
@@ -36,30 +14,53 @@ jest.mock("../../config/supabase", () => {
       PRODUCTS: 'products'
     }
   };
-    TABLES: { /* Add table constants */ }
-  };
 });
 
 // Mock ValidationMonitor
 jest.mock('../../../utils/validationMonitor', () => ({
   ValidationMonitor: {
     recordValidationError: jest.fn(),
-    recordPatternSuccess: jest.fn(), recordDataIntegrity: jest.fn()
+    recordPatternSuccess: jest.fn(), 
+    recordDataIntegrity: jest.fn()
   }
 }));
 
+// NOW IMPORT EVERYTHING AFTER MOCKS ARE SET UP
+// Service import
+import { StockMovementService } from '../stockMovementService';
+
+// Factory imports
+import { 
+  createUser, 
+  resetAllFactories 
+} from '../../../test/factories';
+
+// Type imports
+import type { 
+  CreateStockMovementInput,
+  MovementHistoryInput
+} from '../../../schemas/inventory';
+
+// Import ValidationMonitor after mocking
+import { ValidationMonitor } from '../../../utils/validationMonitor';
+
+// Import supabase to get mocked functions
+import { supabase } from '../../../config/supabase';
 
 describe('StockMovementService - Mock Tests', () => {
-  // Test constants
+  // Test constants - use valid UUIDs
   const testUser = createUser();
-  const testProduct = createProduct();
   const testUserId = testUser.id;
-  const testInventoryId = `inventory-${testProduct.id}`;
-  const testMovementId = 'movement-test-123';
+  const testInventoryId = '550e8400-e29b-41d4-a716-446655440000'; // Valid UUID
+  const testMovementId = '550e8400-e29b-41d4-a716-446655440001'; // Valid UUID
 
   beforeEach(() => {
     jest.clearAllMocks();
     resetAllFactories();
+    // Clear mock data between tests
+    if (mockSupabaseInstance) {
+      mockSupabaseInstance.clearAllData();
+    }
   });
 
   describe('recordMovement', () => {
@@ -73,37 +74,15 @@ describe('StockMovementService - Mock Tests', () => {
       performedBy: testUserId
     };
 
-    const mockMovementData = {
-      id: testMovementId,
-      inventory_item_id: testInventoryId,
-      movement_type: 'adjustment',
-      quantity_change: -5,
-      previous_stock: 100,
-      new_stock: 95,
-      reason: 'Test inventory adjustment',
-      performed_by: testUserId,
-      performed_at: '2025-08-23T01:00:00Z',
-      created_at: '2025-08-23T01:00:00Z',
-      reference_order_id: null,
-      batch_id: null
-    };
+    // Mock data no longer needed - SimplifiedSupabaseMock handles this
 
     it('should record stock movement with complete audit trail (mocked)', async () => {
-      // Setup successful insert mock
-      mockFrom.mockReturnValue({
-        insert: jest.fn().mockReturnValue({
-          select: jest.fn().mockReturnValue({
-            single: jest.fn().mockResolvedValue({
-              data: mockMovementData,
-              error: null
-            })
-          })
-        })
-      });
-
+      // Don't pre-set data - let the mock handle the insert
+      
       const result = await StockMovementService.recordMovement(mockMovementInput);
       
       // Graceful degradation testing
+      expect(result).not.toBeNull();
       expect(result).toBeDefined();
       
       if (result) {
@@ -119,33 +98,17 @@ describe('StockMovementService - Mock Tests', () => {
       
       // Verify ValidationMonitor integration
       expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith({
-        context: 'stockMovementService',
+        service: 'stockMovementService',
         pattern: 'transformation_schema',
         operation: 'recordMovement'
       });
       
       // Verify database operation was called correctly
-      expect(supabase.from).toHaveBeenCalledWith('stock_movements');
+      expect(supabase.from).toHaveBeenCalledWith('test_stock_movements');
     });
 
     it('should validate movement type constraints (mocked)', async () => {
-      const restockMovementData = {
-        ...mockMovementData,
-        movement_type: 'restock',
-        quantity_change: 10,
-        new_stock: 110
-      };
-
-      mockFrom.mockReturnValue({
-        insert: jest.fn().mockReturnValue({
-          select: jest.fn().mockReturnValue({
-            single: jest.fn().mockResolvedValue({
-              data: restockMovementData,
-              error: null
-            })
-          })
-        })
-      });
+      // Don't pre-set data - let the mock handle the insert
 
       const movement = {
         inventoryItemId: testInventoryId,
@@ -165,16 +128,7 @@ describe('StockMovementService - Mock Tests', () => {
 
     it('should handle movement recording errors gracefully', async () => {
       // Setup database error mock
-      mockFrom.mockReturnValue({
-        insert: jest.fn().mockReturnValue({
-          select: jest.fn().mockReturnValue({
-            single: jest.fn().mockResolvedValue({
-              data: null,
-              error: { message: 'Database connection failed', code: 'PGRST000' }
-            })
-          })
-        })
-      });
+      mockSupabaseInstance.queueError(new Error('Database connection failed'));
 
       const result = await StockMovementService.recordMovement(mockMovementInput);
       
@@ -192,7 +146,8 @@ describe('StockMovementService - Mock Tests', () => {
     const mockHistoryInput: MovementHistoryInput = {
       inventoryItemId: testInventoryId,
       limit: 10,
-      offset: 0
+      offset: 0,
+      includeSystemMovements: false
     };
 
     const mockHistoryData = [
@@ -214,18 +169,7 @@ describe('StockMovementService - Mock Tests', () => {
 
     it('should get movement history with pagination and filtering (mocked)', async () => {
       // Setup history query mock
-      mockFrom.mockReturnValue({
-        select: jest.fn().mockReturnValue({
-          eq: jest.fn().mockReturnValue({
-            order: jest.fn().mockReturnValue({
-              limit: jest.fn().mockResolvedValue({
-                data: mockHistoryData,
-                error: null
-              })
-            })
-          })
-        })
-      });
+      mockSupabaseInstance.setTableData('test_stock_movements', mockHistoryData);
 
       const result = await StockMovementService.getMovementHistory(mockHistoryInput);
       
@@ -235,30 +179,21 @@ describe('StockMovementService - Mock Tests', () => {
       expect(result.success[0].inventoryItemId).toBe(testInventoryId);
       
       expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith({
-        context: 'stockMovementService',
+        service: 'stockMovementService',
         pattern: 'transformation_schema',
         operation: 'getMovementHistory'
       });
     });
 
     it('should handle pagination correctly', async () => {
-      mockFrom.mockReturnValue({
-        select: jest.fn().mockReturnValue({
-          eq: jest.fn().mockReturnValue({
-            order: jest.fn().mockReturnValue({
-              limit: jest.fn().mockResolvedValue({
-                data: [],
-                error: null
-              })
-            })
-          })
-        })
-      });
+      // Setup empty data for pagination test
+      mockSupabaseInstance.setTableData('test_stock_movements', []);
 
       const result = await StockMovementService.getMovementHistory({
         inventoryItemId: testInventoryId,
         limit: 5,
-        offset: 10
+        offset: 10,
+        includeSystemMovements: false
       });
       
       expect(result).toBeDefined();
@@ -272,21 +207,13 @@ describe('StockMovementService - Mock Tests', () => {
       const marketingUserId = '22222222-2222-2222-2222-222222222222'; // marketing_staff
       
       // Setup role data mock - marketing staff can read but not write
-      mockFrom.mockReturnValue({
-        select: jest.fn().mockReturnValue({
-          eq: jest.fn().mockReturnValue({
-            eq: jest.fn().mockResolvedValue({
-              data: [
-                {
-                  role_type: 'marketing_staff',
-                  permissions: ['read_movements']
-                }
-              ],
-              error: null
-            })
-          })
-        })
-      });
+      mockSupabaseInstance.setTableData('user_roles', [
+        {
+          user_id: marketingUserId,
+          role_type: 'marketing_staff',
+          permissions: ['read_movements']
+        }
+      ]);
       
       const canRead = await StockMovementService.checkMovementPermission(
         marketingUserId,
@@ -302,7 +229,7 @@ describe('StockMovementService - Mock Tests', () => {
       expect(canWrite).toBe(false); // But cannot record movements
       
       expect(ValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith({
-        context: 'stockMovementService',
+        service: 'stockMovementService',
         pattern: 'transformation_schema',
         operation: 'checkMovementPermission'
       });
@@ -311,22 +238,14 @@ describe('StockMovementService - Mock Tests', () => {
 
   describe('Error Handling and Edge Cases', () => {
     it('should handle database errors gracefully', async () => {
-      mockFrom.mockReturnValue({
-        select: jest.fn().mockReturnValue({
-          eq: jest.fn().mockReturnValue({
-            order: jest.fn().mockReturnValue({
-              limit: jest.fn().mockResolvedValue({
-                data: null,
-                error: { message: 'Database error', code: 'PGRST000' }
-              })
-            })
-          })
-        })
-      });
+      // Queue an error for the next operation
+      mockSupabaseInstance.queueError(new Error('Database error'));
 
       const result = await StockMovementService.getMovementHistory({
         inventoryItemId: testInventoryId,
-        limit: 10
+        limit: 10,
+        offset: 0,
+        includeSystemMovements: false
       });
       
       expect(result).toBeDefined();
