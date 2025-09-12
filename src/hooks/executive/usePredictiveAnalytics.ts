@@ -4,6 +4,7 @@
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useEffect, useCallback, useMemo, useState } from 'react';
 import { useUserRole } from '../role-based/useUserRole';
+import { useCurrentUser } from '../useAuth';
 import { executiveAnalyticsKeys } from '../../utils/queryKeyFactory';
 import { realtimeService } from '../../services/realtimeService';
 import { 
@@ -12,7 +13,6 @@ import {
   type UsePredictiveAnalyticsOptions 
 } from '../../services/executive/simplePredictiveAnalyticsService';
 import { PredictiveAnalyticsService } from '../../services/executive/predictiveAnalyticsService';
-import { useCurrentUser } from '../useAuth';
 
 // UI-ready interfaces
 export interface ForecastChart {
@@ -105,7 +105,6 @@ const getModelStatus = (accuracy: number): { status: 'excellent' | 'good' | 'fai
 export const usePredictiveAnalytics = (options: UsePredictiveAnalyticsOptions & { realtime?: boolean } = {}) => {
   const queryClient = useQueryClient();
   const { role, hasPermission } = useUserRole();
-  const { data: user } = useCurrentUser();
   
   // State for generated forecasts and validations
   const [generatedForecast, setGeneratedForecast] = useState<any>(null);
@@ -367,7 +366,7 @@ export const usePredictiveAnalytics = (options: UsePredictiveAnalyticsOptions & 
     refetchOnMount: true,
     refetchOnWindowFocus: false,
     refetchOnReconnect: true,
-    enabled: !!role && role === 'executive', // Simple enabled guard
+    enabled: !!role && ['executive', 'admin'].includes(role.toLowerCase()), // Simple enabled guard
     retry: (failureCount, error: any) => {
       // Don't retry permission errors
       if (error?.isPermissionError || error?.message?.includes('authentication') || error?.message?.includes('permission')) {
@@ -438,7 +437,7 @@ export const usePredictiveAnalytics = (options: UsePredictiveAnalyticsOptions & 
       unsubscribeFromInvalidation = () => clearInterval(intervalId);
     }
     
-    if (!user?.id || role !== 'executive') {
+    if (!user?.id || !['executive', 'admin'].includes(role.toLowerCase())) {
       return () => {
         if (unsubscribeFromInvalidation) {
           unsubscribeFromInvalidation();
@@ -638,8 +637,8 @@ export const usePredictiveAnalytics = (options: UsePredictiveAnalyticsOptions & 
     'Unable to load predictive analytics. Please try again.',
   ) : null;
 
-  // Authentication guard - following useCart pattern exactly
-  if (!role || role !== 'executive') {
+  // Authentication guard - following useCart pattern exactly  
+  if (!role || !['executive', 'admin'].includes(role.toLowerCase())) {
     const authError = createPredictiveAnalyticsError(
       'PERMISSION_DENIED',
       'User lacks executive permissions',
