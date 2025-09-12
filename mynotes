@@ -1,0 +1,22 @@
+#sequential.. on unified workspace
+#parallel.. needs to integrate configs, setup, test files and code files
+#iterative improvement with restarts; the final test command is important; needs the right command; that's the final gate.
+#monitoring and reporting needs improvements
+#ignore docker volumes; jest will scan by default
+
+#resetting context helps
+
+# Task(debug).. pretty good..
+# provide feedback real time to running agent in container.
+
+# sequentail
+# parallel
+# monitoring and reporting
+# real time intervention
+# annealing schedule
+# matching configs
+# restrict haste map scanning scope
+
+# debug tool (Task (Debug..)
+
+# phase 3b and phase 4 have good prompts and entrypoint files

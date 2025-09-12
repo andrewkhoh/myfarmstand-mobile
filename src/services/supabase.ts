@@ -1,0 +1,1 @@
+/Users/andrewkhoh/Documents/myfarmstand-mobile/src/config/supabase.ts

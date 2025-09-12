@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "name": "myfarmstand-mobile",
+    "slug": "myfarmstand-mobile", 
+    "version": "1.0.0",
+    "platforms": ["web"],
+    "web": {
+      "bundler": "metro"
+    },
+    "userInterfaceStyle": "automatic"
+  }
+}

@@ -1,0 +1,13 @@
+**/__tests__/**
+**/*.test.js
+**/*.test.jsx
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.js
+**/*.spec.jsx
+**/*.spec.ts
+**/*.spec.tsx
+**/coverage/**
+**/ARCHIVE/**
+**/.git/**
+**/docker.backup/**

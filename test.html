@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Page</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+    <div id="app">
+        <h1>✅ Direct HTML Test</h1>
+        <p>If you see this, the issue is with Expo bundling.</p>
+        <p>Time: <span id="time"></span></p>
+        <button onclick="test()">Click me</button>
+        <div id="result"></div>
+    </div>
+    
+    <script>
+        document.getElementById('time').textContent = new Date().toLocaleTimeString();
+        
+        function test() {
+            document.getElementById('result').innerHTML = '✅ JavaScript works!';
+        }
+        
+        console.log('Direct HTML test loaded successfully');
+    </script>
+</body>
+</html>

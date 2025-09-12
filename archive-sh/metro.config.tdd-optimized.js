@@ -1,5 +1,4 @@
 const { getDefaultConfig } = require('expo/metro-config');
-const exclusionList = require('metro-config/src/defaults/exclusionList');
 
 /** @type {import('expo/metro-config').MetroConfig} */
 const config = getDefaultConfig(__dirname);
@@ -39,14 +38,14 @@ config.resolver = {
   ],
   
   // TDD-optimized blockList - exclude test files and dev artifacts
-  blockList: exclusionList([
+  blockList: [
     /.*\/__tests__\/.*/,               // Test directories (most reliable)
     /.*\.test\.(ts|tsx|js|jsx)$/,      // Test files
     /.*\.spec\.(ts|tsx|js|jsx)$/,      // Spec files
     /.*\/ARCHIVE\/.*/,                 // Archive directory
     /.*\/coverage\/.*/,                // Coverage reports
     /.*\.stories\.(ts|tsx|js|jsx)$/,   // Storybook files
-  ]),
+  ],
 };
 
 // Environment-specific optimizations
