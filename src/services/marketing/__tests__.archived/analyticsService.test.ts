@@ -1,13 +1,37 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
-import { createMockSupabaseClient } from '@/test/serviceSetup';
 
-// Mock Supabase
+// Mock Supabase with inline implementation to avoid hoisting issues
 jest.mock('@/config/supabase', () => ({
-  supabase: createMockSupabaseClient()
+  supabase: {
+    from: jest.fn(() => ({
+      select: jest.fn().mockReturnThis(),
+      insert: jest.fn().mockReturnThis(),
+      update: jest.fn().mockReturnThis(),
+      delete: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      neq: jest.fn().mockReturnThis(),
+      in: jest.fn().mockReturnThis(),
+      order: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+      single: jest.fn(),
+      maybeSingle: jest.fn()
+    })),
+    storage: {
+      from: jest.fn(() => ({
+        upload: jest.fn(),
+        download: jest.fn(),
+        remove: jest.fn()
+      }))
+    },
+    auth: {
+      getUser: jest.fn(),
+      getSession: jest.fn()
+    }
+  }
 }));
 
-// Mock the service (doesn't exist yet - RED phase)
-jest.mock('../analyticsService', () => ({
+// Mock the service
+jest.mock('../marketingAnalytics.service', () => ({
   analyticsService: {
     trackEvent: jest.fn(),
     getMetrics: jest.fn(),
@@ -29,7 +53,7 @@ describe('AnalyticsService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockSupabase = require('@/config/supabase').supabase;
-    analyticsService = require('../analyticsService').analyticsService;
+    analyticsService = require('../marketingAnalytics.service').analyticsService;
   });
   
   describe('Event Tracking', () => {

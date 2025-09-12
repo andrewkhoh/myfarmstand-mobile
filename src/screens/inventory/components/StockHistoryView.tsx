@@ -17,7 +17,7 @@ import {
 import { Text } from '../../../components/Text';
 import { Card } from '../../../components/Card';
 import { Button } from '../../../components/Button';
-import { useStockHistory } from '../../../hooks/inventory/useStockOperations';
+import { useStockMovements } from '../../../hooks/inventory/useStockOperations';
 
 interface StockTransaction {
   id: string;
@@ -54,7 +54,7 @@ const StockHistoryView: React.FC<StockHistoryViewProps> = ({
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [dateFilterVisible, setDateFilterVisible] = useState(false);
 
-  const { data: historyData, isLoading } = useStockHistory(productId);
+  const { data: historyData, isLoading } = useStockMovements(productId);
 
   // Mock data for testing
   const mockHistoryData: StockTransaction[] = [
