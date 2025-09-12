@@ -301,7 +301,7 @@ function setupE2EUtilities() {
 
 function setupIntegrationUtilities() {
   (global as any).integrationTestUtils = {
-    setupService: async (serviceName: string) => ({
+    setupService: async (_serviceName: string) => ({
       baseUrl: `http://localhost:300${Math.floor(Math.random() * 9)}`,
       timeout: 5000,
       retries: 2,
@@ -311,7 +311,7 @@ function setupIntegrationUtilities() {
       (global as any).serviceMocks = (global as any).serviceMocks || {};
       (global as any).serviceMocks[mockKey] = response;
     },
-    validateServiceIntegration: async (services: string[]) => true,
+    validateServiceIntegration: async (_services: string[]) => true,
     simulateServiceFailure: (service: string) => {
       console.log(`Simulating ${service} failure`);
     },

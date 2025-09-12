@@ -35,6 +35,17 @@ export class SimplifiedSupabaseMock {
       ...options
     };
   }
+  
+  /**
+   * Generate a valid UUID v4
+   */
+  private generateUUID(): string {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0;
+      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  }
 
   /**
    * Set mock data for a table
@@ -332,20 +343,36 @@ export class SimplifiedSupabaseMock {
             });
           }
           
+          // Add IDs and timestamps to inserted data
+          const enrichedData = insertData.map(item => ({
+            id: this.generateUUID(),
+            ...item,
+            created_at: item.created_at || new Date().toISOString(),
+            updated_at: item.updated_at || new Date().toISOString()
+          }));
+          
           // Add to mock data
-          this.data[table] = [...(this.data[table] || []), ...insertData];
+          this.data[table] = [...(this.data[table] || []), ...enrichedData];
           
           return this.simulateOperation(() => ({
-            data: insertData[0],
+            data: enrichedData[0],
             error: null
           }));
         },
         
         then: async (resolve: Function) => {
-          // Add to mock data
-          this.data[table] = [...(this.data[table] || []), ...insertData];
+          // Add IDs and timestamps to inserted data
+          const enrichedData = insertData.map(item => ({
+            id: this.generateUUID(),
+            ...item,
+            created_at: item.created_at || new Date().toISOString(),
+            updated_at: item.updated_at || new Date().toISOString()
+          }));
           
-          const result = await this.simulateOperation(() => insertData);
+          // Add to mock data
+          this.data[table] = [...(this.data[table] || []), ...enrichedData];
+          
+          const result = await this.simulateOperation(() => enrichedData);
           resolve({
             data: result,
             error: null
