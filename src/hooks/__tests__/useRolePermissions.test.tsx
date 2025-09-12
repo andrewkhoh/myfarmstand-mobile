@@ -394,6 +394,15 @@ describe('useRolePermissions Hook Tests - Following Established Patterns', () =>
       }
 
       mockRoleService.hasPermission.mockResolvedValue(true);
+      
+      // Override the default mock for this specific test
+      mockUseQuery.mockReturnValue({
+        data: true,
+        isLoading: false,
+        error: null,
+        refetch: jest.fn(),
+        isSuccess: true,
+      } as any);
 
       const { result } = renderHook(
         () => useHasPermission('test-user-123', 'view:products'),
@@ -414,6 +423,15 @@ describe('useRolePermissions Hook Tests - Following Established Patterns', () =>
       }
 
       mockRoleService.hasPermission.mockResolvedValue(false);
+      
+      // Override the default mock for this specific test
+      mockUseQuery.mockReturnValue({
+        data: false,
+        isLoading: false,
+        error: null,
+        refetch: jest.fn(),
+        isSuccess: true,
+      } as any);
 
       const { result } = renderHook(
         () => useHasPermission('test-user-123', 'manage:users'),
@@ -436,6 +454,15 @@ describe('useRolePermissions Hook Tests - Following Established Patterns', () =>
       }
 
       mockRoleService.canPerformAction.mockResolvedValue(true);
+      
+      // Override the default mock for this specific test
+      mockUseQuery.mockReturnValue({
+        data: true,
+        isLoading: false,
+        error: null,
+        refetch: jest.fn(),
+        isSuccess: true,
+      } as any);
 
       const { result } = renderHook(
         () => useCanPerformAction('test-user-123', 'products', 'view'),
@@ -461,6 +488,15 @@ describe('useRolePermissions Hook Tests - Following Established Patterns', () =>
           return resource === 'users' && action === 'delete';
         }
       );
+      
+      // Override the default mock for this specific test
+      mockUseQuery.mockReturnValue({
+        data: true,
+        isLoading: false,
+        error: null,
+        refetch: jest.fn(),
+        isSuccess: true,
+      } as any);
 
       const { result } = renderHook(
         () => useCanPerformAction('admin-user-789', 'users', 'delete'),
