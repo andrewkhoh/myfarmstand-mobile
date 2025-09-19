@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, ActivityIndicator, Text, StyleSheet, Modal } from 'react-native';
+import { View, ActivityIndicator, Text as ReactNativeText, StyleSheet, Modal } from 'react-native';
 
 interface LoadingOverlayProps {
   visible: boolean;
@@ -21,7 +21,7 @@ export const LoadingOverlay: React.FC<LoadingOverlayProps> = ({
       <View style={styles.overlay}>
         <View style={styles.container}>
           <ActivityIndicator size="large" color="#2196F3" />
-          {message && <Text style={styles.message}>{message}</Text>}
+          {message && <ReactNativeText style={styles.message}>{message}</ReactNativeText>}
         </View>
       </View>
     </Modal>

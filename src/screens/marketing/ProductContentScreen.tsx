@@ -3,7 +3,7 @@ import {
   View,
   ScrollView,
   TextInput,
-  Text,
+  Text as ReactNativeText,
   StyleSheet,
   Alert,
   KeyboardAvoidingView,
@@ -168,7 +168,7 @@ export function ProductContentScreen({
     navigation.setOptions({
       headerRight: () => (
         <TouchableOpacity onPress={handleSave}>
-          <Text style={styles.saveButton}>Save</Text>
+          <ReactNativeText style={styles.saveButton}>Save</ReactNativeText>
         </TouchableOpacity>
       ),
     });
@@ -205,9 +205,9 @@ export function ProductContentScreen({
                   onPress={() => handleTransition(state)}
                   disabled={!canTransitionTo?.(state)}
                 >
-                  <Text style={styles.transitionButtonText}>
+                  <ReactNativeText style={styles.transitionButtonText}>
                     {transitionLabels[state] || `Send to ${state}`}
-                  </Text>
+                  </ReactNativeText>
                 </TouchableOpacity>
               ))}
             </View>
@@ -234,7 +234,7 @@ export function ProductContentScreen({
         </View>
         
         <View style={styles.galleryContainer}>
-          <Text style={styles.sectionTitle}>Product Images</Text>
+          <ReactNativeText style={styles.sectionTitle}>Product Images</ReactNativeText>
           <ImageGallery
             images={localContent.imageUrls}
             onAddImage={handleImageUpload}
@@ -252,7 +252,7 @@ export function ProductContentScreen({
         </View>
         
         <View style={styles.keywordsContainer}>
-          <Text style={styles.sectionTitle}>SEO Keywords</Text>
+          <ReactNativeText style={styles.sectionTitle}>SEO Keywords</ReactNativeText>
           <TagInput
             testID="keyword-input"
             tags={localContent.seoKeywords}

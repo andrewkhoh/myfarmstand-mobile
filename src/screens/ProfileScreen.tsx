@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Alert, ScrollView, TouchableOpacity, Platform } from 'react-native';
+import { View, StyleSheet, Alert, ScrollView, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { Screen, Text, Card, Button, Input, Loading } from '../components';
-import { useCurrentUser, useUpdateProfileMutation, useLogoutMutation, useChangePasswordMutation } from '../hooks/useAuth';
+import { Screen, Text, Card, Button, Loading, Input } from '../components';
+import { useCurrentUser, useUpdateProfileMutation, useChangePasswordMutation, useLogoutMutation } from '../hooks/useAuth';
+import { useUserRole } from '../hooks/useUserRole';
 import { spacing, colors } from '../utils/theme';
 import { User, RootTabParamList } from '../types';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,6 +15,7 @@ type ProfileNavigationProp = StackNavigationProp<RootTabParamList, 'Profile'>;
 
 export const ProfileScreen: React.FC = () => {
   const { data: user, isLoading: userLoading, error: userError } = useCurrentUser();
+  const { role } = useUserRole(user?.id);
   const updateProfileMutation = useUpdateProfileMutation();
   const changePasswordMutation = useChangePasswordMutation();
   const logoutMutation = useLogoutMutation();
@@ -168,27 +170,18 @@ export const ProfileScreen: React.FC = () => {
   };
 
   const handleLogout = () => {
-    // Web-compatible logout handling
-    if (Platform.OS === 'web') {
-      const confirmed = window.confirm('Are you sure you want to sign out?');
-      if (confirmed) {
-        performLogout();
-      }
-    } else {
-      // Native Alert for mobile platforms
-      Alert.alert(
-        'Sign Out',
-        'Are you sure you want to sign out?',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { 
-            text: 'Sign Out', 
-            style: 'destructive', 
-            onPress: () => performLogout()
-          },
-        ]
-      );
-    }
+    Alert.alert(
+      'Sign Out',
+      'Are you sure you want to sign out?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign Out',
+          style: 'destructive',
+          onPress: () => performLogout()
+        },
+      ]
+    );
   };
 
   const performLogout = () => {
@@ -196,11 +189,7 @@ export const ProfileScreen: React.FC = () => {
     logoutMutation.mutate(undefined, {
       onError: (error) => {
         console.error('Logout error:', error);
-        if (Platform.OS === 'web') {
-          window.alert('Failed to sign out. Please try again.');
-        } else {
-          Alert.alert('Error', 'Failed to sign out. Please try again.');
-        }
+        Alert.alert('Error', 'Failed to sign out. Please try again.');
       }
     });
   };
@@ -342,7 +331,7 @@ export const ProfileScreen: React.FC = () => {
               <View style={styles.infoRow}>
                 <Text variant="label">Role:</Text>
                 <Text variant="body" style={styles.roleText}>
-                  {user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'Customer'}
+                  {role ? role.charAt(0).toUpperCase() + role.slice(1) : 'Customer'}
                 </Text>
               </View>
             </View>

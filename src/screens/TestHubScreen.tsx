@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Screen, Text, Card, Button } from '../components';
-import { spacing, colors, borderRadius } from '../utils/theme';
+import { Screen, Text, Button, Card } from '../components';
+import { spacing, borderRadius } from '../utils/theme';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { TestStackParamList } from '../navigation/TestStackNavigator';

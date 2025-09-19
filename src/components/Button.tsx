@@ -1,5 +1,5 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle } from 'react-native';
+import { TouchableOpacity, Text as ReactNativeText, StyleSheet, ActivityIndicator, ViewStyle, TextStyle } from 'react-native';
 import { colors, typography, spacing, borderRadius } from '../utils/theme';
 
 interface ButtonProps {
@@ -55,7 +55,7 @@ export const Button: React.FC<ButtonProps> = ({
           size="small"
         />
       ) : (
-        <Text style={textStyles}>{title}</Text>
+        <ReactNativeText style={textStyles}>{title}</ReactNativeText>
       )}
     </TouchableOpacity>
   );
