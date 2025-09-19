@@ -1,0 +1,122 @@
+# Pre-commit hooks configuration for inventory compliance
+repos:
+  - repo: local
+    hooks:
+      # Integration pattern validation (critical for maintaining clean architecture)
+      - id: validate-integrations
+        name: Validate Integration Patterns
+        entry: npm run validate:integrations
+        language: system
+        files: ^src/(hooks|services|screens|components)/.*\.(ts|tsx)$
+        fail_fast: true
+        verbose: true
+
+      # Schema contract validation (critical for 100% compliance)
+      - id: validate-schema-contracts
+        name: Validate Schema Contracts
+        entry: npm run test:contracts
+        language: system
+        files: ^src/(schemas|types)/.*\.(ts|tsx)$
+        fail_fast: true
+        verbose: true
+
+      # Inventory-specific contract validation
+      - id: validate-inventory-contracts
+        name: Validate Inventory Contracts
+        entry: node -e "
+          const { validateContracts } = require('./src/schemas/__contracts__/inventory.contracts.ts');
+          const isValid = validateContracts();
+          if (!isValid) {
+            console.error('❌ Inventory schema contracts failed - commit blocked');
+            process.exit(1);
+          }
+          console.log('✅ Inventory schema contracts validated');
+        "
+        language: system
+        files: ^src/(schemas|types|hooks|services)/inventory/.*\.(ts|tsx)$
+        fail_fast: true
+
+      # TypeScript compilation check
+      - id: typescript-check
+        name: TypeScript Compilation Check
+        entry: npm run typecheck
+        language: system
+        files: ^src/.*\.(ts|tsx)$
+        pass_filenames: false
+        fail_fast: true
+
+      # Schema pattern validation
+      - id: validate-schema-patterns
+        name: Validate Schema Patterns
+        entry: npm run lint:schemas
+        language: system
+        files: ^src/schemas/.*\.(ts|tsx)$
+        fail_fast: true
+
+      # Inventory test validation (ensures tests pass before commit)
+      - id: test-inventory
+        name: Test Inventory Features
+        entry: npm run test:inventory
+        language: system
+        files: ^src/(hooks|services|types|schemas)/inventory/.*\.(ts|tsx)$
+        pass_filenames: false
+        fail_fast: true
+
+      # Graceful degradation pattern check
+      - id: check-graceful-degradation
+        name: Check Graceful Degradation Patterns
+        entry: node -e "
+          const fs = require('fs');
+          const glob = require('glob');
+
+          console.log('🔍 Checking graceful degradation patterns...');
+
+          const hookFiles = glob.sync('src/hooks/inventory/use*.ts');
+          let violations = 0;
+
+          hookFiles.forEach(file => {
+            const content = fs.readFileSync(file, 'utf8');
+
+            // Check for graceful degradation pattern
+            if (content.includes('useCurrentUser') &&
+                !content.includes('createInventoryError') &&
+                !content.includes('AUTHENTICATION_REQUIRED')) {
+              console.error(\`❌ \${file}: Missing graceful degradation pattern\`);
+              violations++;
+            }
+
+            // Check for centralized Supabase client
+            if (content.includes('createClient(')) {
+              console.error(\`❌ \${file}: Using local Supabase client instead of centralized\`);
+              violations++;
+            }
+          });
+
+          if (violations > 0) {
+            console.error(\`❌ Found \${violations} graceful degradation violations\`);
+            process.exit(1);
+          }
+
+          console.log('✅ All hooks follow graceful degradation patterns');
+        "
+        language: system
+        files: ^src/hooks/inventory/.*\.(ts|tsx)$
+        pass_filenames: false
+
+  # External tools (optional but recommended)
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: trailing-whitespace
+        files: ^src/.*\.(ts|tsx|js|jsx)$
+      - id: end-of-file-fixer
+        files: ^src/.*\.(ts|tsx|js|jsx)$
+      - id: check-merge-conflict
+      - id: check-json
+        files: ^.*\.json$
+      - id: check-yaml
+        files: ^.*\.ya?ml$
+
+# Configuration
+default_stages: [commit]
+fail_fast: true
