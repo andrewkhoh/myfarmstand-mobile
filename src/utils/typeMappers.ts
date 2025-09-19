@@ -1,4 +1,4 @@
-import { Product, Order, OrderItem } from '../types';
+import { Product, Order, OrderItem, CustomerInfo } from '../types';
 import { Database } from '../types/database.generated';
 
 type DBProduct = Database['public']['Tables']['products']['Row'];

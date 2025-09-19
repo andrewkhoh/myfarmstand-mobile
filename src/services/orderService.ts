@@ -1,4 +1,4 @@
-import { CreateOrderRequest, Order, OrderPaymentStatus } from '../types';
+import { CreateOrderRequest, Order, OrderPaymentStatus, OrderSubmissionResult } from '../types';
 import { supabase } from '../config/supabase';
 import { sendOrderBroadcast } from '../utils/broadcastFactory';
 import { sendPickupReadyNotification, sendOrderConfirmationNotification } from './notificationService';

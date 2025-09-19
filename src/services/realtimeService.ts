@@ -1,6 +1,6 @@
 import { supabase } from '../config/supabase';
 import { queryClient } from '../config/queryClient';
-import { cartKeys, productKeys } from '../utils/queryKeyFactory';
+import { cartKeys, productKeys, orderKeys } from '../utils/queryKeyFactory';
 import { SecureChannelNameGenerator, createBroadcastHelper } from '../utils/broadcastFactory';
 
 /**
