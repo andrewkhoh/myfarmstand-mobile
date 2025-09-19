@@ -8,7 +8,7 @@
  * CRITICAL: Uses existing centralized productKeys factory - NO local duplicates
  */
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { productKeys } from '../utils/queryKeyFactory';
 import productAdminService from '../services/productAdminService';
 import type {
@@ -299,11 +299,11 @@ export function useAdminProductStats() {
   const outOfStockQuery = useAdminOutOfStockProducts();
   
   return {
-    totalProducts: productsQuery.data?.length || 0,
-    lowStockCount: lowStockQuery.data?.length || 0,
-    outOfStockCount: outOfStockQuery.data?.length || 0,
-    availableProducts: productsQuery.data?.filter(p => p.is_available).length || 0,
-    unavailableProducts: productsQuery.data?.filter(p => !p.is_available).length || 0,
+    totalProducts: productsQuery?.data?.length || 0,
+    lowStockCount: lowStockQuery?.data?.length || 0,
+    outOfStockCount: outOfStockQuery?.data?.length || 0,
+    availableProducts: productsQuery?.data?.filter(p => p.is_available).length || 0,
+    unavailableProducts: productsQuery?.data?.filter(p => !p.is_available).length || 0,
     isLoading: productsQuery.isLoading || lowStockQuery.isLoading || outOfStockQuery.isLoading,
     error: productsQuery.error || lowStockQuery.error || outOfStockQuery.error,
   };

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Modal, Alert, TextInput, Pressable } from 'react-native';
-import { Text, Button, Card } from './index';
+import { View, StyleSheet, Modal, Alert, Pressable, TextInput } from 'react-native';
+import { Text, Card, Button } from './index';
 import { useKioskContext } from '../contexts';
 import { spacing } from '../utils/theme';
 
@@ -99,7 +99,7 @@ export const KioskStaffAuth: React.FC = () => {
                     error ? styles.pinInputError : {}
                   ]}
                   value={digit}
-                  onChangeText={(value) => handlePinChange(value, index)}
+                  onChangeText={(value: any) => handlePinChange(value, index)}
                   onKeyPress={({ nativeEvent }) => {
                     if (nativeEvent.key === 'Backspace') {
                       handleBackspace(index);

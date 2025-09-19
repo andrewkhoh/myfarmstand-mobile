@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, RNText as RNRNText, StyleSheet, TouchableOpacity } from 'react-native';
 
 interface EmptyStateProps {
   testID?: string;
@@ -16,10 +16,10 @@ export function EmptyState({
 }: EmptyStateProps) {
   return (
     <View style={styles.container} testID={testID}>
-      <Text style={styles.message}>{message}</Text>
+      <RNText style={styles.message}>{message}</RNText>
       {actionLabel && onAction && (
         <TouchableOpacity style={styles.button} onPress={onAction}>
-          <Text style={styles.buttonText}>{actionLabel}</Text>
+          <RNText style={styles.buttonRNText}>{actionLabel}</RNText>
         </TouchableOpacity>
       )}
     </View>
@@ -45,7 +45,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 5
   },
-  buttonText: {
+  buttonRNText: {
     color: 'white',
     fontSize: 16,
     fontWeight: '600'

@@ -1,12 +1,14 @@
 import React from 'react';
-import { View, StyleSheet, ViewStyle } from 'react-native';
-import { colors, spacing, borderRadius, shadows } from '../utils/theme';
+import { View, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
+import { colors, spacing, shadows, borderRadius } from '../utils/theme';
 
 interface CardProps {
   children: React.ReactNode;
   variant?: 'default' | 'elevated' | 'outlined';
   padding?: 'none' | 'sm' | 'md' | 'lg';
   style?: ViewStyle;
+  onPress?: () => void;
+  testID?: string;
 }
 
 export const Card: React.FC<CardProps> = ({
@@ -14,6 +16,8 @@ export const Card: React.FC<CardProps> = ({
   variant = 'default',
   padding = 'md',
   style,
+  onPress,
+  testID,
 }) => {
   const cardStyles = [
     styles.base,
@@ -22,7 +26,20 @@ export const Card: React.FC<CardProps> = ({
     style,
   ];
 
-  return <View style={cardStyles}>{children}</View>;
+  if (onPress) {
+    return (
+      <TouchableOpacity
+        style={cardStyles}
+        onPress={onPress}
+        testID={testID}
+        activeOpacity={0.7}
+      >
+        {children}
+      </TouchableOpacity>
+    );
+  }
+
+  return <View style={cardStyles} testID={testID}>{children}</View>;
 };
 
 const styles = StyleSheet.create({

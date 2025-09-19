@@ -1,7 +1,6 @@
 // Simple Business Metrics Hook Tests - Following useCart patterns exactly
 // Clean implementation demonstrating proper executive hook testing
 
-import React from 'react';
 import { createSupabaseMock } from '../../../test/mocks/supabase.simplified.mock';
 import { hookContracts } from '../../../test/contracts/hook.contracts';
 import { renderHook, waitFor } from '@testing-library/react-native';

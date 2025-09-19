@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { Screen, Text, Card, Button, KPIGrid, KPICard } from '../../components';
+import { Screen, Text, Card, Button, KPICard } from '../../components';
 import { useCurrentUser } from '../../hooks/useAuth';
+import { useUserRole } from '../../hooks/role-based/useUserRole';
 import { useSimpleBusinessMetrics } from '../../hooks/executive/useSimpleBusinessMetrics';
 import { spacing, colors } from '../../utils/theme';
 
@@ -56,11 +57,13 @@ const MenuItem: React.FC<MenuItemProps> = ({
 export const ExecutiveHub: React.FC = () => {
   const navigation = useNavigation<ExecutiveHubNavigationProp>();
   const { data: user } = useCurrentUser();
-  const { data: metrics, isLoading, error } = useSimpleBusinessMetrics();
-  
-  const isAdmin = user?.role?.toLowerCase() === 'admin';
-  const isExecutive = user?.role?.toLowerCase() === 'executive';
-  const isManager = user?.role?.toLowerCase() === 'manager';
+  const userRole = useUserRole();
+  const { metrics, isLoading, error } = useSimpleBusinessMetrics();
+
+  const roleString = userRole.role?.role?.toLowerCase() || '';
+  const isAdmin = roleString === 'admin';
+  const isExecutive = roleString === 'executive';
+  const isManager = roleString === 'manager';
   // High security: Executive + Admin only
   const canAccessExecutiveFeatures = isAdmin || isExecutive;
   // Standard security: Executive + Admin + Manager  
@@ -159,7 +162,7 @@ export const ExecutiveHub: React.FC = () => {
             Strategic insights and business intelligence
           </Text>
           <Text variant="caption" color="tertiary" style={styles.roleText}>
-            Access Level: {user?.role?.toUpperCase() || 'UNKNOWN'}
+            Access Level: {roleString.toUpperCase() || 'UNKNOWN'}
           </Text>
         </Card>
 
@@ -208,7 +211,7 @@ export const ExecutiveHub: React.FC = () => {
           <Text variant="heading3" style={styles.sectionTitle}>
             Analytics Modules
           </Text>
-          {menuItems.map((item) => (
+          {menuItems.map((item: any) => (
             <MenuItem
               key={item.screen}
               title={item.title}

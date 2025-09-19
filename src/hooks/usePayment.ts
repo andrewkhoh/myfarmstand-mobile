@@ -6,7 +6,7 @@
  * React Query patterns, and comprehensive error handling.
  */
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { paymentService } from '../services/paymentService';
 import { useCurrentUser } from './useAuth';

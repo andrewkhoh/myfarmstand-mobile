@@ -1,7 +1,7 @@
 // Enhanced Insight Generation Hook Tests
 // Testing single/batch generation, statistical validation, and error handling
 
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import { useInsightGeneration } from '../useInsightGeneration';

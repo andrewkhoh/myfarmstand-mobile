@@ -23,7 +23,7 @@ import { useCheckoutForm } from '../hooks/useCheckoutForm';
 import { useKioskSessionInfo } from '../contexts';
 import { getStockDisplayInfo } from '../utils/stockDisplay';
 import { submitOrder } from '../services/orderService';
-import { CreateOrderRequest, CustomerInfo, FulfillmentType, PaymentMethod, OrderItem, RootStackParamList } from '../types';
+import { CreateOrderRequest, CustomerInfo, FulfillmentType, PaymentMethod, RootStackParamList } from '../types';
 
 type CheckoutScreenNavigationProp = StackNavigationProp<RootStackParamList, 'OrderConfirmation'>;
 

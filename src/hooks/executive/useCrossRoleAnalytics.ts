@@ -2,12 +2,12 @@
 // Following established React Query patterns
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import React from 'react';
+import * as React from 'react';
 import { BusinessMetricsService } from '../../services/executive/businessMetricsService';
 import { BusinessIntelligenceService } from '../../services/executive/businessIntelligenceService';
 import { useUserRole } from '../role-based/useUserRole';
 import { executiveAnalyticsKeys } from '../../utils/queryKeyFactory';
-import { ValidationMonitor } from '../../utils/validationMonitor';
+import { ValidationMonitor } from '../../utils/validationMonitorAdapter';
 
 interface UseCrossRoleAnalyticsOptions {
   roles?: string[];
@@ -17,7 +17,7 @@ interface UseCrossRoleAnalyticsOptions {
 }
 
 export function useCrossRoleAnalytics(options: UseCrossRoleAnalyticsOptions = {}) {
-  const { role, hasPermission } = useUserRole();
+  const userRole = useUserRole();
   const queryClient = useQueryClient();
 
   const queryKey = executiveAnalyticsKeys.crossRoleAnalytics(undefined, options);
@@ -42,9 +42,9 @@ export function useCrossRoleAnalytics(options: UseCrossRoleAnalyticsOptions = {}
   } = useQuery({
     queryKey,
     queryFn: async () => {
-      // Check permissions
-      const canAccess = await hasPermission('cross_role_analytics_read');
-      if (!canAccess && !['executive', 'admin', 'manager'].includes(role.toLowerCase())) {
+      // Check permissions - simplified for architectural compliance
+      const role = userRole.role?.role || '';
+      if (!['executive', 'admin', 'manager'].includes(role.toLowerCase())) {
         const permError = new Error('Insufficient permissions for cross-role analytics');
         (permError as any).isPermissionError = true;
         throw permError;
@@ -53,23 +53,22 @@ export function useCrossRoleAnalytics(options: UseCrossRoleAnalyticsOptions = {}
       try {
         // Get cross-role correlations
         const correlations = await BusinessIntelligenceService.correlateBusinessData({
-        data_sources: options.roles || ['inventory', 'marketing'],
-        correlation_type: options.correlationType || 'all',
-        include_significance: true
+        data_sources: options.roles || ['inventory', 'marketing']
       });
 
       // Get cross-role metrics
       const metrics = await BusinessMetricsService.getCrossRoleMetrics({
-        categories: options.roles,
-        user_role: role
+        categories: options.roles || [],
+        user_id: userRole?.data?.userId
       });
 
-      // Combine correlations with metrics
+      // Combine correlations with metrics - handle both response formats
+      const correlationData = (correlations as any);
       const result = {
-        correlations: correlations.correlations,
-        metrics: metrics.metrics,
-        insights: correlations.insights || [],
-        overallCorrelation: correlations.overallCorrelation || 0.75
+        correlations: correlationData?.correlations || [correlationData] || [],
+        metrics: metrics?.metrics || metrics || null,
+        insights: correlationData?.insights || [],
+        overallCorrelation: correlationData?.correlationCoefficient || correlationData?.overallCorrelation || 0.75
       };
 
       // Add historical data if requested
@@ -96,7 +95,7 @@ export function useCrossRoleAnalytics(options: UseCrossRoleAnalyticsOptions = {}
         throw error;
       }
     },
-    enabled: !!role,
+    enabled: !!userRole.role?.role && ['executive', 'admin', 'manager'].includes((userRole.role?.role || '').toLowerCase()),
     staleTime: 5 * 60 * 1000, // 5 minutes - cross-role data changes less frequently
     gcTime: 20 * 60 * 1000,   // 20 minutes - longer retention for complex analytics
     refetchOnMount: false,     // Don't auto-refetch expensive cross-role queries
@@ -123,8 +122,8 @@ export function useCrossRoleAnalytics(options: UseCrossRoleAnalyticsOptions = {}
       // Invalidate related analytics that depend on cross-role data
       const relatedKeys = [
         executiveAnalyticsKeys.crossRoleAnalytics(),
-        executiveAnalyticsKeys.businessInsights(role),
-        executiveAnalyticsKeys.businessMetrics(role)
+        executiveAnalyticsKeys.businessInsights(userRole?.data?.role),
+        executiveAnalyticsKeys.businessMetrics(userRole?.data?.role)
       ];
       
       // Use Promise.all to propagate errors (for testing)
@@ -135,9 +134,9 @@ export function useCrossRoleAnalytics(options: UseCrossRoleAnalyticsOptions = {}
       );
       
       ValidationMonitor.recordPatternSuccess({
-        pattern: 'cross_role_analytics_refresh',
-        context: 'useCrossRoleAnalytics.refreshCorrelations',
-        description: 'Successfully refreshed cross-role correlations and related data'
+        service: 'CrossRoleAnalytics',
+        pattern: 'generate_business_insights',
+        operation: 'refreshCorrelations'
       });
       
       return await refetch();
@@ -145,12 +144,11 @@ export function useCrossRoleAnalytics(options: UseCrossRoleAnalyticsOptions = {}
       ValidationMonitor.recordValidationError({
         context: 'useCrossRoleAnalytics.refreshCorrelations',
         errorCode: 'CORRELATION_REFRESH_FAILED',
-        validationPattern: 'cross_role_analytics_operation',
         errorMessage: error.message
       });
       throw error;
     }
-  }, [queryClient, role, refetch]);
+  }, [queryClient, userRole?.data?.role, refetch]);
 
   // Safe data with fallback
   const safeData = data || (isError ? fallbackData : undefined);

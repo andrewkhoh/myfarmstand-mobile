@@ -5,7 +5,7 @@
  * DB Data (snake_case) → Schema Validation → Transform → App Data (camelCase)
  */
 
-import { CategorySchema, DbProductSchema, ProductSchema, transformProductWithCategory } from '../product.schema';
+import { CategorySchema, DbProductSchema, transformProductWithCategory } from '../product.schema';
 
 describe('Validation Transform Pattern', () => {
   describe('CategorySchema Transform Pattern', () => {

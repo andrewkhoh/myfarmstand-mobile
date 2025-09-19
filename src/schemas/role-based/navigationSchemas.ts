@@ -5,7 +5,7 @@
  */
 
 import { z } from 'zod';
-import { NavigationMenuItem, NavigationState, UserRole } from '../../types';
+import { NavigationMenuItem, UserRole } from '../../types';
 
 // Raw database schemas (what comes from Supabase)
 export const RawNavigationStateSchema = z.object({

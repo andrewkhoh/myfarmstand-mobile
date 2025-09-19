@@ -1,10 +1,18 @@
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
+  rootDir: '../',
   roots: ['<rootDir>/src'],
-  testMatch: ['**/__tests__/**/*.test.ts', '**/__contracts__/**/*.test.ts'],
+  testMatch: [
+    '**/__tests__/**/*.test.ts',
+    '**/__tests__/**/*.test.tsx',
+    '**/*.test.ts',
+    '**/*.test.tsx'
+  ],
   testPathIgnorePatterns: [
-    '<rootDir>/node_modules/',
+    '/node_modules/',
+    '/__tests__.archived/',
+    '/backup-before-tdd/',
     '<rootDir>/docker/volumes/',
     '<rootDir>/docker/projects/'
   ],
@@ -20,22 +28,33 @@ module.exports = {
   haste: {
     throwOnModuleCollision: false
   },
+  setupFilesAfterEnv: ['<rootDir>/src/test/test-setup.ts'],
   collectCoverageFrom: [
     'src/**/*.ts',
+    'src/**/*.tsx',
     '!src/**/*.test.ts',
+    '!src/**/*.test.tsx',
     '!src/**/*.d.ts',
     '!src/**/index.ts'
   ],
-  coverageDirectory: 'coverage',
+  coverageDirectory: '<rootDir>/coverage',
   coverageReporters: ['text', 'lcov', 'html'],
   moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/src/$1'
+    '^@/(.*)$': '<rootDir>/src/$1',
+    '^react-native$': '<rootDir>/src/test/__mocks__/react-native.js',
+    '^@supabase/supabase-js$': '<rootDir>/src/test/__mocks__/@supabase/supabase-js'
   },
   transform: {
-    '^.+\\.ts$': ['ts-jest', {
+    '^.+\\.tsx?$': ['ts-jest', {
       tsconfig: {
-        strict: true
+        jsx: 'react',
+        esModuleInterop: true,
+        allowSyntheticDefaultImports: true,
+        strict: false
       }
     }]
-  }
+  },
+  transformIgnorePatterns: [
+    'node_modules/(?!(@react-native|react-native|@tanstack|@testing-library|expo|@expo|@supabase))'
+  ]
 };

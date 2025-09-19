@@ -2,6 +2,15 @@
  * RoleBasedVisibility Component
  * Simple wrapper for showing/hiding components based on user roles
  * Following docs/architectural-patterns-and-best-practices.md
+ *
+ * ⚠️ DEPRECATED: This component is deprecated and will be removed in a future version.
+ * Use PermissionCheck with permission-based access control instead.
+ *
+ * Migration:
+ * OLD: <RoleBasedVisibility allowedRoles={['admin', 'staff']}>
+ * NEW: <PermissionCheck permissions={['inventory:manage']}>
+ *
+ * @deprecated Use PermissionCheck instead
  */
 
 import React from 'react';
@@ -32,6 +41,15 @@ export const RoleBasedVisibility: React.FC<RoleBasedVisibilityProps> = ({
   children,
   testID = 'role-based-visibility'
 }) => {
+  // Log deprecation warning
+  console.warn('⚠️ DEPRECATED: RoleBasedVisibility component is deprecated. Use PermissionCheck with permission-based access control instead.');
+
+  ValidationMonitor.recordValidationError({
+    context: 'DeprecatedComponent.RoleBasedVisibility',
+    errorMessage: 'Using deprecated RoleBasedVisibility component',
+    errorCode: 'DEPRECATED_COMPONENT_USAGE'
+  });
+
   const { data: userRole, isLoading } = useUserRole();
 
   // Show loading state if configured

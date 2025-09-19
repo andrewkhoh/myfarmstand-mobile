@@ -98,14 +98,15 @@ export function CampaignPlannerScreen({ route, navigation }: CampaignPlannerScre
         const dataForUpdate = formData.selectedProducts.length > 0 
           ? { ...updateData, selectedProducts: formData.selectedProducts }
           : updateData;
-        await updateCampaign(dataForUpdate);
+        await updateCampaign(campaignId, dataForUpdate);
         Alert.alert('Success', 'Campaign updated');
       } else {
         const { id, selectedProducts, ...dataForCreate } = campaignData;
         // Only include selectedProducts if not empty
-        const createData = formData.selectedProducts.length > 0 
-          ? { ...dataForCreate, selectedProducts: formData.selectedProducts }
-          : dataForCreate;
+        const createData = {
+          ...dataForCreate,
+          selectedProducts: formData.selectedProducts || []
+        };
         await createCampaign(createData);
         Alert.alert('Success', 'Campaign created');
       }

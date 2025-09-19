@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, RNText as RNRNText, StyleSheet, TouchableOpacity } from 'react-native';
 import { InventoryItem } from 'types/inventory';
 
 interface StockItemCardProps {
@@ -20,11 +20,11 @@ export function StockItemCard({ item, selected, onSelect, onQuickAdjust }: Stock
       >
         <View style={[styles.checkbox, selected && styles.checkboxSelected]} />
         <View style={styles.info}>
-          <Text style={styles.name}>{item.name}</Text>
-          <Text style={styles.sku}>{item.sku}</Text>
-          <Text style={styles.stock}>
+          <RNText style={styles.name}>{item.name}</RNText>
+          <RNText style={styles.sku}>{item.sku}</RNText>
+          <RNText style={styles.stock}>
             Current: {item.currentStock} {item.unit}
-          </Text>
+          </RNText>
         </View>
       </TouchableOpacity>
 
@@ -35,10 +35,10 @@ export function StockItemCard({ item, selected, onSelect, onQuickAdjust }: Stock
           onPress={() => onQuickAdjust(item, -1)}
           accessibilityLabel="Decrease stock"
         >
-          <Text style={styles.adjustButtonText}>-</Text>
+          <RNText style={styles.adjustButtonRNText}>-</RNText>
         </TouchableOpacity>
         
-        <Text style={styles.stockValue}>{item.currentStock}</Text>
+        <RNText style={styles.stockValue}>{item.currentStock}</RNText>
         
         <TouchableOpacity
           testID={`increase-${item.id}`}
@@ -46,7 +46,7 @@ export function StockItemCard({ item, selected, onSelect, onQuickAdjust }: Stock
           onPress={() => onQuickAdjust(item, 1)}
           accessibilityLabel="Increase stock"
         >
-          <Text style={styles.adjustButtonText}>+</Text>
+          <RNText style={styles.adjustButtonRNText}>+</RNText>
         </TouchableOpacity>
       </View>
     </View>
@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  adjustButtonText: {
+  adjustButtonRNText: {
     color: 'white',
     fontSize: 20,
     fontWeight: 'bold',

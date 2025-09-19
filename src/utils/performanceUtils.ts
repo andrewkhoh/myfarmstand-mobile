@@ -131,7 +131,7 @@ class OptimizedQueryExecutor {
       const metrics: QueryMetrics = {
         queryName,
         executionTime,
-        rowsReturned: Array.isArray(result.data) ? result.data?.length || 0 : result.data ? 1 : 0,
+        rowsReturned: Array.isArray(result.data) ? result?.data?.length || 0 : result.data ? 1 : 0,
         cacheHit: false,
         optimizations: this.getAppliedOptimizations(config),
       };

@@ -1,4 +1,4 @@
-import { describe, it, expect } from '@jest/globals';
+import { describe, expect } from '@jest/globals';
 import type { MockDatabase } from './database-mock.types';
 import { 
   BusinessIntelligenceDatabaseSchema, 

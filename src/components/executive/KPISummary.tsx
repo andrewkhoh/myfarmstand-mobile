@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
-import { formatCurrency, formatPercent, formatCompactNumber } from '../../utils/formatters';
+import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { formatCurrency, formatCompactNumber, formatPercent } from '../../utils/formatters';
 
 export interface KPIMetric {
   label: string;

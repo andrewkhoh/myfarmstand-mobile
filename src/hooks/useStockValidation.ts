@@ -1,7 +1,7 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { supabase } from '../config/supabase';
-import { getProductStock, isProductPreOrder, getProductMinPreOrderQty, getProductMaxPreOrderQty } from '../utils/typeMappers';
+import { getProductStock, isProductPreOrder, getProductMaxPreOrderQty } from '../utils/typeMappers';
 import { Product } from '../types';
 import { useCart } from './useCart';
 import { useCurrentUser } from './useAuth';

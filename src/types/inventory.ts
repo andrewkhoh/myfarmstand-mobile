@@ -1,42 +1,53 @@
+// Database-aligned inventory types
 export interface InventoryItem {
   id: string;
-  userId: string;
-  sku: string;
-  name: string;
-  description?: string;
-  category: string;
+  productId: string;
+  warehouseId: string;
+  userId: string | null;
   currentStock: number;
-  minStock: number;
-  maxStock: number;
-  unitPrice: number;
+  reservedStock: number;
+  availableStock: number; // Computed field
+  minimumStock: number;
+  maximumStock: number;
   reorderPoint: number;
   reorderQuantity: number;
-  supplierId?: string;
-  location?: string;
-  lastRestocked?: Date;
-  createdAt: Date;
-  updatedAt: Date;
+  unitCost: number;
+  totalValue: number; // Computed field
+  lastRestockedAt: string | null;
+  lastCountedAt: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  stockStatus: string; // Computed field
 }
 
 export interface StockMovement {
   id: string;
-  itemId: string;
-  type: 'in' | 'out' | 'adjustment';
+  inventoryItemId: string;
+  userId: string | null;
+  movementType: 'in' | 'out' | 'adjustment' | 'add' | 'subtract' | 'set';
   quantity: number;
-  reason: string;
-  reference?: string;
-  userId: string;
-  createdAt: Date;
+  reason: string | null;
+  performedBy: string | null;
+  stockBefore: number | null;
+  stockAfter: number | null;
+  createdAt: string;
 }
 
 export interface StockAlert {
   id: string;
-  itemId: string;
-  type: 'low_stock' | 'out_of_stock' | 'overstock';
+  inventoryItemId: string;
+  userId: string | null;
+  itemName: string | null;
+  alertType: 'low_stock' | 'out_of_stock' | 'reorder_needed' | 'overstock';
+  severity: 'critical' | 'warning' | 'low';
   message: string;
-  severity: 'low' | 'medium' | 'high';
+  thresholdValue: number | null;
+  currentValue: number | null;
   acknowledged: boolean;
-  createdAt: Date;
+  acknowledgedBy: string | null;
+  acknowledgedAt: string | null;
+  createdAt: string;
 }
 
 export interface InventoryDashboard {
@@ -48,9 +59,34 @@ export interface InventoryDashboard {
   alerts: StockAlert[];
 }
 
+// Schema-aligned types for operations
+export interface CreateInventoryItem {
+  productId: string;
+  warehouseId: string;
+  currentStock: number;
+  reservedStock?: number;
+  minimumStock: number;
+  maximumStock: number;
+  reorderPoint: number;
+  reorderQuantity: number;
+  unitCost: number;
+}
+
+export interface UpdateInventoryItem {
+  currentStock?: number;
+  reservedStock?: number;
+  minimumStock?: number;
+  maximumStock?: number;
+  reorderPoint?: number;
+  reorderQuantity?: number;
+  unitCost?: number;
+  isActive?: boolean;
+}
+
 export interface StockUpdate {
-  id: string;
-  newStock: number;
+  inventoryItemId: string;
+  operation: 'add' | 'subtract' | 'set';
+  quantity: number;
   reason?: string;
 }
 
@@ -60,8 +96,24 @@ export interface BulkStockUpdate {
 }
 
 export interface InventoryFilters {
-  category?: string;
-  location?: string;
+  warehouseId?: string;
+  isActive?: boolean;
   stockStatus?: 'all' | 'low' | 'out' | 'normal';
   search?: string;
+}
+
+// Operation result types
+export interface BatchResult {
+  success: boolean;
+  data?: InventoryItem;
+  error?: any;
+}
+
+// Error types for user-friendly messaging
+export interface InventoryError {
+  code: string;
+  message: string;
+  userMessage: string;
+  itemId?: string;
+  availableStock?: number;
 }

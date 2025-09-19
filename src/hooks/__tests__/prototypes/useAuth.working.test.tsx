@@ -39,10 +39,10 @@ jest.mock('../../utils/validationMonitor', () => ({
 // IMPORTS - AFTER MOCKS ARE SET UP
 // ============================================================================
 
-import { renderHook, waitFor, act } from '@testing-library/react-native';
+import { renderHook, act } from '@testing-library/react-native';
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useLoginMutation, useCurrentUser, useAuthStatus } from '../useAuth';
+import { useLoginMutation, useAuthStatus } from '../useAuth';
 import { AuthService } from '../../services/authService';
 
 const mockAuthService = AuthService as jest.Mocked<typeof AuthService>;

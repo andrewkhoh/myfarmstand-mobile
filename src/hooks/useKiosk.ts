@@ -1,6 +1,6 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { kioskService } from '../services/kioskService';
-import { ValidationMonitor } from '../utils/validationMonitor';
+import { ValidationMonitor } from '../utils/validationMonitorAdapter';
 import { useCurrentUser } from './useAuth';
 import { kioskKeys } from '../utils/queryKeyFactory';
 import type { 

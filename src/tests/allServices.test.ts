@@ -5,7 +5,7 @@
 
 import { AuthService } from '../services/authService';
 import { cartService } from '../services/cartService';
-import { submitOrder, getOrder, updateOrderStatus } from '../services/orderService';
+import { submitOrder, updateOrderStatus } from '../services/orderService';
 import productService from '../services/productService';
 import { TokenService } from '../services/tokenService';
 import { RealtimeService } from '../services/realtimeService';

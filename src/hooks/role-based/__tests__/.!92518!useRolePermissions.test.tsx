@@ -5,9 +5,9 @@
  */
 
 import { renderHook, waitFor } from '@testing-library/react-native';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import React from 'react';
-
+import { UserRole } from '../types/roles';import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { UserRole } from '../types/roles';import React from 'react';
+import { UserRole } from '../types/roles';
 // Mock the service first
 jest.mock('../../../services/role-based/rolePermissionService', () => ({
   RolePermissionService: {
@@ -24,10 +24,10 @@ jest.mock('../../useAuth', () => ({
 
 // Import hook after mocks
 import { useUserPermissions } from '../useUserPermissions';
-import { RolePermissionService } from '../../../services/role-based/rolePermissionService';
-import { useCurrentUser } from '../../useAuth';
-import { ROLE_PERMISSIONS } from '../../../schemas/role-based/rolePermission.schemas';
-
+import { UserRole } from '../types/roles';import { RolePermissionService } from '../../../services/role-based/rolePermissionService';
+import { UserRole } from '../types/roles';import { useCurrentUser } from '../../useAuth';
+import { UserRole } from '../types/roles';import { ROLE_PERMISSIONS } from '../../../schemas/role-based/rolePermission.schemas';
+import { UserRole } from '../types/roles';
 const mockGetUserRole = RolePermissionService.getUserRole as jest.MockedFunction<typeof RolePermissionService.getUserRole>;
 const mockHasPermission = RolePermissionService.hasPermission as jest.MockedFunction<typeof RolePermissionService.hasPermission>;
 const mockUpdateUserPermissions = RolePermissionService.updateUserPermissions as jest.MockedFunction<typeof RolePermissionService.updateUserPermissions>;
@@ -91,9 +91,9 @@ describe('useUserPermissions Hook Tests', () => {
         expect(result.current.isSuccess).toBe(true);
       });
 
-      expect(result.current.data?.permissions).toBeDefined();
-      expect(result.current.data?.rolePermissions).toBeDefined();
-      expect(result.current.data?.allPermissions).toBeDefined();
+      expect(result.current?.data?.permissions).toBeDefined();
+      expect(result.current?.data?.rolePermissions).toBeDefined();
+      expect(result.current?.data?.allPermissions).toBeDefined();
     });
 
     it('should combine role and custom permissions', async () => {
@@ -114,8 +114,8 @@ describe('useUserPermissions Hook Tests', () => {
       });
 
       // Should have both role-based and custom permissions
-      expect(result.current.data?.allPermissions).toContain('view_inventory'); // Role-based
-      expect(result.current.data?.allPermissions).toContain('custom_permission_1'); // Custom
+      expect(result.current?.data?.allPermissions).toContain('view_inventory'); // Role-based
+      expect(result.current?.data?.allPermissions).toContain('custom_permission_1'); // Custom
     });
 
     it('should fetch permissions for specific userId', async () => {

@@ -49,7 +49,7 @@ jest.mock('../../utils/broadcastHelper', () => ({
 // ============================================================================
 
 import productService from '../productService';
-import { createUser, createProduct, createCategory, resetAllFactories } from '../../test/factories';
+import { createUser, createProduct, resetAllFactories } from '../../test/factories';
 
 describe('ProductService - Fixed Infrastructure', () => {
   let testUser: any;

@@ -1,5 +1,5 @@
 // Test Infrastructure Imports
-import { createProduct, createUser, resetAllFactories } from "../../test/factories";
+import { createProduct, resetAllFactories } from "../../test/factories";
 
 /**
  * TokenService Test - Using REFACTORED Infrastructure

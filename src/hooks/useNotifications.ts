@@ -1,6 +1,6 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
-import { NotificationService, NotificationRequest, NotificationResult } from '../services/notificationService';
+import { NotificationService, NotificationResult } from '../services/notificationService';
 import { notificationKeys } from '../utils/queryKeyFactory';
 import { useCurrentUser } from './useAuth';
 import { createBroadcastHelper } from '../utils/broadcastFactory';

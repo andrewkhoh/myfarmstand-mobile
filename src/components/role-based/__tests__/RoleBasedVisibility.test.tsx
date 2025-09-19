@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { render, waitFor } from '@testing-library/react-native';
-import { Text } from 'react-native';
+import { RNText as RNRNText } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RoleBasedVisibility } from '../RoleBasedVisibility';
 import { ValidationMonitor } from '../../../utils/validationMonitor';
@@ -37,7 +37,7 @@ const createWrapper = () => {
   );
 };
 
-const TestContent = () => <Text testID="test-content">Protected Content</Text>;
+const TestContent = () => <RNText testID="test-content">Protected Content</RNText>;
 
 describe('RoleBasedVisibility Component', () => {
   beforeEach(() => {

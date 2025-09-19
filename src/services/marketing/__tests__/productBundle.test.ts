@@ -1,6 +1,6 @@
 import { ProductBundleService, BundleFilters } from '../productBundle.service';
 import { ProductBundle, BundleType } from '@/schemas/marketing';
-import { ServiceError, NotFoundError, ValidationError } from '../errors/ServiceError';
+import { ServiceError, ValidationError } from '../errors/ServiceError';
 import { v4 as uuidv4 } from 'uuid';
 
 describe('ProductBundleService', () => {

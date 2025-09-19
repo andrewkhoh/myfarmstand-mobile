@@ -6,11 +6,11 @@
  * with all established patterns: validation, security, React Query, and UI.
  */
 
-import { renderHook, act, waitFor } from '@testing-library/react-native';
+import { renderHook, waitFor } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import { paymentService } from '../services/paymentService';
-import { usePaymentMethods, useCreatePayment, useCreatePaymentMethod } from '../hooks/usePayment';
+import { usePaymentMethods, useCreatePaymentMethod } from '../hooks/usePayment';
 import { PaymentSecurityManager } from '../utils/paymentSecurity';
 import { ValidationMonitor } from '../utils/validationMonitor';
 import { 

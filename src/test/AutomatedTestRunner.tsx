@@ -11,10 +11,10 @@ import {
 } from 'react-native';
 import { useCart } from '../hooks/useCart';
 import { useMutation } from '@tanstack/react-query';
-import { submitOrder, getAllOrders, getOrderStats, bulkUpdateOrderStatus, OrderFilters } from '../services/orderService';
+import { submitOrder, getAllOrders, getOrderStats, OrderFilters } from '../services/orderService';
 import { AuthService } from '../services/authService';
 import { TokenService } from '../services/tokenService';
-import { Product, CustomerInfo, User, Order, OrderStatus } from '../types';
+import { Product, CustomerInfo, User, OrderStatus } from '../types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface TestResult {

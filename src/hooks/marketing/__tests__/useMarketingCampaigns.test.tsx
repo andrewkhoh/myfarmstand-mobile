@@ -2,7 +2,7 @@
 // Using SimplifiedSupabaseMock and hook contracts
 // Preserving TDD test structure for future implementation
 
-import { renderHook, waitFor, act } from '@testing-library/react-native';
+import { renderHook, act } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import { createSupabaseMock } from '../../../test/mocks/supabase.simplified.mock';
@@ -266,7 +266,7 @@ describe('Marketing Campaign Hooks - Phase 3.3.2 (RED Phase)', () => {
           expect(result.current.isSuccess).toBe(true);
         });
 
-        expect(result.current.data?.items[0].campaignStatus).toBe(status);
+        expect(result.current?.data?.items[0].campaignStatus).toBe(status);
       }
     });
 
@@ -307,9 +307,9 @@ describe('Marketing Campaign Hooks - Phase 3.3.2 (RED Phase)', () => {
         expect(result.current.isSuccess).toBe(true);
       });
 
-      expect(result.current.data?.hasMore).toBe(true);
-      expect(result.current.data?.totalCount).toBe(25);
-      expect(result.current.data?.items).toHaveLength(10);
+      expect(result.current?.data?.hasMore).toBe(true);
+      expect(result.current?.data?.totalCount).toBe(25);
+      expect(result.current?.data?.items).toHaveLength(10);
     });
 
     it('should use centralized query key factory for campaigns', async () => {
@@ -436,8 +436,8 @@ describe('Marketing Campaign Hooks - Phase 3.3.2 (RED Phase)', () => {
         expect(result.current.isSuccess).toBe(true);
       });
 
-      expect(result.current.data?.metrics.views).toBe(0);
-      expect(result.current.data?.performance.totalROI).toBe(0);
+      expect(result.current?.data?.metrics.views).toBe(0);
+      expect(result.current?.data?.performance.totalROI).toBe(0);
     });
 
     it('should support real-time performance updates', async () => {
@@ -827,7 +827,7 @@ describe('Marketing Campaign Hooks - Phase 3.3.2 (RED Phase)', () => {
         });
       });
 
-      expect(result.current.data?.scheduledActivation).toBe(true);
+      expect(result.current?.data?.scheduledActivation).toBe(true);
     });
   });
 

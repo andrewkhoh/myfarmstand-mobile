@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, RNText as RNRNText, TouchableOpacity, StyleSheet } from 'react-native';
 
 interface ErrorStateProps {
   error: Error | string;
@@ -11,12 +11,12 @@ export const ErrorState: React.FC<ErrorStateProps> = ({ error, onRetry }) => {
   
   return (
     <View style={styles.container} testID="error-state">
-      <Text style={styles.errorIcon}>⚠️</Text>
-      <Text style={styles.title}>Something went wrong</Text>
-      <Text style={styles.message}>{errorMessage}</Text>
+      <RNText style={styles.errorIcon}>⚠️</RNText>
+      <RNText style={styles.title}>Something went wrong</RNText>
+      <RNText style={styles.message}>{errorMessage}</RNText>
       {onRetry && (
         <TouchableOpacity style={styles.retryButton} onPress={onRetry}>
-          <Text style={styles.retryText}>Try Again</Text>
+          <RNText style={styles.retryRNText}>Try Again</RNText>
         </TouchableOpacity>
       )}
     </View>
@@ -51,7 +51,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 6,
   },
-  retryText: {
+  retryRNText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',

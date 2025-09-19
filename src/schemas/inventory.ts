@@ -5,6 +5,7 @@ export const InventoryItemDBSchema = z.object({
   id: z.string().uuid(),
   product_id: z.string().uuid(),
   warehouse_id: z.string().uuid(),
+  user_id: z.string().uuid().nullable(), // Added for user data isolation
   current_stock: z.number().int().min(0),
   reserved_stock: z.number().int().min(0),
   minimum_stock: z.number().int().min(0),
@@ -19,11 +20,12 @@ export const InventoryItemDBSchema = z.object({
   updated_at: z.string().datetime(),
 });
 
-// Application schema (camelCase) with computed fields
-export const InventoryItemTransformSchema = InventoryItemDBSchema.transform((data): {
+// Type for the transformed inventory item
+export type InventoryItemTransform = {
   id: string;
   productId: string;
   warehouseId: string;
+  userId: string | null;
   currentStock: number;
   reservedStock: number;
   availableStock: number;
@@ -39,10 +41,14 @@ export const InventoryItemTransformSchema = InventoryItemDBSchema.transform((dat
   createdAt: string;
   updatedAt: string;
   stockStatus: string;
-} => ({
+};
+
+// Application schema (camelCase) with computed fields
+export const InventoryItemTransformSchema = InventoryItemDBSchema.transform((data): InventoryItemTransform => ({
   id: data.id,
   productId: data.product_id,
   warehouseId: data.warehouse_id,
+  userId: data.user_id,
   currentStock: data.current_stock,
   reservedStock: data.reserved_stock,
   availableStock: data.current_stock - data.reserved_stock,
@@ -74,7 +80,7 @@ function getStockStatus(available: number, minimum: number, reorderPoint: number
 // Create schema for new inventory items
 export const CreateInventoryItemSchema = z.object({
   productId: z.string().uuid(),
-  warehouseId: z.string().uuid(),
+  warehouseId: z.string().uuid().optional(), // Optional - will use default warehouse
   currentStock: z.number().int().min(0),
   reservedStock: z.number().int().min(0).default(0),
   minimumStock: z.number().int().min(0),
@@ -167,7 +173,7 @@ export const BatchStockUpdateSchema = z.object({
 });
 
 // Types
-export type InventoryItem = z.infer<typeof InventoryItemTransformSchema>;
+export type InventoryItem = InventoryItemTransform;
 export type CreateInventoryItem = z.infer<typeof CreateInventoryItemSchema>;
 export type UpdateInventoryItem = z.infer<typeof UpdateInventoryItemSchema>;
 export type StockMovement = z.infer<typeof StockMovementTransformSchema>;

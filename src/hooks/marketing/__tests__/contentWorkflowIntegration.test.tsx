@@ -27,7 +27,7 @@ jest.mock('@tanstack/react-query', () => ({
   })),
 }));
 
-import { renderHook, waitFor, act } from '@testing-library/react-native';
+import { renderHook, act } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import { createSupabaseMock } from '../../../test/mocks/supabase.simplified.mock';
@@ -154,7 +154,7 @@ describe('Content Workflow Hook Integration - Phase 3.4.1 (RED Phase)', () => {
         expect(contentResult.current.isSuccess).toBe(true);
       });
 
-      expect(contentResult.current.data?.contentStatus).toBe('draft');
+      expect(contentResult.current?.data?.contentStatus).toBe('draft');
 
       // Mock mutation for workflow transition
       mockUseMutation.mockReturnValue({
@@ -438,8 +438,8 @@ describe('Content Workflow Hook Integration - Phase 3.4.1 (RED Phase)', () => {
       );
 
       await waitFor(() => {
-        expect(contentResult.current.data?.title).toBe('Updated Title');
-        expect(contentResult.current.data?.priority).toBe(2);
+        expect(contentResult.current?.data?.title).toBe('Updated Title');
+        expect(contentResult.current?.data?.priority).toBe(2);
       });
     });
 
@@ -527,7 +527,7 @@ describe('Content Workflow Hook Integration - Phase 3.4.1 (RED Phase)', () => {
       );
 
       await waitFor(() => {
-        expect(contentResult.current.data?.title).toBe(rollbackData.title);
+        expect(contentResult.current?.data?.title).toBe(rollbackData.title);
       });
     });
   });
@@ -585,7 +585,7 @@ describe('Content Workflow Hook Integration - Phase 3.4.1 (RED Phase)', () => {
       });
 
       await waitFor(() => {
-        expect(result.current.data?.title).toBe('Updated by Another User');
+        expect(result.current?.data?.title).toBe('Updated by Another User');
       });
     });
 
@@ -803,9 +803,9 @@ describe('Content Workflow Hook Integration - Phase 3.4.1 (RED Phase)', () => {
         expect(result.current.isSuccess).toBe(true);
       });
 
-      expect(result.current.data?.items).toHaveLength(50);
-      expect(result.current.data?.totalCount).toBe(500);
-      expect(result.current.data?.hasMore).toBe(true);
+      expect(result.current?.data?.items).toHaveLength(50);
+      expect(result.current?.data?.totalCount).toBe(500);
+      expect(result.current?.data?.hasMore).toBe(true);
     });
   });
 });

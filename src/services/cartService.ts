@@ -1,5 +1,5 @@
 import { supabase } from '../config/supabase';
-import { CartState, CartItem, Product } from '../types';
+import { CartState, Product } from '../types';
 import { cartBroadcast } from '../utils/broadcastFactory';
 import { 
   getProductStock, 

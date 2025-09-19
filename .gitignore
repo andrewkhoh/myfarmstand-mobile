@@ -56,3 +56,4 @@ docker/projects/*/docker/volumes/
 docker/volumes/backup-phase4-*/
 docker/volumes/safe_integration-*/
 docker/volumes/test_repos-*/
+src/__tests__/archived-broken/

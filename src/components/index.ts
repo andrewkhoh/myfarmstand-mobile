@@ -15,7 +15,10 @@ export { KPIGrid } from './executive/KPIGrid';
 export { KPISummary } from './executive/KPISummary';
 export { KPIComparison } from './executive/KPIComparison';
 export { AreaChart } from './executive/AreaChart';
-export { BarChart } from './executive/BarChart';
+export { BarChart } from './executive/charts/BarChart';
 export { PieChart } from './executive/PieChart';
 export { TrendChart } from './executive/TrendChart';
 export { TrendIndicator } from './executive/TrendIndicator';
+
+// Export analytics components
+export { OrderWorkflowVisualizer, HistoricalOrderPatterns } from './analytics';

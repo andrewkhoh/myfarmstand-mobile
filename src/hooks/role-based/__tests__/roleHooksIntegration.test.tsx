@@ -4,7 +4,7 @@
  * Following architectural patterns from docs/architectural-patterns-and-best-practices.md
  */
 
-import { renderHook, waitFor, act } from '@testing-library/react-native';
+import { renderHook, act } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 
@@ -100,10 +100,10 @@ describe('Role Hooks Integration Tests', () => {
       });
 
       // Verify role data
-      expect(roleHook.result.current.data?.roleType).toBe('inventory_staff');
+      expect(roleHook.result.current?.data?.roleType).toBe('inventory_staff');
 
       // Verify permissions data
-      expect(permissionsHook.result.current.data?.roleType).toBe('inventory_staff');
+      expect(permissionsHook.result.current?.data?.roleType).toBe('inventory_staff');
       expect(permissionsHook.result.current.isStaff).toBe(true);
       expect(permissionsHook.result.current.canManageInventory).toBe(true);
       expect(permissionsHook.result.current.canManageContent).toBe(false);
@@ -135,10 +135,10 @@ describe('Role Hooks Integration Tests', () => {
       });
 
       // Verify role data
-      expect(roleHook.result.current.data?.roleType).toBe('marketing_staff');
+      expect(roleHook.result.current?.data?.roleType).toBe('marketing_staff');
 
       // Verify permissions data
-      expect(permissionsHook.result.current.data?.roleType).toBe('marketing_staff');
+      expect(permissionsHook.result.current?.data?.roleType).toBe('marketing_staff');
       expect(permissionsHook.result.current.isStaff).toBe(true);
       expect(permissionsHook.result.current.canManageContent).toBe(true);
       expect(permissionsHook.result.current.canManageInventory).toBe(false);
@@ -170,7 +170,7 @@ describe('Role Hooks Integration Tests', () => {
       });
 
       // Verify role data
-      expect(roleHook.result.current.data?.roleType).toBe('executive');
+      expect(roleHook.result.current?.data?.roleType).toBe('executive');
 
       // Verify permissions data
       expect(permissionsHook.result.current.isExecutive).toBe(true);
@@ -198,7 +198,7 @@ describe('Role Hooks Integration Tests', () => {
       });
 
       // Verify role data
-      expect(roleHook.result.current.data?.roleType).toBe('admin');
+      expect(roleHook.result.current?.data?.roleType).toBe('admin');
 
       // Verify permissions data
       expect(permissionsHook.result.current.isAdmin).toBe(true);
@@ -245,7 +245,7 @@ describe('Role Hooks Integration Tests', () => {
       });
 
       await waitFor(() => {
-        expect(permissionsHook.result.current.data?.roleType).toBe('marketing_staff');
+        expect(permissionsHook.result.current?.data?.roleType).toBe('marketing_staff');
       });
 
       expect(permissionsHook.result.current.canManageInventory).toBe(false);
@@ -315,9 +315,9 @@ describe('Role Hooks Integration Tests', () => {
       expect(roleHook.result.current.data).toBeNull();
 
       // Permissions hook should return empty permissions
-      expect(permissionsHook.result.current.data?.permissions).toEqual([]);
-      expect(permissionsHook.result.current.data?.rolePermissions).toEqual([]);
-      expect(permissionsHook.result.current.data?.allPermissions).toEqual([]);
+      expect(permissionsHook.result.current?.data?.permissions).toEqual([]);
+      expect(permissionsHook.result.current?.data?.rolePermissions).toEqual([]);
+      expect(permissionsHook.result.current?.data?.allPermissions).toEqual([]);
 
       // All role checks should be false
       expect(permissionsHook.result.current.isAdmin).toBe(false);

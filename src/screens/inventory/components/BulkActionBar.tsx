@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, RNText as RNRNText, StyleSheet, TouchableOpacity } from 'react-native';
 
 interface BulkActionBarProps {
   testID?: string;
@@ -11,7 +11,7 @@ interface BulkActionBarProps {
 export function BulkActionBar({ testID, count, onUpdate, onClear }: BulkActionBarProps) {
   return (
     <View testID={testID} style={styles.container}>
-      <Text style={styles.countText}>{count} items selected</Text>
+      <RNText style={styles.countRNText}>{count} items selected</RNText>
       
       <View style={styles.actions}>
         <TouchableOpacity
@@ -20,7 +20,7 @@ export function BulkActionBar({ testID, count, onUpdate, onClear }: BulkActionBa
           onPress={onUpdate}
           accessibilityLabel={`Update ${count} selected items`}
         >
-          <Text style={styles.updateText}>Update All</Text>
+          <RNText style={styles.updateRNText}>Update All</RNText>
         </TouchableOpacity>
         
         <TouchableOpacity
@@ -29,7 +29,7 @@ export function BulkActionBar({ testID, count, onUpdate, onClear }: BulkActionBa
           onPress={onClear}
           accessibilityLabel="Clear selection"
         >
-          <Text style={styles.clearText}>Clear</Text>
+          <RNText style={styles.clearRNText}>Clear</RNText>
         </TouchableOpacity>
       </View>
     </View>
@@ -45,7 +45,7 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 8,
   },
-  countText: {
+  countRNText: {
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
@@ -60,7 +60,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     marginRight: 8,
   },
-  updateText: {
+  updateRNText: {
     color: '#2196f3',
     fontSize: 14,
     fontWeight: 'bold',
@@ -73,7 +73,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'white',
   },
-  clearText: {
+  clearRNText: {
     color: 'white',
     fontSize: 14,
   },

@@ -1,5 +1,5 @@
 // Test Infrastructure Imports
-import { createProduct, createUser, resetAllFactories } from "../../test/factories";
+import { createProduct, resetAllFactories } from "../../test/factories";
 
 /**
  * KioskOrderIntegration Test - Using REFACTORED Infrastructure
@@ -54,7 +54,7 @@ jest.mock('../../utils/validationMonitor', () => ({
 }));
 
 // Now import the services and factories
-import { createUser, createOrder, resetAllFactories } from '../../test/factories';
+import { createUser, resetAllFactories } from '../../test/factories';
 
 describe('KioskOrderIntegration - Refactored Infrastructure', () => {
   let testUser: any;

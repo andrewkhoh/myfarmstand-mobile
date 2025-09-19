@@ -10,7 +10,7 @@ import {
   RefreshControl,
   Switch,
 } from 'react-native';
-import { useProductBundles } from '../../hooks/marketing/useProductBundles';
+import { useProductBundles } from '../../hooks/marketing/useSimpleProductBundles';
 
 interface BundleManagementScreenProps {
   navigation: any;
@@ -54,7 +54,7 @@ export function BundleManagementScreen({ navigation }: BundleManagementScreenPro
         <Switch
           testID={`toggle-active-${item.id}`}
           value={item.isActive}
-          onValueChange={(value) => handleToggleActive(item.id, value)}
+          onValueChange={(value: any) => handleToggleActive(item.id, value)}
         />
       </View>
       <Text style={styles.bundlePrice}>${item.price.toFixed(2)}</Text>

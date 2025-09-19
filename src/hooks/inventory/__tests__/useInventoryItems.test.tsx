@@ -1,6 +1,6 @@
-import { renderHook, waitFor, act } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useInventoryItems, useInventoryItem, useCreateInventoryItem, useDeleteInventoryItem } from '../useInventoryItems';
+import { useInventoryItems, useInventoryItem, useDeleteInventoryItem } from '../useInventoryItems';
 import { InventoryService } from '../../../services/inventory/inventoryService';
 import React from 'react';
 import type { InventoryItem, InventoryFilters } from '../../../types/inventory';

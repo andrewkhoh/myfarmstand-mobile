@@ -8,7 +8,7 @@
  * Location: src/schemas/__contracts__/productAdmin.contracts.test.ts
  */
 
-import { describe, it, expect } from '@jest/globals';
+import { describe, expect } from '@jest/globals';
 import type { Database } from '../../types/database.generated';
 
 // Schema contract validation types - MUST match database.generated.ts exactly

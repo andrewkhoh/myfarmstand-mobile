@@ -205,7 +205,7 @@ describe('Common Schema Tests', () => {
 
       const result = StateSchema.parse(state);
       
-      expect(result.data?.id).toBe('123');
+      expect(result?.data?.id).toBe('123');
       expect(result.loading).toBe(false);
       expect(result.lastFetch).toBeInstanceOf(Date);
     });
@@ -332,7 +332,7 @@ describe('Common Schema Tests', () => {
       const parsed = ResultSchema.parse(result);
       
       expect(parsed.success).toBe(true);
-      expect(parsed.data?.id).toBe('123');
+      expect(parsed?.data?.id).toBe('123');
     });
 
     it('should validate failed operation', () => {
@@ -401,7 +401,7 @@ describe('Common Schema Tests', () => {
 
       const result = RpcSchema.parse(response);
       
-      expect(result.data?.count).toBe(42);
+      expect(result?.data?.count).toBe(42);
       expect(result.error).toBeNull();
     });
 

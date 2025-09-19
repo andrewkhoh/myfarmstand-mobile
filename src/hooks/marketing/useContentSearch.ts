@@ -1,8 +1,7 @@
-import { useState, useCallback, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { marketingKeys } from '@/utils/queryKeys';
-import { contentService } from '@/services/marketing/contentService';
-import { MarketingCampaign, MarketingContent, CampaignFilter, Product, ProductBundle, WorkflowState, WorkflowConfig, WorkflowResult, WorkflowContext, CalendarEvent } from '@/schemas/marketing';
+import { useState, useEffect, useCallback } from 'react';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import { contentService } from '../../services/marketing/content.service';
+// import type { WorkflowState } from '../../types/marketing.types'; // Removed unused import
 
 
 interface SearchFilters {
@@ -55,12 +54,7 @@ export function useContentSearch(initialQuery?: string) {
 
   // Main search query
   const searchQuery_ = useQuery({
-    queryKey: marketingKeys.search.query(searchQuery, { ...filters, page, pageSize ,
-    onError: (error) => {
-      console.error('Query failed:', error);
-      // User-friendly error handling
-    }
-  }),
+    queryKey: ['search', 'query', searchQuery, filters, page, pageSize],
     queryFn: async () => {
       if (!searchQuery && Object.keys(filters).length === 0) {
         return { results: [], total: 0, facets: [], suggestions: [] };
@@ -126,9 +120,6 @@ export function useContentSearch(initialQuery?: string) {
 
   // Autocomplete suggestions query
   const suggestionsQuery = useQuery({
-    onError: (error) => {
-      console.error('Suggestions query failed:', error);
-    },
     queryKey: ['search', 'suggestions', searchQuery],
     queryFn: async () => {
       if (!searchQuery || searchQuery.length < 2) return [];
@@ -221,11 +212,11 @@ export function useContentSearch(initialQuery?: string) {
   }, []);
 
   const nextPage = useCallback(() => {
-    const totalPages = Math.ceil((searchQuery_.data?.total || 0) / pageSize);
+    const totalPages = Math.ceil((searchQuery_?.data?.total || 0) / pageSize);
     if (page < totalPages) {
       setPage(prev => prev + 1);
     }
-  }, [page, pageSize, searchQuery_.data?.total]);
+  }, [page, pageSize, searchQuery_?.data?.total]);
 
   const previousPage = useCallback(() => {
     if (page > 1) {
@@ -234,11 +225,11 @@ export function useContentSearch(initialQuery?: string) {
   }, [page]);
 
   const goToPage = useCallback((pageNumber: number) => {
-    const totalPages = Math.ceil((searchQuery_.data?.total || 0) / pageSize);
+    const totalPages = Math.ceil((searchQuery_?.data?.total || 0) / pageSize);
     if (pageNumber >= 1 && pageNumber <= totalPages) {
       setPage(pageNumber);
     }
-  }, [pageSize, searchQuery_.data?.total]);
+  }, [pageSize, searchQuery_?.data?.total]);
 
   const saveSearch = useCallback((name: string) => {
     return saveSearchMutation.mutate({ name, query: searchQuery, filters }, {
@@ -271,7 +262,7 @@ export function useContentSearch(initialQuery?: string) {
   const exportResults = useCallback(async (format: 'csv' | 'json' | 'pdf') => {
     if (contentService.exportSearchResults) {
       return contentService.exportSearchResults(
-        searchQuery_.data?.results || [],
+        searchQuery_?.data?.results || [],
         format
       );
     }
@@ -281,7 +272,7 @@ export function useContentSearch(initialQuery?: string) {
       url: `https://download.example.com/search-results.${format}`,
       filename: `search-results-${Date.now()}.${format}`
     };
-  }, [searchQuery_.data?.results]);
+  }, [searchQuery_?.data?.results]);
 
   // Load saved searches on mount
   useEffect(() => {
@@ -314,17 +305,17 @@ export function useContentSearch(initialQuery?: string) {
     // Search state
     query: searchQuery,
     filters,
-    results: searchQuery_.data?.results || [],
-    total: searchQuery_.data?.total || 0,
-    facets: searchQuery_.data?.facets || [],
+    results: searchQuery_?.data?.results || [],
+    total: searchQuery_?.data?.total || 0,
+    facets: searchQuery_?.data?.facets || [],
     suggestions: suggestionsQuery.data || [],
-    searchSuggestions: searchQuery_.data?.suggestions || [],
+    searchSuggestions: searchQuery_?.data?.suggestions || [],
     
     // Pagination
     page,
     pageSize,
-    totalPages: Math.ceil((searchQuery_.data?.total || 0) / pageSize),
-    hasNextPage: page < Math.ceil((searchQuery_.data?.total || 0) / pageSize),
+    totalPages: Math.ceil((searchQuery_?.data?.total || 0) / pageSize),
+    hasNextPage: page < Math.ceil((searchQuery_?.data?.total || 0) / pageSize),
     hasPreviousPage: page > 1,
     
     // History & saved searches

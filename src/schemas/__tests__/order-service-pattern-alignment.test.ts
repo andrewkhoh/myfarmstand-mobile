@@ -7,7 +7,7 @@
  * anti-patterns and follows direct Supabase + schema validation approach.
  */
 
-import { describe, it, expect } from '@jest/globals';
+import { describe, expect } from '@jest/globals';
 
 describe('Order Service Pattern Alignment', () => {
   describe('Import Pattern Compliance', () => {

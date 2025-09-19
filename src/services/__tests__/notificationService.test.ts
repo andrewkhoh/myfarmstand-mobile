@@ -1,13 +1,13 @@
 // Test Infrastructure Imports
-import { createProduct, createUser, resetAllFactories } from "../../test/factories";
+import { createProduct, resetAllFactories } from "../../test/factories";
 
 /**
  * NotificationService Test - Using REFACTORED Infrastructure
  * Following the authService.fixed.test.ts pattern properly
  */
 
-import { NotificationService, sendPickupReadyNotification, sendOrderConfirmationNotification } from '../notificationService';
-import { createUser, createOrder, resetAllFactories } from '../../test/factories';
+import { NotificationService, sendOrderConfirmationNotification } from '../notificationService';
+import { createUser, resetAllFactories } from '../../test/factories';
 
 // Mock Supabase using the refactored infrastructure - CREATE MOCK IN THE JEST.MOCK CALL
 jest.mock("../../config/supabase", () => {

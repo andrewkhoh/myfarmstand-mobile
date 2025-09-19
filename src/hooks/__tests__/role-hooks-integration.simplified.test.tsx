@@ -49,7 +49,7 @@ jest.mock('../../schemas/role-based/rolePermission.schemas', () => ({
   RoleType: {}
 }));
 
-import { useUserRole, getUserRoleType, isUserRoleActive } from '../role-based/useUserRole';
+import { useUserRole, isUserRoleActive } from '../role-based/useUserRole';
 import { 
   useUserPermissions, 
   useHasPermission,
@@ -150,7 +150,7 @@ describe('Role Hooks Integration Tests', () => {
       let roleResult = useUserRole('staff-user-123');
       let permResult = useUserPermissions('staff-user-123');
       
-      expect(roleResult.data?.roleType).toBe('inventory_staff');
+      expect(roleResult?.data?.roleType).toBe('inventory_staff');
       expect(permResult.permissions).toContain('view_inventory');
       expect(isAdmin(permResult)).toBe(false);
       
@@ -170,7 +170,7 @@ describe('Role Hooks Integration Tests', () => {
       roleResult = useUserRole('staff-user-123');
       permResult = useUserPermissions('staff-user-123');
       
-      expect(roleResult.data?.roleType).toBe('admin');
+      expect(roleResult?.data?.roleType).toBe('admin');
       expect(permResult.permissions).toContain('manage_users');
       expect(isAdmin(permResult)).toBe(true);
     });

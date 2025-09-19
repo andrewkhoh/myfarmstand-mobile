@@ -31,7 +31,7 @@ jest.mock('../../utils/queryKeyFactory', () => ({
   }
 }));
 
-import { useUserRole, getUserRoleType, isUserRoleActive } from '../role-based/useUserRole';
+import { useUserRole, isUserRoleActive } from '../role-based/useUserRole';
 import { RolePermissionService } from '../../services/role-based/rolePermissionService';
 
 const mockRoleService = RolePermissionService as jest.Mocked<typeof RolePermissionService>;
@@ -283,8 +283,8 @@ describe('useUserRole Hook Tests - Simplified', () => {
 
       const result = useUserRole('admin-user');
 
-      expect(result.data?.roleType).toBe('admin');
-      expect(result.data?.permissions).toContain('manage_users');
+      expect(result?.data?.roleType).toBe('admin');
+      expect(result?.data?.permissions).toContain('manage_users');
     });
 
     it('should handle executive role', () => {
@@ -305,8 +305,8 @@ describe('useUserRole Hook Tests - Simplified', () => {
 
       const result = useUserRole('executive-user');
 
-      expect(result.data?.roleType).toBe('executive');
-      expect(result.data?.permissions).toContain('view_reports');
+      expect(result?.data?.roleType).toBe('executive');
+      expect(result?.data?.permissions).toContain('view_reports');
     });
   });
 
@@ -405,8 +405,8 @@ describe('useUserRole Hook Tests - Simplified', () => {
 
       const result = useUserRole('test-user-123');
 
-      expect(result.data?.permissions).toEqual([]);
-      expect(result.data?.permissions.length).toBe(0);
+      expect(result?.data?.permissions).toEqual([]);
+      expect(result?.data?.permissions.length).toBe(0);
     });
 
     it('should provide refetch function', () => {

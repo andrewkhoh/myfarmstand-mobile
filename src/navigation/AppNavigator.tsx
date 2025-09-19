@@ -1,4 +1,5 @@
 import React from 'react';
+// import * as React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { useCurrentUser } from '../hooks/useAuth';
@@ -25,18 +26,18 @@ export const AppNavigator: React.FC = () => {
         {isAuthenticated ? (
           <>
             <Stack.Screen name="Main" component={MainTabNavigator} />
-            <Stack.Screen 
-              name="ProductDetail" 
+            <Stack.Screen
+              name="ProductDetail"
               component={ProductDetailScreen}
               options={{ headerShown: true, title: 'Product Details' }}
             />
-            <Stack.Screen 
-              name="Checkout" 
+            <Stack.Screen
+              name="Checkout"
               component={CheckoutScreen}
               options={{ headerShown: true, title: 'Checkout' }}
             />
-            <Stack.Screen 
-              name="OrderConfirmation" 
+            <Stack.Screen
+              name="OrderConfirmation"
               component={OrderConfirmationScreen}
               options={{ headerShown: true, title: 'Order Confirmation' }}
             />
@@ -48,7 +49,7 @@ export const AppNavigator: React.FC = () => {
           </>
         )}
       </Stack.Navigator>
-      
+
       {/* Kiosk Staff Authentication Modal - Available everywhere */}
       <KioskStaffAuth />
     </NavigationContainer>

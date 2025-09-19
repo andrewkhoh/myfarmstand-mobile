@@ -1,12 +1,12 @@
 import React from 'react';
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useCampaignPerformance } from '../useCampaignPerformance';
-import { campaignService, realtimeService } from '@/services/marketing';
-import { marketingKeys } from '@/utils/queryKeys';
+import { campaignService, realtimeService } from '../../../services/marketing';
+import { marketingKeys } from '../../../utils/queryKeyFactory';
 
 // Mock the services
-jest.mock('@/services/marketing');
+jest.mock('../../../services/marketing');
 
 describe('useCampaignPerformance', () => {
   let queryClient: QueryClient;

@@ -78,7 +78,7 @@ describe('Content Workflow End-to-End Integration - Phase 3.4.1 (RED Phase)', ()
 
       expect(createResult.success).toBe(true);
       expect(createResult.data).toBeTruthy();
-      expect(createResult.data?.contentStatus).toBe('draft');
+      expect(createResult?.data?.contentStatus).toBe('draft');
 
       const contentId = createResult.data!.id;
 
@@ -124,7 +124,7 @@ describe('Content Workflow End-to-End Integration - Phase 3.4.1 (RED Phase)', ()
         );
 
         expect(updateResult.success).toBe(true);
-        expect(updateResult.data?.contentStatus).toBe(transition.toStatus);
+        expect(updateResult?.data?.contentStatus).toBe(transition.toStatus);
 
         // Update cache with new status
         queryClient.setQueryData(
@@ -201,7 +201,7 @@ describe('Content Workflow End-to-End Integration - Phase 3.4.1 (RED Phase)', ()
         contentId,
         testUserId
       );
-      expect(verifyResult.data?.contentStatus).toBe('draft');
+      expect(verifyResult?.data?.contentStatus).toBe('draft');
     });
   });
 
@@ -316,14 +316,14 @@ describe('Content Workflow End-to-End Integration - Phase 3.4.1 (RED Phase)', ()
       );
 
       expect(uploadResult.success).toBe(true);
-      expect(uploadResult.data?.imageUrl).toBeTruthy();
+      expect(uploadResult?.data?.imageUrl).toBeTruthy();
 
       // Verify content was updated with image URL
       const updatedContent = await ProductContentService.getProductContent(
         contentId,
         testUserId
       );
-      expect(updatedContent.data?.imageUrl).toBe(uploadResult.data?.imageUrl);
+      expect(updatedContent?.data?.imageUrl).toBe(uploadResult?.data?.imageUrl);
 
       // Test workflow progression with attached file
       const reviewResult = await ProductContentService.updateProductContent(
@@ -333,7 +333,7 @@ describe('Content Workflow End-to-End Integration - Phase 3.4.1 (RED Phase)', ()
       );
 
       expect(reviewResult.success).toBe(true);
-      expect(reviewResult.data?.imageUrl).toBeTruthy(); // Image preserved through workflow
+      expect(reviewResult?.data?.imageUrl).toBeTruthy(); // Image preserved through workflow
     });
 
     test('should handle file upload errors without affecting content state', async () => {
@@ -370,8 +370,8 @@ describe('Content Workflow End-to-End Integration - Phase 3.4.1 (RED Phase)', ()
         contentId,
         testUserId
       );
-      expect(contentCheck.data?.imageUrl).toBeFalsy();
-      expect(contentCheck.data?.contentStatus).toBe('draft'); // Unchanged
+      expect(contentCheck?.data?.imageUrl).toBeFalsy();
+      expect(contentCheck?.data?.contentStatus).toBe('draft'); // Unchanged
     });
   });
 

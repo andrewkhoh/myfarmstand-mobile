@@ -1,8 +1,8 @@
-import { Product, Category, PaginatedResponse } from '../types';
+import { Product, PaginatedResponse } from '../types';
 import { supabase, TABLES } from '../config/supabase';
 import { BroadcastHelper } from '../utils/broadcastHelper';
 // typeMappers import removed - schemas handle field mapping now
-import { ProductSchema, CategorySchema, transformProduct } from '../schemas/product.schema';
+import { ProductSchema, transformProduct } from '../schemas/product.schema';
 
 // Custom API response types for ProductService
 interface ProductApiResponse<T> {

@@ -3,7 +3,7 @@
  * Based on proven pattern with 100% infrastructure compliance
  */
 
-import { renderHook, waitFor, act } from '@testing-library/react-native';
+import { renderHook, act } from '@testing-library/react-native';
 import { createWrapper } from '../../test/test-utils';
 import { createUser, resetAllFactories } from '../../test/factories';
 

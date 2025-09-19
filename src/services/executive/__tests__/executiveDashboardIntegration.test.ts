@@ -86,13 +86,13 @@ describe('Executive Dashboard Integration - Refactored Infrastructure', () => {
         );
 
         expect(metricsResult).toBeDefined();
-        if (metricsResult.success) {
-          expect(metricsResult.data?.metrics).toBeDefined();
+        if ('metrics' in metricsResult) {
+          expect(metricsResult.metrics).toBeDefined();
         }
       }
 
       if (servicesAvailable.insights) {
-        const insightsResult = await BusinessIntelligenceService.getBusinessInsights(
+        const insightsResult = await BusinessIntelligenceService.generateInsights(
           {
             insightType: 'trend',
             minimumConfidence: 0.8,
@@ -439,9 +439,9 @@ describe('Executive Dashboard Integration - Refactored Infrastructure', () => {
         }
       }
 
-      if (BusinessIntelligenceService && BusinessIntelligenceService.getBusinessInsights) {
+      if (BusinessIntelligenceService && BusinessIntelligenceService.generateInsights) {
         try {
-          const insightsResult = await BusinessIntelligenceService.getBusinessInsights(
+          const insightsResult = await BusinessIntelligenceService.generateInsights(
             { insightType: 'trend' },
             testUserId
           );

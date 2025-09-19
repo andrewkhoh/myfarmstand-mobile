@@ -5,7 +5,7 @@
 
 import { renderHook, waitFor } from '@testing-library/react-native';
 import { createWrapper } from '../../test/test-utils';
-import { createProduct, createCategory, createUser, resetAllFactories } from '../../test/factories';
+import { createProduct, createCategory, resetAllFactories } from '../../test/factories';
 
 // Mock services using simplified approach
 jest.mock('../../services/productService', () => ({

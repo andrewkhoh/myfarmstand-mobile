@@ -31,7 +31,7 @@ jest.mock('@tanstack/react-query', () => ({
 import React from 'react';
 import { createSupabaseMock } from '../../../test/mocks/supabase.simplified.mock';
 import { hookContracts } from '../../../test/contracts/hook.contracts';
-import { renderHook, waitFor, act } from '@testing-library/react-native';
+import { renderHook, act } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactNode } from 'react';
 
@@ -163,7 +163,7 @@ describe('Performance Integration Tests (RED Phase)', () => {
       const endTime = performance.now();
       const responseTime = endTime - startTime;
 
-      expect(result.current.data?.success).toHaveLength(10000);
+      expect(result.current?.data?.success).toHaveLength(10000);
       expect(responseTime).toBeLessThan(8000); // Should complete within 8 seconds
 
       console.log(`Large movements performance: ${responseTime.toFixed(2)}ms for 10,000 movements`);
@@ -197,7 +197,7 @@ describe('Performance Integration Tests (RED Phase)', () => {
       expect(responseTime).toBeLessThan(3000); // Should complete within 3 seconds
       
       // Verify all items are actually low stock
-      result.current.data?.forEach(item => {
+      result.current?.data?.forEach(item => {
         expect(item.currentStock).toBeLessThanOrEqual(item.minimumThreshold);
       });
 
@@ -242,8 +242,8 @@ describe('Performance Integration Tests (RED Phase)', () => {
       const endTime = performance.now();
       const responseTime = endTime - startTime;
 
-      expect(result.current.data?.success).toHaveLength(batchSize);
-      expect(result.current.data?.errors).toHaveLength(0);
+      expect(result.current?.data?.success).toHaveLength(batchSize);
+      expect(result.current?.data?.errors).toHaveLength(0);
       expect(responseTime).toBeLessThan(10000); // Should complete within 10 seconds
 
       console.log(`Bulk update performance: ${responseTime.toFixed(2)}ms for ${batchSize} items`);
@@ -289,8 +289,8 @@ describe('Performance Integration Tests (RED Phase)', () => {
       const endTime = performance.now();
       const responseTime = endTime - startTime;
 
-      expect(result.current.data?.success).toHaveLength(successCount);
-      expect(result.current.data?.errors).toHaveLength(errorCount);
+      expect(result.current?.data?.success).toHaveLength(successCount);
+      expect(result.current?.data?.errors).toHaveLength(errorCount);
       expect(responseTime).toBeLessThan(15000); // Should complete within 15 seconds
 
       console.log(`Partial failure performance: ${responseTime.toFixed(2)}ms for ${batchSize} items with ${errorCount} failures`);
@@ -354,7 +354,7 @@ describe('Performance Integration Tests (RED Phase)', () => {
       const cacheInvalidationTime = endTime - startTime;
 
       expect(cacheInvalidationTime).toBeLessThan(5000); // Cache invalidation should be fast
-      expect(batchResult.current.data?.success).toHaveLength(50);
+      expect(batchResult.current?.data?.success).toHaveLength(50);
 
       console.log(`Cache invalidation performance: ${cacheInvalidationTime.toFixed(2)}ms for 50 items`);
     });
@@ -388,7 +388,7 @@ describe('Performance Integration Tests (RED Phase)', () => {
       const queryLoadTime = performance.now();
       
       expect(lowStockResult.current.data).toHaveLength(10);
-      expect(movementsResult.current.data?.success).toHaveLength(100);
+      expect(movementsResult.current?.data?.success).toHaveLength(100);
 
       console.log(`Complex query pattern performance: ${queryLoadTime.toFixed(2)}ms`);
     });
@@ -507,9 +507,9 @@ describe('Performance Integration Tests (RED Phase)', () => {
       const endTime = performance.now();
       const analyticsTime = endTime - startTime;
 
-      expect(result.current.data?.totalMovements).toBe(50000);
-      expect(result.current.data?.movementsByDate).toHaveLength(30);
-      expect(result.current.data?.topProducts).toHaveLength(100);
+      expect(result.current?.data?.totalMovements).toBe(50000);
+      expect(result.current?.data?.movementsByDate).toHaveLength(30);
+      expect(result.current?.data?.topProducts).toHaveLength(100);
       expect(analyticsTime).toBeLessThan(12000); // Complex analytics should complete within 12 seconds
 
       console.log(`Analytics performance: ${analyticsTime.toFixed(2)}ms for complex aggregation`);

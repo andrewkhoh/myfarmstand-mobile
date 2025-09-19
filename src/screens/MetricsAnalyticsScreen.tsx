@@ -11,15 +11,16 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useOrderStats } from '../hooks/useOrders';
 import { useCurrentUser } from '../hooks/useAuth';
+import { useUserRole } from '../hooks/useUserRole';
 import { getOrderStats } from '../services/orderService';
 
 const MetricsAnalyticsScreen: React.FC = () => {
   const { data: user } = useCurrentUser();
+  const { isAdmin, isExecutive } = useUserRole(user?.id);
   const { data: stats, isLoading, error, refetch } = useOrderStats();
 
-  // Security check - only allow users with financial access (case-insensitive)
-  const userRole = user?.role?.toLowerCase();
-  const hasFinancialAccess = userRole === 'admin' || userRole === 'manager';
+  // Security check - only allow users with financial access
+  const hasFinancialAccess = isAdmin || isExecutive;
 
   useEffect(() => {
     // Refetch stats when screen loads to ensure fresh data

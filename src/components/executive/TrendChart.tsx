@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
-import Svg, { Line, Path, Circle, Text as SvgText } from 'react-native-svg';
+import { View, Text, Dimensions, StyleSheet } from 'react-native';
+import Svg, { Path, Circle, Text as SvgText } from 'react-native-svg';
 import { formatCompactNumber } from '../../utils/formatters';
 
 export interface DataPoint {
@@ -31,13 +31,12 @@ export const TrendChart = React.memo<TrendChartProps>(({
   testID = 'trend-chart'
 }) => {
   const chartData = useMemo(() => {
-    if (data.length === 0) return { path: '', points: [], labels: [] };
+    if (data.length === 0) return { path: '', points: [], labels: [], minY: 0, maxY: 0 };
 
     const padding = 20;
     const chartWidth = width - padding * 2;
     const chartHeight = height - padding * 2;
 
-    const xValues = data.map((d, i) => i);
     const yValues = data.map(d => d.y);
     const minY = Math.min(...yValues);
     const maxY = Math.max(...yValues);
@@ -54,7 +53,7 @@ export const TrendChart = React.memo<TrendChartProps>(({
       .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`)
       .join(' ');
 
-    return { path: pathData, points, minY, maxY };
+    return { path: pathData, points, labels: [], minY, maxY };
   }, [data, width, height]);
 
   if (data.length === 0) {

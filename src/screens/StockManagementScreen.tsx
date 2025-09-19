@@ -157,7 +157,7 @@ export const StockManagementScreen: React.FC = () => {
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Update',
-          onPress: (value) => {
+          onPress: (value: any) => {
             const newStock = parseInt(value || '0', 10);
             if (isNaN(newStock) || newStock < 0) {
               Alert.alert('Error', 'Please enter a valid positive number.');
@@ -223,7 +223,7 @@ export const StockManagementScreen: React.FC = () => {
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Add',
-          onPress: (value) => {
+          onPress: (value: any) => {
             const newStock = parseInt(value || '0', 10);
             if (isNaN(newStock) || newStock < 0) {
               Alert.alert('Error', 'Please enter a valid positive number.');
@@ -412,7 +412,7 @@ export const StockManagementScreen: React.FC = () => {
             <Button
               title="Update"
               variant="outline"
-              size="small"
+              size="sm"
               onPress={() => handleIndividualStockUpdate(product)}
               disabled={bulkUpdateStock.isPending}
               style={styles.actionButton}
@@ -420,7 +420,7 @@ export const StockManagementScreen: React.FC = () => {
             <Button
               title="Add to Batch"
               variant="secondary"
-              size="small"
+              size="sm"
               onPress={() => handleAddToBatch(product)}
               disabled={bulkUpdateStock.isPending}
               style={styles.actionButton}
@@ -447,7 +447,7 @@ export const StockManagementScreen: React.FC = () => {
         <Button
           title={`Status: ${filters.stockStatus}`}
           variant="outline"
-          size="small"
+          size="sm"
           onPress={() => {
             const options = ['all', 'low', 'out', 'normal', 'overstocked'];
             const currentIndex = options.indexOf(filters.stockStatus);
@@ -460,7 +460,7 @@ export const StockManagementScreen: React.FC = () => {
         <Button
           title={`Sort: ${filters.sortBy}`}
           variant="outline"
-          size="small"
+          size="sm"
           onPress={() => {
             const options = ['name', 'stock', 'lastUpdated'];
             const currentIndex = options.indexOf(filters.sortBy);
@@ -487,21 +487,21 @@ export const StockManagementScreen: React.FC = () => {
         <Button
           title="Select All"
           variant="outline"
-          size="small"
+          size="sm"
           onPress={handleBulkSelectAll}
           style={styles.batchButton}
         />
         <Button
           title="Clear"
           variant="outline"
-          size="small"
+          size="sm"
           onPress={handleBulkClearSelection}
           style={styles.batchButton}
         />
         <Button
           title={`Review (${batchOperation.items.length})`}
           variant="primary"
-          size="small"
+          size="sm"
           onPress={() => setShowBatchModal(true)}
           disabled={batchOperation.items.length === 0}
           style={styles.batchButton}
@@ -547,7 +547,7 @@ export const StockManagementScreen: React.FC = () => {
                   <Button
                     title="Remove"
                     variant="outline"
-                    size="small"
+                    size="sm"
                     onPress={() => {
                       setBatchOperation(prev => ({
                         ...prev,
@@ -624,7 +624,7 @@ export const StockManagementScreen: React.FC = () => {
         <FlatList
           data={filteredAndSortedProducts}
           renderItem={renderProductItem}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item: any) => item.id}
           ListHeaderComponent={
             <>
               {renderFilters()}
@@ -660,70 +660,70 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: spacing.large,
+    padding: spacing.lg,
   },
   loadingText: {
-    marginTop: spacing.medium,
+    marginTop: spacing.md,
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: spacing.large,
+    padding: spacing.lg,
   },
   errorSubtext: {
-    marginTop: spacing.small,
-    marginBottom: spacing.large,
+    marginTop: spacing.sm,
+    marginBottom: spacing.lg,
   },
   retryButton: {
     minWidth: 120,
   },
   listContainer: {
-    padding: spacing.medium,
-    paddingBottom: spacing.large,
+    padding: spacing.md,
+    paddingBottom: spacing.lg,
   },
   filtersCard: {
-    marginBottom: spacing.medium,
+    marginBottom: spacing.md,
   },
   filtersTitle: {
-    marginBottom: spacing.medium,
+    marginBottom: spacing.md,
   },
   searchInput: {
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 8,
-    padding: spacing.medium,
-    marginBottom: spacing.medium,
+    padding: spacing.md,
+    marginBottom: spacing.md,
     fontSize: 16,
   },
   filterRow: {
     flexDirection: 'row',
-    gap: spacing.small,
+    gap: spacing.sm,
   },
   filterButton: {
     flex: 1,
   },
   batchCard: {
-    marginBottom: spacing.medium,
+    marginBottom: spacing.md,
   },
   batchHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.medium,
+    marginBottom: spacing.md,
   },
   batchActions: {
     flexDirection: 'row',
-    gap: spacing.small,
+    gap: spacing.sm,
   },
   batchButton: {
     flex: 1,
   },
   messageCard: {
-    marginBottom: spacing.medium,
+    marginBottom: spacing.md,
   },
   productCard: {
-    marginBottom: spacing.medium,
+    marginBottom: spacing.md,
   },
   selectedProductCard: {
     borderColor: colors.primary,
@@ -743,18 +743,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.small,
+    marginBottom: spacing.sm,
   },
   productInfo: {
     flex: 1,
-    marginRight: spacing.medium,
+    marginRight: spacing.md,
   },
   productNameRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   selectionSwitch: {
-    marginRight: spacing.small,
+    marginRight: spacing.sm,
   },
   productDetails: {
     flex: 1,
@@ -765,7 +765,7 @@ const styles = StyleSheet.create({
   },
   productActions: {
     flexDirection: 'row',
-    gap: spacing.small,
+    gap: spacing.sm,
   },
   actionButton: {
     flex: 1,
@@ -774,28 +774,28 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   modalCard: {
-    margin: spacing.medium,
-    padding: spacing.large,
+    margin: spacing.md,
+    padding: spacing.lg,
   },
   modalTitle: {
-    marginBottom: spacing.large,
+    marginBottom: spacing.lg,
     textAlign: 'center',
   },
   reasonInput: {
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 8,
-    padding: spacing.medium,
-    marginBottom: spacing.large,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
     fontSize: 16,
     minHeight: 80,
     textAlignVertical: 'top',
   },
   itemsTitle: {
-    marginBottom: spacing.medium,
+    marginBottom: spacing.md,
   },
   batchItem: {
-    marginBottom: spacing.small,
+    marginBottom: spacing.sm,
   },
   batchItemContent: {
     flexDirection: 'row',
@@ -804,12 +804,12 @@ const styles = StyleSheet.create({
   },
   batchItemInfo: {
     flex: 1,
-    marginRight: spacing.medium,
+    marginRight: spacing.md,
   },
   modalActions: {
     flexDirection: 'row',
-    gap: spacing.medium,
-    marginTop: spacing.large,
+    gap: spacing.md,
+    marginTop: spacing.lg,
   },
   modalButton: {
     flex: 1,

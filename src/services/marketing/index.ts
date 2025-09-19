@@ -1,32 +1,22 @@
-// Service exports
-export { ContentWorkflowService } from './contentWorkflow.service';
-export { ProductBundleService } from './productBundle.service';
-export { MarketingCampaignService } from './marketingCampaign.service';
-export { MarketingAnalyticsService } from './marketingAnalytics.service';
+// Marketing services exports
+export { CampaignService, campaignService } from './campaign.service';
+export { ContentService, contentService } from './content.service';
+export { BundleService, bundleService } from './bundle.service';
+export { MarketingAnalyticsService, marketingAnalyticsService } from './analytics.service';
+export { FileUploadService, fileUploadService } from './fileUpload.service';
+export { MarketingRealtimeService, marketingRealtimeService as realtimeService } from './realtime.service';
 
-// Type exports
-export type { User, TransitionOptions } from './contentWorkflow.service';
-export type { BundleFilters, PricingCalculation } from './productBundle.service';
-export type { 
-  CampaignFilters, 
-  CampaignMetricsUpdate, 
-  CampaignPerformance 
-} from './marketingCampaign.service';
+// Re-export commonly used types
 export type {
-  AnalyticsTimeRange,
-  CampaignAnalytics,
-  BundleAnalytics,
-  ContentAnalytics,
-  RevenueMetrics,
-  ChannelPerformance
-} from './marketingAnalytics.service';
+  MarketingCampaign,
+  ProductContent,
+  ProductBundle,
+  CampaignStatus,
+  WorkflowState,
+  ContentType,
+  TargetAudience,
+  CampaignMetrics
+} from '../../types/marketing.types';
 
-// Error exports
-export {
-  ServiceError,
-  DatabaseError,
-  ValidationError,
-  NotFoundError,
-  UnauthorizedError,
-  ForbiddenError
-} from './errors/ServiceError';
+// Re-export error types
+export { ServiceError, ValidationError, NotFoundError, DatabaseError } from './errors/ServiceError';

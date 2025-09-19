@@ -12,7 +12,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Order, OrderStatus, FulfillmentType } from '../types';
+import { Order, FulfillmentType, OrderStatus } from '../types';
 import { useOrders, useOrderOperations } from '../hooks/useOrders';
 import { 
   getOrderCustomerInfo, 
@@ -407,7 +407,7 @@ const AdminOrderScreen: React.FC = () => {
       <FlatList
         data={displayOrders}
         renderItem={renderOrderItem}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item: any) => item.id}
         contentContainerStyle={styles.ordersList}
         showsVerticalScrollIndicator={false}
         refreshControl={

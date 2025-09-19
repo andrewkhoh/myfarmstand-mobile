@@ -1,4 +1,4 @@
-import { CreateOrderRequest, Order, OrderSubmissionResult, OrderPaymentStatus } from '../types';
+import { CreateOrderRequest, Order, OrderPaymentStatus } from '../types';
 import { supabase } from '../config/supabase';
 import { sendOrderBroadcast } from '../utils/broadcastFactory';
 import { sendPickupReadyNotification, sendOrderConfirmationNotification } from './notificationService';
@@ -559,7 +559,7 @@ export const submitOrder = async (
           .from('kiosk_transactions')
           .insert({
             session_id: kioskSessionId,
-            customer_id: user?.id || null,
+            user_id: user?.id || null,
             customer_email: orderRequest.customerInfo.email,
             customer_phone: orderRequest.customerInfo.phone,
             customer_name: orderRequest.customerInfo.name,

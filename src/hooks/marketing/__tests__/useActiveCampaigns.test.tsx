@@ -60,7 +60,7 @@ describe('useActiveCampaigns', () => {
       expect(result.current.data).toBeDefined();
     });
     
-    expect(result.current.data?.length).toBe(2);
+    expect(result.current?.data?.length).toBe(2);
     expect(result.current.data?.[0].status).toBe('active');
   });
   

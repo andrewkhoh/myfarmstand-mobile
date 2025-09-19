@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, waitFor, screen, fireEvent } from '@testing-library/react-native';
+import { render, waitFor, fireEvent } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ExecutiveDashboard } from '../ExecutiveDashboard';
 

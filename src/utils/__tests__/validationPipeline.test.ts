@@ -6,7 +6,7 @@
  */
 
 import { z } from 'zod';
-import { ValidationPipeline, ServiceValidator, ValidationUtils } from '../validationPipeline';
+import { ValidationPipeline, ValidationUtils } from '../validationPipeline';
 import { ValidationMonitor } from '../validationMonitor';
 
 // Mock ValidationMonitor to track calls
@@ -69,8 +69,8 @@ describe('ValidationPipeline', () => {
       );
 
       expect(result.success).toBe(true);
-      expect(result.data?.email).toBe('test@example.com'); // Trimmed
-      expect(result.data?.name).toBe('JohnDoe'); // Script tag removed
+      expect(result?.data?.email).toBe('test@example.com'); // Trimmed
+      expect(result?.data?.name).toBe('JohnDoe'); // Script tag removed
       expect(result.sanitized).toBe(true);
       expect(result.warnings).toContain('Removed script tags from input');
     });
@@ -92,7 +92,7 @@ describe('ValidationPipeline', () => {
       );
 
       expect(result.success).toBe(true);
-      expect(result.data?.email).toBe('test@example.com'); // Normalized to lowercase
+      expect(result?.data?.email).toBe('test@example.com'); // Normalized to lowercase
       expect(result.transformed).toBe(true);
     });
 
@@ -309,7 +309,7 @@ describe('ValidationPipeline', () => {
       );
 
       expect(result.success).toBe(true);
-      expect(result.data?.search).not.toContain('DROP TABLE');
+      expect(result?.data?.search).not.toContain('DROP TABLE');
       expect(result.sanitized).toBe(true);
     });
 

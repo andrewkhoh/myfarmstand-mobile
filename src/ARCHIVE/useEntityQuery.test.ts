@@ -1,5 +1,4 @@
 import { renderHook, waitFor } from '@testing-library/react-native';
-import React from 'react';
 import { createWrapper } from '../../test/test-utils';
 import { useEntityQuery } from '../useEntityQuery';
 import { useCurrentUser } from '../useAuth';

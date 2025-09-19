@@ -84,11 +84,11 @@ describe('useInventoryDashboard', () => {
     });
 
     expect(result.current.data).toBeDefined();
-    expect(result.current.data?.totalItems).toBe(2);
-    expect(result.current.data?.lowStockCount).toBe(1);
-    expect(result.current.data?.totalValue).toBe(2000);
-    expect(result.current.data?.recentMovements).toHaveLength(1);
-    expect(result.current.data?.alerts).toHaveLength(1);
+    expect(result.current?.data?.totalItems).toBe(2);
+    expect(result.current?.data?.lowStockCount).toBe(1);
+    expect(result.current?.data?.totalValue).toBe(2000);
+    expect(result.current?.data?.recentMovements).toHaveLength(1);
+    expect(result.current?.data?.alerts).toHaveLength(1);
   });
 
   it('should handle loading state', () => {
@@ -133,7 +133,7 @@ describe('useInventoryDashboard', () => {
       expect(result.current.isSuccess).toBe(true);
     });
 
-    expect(result.current.data?.outOfStockCount).toBe(2);
+    expect(result.current?.data?.outOfStockCount).toBe(2);
   });
 
   it('should use correct query key', async () => {
@@ -240,6 +240,6 @@ describe('useInventoryDashboard', () => {
     });
 
     const expectedValue = (10.5 * 9.99) + (20.25 * 15.50);
-    expect(result.current.data?.totalValue).toBeCloseTo(expectedValue, 2);
+    expect(result.current?.data?.totalValue).toBeCloseTo(expectedValue, 2);
   });
 });

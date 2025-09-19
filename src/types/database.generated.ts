@@ -14,6 +14,60 @@ export type Database = {
   }
   public: {
     Tables: {
+      alert_rules: {
+        Row: {
+          condition_type: string
+          created_at: string | null
+          created_by: string | null
+          enabled: boolean | null
+          id: string
+          last_triggered_at: string | null
+          metric_name: string
+          notification_channels: string[] | null
+          rule_name: string
+          rule_type: string
+          severity: string | null
+          threshold_unit: string | null
+          threshold_value: number | null
+          trigger_count: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          condition_type: string
+          created_at?: string | null
+          created_by?: string | null
+          enabled?: boolean | null
+          id?: string
+          last_triggered_at?: string | null
+          metric_name: string
+          notification_channels?: string[] | null
+          rule_name: string
+          rule_type: string
+          severity?: string | null
+          threshold_unit?: string | null
+          threshold_value?: number | null
+          trigger_count?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          condition_type?: string
+          created_at?: string | null
+          created_by?: string | null
+          enabled?: boolean | null
+          id?: string
+          last_triggered_at?: string | null
+          metric_name?: string
+          notification_channels?: string[] | null
+          rule_name?: string
+          rule_type?: string
+          severity?: string | null
+          threshold_unit?: string | null
+          threshold_value?: number | null
+          trigger_count?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       bundle_items: {
         Row: {
           bundle_id: string | null
@@ -91,6 +145,99 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      business_insights: {
+        Row: {
+          confidence_score: number | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          impact_score: string | null
+          insight_data: Json
+          insight_date_range: unknown
+          insight_description: string | null
+          insight_title: string
+          insight_type: string
+          is_active: boolean | null
+          recommendations: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          confidence_score?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          impact_score?: string | null
+          insight_data: Json
+          insight_date_range: unknown
+          insight_description?: string | null
+          insight_title: string
+          insight_type: string
+          is_active?: boolean | null
+          recommendations?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          confidence_score?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          impact_score?: string | null
+          insight_data?: Json
+          insight_date_range?: unknown
+          insight_description?: string | null
+          insight_title?: string
+          insight_type?: string
+          is_active?: boolean | null
+          recommendations?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      business_metrics: {
+        Row: {
+          aggregation_level: string | null
+          correlation_factors: Json | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          metric_category: string
+          metric_date: string
+          metric_name: string
+          metric_unit: string | null
+          metric_value: number
+          source_data_type: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          aggregation_level?: string | null
+          correlation_factors?: Json | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          metric_category: string
+          metric_date: string
+          metric_name: string
+          metric_unit?: string | null
+          metric_value: number
+          source_data_type?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          aggregation_level?: string | null
+          correlation_factors?: Json | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          metric_category?: string
+          metric_date?: string
+          metric_name?: string
+          metric_unit?: string | null
+          metric_value?: number
+          source_data_type?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       campaign_metrics: {
         Row: {
@@ -251,6 +398,48 @@ export type Database = {
         }
         Relationships: []
       }
+      cross_role_analytics: {
+        Row: {
+          analysis_data: Json
+          analysis_type: string
+          correlation_strength: number | null
+          created_at: string | null
+          created_by: string | null
+          date_range: unknown
+          id: string
+          insights: Json | null
+          source_role: string
+          target_role: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          analysis_data: Json
+          analysis_type: string
+          correlation_strength?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          date_range: unknown
+          id?: string
+          insights?: Json | null
+          source_role: string
+          target_role?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          analysis_data?: Json
+          analysis_type?: string
+          correlation_strength?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          date_range?: unknown
+          id?: string
+          insights?: Json | null
+          source_role?: string
+          target_role?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       customer_analytics: {
         Row: {
           average_order_value: number | null
@@ -360,6 +549,119 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      inventory_alerts: {
+        Row: {
+          acknowledged: boolean
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          alert_type: string
+          created_at: string
+          current_value: number | null
+          id: string
+          inventory_item_id: string
+          item_name: string | null
+          message: string
+          severity: string
+          threshold_value: number | null
+          user_id: string | null
+        }
+        Insert: {
+          acknowledged?: boolean
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          alert_type: string
+          created_at?: string
+          current_value?: number | null
+          id?: string
+          inventory_item_id: string
+          item_name?: string | null
+          message: string
+          severity: string
+          threshold_value?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          acknowledged?: boolean
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          alert_type?: string
+          created_at?: string
+          current_value?: number | null
+          id?: string
+          inventory_item_id?: string
+          item_name?: string | null
+          message?: string
+          severity?: string
+          threshold_value?: number | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_alerts_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_items: {
+        Row: {
+          created_at: string
+          current_stock: number
+          id: string
+          is_active: boolean
+          last_counted_at: string | null
+          last_restocked_at: string | null
+          maximum_stock: number
+          minimum_stock: number
+          product_id: string
+          reorder_point: number
+          reorder_quantity: number
+          reserved_stock: number
+          unit_cost: number
+          updated_at: string
+          user_id: string | null
+          warehouse_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_stock?: number
+          id?: string
+          is_active?: boolean
+          last_counted_at?: string | null
+          last_restocked_at?: string | null
+          maximum_stock?: number
+          minimum_stock?: number
+          product_id: string
+          reorder_point?: number
+          reorder_quantity?: number
+          reserved_stock?: number
+          unit_cost?: number
+          updated_at?: string
+          user_id?: string | null
+          warehouse_id: string
+        }
+        Update: {
+          created_at?: string
+          current_stock?: number
+          id?: string
+          is_active?: boolean
+          last_counted_at?: string | null
+          last_restocked_at?: string | null
+          maximum_stock?: number
+          minimum_stock?: number
+          product_id?: string
+          reorder_point?: number
+          reorder_quantity?: number
+          reserved_stock?: number
+          unit_cost?: number
+          updated_at?: string
+          user_id?: string | null
+          warehouse_id?: string
+        }
+        Relationships: []
       }
       inventory_logs: {
         Row: {
@@ -1067,6 +1369,63 @@ export type Database = {
           },
         ]
       }
+      predictive_forecasts: {
+        Row: {
+          confidence_intervals: Json | null
+          created_at: string | null
+          created_by: string | null
+          expires_at: string | null
+          forecast_period: unknown
+          forecast_target: string
+          forecast_type: string
+          forecast_values: Json
+          generated_at: string | null
+          id: string
+          input_features: string[] | null
+          is_active: boolean | null
+          model_accuracy: number | null
+          model_parameters: Json | null
+          model_type: string
+          updated_at: string | null
+        }
+        Insert: {
+          confidence_intervals?: Json | null
+          created_at?: string | null
+          created_by?: string | null
+          expires_at?: string | null
+          forecast_period: unknown
+          forecast_target: string
+          forecast_type: string
+          forecast_values: Json
+          generated_at?: string | null
+          id?: string
+          input_features?: string[] | null
+          is_active?: boolean | null
+          model_accuracy?: number | null
+          model_parameters?: Json | null
+          model_type: string
+          updated_at?: string | null
+        }
+        Update: {
+          confidence_intervals?: Json | null
+          created_at?: string | null
+          created_by?: string | null
+          expires_at?: string | null
+          forecast_period?: unknown
+          forecast_target?: string
+          forecast_type?: string
+          forecast_values?: Json
+          generated_at?: string | null
+          id?: string
+          input_features?: string[] | null
+          is_active?: boolean | null
+          model_accuracy?: number | null
+          model_parameters?: Json | null
+          model_type?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       product_bundles: {
         Row: {
           bundle_description: string | null
@@ -1281,6 +1640,116 @@ export type Database = {
           pin?: string
           updated_at?: string | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      stock_movements: {
+        Row: {
+          created_at: string
+          id: string
+          inventory_item_id: string
+          movement_type: string
+          performed_by: string | null
+          quantity: number
+          reason: string | null
+          stock_after: number | null
+          stock_before: number | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          inventory_item_id: string
+          movement_type: string
+          performed_by?: string | null
+          quantity: number
+          reason?: string | null
+          stock_after?: number | null
+          stock_before?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          inventory_item_id?: string
+          movement_type?: string
+          performed_by?: string | null
+          quantity?: number
+          reason?: string | null
+          stock_after?: number | null
+          stock_before?: number | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_movements_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      strategic_reports: {
+        Row: {
+          alerts: Json | null
+          created_at: string | null
+          created_by: string | null
+          download_url: string | null
+          frequency: string | null
+          generated_at: string | null
+          generation_time: number | null
+          id: string
+          key_findings: Json | null
+          next_scheduled_at: string | null
+          priority: string | null
+          report_data: Json
+          report_status: string | null
+          report_summary: string | null
+          report_title: string
+          report_type: string
+          sections: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          alerts?: Json | null
+          created_at?: string | null
+          created_by?: string | null
+          download_url?: string | null
+          frequency?: string | null
+          generated_at?: string | null
+          generation_time?: number | null
+          id?: string
+          key_findings?: Json | null
+          next_scheduled_at?: string | null
+          priority?: string | null
+          report_data: Json
+          report_status?: string | null
+          report_summary?: string | null
+          report_title: string
+          report_type: string
+          sections?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          alerts?: Json | null
+          created_at?: string | null
+          created_by?: string | null
+          download_url?: string | null
+          frequency?: string | null
+          generated_at?: string | null
+          generation_time?: number | null
+          id?: string
+          key_findings?: Json | null
+          next_scheduled_at?: string | null
+          priority?: string | null
+          report_data?: Json
+          report_status?: string | null
+          report_summary?: string | null
+          report_title?: string
+          report_type?: string
+          sections?: Json | null
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -1517,8 +1986,21 @@ export type Database = {
       }
     }
     Functions: {
+      batch_update_stock: {
+        Args: { p_updates: Json; p_user_id: string }
+        Returns: {
+          item_id: string
+          message: string
+          new_stock: number
+          success: boolean
+        }[]
+      }
       calculate_customer_analytics: {
         Args: { p_user_id: string }
+        Returns: undefined
+      }
+      check_stock_alerts: {
+        Args: { p_current_stock: number; p_item_id: string; p_user_id: string }
         Returns: undefined
       }
       check_stock_availability: {
@@ -1595,6 +2077,21 @@ export type Database = {
           p_user_id: string
         }
         Returns: Json
+      }
+      update_stock_atomic: {
+        Args: {
+          p_item_id: string
+          p_operation: string
+          p_performed_by?: string
+          p_quantity: number
+          p_reason?: string
+          p_user_id: string
+        }
+        Returns: {
+          message: string
+          new_stock: number
+          success: boolean
+        }[]
       }
       upsert_cart_item: {
         Args: {

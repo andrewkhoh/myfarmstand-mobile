@@ -1,5 +1,5 @@
 import { MarketingAnalyticsService, AnalyticsTimeRange } from '../marketingAnalytics.service';
-import { MarketingCampaign, ProductBundle, ProductContent, WorkflowState, BundleType, CampaignType, CampaignStatus } from '@/schemas/marketing';
+import { MarketingCampaign, ProductBundle, ProductContent, WorkflowState, BundleType, CampaignStatus } from '@/schemas/marketing';
 
 describe('MarketingAnalyticsService', () => {
   let service: MarketingAnalyticsService;

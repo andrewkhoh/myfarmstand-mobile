@@ -3,10 +3,10 @@
  * Based on proven pattern with 100% infrastructure compliance
  */
 
-import { renderHook, waitFor, act } from '@testing-library/react-native';
-import { createWrapper } from '../../../test/test-utils';
-import { createUser, resetAllFactories } from '../../../test/factories';
-
+import { renderHook, act } from '@testing-library/react-native';
+import { UserRole } from '../types/roles';import { createWrapper } from '../../../test/test-utils';
+import { UserRole } from '../types/roles';import { createUser, resetAllFactories } from '../../../test/factories';
+import { UserRole } from '../types/roles';
 // 1. MOCK SERVICES - Complete role permission service
 jest.mock('../../../services/role-based/rolePermissionService', () => ({
   RolePermissionService: {
@@ -119,11 +119,11 @@ try {
 
 // 10. GET MOCKED DEPENDENCIES
 import { RolePermissionService } from '../../../services/role-based/rolePermissionService';
-import { useCurrentUser } from '../../useAuth';
-import { ValidationMonitor } from '../../../utils/validationMonitor';
-import { supabaseClient } from '../../../config/supabase';
-import { ROLE_PERMISSIONS } from '../../../schemas/role-based/rolePermission.schemas';
-
+import { UserRole } from '../types/roles';import { useCurrentUser } from '../../useAuth';
+import { UserRole } from '../types/roles';import { ValidationMonitor } from '../../../utils/validationMonitor';
+import { UserRole } from '../types/roles';import { supabaseClient } from '../../../config/supabase';
+import { UserRole } from '../types/roles';import { ROLE_PERMISSIONS } from '../../../schemas/role-based/rolePermission.schemas';
+import { UserRole } from '../types/roles';
 const mockRolePermissionService = RolePermissionService as jest.Mocked<typeof RolePermissionService>;
 const mockUseCurrentUser = useCurrentUser as jest.MockedFunction<typeof useCurrentUser>;
 const mockSupabase = supabaseClient as jest.Mocked<typeof supabaseClient>;

@@ -7,10 +7,19 @@ import {
   TextInput,
   Modal,
   StyleSheet,
-  Pressable
+  Pressable,
+  ActivityIndicator,
+  Alert
 } from 'react-native';
-import { useDispatch, useSelector } from 'react-redux';
-import { updateContentStage, bulkUpdateContentStage } from '../../store/marketingSlice';
+import {
+  useContentItems,
+  useUpdateContentStage,
+  useBulkUpdateContentStage,
+  useCreateContent
+} from '../../hooks/marketing/useContentItems';
+import { useMarketingRealtime } from '../../hooks/marketing/useMarketingRealtime';
+import { useProducts } from '../../hooks/useProducts';
+import type { WorkflowState, ProductContent } from '../../types/marketing';
 
 interface Props {
   navigation?: {
@@ -19,9 +28,6 @@ interface Props {
 }
 
 const ContentWorkflow: React.FC<Props> = ({ navigation }) => {
-  const dispatch = useDispatch();
-  const { content, workflows } = useSelector((state: any) => state.marketing);
-  
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -30,36 +36,37 @@ const ContentWorkflow: React.FC<Props> = ({ navigation }) => {
   const [contentTitle, setContentTitle] = useState('');
   const [contentDescription, setContentDescription] = useState('');
   const [contentType, setContentType] = useState<'blog' | 'video' | 'social'>('blog');
+  const [selectedProductId, setSelectedProductId] = useState<string>('');
 
-  const filteredContent = useMemo(() => {
-    let filtered = content;
-    
-    if (activeFilter) {
-      filtered = filtered.filter((c: any) => c.type === activeFilter.toLowerCase());
-    }
-    
-    if (searchQuery) {
-      filtered = filtered.filter((c: any) => 
-        c.title.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-    
-    return filtered;
-  }, [content, activeFilter, searchQuery]);
+  // Enable real-time updates for content workflow
+  useMarketingRealtime({
+    content: true,
+    enabled: true
+  });
 
-  const contentByStage = useMemo(() => {
-    return {
-      draft: filteredContent.filter((c: any) => c.stage === 'draft'),
-      review: filteredContent.filter((c: any) => c.stage === 'review'),
-      approved: filteredContent.filter((c: any) => c.stage === 'approved'),
-      published: filteredContent.filter((c: any) => c.stage === 'published')
-    };
-  }, [filteredContent]);
+  // React Query hooks
+  const {
+    content,
+    contentByStage,
+    workflowStats,
+    isLoading,
+    error,
+    refetch
+  } = useContentItems({
+    type: activeFilter?.toLowerCase(),
+    search: searchQuery
+  });
+
+  const { data: products, isLoading: productsLoading } = useProducts();
+
+  const updateStageMutation = useUpdateContentStage();
+  const bulkUpdateMutation = useBulkUpdateContentStage();
+  const createContentMutation = useCreateContent();
 
   const handleContentPress = useCallback((contentId: string) => {
     if (selectionMode) {
-      setSelectedItems(prev => 
-        prev.includes(contentId) 
+      setSelectedItems(prev =>
+        prev.includes(contentId)
           ? prev.filter(id => id !== contentId)
           : [...prev, contentId]
       );
@@ -73,19 +80,56 @@ const ContentWorkflow: React.FC<Props> = ({ navigation }) => {
     setSelectedItems([contentId]);
   }, []);
 
-  const handleBulkMove = useCallback((stage: any) => {
-    dispatch(bulkUpdateContentStage({ ids: selectedItems, stage }));
-    setSelectionMode(false);
-    setSelectedItems([]);
-  }, [dispatch, selectedItems]);
+  const handleBulkMove = useCallback(async (stage: WorkflowState) => {
+    try {
+      await bulkUpdateMutation.mutateAsync({ ids: selectedItems, stage });
+      setSelectionMode(false);
+      setSelectedItems([]);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update content stages');
+    }
+  }, [bulkUpdateMutation, selectedItems]);
 
-  const handleDrop = useCallback((contentId: string, newStage: any) => {
-    dispatch(updateContentStage({ id: contentId, stage: newStage }));
-  }, [dispatch]);
+  const handleDrop = useCallback(async (contentId: string, newStage: WorkflowState) => {
+    try {
+      await updateStageMutation.mutateAsync({ id: contentId, stage: newStage });
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update content stage');
+    }
+  }, [updateStageMutation]);
 
-  const renderContentCard = (item: any) => {
+  const handleCreateContent = useCallback(async () => {
+    if (!contentTitle.trim()) {
+      Alert.alert('Error', 'Please enter a title');
+      return;
+    }
+
+    try {
+      await createContentMutation.mutateAsync({
+        title: contentTitle,
+        description: contentDescription,
+        type: contentType,
+        productId: selectedProductId || '',
+        content: {
+          shortDescription: contentDescription,
+        },
+        media: [],
+      });
+
+      // Reset form
+      setContentTitle('');
+      setContentDescription('');
+      setContentType('blog');
+      setSelectedProductId('');
+      setShowCreateModal(false);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to create content');
+    }
+  }, [contentTitle, contentDescription, contentType, createContentMutation]);
+
+  const renderContentCard = (item: ProductContent) => {
     const isOverdue = item.deadline && new Date(item.deadline) < new Date();
-    const isUrgent = item.deadline && 
+    const isUrgent = item.deadline &&
       new Date(item.deadline) < new Date(Date.now() + 2 * 24 * 60 * 60 * 1000) &&
       !isOverdue;
 
@@ -99,10 +143,10 @@ const ContentWorkflow: React.FC<Props> = ({ navigation }) => {
         onPress={() => handleContentPress(item.id)}
         onLongPress={() => handleLongPress(item.id)}
         draggable
-        onDragStart={(e: any) => e.dataTransfer.setData('contentId', item.id)}
+        onDragStart={(e: any) => e.dataTransfer?.setData('contentId', item.id)}
       >
         {selectionMode && (
-          <View 
+          <View
             testID={`checkbox-${item.id}`}
             style={[
               styles.checkbox,
@@ -126,15 +170,17 @@ const ContentWorkflow: React.FC<Props> = ({ navigation }) => {
     );
   };
 
-  const renderStageColumn = (stage: string, items: any[]) => (
+  const renderStageColumn = (stage: WorkflowState, items: ProductContent[]) => (
     <View
       key={stage}
       style={styles.stageColumn}
       testID={`${stage}-column`}
       onDrop={(e: any) => {
         e.preventDefault();
-        const contentId = e.dataTransfer.getData('contentId');
-        handleDrop(contentId, stage);
+        const contentId = e.dataTransfer?.getData('contentId');
+        if (contentId) {
+          handleDrop(contentId, stage);
+        }
       }}
       onDragOver={(e: any) => e.preventDefault()}
     >
@@ -149,6 +195,26 @@ const ContentWorkflow: React.FC<Props> = ({ navigation }) => {
       </ScrollView>
     </View>
   );
+
+  if (isLoading) {
+    return (
+      <View style={[styles.container, styles.centerContent]}>
+        <ActivityIndicator size="large" color="#007AFF" />
+        <Text style={styles.loadingText}>Loading content...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={[styles.container, styles.centerContent]}>
+        <Text style={styles.errorText}>Failed to load content</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={() => refetch()}>
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -168,19 +234,25 @@ const ContentWorkflow: React.FC<Props> = ({ navigation }) => {
           style={[styles.filterButton, activeFilter === 'Blog' && styles.activeFilter]}
           onPress={() => setActiveFilter(activeFilter === 'Blog' ? null : 'Blog')}
         >
-          <Text>Blog</Text>
+          <Text style={activeFilter === 'Blog' ? styles.activeFilterText : styles.filterText}>
+            Blog
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.filterButton, activeFilter === 'Video' && styles.activeFilter]}
           onPress={() => setActiveFilter(activeFilter === 'Video' ? null : 'Video')}
         >
-          <Text>Video</Text>
+          <Text style={activeFilter === 'Video' ? styles.activeFilterText : styles.filterText}>
+            Video
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.filterButton, activeFilter === 'Social' && styles.activeFilter]}
           onPress={() => setActiveFilter(activeFilter === 'Social' ? null : 'Social')}
         >
-          <Text>Social</Text>
+          <Text style={activeFilter === 'Social' ? styles.activeFilterText : styles.filterText}>
+            Social
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -188,19 +260,19 @@ const ContentWorkflow: React.FC<Props> = ({ navigation }) => {
       <View style={styles.analyticsContainer}>
         <View style={styles.analyticsCard}>
           <Text style={styles.analyticsLabel}>Draft</Text>
-          <Text style={styles.analyticsValue}>{workflows.draft}</Text>
+          <Text style={styles.analyticsValue}>{workflowStats.draft}</Text>
         </View>
         <View style={styles.analyticsCard}>
           <Text style={styles.analyticsLabel}>Review</Text>
-          <Text style={styles.analyticsValue}>{workflows.review}</Text>
+          <Text style={styles.analyticsValue}>{workflowStats.review}</Text>
         </View>
         <View style={styles.analyticsCard}>
           <Text style={styles.analyticsLabel}>Approved</Text>
-          <Text style={styles.analyticsValue}>{workflows.approved}</Text>
+          <Text style={styles.analyticsValue}>{workflowStats.approved}</Text>
         </View>
         <View style={styles.analyticsCard}>
           <Text style={styles.analyticsLabel}>Published</Text>
-          <Text style={styles.analyticsValue}>{workflows.published}</Text>
+          <Text style={styles.analyticsValue}>{workflowStats.published}</Text>
         </View>
       </View>
 
@@ -208,10 +280,13 @@ const ContentWorkflow: React.FC<Props> = ({ navigation }) => {
       {selectionMode && (
         <View style={styles.bulkActions}>
           <TouchableOpacity
-            style={styles.bulkButton}
-            onPress={() => handleBulkMove('review')}
+            style={[styles.bulkButton, bulkUpdateMutation.isPending && styles.disabledButton]}
+            onPress={() => handleBulkMove('review' as WorkflowState)}
+            disabled={bulkUpdateMutation.isPending}
           >
-            <Text>Move to Review</Text>
+            <Text style={styles.bulkButtonText}>
+              {bulkUpdateMutation.isPending ? 'Moving...' : 'Move to Review'}
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.bulkButton}
@@ -220,17 +295,17 @@ const ContentWorkflow: React.FC<Props> = ({ navigation }) => {
               setSelectedItems([]);
             }}
           >
-            <Text>Cancel</Text>
+            <Text style={styles.bulkButtonText}>Cancel</Text>
           </TouchableOpacity>
         </View>
       )}
 
       {/* Workflow Columns */}
       <ScrollView horizontal style={styles.workflowContainer}>
-        {renderStageColumn('draft', contentByStage.draft)}
-        {renderStageColumn('review', contentByStage.review)}
-        {renderStageColumn('approved', contentByStage.approved)}
-        {renderStageColumn('published', contentByStage.published)}
+        {renderStageColumn('draft' as WorkflowState, contentByStage.draft)}
+        {renderStageColumn('review' as WorkflowState, contentByStage.review)}
+        {renderStageColumn('approved' as WorkflowState, contentByStage.approved)}
+        {renderStageColumn('published' as WorkflowState, contentByStage.published)}
       </ScrollView>
 
       {/* Create Button */}
@@ -265,9 +340,50 @@ const ContentWorkflow: React.FC<Props> = ({ navigation }) => {
               multiline
               numberOfLines={4}
             />
-            <TouchableOpacity style={styles.typeSelector}>
-              <Text>Select Type</Text>
-            </TouchableOpacity>
+            <View style={styles.typeContainer}>
+              <Text style={styles.typeLabel}>Product (Optional):</Text>
+              <View style={styles.pickerContainer}>
+                {productsLoading ? (
+                  <ActivityIndicator size="small" />
+                ) : (
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter Product ID (optional)"
+                    value={selectedProductId}
+                    onChangeText={setSelectedProductId}
+                  />
+                )}
+              </View>
+            </View>
+            <View style={styles.typeContainer}>
+              <Text style={styles.typeLabel}>Content Type:</Text>
+              <View style={styles.typeButtons}>
+                <TouchableOpacity
+                  style={[styles.typeButton, contentType === 'blog' && styles.typeButtonActive]}
+                  onPress={() => setContentType('blog')}
+                >
+                  <Text style={contentType === 'blog' ? styles.typeButtonTextActive : styles.typeButtonText}>
+                    Blog
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.typeButton, contentType === 'video' && styles.typeButtonActive]}
+                  onPress={() => setContentType('video')}
+                >
+                  <Text style={contentType === 'video' ? styles.typeButtonTextActive : styles.typeButtonText}>
+                    Video
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.typeButton, contentType === 'social' && styles.typeButtonActive]}
+                  onPress={() => setContentType('social')}
+                >
+                  <Text style={contentType === 'social' ? styles.typeButtonTextActive : styles.typeButtonText}>
+                    Social
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={styles.modalButton}
@@ -276,13 +392,13 @@ const ContentWorkflow: React.FC<Props> = ({ navigation }) => {
                 <Text>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalButton, styles.primaryButton]}
-                onPress={() => {
-                  // Handle content creation
-                  setShowCreateModal(false);
-                }}
+                style={[styles.modalButton, styles.primaryButton, createContentMutation.isPending && styles.disabledButton]}
+                onPress={handleCreateContent}
+                disabled={createContentMutation.isPending}
               >
-                <Text style={styles.primaryButtonText}>Create</Text>
+                <Text style={styles.primaryButtonText}>
+                  {createContentMutation.isPending ? 'Creating...' : 'Create'}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -297,10 +413,34 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
+  centerContent: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
     padding: 16,
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#666',
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#f44336',
+    marginBottom: 16,
+  },
+  retryButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: '#007AFF',
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: 'white',
+    fontSize: 16,
   },
   searchInput: {
     backgroundColor: 'white',
@@ -320,9 +460,18 @@ const styles = StyleSheet.create({
     marginRight: 8,
     backgroundColor: 'white',
     borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#ddd',
   },
   activeFilter: {
     backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+  },
+  filterText: {
+    color: '#333',
+  },
+  activeFilterText: {
+    color: 'white',
   },
   analyticsContainer: {
     flexDirection: 'row',
@@ -374,6 +523,7 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 10,
     fontSize: 12,
+    overflow: 'hidden',
   },
   stageContent: {
     maxHeight: 400,
@@ -437,6 +587,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#007AFF',
     borderRadius: 8,
   },
+  bulkButtonText: {
+    color: 'white',
+  },
+  disabledButton: {
+    opacity: 0.6,
+  },
   createButton: {
     backgroundColor: '#007AFF',
     margin: 16,
@@ -477,12 +633,43 @@ const styles = StyleSheet.create({
     height: 100,
     textAlignVertical: 'top',
   },
-  typeSelector: {
+  typeContainer: {
+    marginBottom: 16,
+  },
+  typeLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 8,
+  },
+  typeButtons: {
+    flexDirection: 'row',
+  },
+  typeButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginRight: 8,
     borderWidth: 1,
     borderColor: '#ddd',
     borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
+  },
+  typeButtonActive: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+  },
+  typeButtonText: {
+    color: '#333',
+  },
+  typeButtonTextActive: {
+    color: 'white',
+  },
+  pickerContainer: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  picker: {
+    height: 44,
   },
   modalButtons: {
     flexDirection: 'row',

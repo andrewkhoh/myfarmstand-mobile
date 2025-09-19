@@ -1,6 +1,6 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
-import { ErrorRecoveryService, ErrorContext, ErrorRecoveryResult, ErrorRecoveryConfig, ErrorType } from '../services/errorRecoveryService';
+import { ErrorRecoveryService, ErrorContext, ErrorRecoveryResult, ErrorType } from '../services/errorRecoveryService';
 import { orderBroadcast } from '../utils/broadcastFactory';
 import { useCurrentUser } from './useAuth';
 import { orderKeys, authKeys } from '../utils/queryKeyFactory';

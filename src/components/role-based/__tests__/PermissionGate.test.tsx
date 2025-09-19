@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { render, waitFor } from '@testing-library/react-native';
-import { Text } from 'react-native';
+import { RNText as RNRNText } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { PermissionGate } from '../PermissionGate';
 import { ValidationMonitor } from '../../../utils/validationMonitor';
@@ -40,7 +40,7 @@ const createWrapper = () => {
   );
 };
 
-const TestContent = () => <Text>Protected Content</Text>;
+const TestContent = () => <RNText>Protected Content</RNText>;
 
 describe('PermissionGate Component', () => {
   beforeEach(() => {
@@ -103,7 +103,7 @@ describe('PermissionGate Component', () => {
         refetch: jest.fn(),
       });
 
-      const { getByTestId, getByText } = render(
+      const { getByTestId, getByRNText } = render(
         <PermissionGate>
           <TestContent />
         </PermissionGate>,
@@ -111,7 +111,7 @@ describe('PermissionGate Component', () => {
       );
 
       expect(getByTestId('permission-gate-loading')).toBeTruthy();
-      expect(getByText('Checking permissions...')).toBeTruthy();
+      expect(getByRNText('Checking permissions...')).toBeTruthy();
     });
 
     it('should show loading state when screen permissions are being checked', () => {
@@ -170,16 +170,16 @@ describe('PermissionGate Component', () => {
         refetch: jest.fn(),
       });
 
-      const CustomLoading = () => <Text>Custom Loading...</Text>;
+      const CustomLoading = () => <RNText>Custom Loading...</RNText>;
 
-      const { getByText } = render(
+      const { getByRNText } = render(
         <PermissionGate loadingComponent={CustomLoading}>
           <TestContent />
         </PermissionGate>,
         { wrapper: createWrapper() }
       );
 
-      expect(getByText('Custom Loading...')).toBeTruthy();
+      expect(getByRNText('Custom Loading...')).toBeTruthy();
     });
 
     it('should not show loading when showLoading is false', () => {
@@ -214,7 +214,7 @@ describe('PermissionGate Component', () => {
         refetch: jest.fn(),
       });
 
-      const { getByTestId, getByText } = render(
+      const { getByTestId, getByRNText } = render(
         <PermissionGate roles={['admin', 'staff']}>
           <TestContent />
         </PermissionGate>,
@@ -223,7 +223,7 @@ describe('PermissionGate Component', () => {
 
       await waitFor(() => {
         expect(getByTestId('permission-gate-granted')).toBeTruthy();
-        expect(getByText('Protected Content')).toBeTruthy();
+        expect(getByRNText('Protected Content')).toBeTruthy();
         expect(mockValidationMonitor.recordPatternSuccess).toHaveBeenCalledWith({
           service: 'PermissionGate',
           pattern: 'permission_check',
@@ -233,7 +233,7 @@ describe('PermissionGate Component', () => {
     });
 
     it('should deny access when user lacks required role', async () => {
-      const { getByTestId, getByText } = render(
+      const { getByTestId, getByRNText } = render(
         <PermissionGate roles={['admin', 'staff']}>
           <TestContent />
         </PermissionGate>,
@@ -242,8 +242,8 @@ describe('PermissionGate Component', () => {
 
       await waitFor(() => {
         expect(getByTestId('permission-gate-denied')).toBeTruthy();
-        expect(getByText('Access Denied')).toBeTruthy();
-        expect(getByText('Required role: admin or staff')).toBeTruthy();
+        expect(getByRNText('Access Denied')).toBeTruthy();
+        expect(getByRNText('Required role: admin or staff')).toBeTruthy();
         expect(mockValidationMonitor.recordValidationError).toHaveBeenCalledWith({
           context: 'PermissionGate.permissionCheck',
           errorMessage: 'Required role: admin or staff',
@@ -253,7 +253,7 @@ describe('PermissionGate Component', () => {
     });
 
     it('should grant access when user has required permissions', async () => {
-      const { getByTestId, getByText } = render(
+      const { getByTestId, getByRNText } = render(
         <PermissionGate permissions={['view:products']}>
           <TestContent />
         </PermissionGate>,
@@ -262,12 +262,12 @@ describe('PermissionGate Component', () => {
 
       await waitFor(() => {
         expect(getByTestId('permission-gate-granted')).toBeTruthy();
-        expect(getByText('Protected Content')).toBeTruthy();
+        expect(getByRNText('Protected Content')).toBeTruthy();
       });
     });
 
     it('should deny access when user lacks required permissions', async () => {
-      const { getByTestId, getByText } = render(
+      const { getByTestId, getByRNText } = render(
         <PermissionGate permissions={['admin:delete']}>
           <TestContent />
         </PermissionGate>,
@@ -276,7 +276,7 @@ describe('PermissionGate Component', () => {
 
       await waitFor(() => {
         expect(getByTestId('permission-gate-denied')).toBeTruthy();
-        expect(getByText('Missing permission: admin:delete')).toBeTruthy();
+        expect(getByRNText('Missing permission: admin:delete')).toBeTruthy();
       });
     });
 
@@ -318,7 +318,7 @@ describe('PermissionGate Component', () => {
       
       mockUseNavigationPermissions.mockReturnValue(basePermissions);
 
-      const { getByTestId, getByText } = render(
+      const { getByTestId, getByRNText } = render(
         <PermissionGate screen="AdminScreen">
           <TestContent />
         </PermissionGate>,
@@ -327,7 +327,7 @@ describe('PermissionGate Component', () => {
 
       await waitFor(() => {
         expect(getByTestId('permission-gate-granted')).toBeTruthy();
-        expect(getByText('Protected Content')).toBeTruthy();
+        expect(getByRNText('Protected Content')).toBeTruthy();
       });
     });
 
@@ -369,7 +369,7 @@ describe('PermissionGate Component', () => {
       
       mockUseNavigationPermissions.mockReturnValue(basePermissions);
 
-      const { getByTestId, getByText } = render(
+      const { getByTestId, getByRNText } = render(
         <PermissionGate screen="AdminScreen">
           <TestContent />
         </PermissionGate>,
@@ -378,7 +378,7 @@ describe('PermissionGate Component', () => {
 
       await waitFor(() => {
         expect(getByTestId('permission-gate-denied')).toBeTruthy();
-        expect(getByText('No access to AdminScreen')).toBeTruthy();
+        expect(getByRNText('No access to AdminScreen')).toBeTruthy();
       });
     });
 
@@ -421,7 +421,7 @@ describe('PermissionGate Component', () => {
       
       mockUseNavigationPermissions.mockReturnValue(basePermissions);
 
-      const { getByTestId, getByText } = render(
+      const { getByTestId, getByRNText } = render(
         <PermissionGate screen="AdminScreen">
           <TestContent />
         </PermissionGate>,
@@ -430,7 +430,7 @@ describe('PermissionGate Component', () => {
 
       await waitFor(() => {
         expect(getByTestId('permission-gate-denied')).toBeTruthy();
-        expect(getByText('Permission service unavailable')).toBeTruthy();
+        expect(getByRNText('Permission service unavailable')).toBeTruthy();
       });
     });
   });
@@ -444,7 +444,7 @@ describe('PermissionGate Component', () => {
         refetch: jest.fn(),
       });
 
-      const { getByTestId, getByText } = render(
+      const { getByTestId, getByRNText } = render(
         <PermissionGate>
           <TestContent />
         </PermissionGate>,
@@ -453,14 +453,14 @@ describe('PermissionGate Component', () => {
 
       await waitFor(() => {
         expect(getByTestId('permission-gate-denied')).toBeTruthy();
-        expect(getByText('User not authenticated')).toBeTruthy();
+        expect(getByRNText('User not authenticated')).toBeTruthy();
       });
     });
   });
 
   describe('Inversion Logic', () => {
     it('should invert permission check when invert=true', async () => {
-      const { getByTestId, getByText } = render(
+      const { getByTestId, getByRNText } = render(
         <PermissionGate roles={['admin']} invert={true}>
           <TestContent />
         </PermissionGate>,
@@ -469,7 +469,7 @@ describe('PermissionGate Component', () => {
 
       await waitFor(() => {
         expect(getByTestId('permission-gate-granted')).toBeTruthy();
-        expect(getByText('Protected Content')).toBeTruthy();
+        expect(getByRNText('Protected Content')).toBeTruthy();
       });
     });
 
@@ -499,9 +499,9 @@ describe('PermissionGate Component', () => {
 
   describe('Fallback Handling', () => {
     it('should render custom fallback component', async () => {
-      const CustomFallback = () => <Text>Custom Fallback Content</Text>;
+      const CustomFallback = () => <RNText>Custom Fallback Content</RNText>;
 
-      const { getByText } = render(
+      const { getByRNText } = render(
         <PermissionGate roles={['admin']} fallback={<CustomFallback />}>
           <TestContent />
         </PermissionGate>,
@@ -509,16 +509,16 @@ describe('PermissionGate Component', () => {
       );
 
       await waitFor(() => {
-        expect(getByText('Custom Fallback Content')).toBeTruthy();
+        expect(getByRNText('Custom Fallback Content')).toBeTruthy();
       });
     });
 
     it('should render fallback function component with reason', async () => {
       const CustomFallback = ({ reason }: { reason?: string }) => (
-        <Text>Access Denied: {reason}</Text>
+        <RNText>Access Denied: {reason}</RNText>
       );
 
-      const { getByText } = render(
+      const { getByRNText } = render(
         <PermissionGate roles={['admin']} fallback={CustomFallback}>
           <TestContent />
         </PermissionGate>,
@@ -526,12 +526,12 @@ describe('PermissionGate Component', () => {
       );
 
       await waitFor(() => {
-        expect(getByText('Access Denied: Required role: admin')).toBeTruthy();
+        expect(getByRNText('Access Denied: Required role: admin')).toBeTruthy();
       });
     });
 
     it('should render nothing when fallback is null', async () => {
-      const { queryByTestId, queryByText } = render(
+      const { queryByTestId, queryByRNText } = render(
         <PermissionGate roles={['admin']} fallback={null}>
           <TestContent />
         </PermissionGate>,
@@ -540,8 +540,8 @@ describe('PermissionGate Component', () => {
 
       await waitFor(() => {
         expect(queryByTestId('permission-gate-denied')).toBeFalsy();
-        expect(queryByText('Protected Content')).toBeFalsy();
-        expect(queryByText('Access Denied')).toBeFalsy();
+        expect(queryByRNText('Protected Content')).toBeFalsy();
+        expect(queryByRNText('Access Denied')).toBeFalsy();
       });
     });
   });
@@ -558,7 +558,7 @@ describe('PermissionGate Component', () => {
         refetch: jest.fn(),
       });
 
-      const { getByTestId, getByText } = render(
+      const { getByTestId, getByRNText } = render(
         <PermissionGate roles={['admin']} permissions={['view:products']}>
           <TestContent />
         </PermissionGate>,
@@ -567,7 +567,7 @@ describe('PermissionGate Component', () => {
 
       await waitFor(() => {
         expect(getByTestId('permission-gate-granted')).toBeTruthy();
-        expect(getByText('Protected Content')).toBeTruthy();
+        expect(getByRNText('Protected Content')).toBeTruthy();
       });
     });
 
@@ -582,7 +582,7 @@ describe('PermissionGate Component', () => {
         refetch: jest.fn(),
       });
 
-      const { getByTestId, getByText } = render(
+      const { getByTestId, getByRNText } = render(
         <PermissionGate roles={['customer']} permissions={['admin:delete']}>
           <TestContent />
         </PermissionGate>,
@@ -591,7 +591,7 @@ describe('PermissionGate Component', () => {
 
       await waitFor(() => {
         expect(getByTestId('permission-gate-denied')).toBeTruthy();
-        expect(getByText('Missing permission: admin:delete')).toBeTruthy();
+        expect(getByRNText('Missing permission: admin:delete')).toBeTruthy();
       });
     });
   });
@@ -608,7 +608,7 @@ describe('PermissionGate Component', () => {
         refetch: jest.fn(),
       });
 
-      const { getByTestId, getByText } = render(
+      const { getByTestId, getByRNText } = render(
         <PermissionGate permissions={['any:permission']}>
           <TestContent />
         </PermissionGate>,
@@ -617,7 +617,7 @@ describe('PermissionGate Component', () => {
 
       await waitFor(() => {
         expect(getByTestId('permission-gate-granted')).toBeTruthy();
-        expect(getByText('Protected Content')).toBeTruthy();
+        expect(getByRNText('Protected Content')).toBeTruthy();
       });
     });
   });

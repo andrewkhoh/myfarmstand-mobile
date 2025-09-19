@@ -1,6 +1,6 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { InventoryAlert } from 'types/inventory';
+import { View, RNText as RNRNText, StyleSheet, TouchableOpacity } from 'react-native';
+import { InventoryAlert } from '../../../types/inventory';
 
 interface AlertCardProps {
   alert: InventoryAlert;
@@ -23,8 +23,8 @@ export function AlertCard({ alert, onDismiss, onAction }: AlertCardProps) {
   return (
     <View testID={`alert-${alert.id}`} style={[styles.container, getAlertStyles()]}>
       <View style={styles.content}>
-        <Text style={styles.title}>{alert.title}</Text>
-        <Text style={styles.message}>{alert.message}</Text>
+        <RNText style={styles.title}>{alert.title}</RNText>
+        <RNText style={styles.message}>{alert.message}</RNText>
       </View>
       
       <View style={styles.actions}>
@@ -34,7 +34,7 @@ export function AlertCard({ alert, onDismiss, onAction }: AlertCardProps) {
           onPress={onAction}
           accessibilityLabel="Take action"
         >
-          <Text style={styles.actionText}>Action</Text>
+          <RNText style={styles.actionRNText}>Action</RNText>
         </TouchableOpacity>
         
         <TouchableOpacity
@@ -43,7 +43,7 @@ export function AlertCard({ alert, onDismiss, onAction }: AlertCardProps) {
           onPress={onDismiss}
           accessibilityLabel="Dismiss alert"
         >
-          <Text style={styles.dismissText}>Dismiss</Text>
+          <RNText style={styles.dismissRNText}>Dismiss</RNText>
         </TouchableOpacity>
       </View>
     </View>
@@ -95,7 +95,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     marginRight: 8,
   },
-  actionText: {
+  actionRNText: {
     color: 'white',
     fontSize: 14,
     fontWeight: 'bold',
@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 4,
   },
-  dismissText: {
+  dismissRNText: {
     color: 'white',
     fontSize: 14,
   },

@@ -1,5 +1,5 @@
 // Test Infrastructure Imports
-import { createProduct, createUser, resetAllFactories } from "../../test/factories";
+import { createProduct, resetAllFactories } from "../../test/factories";
 
 /**
  * ProductAdminService Test - Using REFACTORED Infrastructure
@@ -51,7 +51,7 @@ jest.mock('../../utils/validationMonitor', () => ({
 import productAdminService from '../productAdminService';
 import { supabase } from '../../config/supabase';
 import { BroadcastHelper } from '../../utils/broadcastHelper';
-import { createProduct, createCategory, createUser, resetAllFactories } from '../../test/factories';
+import { createProduct, createCategory, resetAllFactories } from '../../test/factories';
 
 // Get mock references
 const mockSupabaseFrom = supabase.from as jest.Mock;

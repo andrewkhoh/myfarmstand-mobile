@@ -74,7 +74,7 @@ export class SimplifiedSupabaseMock {
     };
 
     // Make chainable methods return the chain object
-    Object.keys(methods).forEach((key) => {
+    Object.keys(methods).forEach((key: string) => {
       if (key !== 'single' && key !== 'maybeSingle') {
         (methods as any)[key].mockImplementation(() => {
           return methods;
@@ -227,7 +227,7 @@ export function createMockSupabaseClient(): any {
     });
     
     // Override specific methods to handle resolved values
-    chain.select.mockResolvedValue = jest.fn((value) => {
+    chain.select.mockResolvedValue = jest.fn((value: any) => {
       chain.select.mockImplementation(() => {
         // Return a new chain that resolves to the value
         const newChain = { ...chain };
@@ -247,17 +247,17 @@ export function createMockSupabaseClient(): any {
       return chain.select;
     });
     
-    chain.single.mockResolvedValue = jest.fn((value) => {
+    chain.single.mockResolvedValue = jest.fn((value: any) => {
       chain.single.mockImplementation(() => Promise.resolve(value));
       return chain.single;
     });
     
-    chain.maybeSingle.mockResolvedValue = jest.fn((value) => {
+    chain.maybeSingle.mockResolvedValue = jest.fn((value: any) => {
       chain.maybeSingle.mockImplementation(() => Promise.resolve(value));
       return chain.maybeSingle;
     });
     
-    chain.order.mockResolvedValue = jest.fn((value) => {
+    chain.order.mockResolvedValue = jest.fn((value: any) => {
       chain.order.mockImplementation(() => {
         const newChain = { ...chain };
         newChain.then = (resolve: any) => Promise.resolve(value).then(resolve);
@@ -266,7 +266,7 @@ export function createMockSupabaseClient(): any {
       return chain.order;
     });
     
-    chain.range.mockResolvedValue = jest.fn((value) => {
+    chain.range.mockResolvedValue = jest.fn((value: any) => {
       chain.range.mockImplementation(() => {
         const newChain = { ...chain };
         newChain.then = (resolve: any) => Promise.resolve(value).then(resolve);
@@ -275,7 +275,7 @@ export function createMockSupabaseClient(): any {
       return chain.range;
     });
     
-    chain.in.mockResolvedValue = jest.fn((value) => {
+    chain.in.mockResolvedValue = jest.fn((value: any) => {
       chain.in.mockImplementation(() => {
         const newChain = { ...chain };
         newChain.then = (resolve: any) => Promise.resolve(value).then(resolve);

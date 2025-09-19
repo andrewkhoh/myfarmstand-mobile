@@ -56,7 +56,7 @@ describe('usePendingContent', () => {
       expect(result.current.data).toBeDefined();
     });
     
-    expect(result.current.data?.length).toBe(2);
+    expect(result.current?.data?.length).toBe(2);
     expect(result.current.data?.[0].workflowState).toBe('review');
   });
   

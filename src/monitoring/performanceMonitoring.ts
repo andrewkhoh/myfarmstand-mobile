@@ -416,7 +416,7 @@ class PerformanceMonitoringService {
         // Handle both sync and async functions
         if (result instanceof Promise) {
           return result.then(
-            (value) => {
+            (value: any) => {
               const endTime = performance.now();
               this.logQueryPerformance(
                 functionName,

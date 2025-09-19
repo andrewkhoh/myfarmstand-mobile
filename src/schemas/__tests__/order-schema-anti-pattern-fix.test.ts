@@ -6,7 +6,7 @@
  * This test ensures Phase 1 of the validation pattern compliance audit is working correctly.
  */
 
-import { describe, it, expect } from '@jest/globals';
+import { describe, expect } from '@jest/globals';
 import { DbOrderItemSchema, OrderItemSchema } from '../order.schema';
 
 describe('Order Schema Anti-Pattern Fix', () => {

@@ -1,4 +1,3 @@
-import React from 'react';
 import { marketingService } from '../../../services/marketing/marketingService';
 
 // Mock the marketing service

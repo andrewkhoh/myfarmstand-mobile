@@ -13,19 +13,21 @@ import { useNavigation } from '@react-navigation/native';
 import { useMarketingDashboard } from '../../hooks/marketing/useMarketingDashboard';
 import { useActiveCampaigns } from '../../hooks/marketing/useActiveCampaigns';
 import { usePendingContent } from '../../hooks/marketing/usePendingContent';
+import { useContentItems } from '../../hooks/marketing/useContentItems';
 import { StatCard } from '../../components/marketing/StatCard';
 import { CampaignCard } from '../../components/marketing/CampaignCard';
 import { ContentItem } from '../../components/marketing/ContentItem';
 import { Section } from '../../components/marketing/Section';
 import { FloatingActionButton } from '../../components/marketing/FloatingActionButton';
-import { LoadingScreen } from '../../components/marketing/LoadingScreen';
-import { ErrorScreen } from '../../components/marketing/ErrorScreen';
+import { Loading } from '../../components/Loading';
+import { ErrorState } from '../../components/common/ErrorState';
 
 export function MarketingDashboard() {
   const navigation = useNavigation<any>();
   const { stats, isLoading, error, refetchAll } = useMarketingDashboard();
   const { campaigns } = useActiveCampaigns();
   const { content } = usePendingContent();
+  const { data: allContent, isLoading: contentLoading } = useContentItems();
   
   const [refreshing, setRefreshing] = useState(false);
   
@@ -36,12 +38,12 @@ export function MarketingDashboard() {
   }, [refetchAll]);
   
   if (isLoading && !refreshing) {
-    return <LoadingScreen testID="loading-screen" />;
+    return <Loading message="Loading dashboard..." />;
   }
-  
+
   if (error && !stats) {
     return (
-      <ErrorScreen
+      <ErrorState
         message="Failed to load dashboard"
         onRetry={refetchAll}
       />
@@ -110,14 +112,14 @@ export function MarketingDashboard() {
         
         {/* Active Campaigns List */}
         <Section title="Active Campaigns">
-          {campaigns && campaigns.length > 0 ? (
-            campaigns.map(campaign => (
+          {campaigns && campaigns?.length > 0 ? (
+            campaigns?.map(campaign => (
               <CampaignCard
-                key={campaign.id}
-                testID={`campaign-card-${campaign.id}`}
+                key={campaign?.id || Math.random()}
+                testID={`campaign-card-${campaign?.id || 'unknown'}`}
                 campaign={campaign}
-                onPress={() => navigation.navigate('CampaignDetail', { 
-                  campaignId: campaign.id 
+                onPress={(campaign) => navigation.navigate('CampaignDetail', {
+                  campaignId: campaign?.id
                 })}
               />
             ))
@@ -128,19 +130,39 @@ export function MarketingDashboard() {
         
         {/* Content Workflow */}
         <Section title="Content Awaiting Review">
-          {content && content.length > 0 ? (
-            content.map(item => (
+          {content && content?.length > 0 ? (
+            content?.map(item => (
               <ContentItem
-                key={item.id}
-                testID={`content-item-${item.id}`}
+                key={item?.id || Math.random()}
+                testID={`content-item-${item?.id || 'unknown'}`}
                 content={item}
-                onPress={() => navigation.navigate('ProductContent', { 
-                  contentId: item.id 
+                onPress={() => navigation.navigate('ProductContent', {
+                  contentId: item?.id
                 })}
               />
             ))
           ) : (
             <Text style={styles.emptyText}>No pending content</Text>
+          )}
+        </Section>
+
+        {/* Recent Content */}
+        <Section title="Recent Content">
+          {!contentLoading && allContent && allContent?.length > 0 ? (
+            allContent?.slice(0, 5)?.map(item => (
+              <ContentItem
+                key={item?.id || Math.random()}
+                testID={`recent-content-${item?.id || 'unknown'}`}
+                content={item}
+                onPress={() => navigation.navigate('ProductContent', {
+                  contentId: item?.id
+                })}
+              />
+            ))
+          ) : contentLoading ? (
+            <ActivityIndicator size="small" color="#007AFF" style={styles.loader} />
+          ) : (
+            <Text style={styles.emptyText}>No content created yet</Text>
           )}
         </Section>
       </ScrollView>
@@ -184,6 +206,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#999',
     fontSize: 14,
+    paddingVertical: 20,
+  },
+  loader: {
     paddingVertical: 20,
   },
 });

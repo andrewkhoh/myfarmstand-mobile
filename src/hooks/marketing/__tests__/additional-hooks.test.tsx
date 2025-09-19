@@ -14,7 +14,7 @@ import {
 // Mock the services
 jest.mock('@/services/marketing');
 
-import { analyticsService, campaignService, contentWorkflowService, uploadService, realtimeService } from '@/services/marketing';
+import { analyticsService, campaignService, contentWorkflowService, realtimeService } from '@/services/marketing';
 
 describe('Marketing Hooks - Integration Tests', () => {
   let queryClient: QueryClient;

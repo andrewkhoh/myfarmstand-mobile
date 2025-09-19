@@ -4,11 +4,10 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useUserRole } from '../role-based/useUserRole';
 import { executiveAnalyticsKeys } from '../../utils/queryKeyFactory';
-import { 
-  SimpleBusinessMetricsService, 
-  type BusinessMetricsData,
-  type UseBusinessMetricsOptions 
-} from '../../services/executive/simpleBusinessMetricsService';
+// Note: simpleBusinessMetricsService was removed, using BusinessMetricsService instead
+import { BusinessMetricsService } from '../../services/executive/businessMetricsService';
+type UseBusinessMetricsOptions = any;
+import { type BusinessMetricsData } from '../../schemas/executive/businessMetricsSchema';
 
 // Simple error interface
 interface BusinessMetricsError {
@@ -29,8 +28,17 @@ const createBusinessMetricsError = (
 
 export const useSimpleBusinessMetrics = (options: UseBusinessMetricsOptions = {}) => {
   const queryClient = useQueryClient();
-  const { role, hasPermission } = useUserRole();
-  
+  const userRole = useUserRole();
+  const role = userRole.role?.role || '';
+
+  // Calculate dynamic date range - last 30 days
+  const endDate = new Date();
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - 30);
+
+  const startDateStr = startDate.toISOString().split('T')[0];
+  const endDateStr = endDate.toISOString().split('T')[0];
+
   const queryKey = executiveAnalyticsKeys.businessMetrics();
 
   // Simple query following useCart pattern exactly
@@ -43,13 +51,13 @@ export const useSimpleBusinessMetrics = (options: UseBusinessMetricsOptions = {}
     isError
   } = useQuery({
     queryKey,
-    queryFn: () => SimpleBusinessMetricsService.getMetrics(options),
+    queryFn: () => BusinessMetricsService.aggregateBusinessMetrics(['sales'], 'daily', startDateStr, endDateStr),
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
     refetchOnMount: true,
     refetchOnWindowFocus: false,
     refetchOnReconnect: true,
-    enabled: !!role && ['executive', 'admin'].includes(role.toLowerCase()), // Executive access for admin/manager/executive
+    enabled: !!role && ['executive', 'admin'].includes(role?.role?.toLowerCase() || ''), // Executive access for admin/manager/executive
     retry: (failureCount, error) => {
       // Don't retry on auth errors
       if (error.message?.includes('authentication') || error.message?.includes('permission')) {
@@ -68,7 +76,7 @@ export const useSimpleBusinessMetrics = (options: UseBusinessMetricsOptions = {}
   ) : null;
 
   // Authentication guard - allow admin, manager, and executive access
-  if (!role || !['executive', 'admin'].includes(role.toLowerCase())) {
+  if (!role || !['executive', 'admin'].includes(role?.role?.toLowerCase() || '')) {
     const authError = createBusinessMetricsError(
       'PERMISSION_DENIED',
       'User lacks executive permissions',

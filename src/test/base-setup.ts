@@ -268,14 +268,14 @@ export const mockMonitoring = {
       },
     }),
     coordinateOperation: jest.fn().mockImplementation(
-      async (operationName, operations, options) => ({
+      async (_operationName: any, _operations: any, _options: any) => ({
         success: true,
         results: [],
         errors: [],
         performance: {
           totalTime: 500,
           serviceTimings: {},
-          throughput: operations.length / 2,
+          throughput: _operations?.length ? _operations.length / 2 : 0,
         },
       })
     ),
@@ -394,7 +394,7 @@ export function setupGlobalCleanup() {
   });
   
   // Handle unhandled promise rejections
-  process.on('unhandledRejection', (reason, promise) => {
+  process.on('unhandledRejection', (reason, _promise) => {
     // Log but don't fail tests for expected scenarios
     if (reason && typeof reason === 'object' && 'message' in reason) {
       const message = (reason as Error).message;
@@ -458,18 +458,7 @@ export function suppressConsoleWarnings(patterns: RegExp[] = []) {
 // ============================================================================
 
 export function resetAllMocks() {
-  // Reset broadcast mocks
-  Object.values(broadcastMocks).forEach(mock => {
-    if (typeof mock === 'function' && jest.isMockFunction(mock)) {
-      mock.mockReset();
-    } else if (typeof mock === 'object') {
-      Object.values(mock).forEach(innerMock => {
-        if (typeof innerMock === 'function' && jest.isMockFunction(innerMock)) {
-          innerMock.mockReset();
-        }
-      });
-    }
-  });
+  // Reset all mocks - removed broadcastMocks reference
   
   // Reset monitoring mocks
   Object.values(mockMonitoring).forEach(service => {

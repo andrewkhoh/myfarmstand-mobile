@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text as RNText, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { supabase } from '../config/supabase';
 import { colors, spacing } from '../utils/theme';
 
@@ -62,26 +62,26 @@ const SchemaInspector: React.FC = () => {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.contentContainer}>
-        <Text style={styles.title}>Database Schema Inspector</Text>
-        <Text style={styles.subtitle}>
+        <RNText style={styles.title}>Database Schema Inspector</RNText>
+        <RNText style={styles.subtitle}>
           Inspect actual database table columns to fix schema mismatches
-        </Text>
+        </RNText>
 
         <TouchableOpacity 
           style={[styles.button, isLoading && styles.buttonDisabled]} 
           onPress={inspectSchema}
           disabled={isLoading}
         >
-          <Text style={styles.buttonText}>
+          <RNText style={styles.buttonRNText}>
             {isLoading ? 'Inspecting...' : 'Inspect Database Schema'}
-          </Text>
+          </RNText>
         </TouchableOpacity>
 
         {results ? (
           <View style={styles.resultsContainer}>
-            <Text style={styles.resultsTitle}>Schema Results:</Text>
+            <RNText style={styles.resultsTitle}>Schema Results:</RNText>
             <View style={styles.resultsBox}>
-              <Text style={styles.resultsText}>{results}</Text>
+              <RNText style={styles.resultsRNText}>{results}</RNText>
             </View>
           </View>
         ) : null}
@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
   buttonDisabled: {
     backgroundColor: colors.neutral[400],
   },
-  buttonText: {
+  buttonRNText: {
     fontSize: 16,
     fontWeight: '600',
     color: 'white',
@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.neutral[200],
   },
-  resultsText: {
+  resultsRNText: {
     fontSize: 14,
     color: colors.text.primary,
     fontFamily: 'monospace',

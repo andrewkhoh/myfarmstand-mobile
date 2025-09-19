@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
+import { render, fireEvent, act } from '@testing-library/react-native';
 import { ProductContentScreen } from '../ProductContentScreen';
 import { useContentWorkflow } from '@/hooks/marketing/useContentWorkflow';
 import { useContentUpload } from '@/hooks/marketing/useContentUpload';

@@ -1,5 +1,5 @@
 import { SupabaseClient } from '@supabase/supabase-js';
-import { 
+import {
   InventoryItemTransformSchema,
   CreateInventoryItemSchema,
   UpdateInventoryItemSchema,
@@ -10,6 +10,9 @@ import {
   type StockUpdate,
 } from '../../schemas/inventory';
 import { ValidationMonitor } from '../../utils/validationMonitorAdapter';
+import { inventoryMarketingBridge } from '../cross-workflow/inventoryMarketingBridge';
+import { errorCoordinator, WorkflowError } from '../cross-workflow/errorCoordinator';
+import { getWarehouseId, DEFAULT_WAREHOUSE_ID } from '../../constants/warehouse';
 
 export interface BatchResult<T = any> {
   success: boolean;
@@ -40,16 +43,40 @@ export interface TransferResult {
 export class InventoryService {
   constructor(private supabase: SupabaseClient) {}
 
-  async getInventoryItem(id: string): Promise<InventoryItem> {
+  async getInventoryItem(id: string, userId?: string): Promise<InventoryItem> {
     try {
-      const { data, error } = await this.supabase
+      // Validate user authentication if userId provided
+      if (userId) {
+        const { data: { user } } = await this.supabase.auth.getUser();
+        if (!user || user.id !== userId) {
+          throw new Error('Unauthorized access');
+        }
+      }
+
+      let query = this.supabase
         .from('inventory_items')
         .select('*')
-        .eq('id', id)
-        .single();
+        .eq('id', id);
+
+      // Add user isolation if userId provided
+      if (userId) {
+        query = query.eq('user_id', userId);
+      }
+
+      const { data, error } = await query.single();
 
       if (error) {
         ValidationMonitor.recordValidationError('inventory-fetch', error);
+        await errorCoordinator.handleError({
+          workflow: 'inventory',
+          operation: 'getInventoryItem',
+          errorType: 'network',
+          severity: 'medium',
+          message: error.message,
+          code: error.code,
+          context: { itemId: id, userId },
+          timestamp: new Date()
+        } as WorkflowError);
         throw error;
       }
 
@@ -69,9 +96,37 @@ export class InventoryService {
   async getInventoryItems(): Promise<InventoryItem[]>;
   async getInventoryItems(userId?: string, filters?: any): Promise<InventoryItem[]> {
     try {
-      const { data, error } = await this.supabase
+      // Validate user authentication if userId provided
+      if (userId) {
+        const { data: { user } } = await this.supabase.auth.getUser();
+        if (!user || user.id !== userId) {
+          throw new Error('Unauthorized access');
+        }
+      }
+
+      let query = this.supabase
         .from('inventory_items')
-        .select('*');
+        .select('id, product_id, warehouse_id, current_stock, reserved_stock, minimum_stock, maximum_stock, reorder_point, reorder_quantity, unit_cost, is_active, created_at, updated_at, user_id');
+
+      // Add user isolation if userId provided
+      if (userId) {
+        query = query.eq('user_id', userId);
+      }
+
+      // Apply filters if provided
+      if (filters) {
+        if (filters.warehouseId) {
+          query = query.eq('warehouse_id', filters.warehouseId);
+        }
+        if (filters.isActive !== undefined) {
+          query = query.eq('is_active', filters.isActive);
+        }
+        if (filters.lowStock) {
+          query = query.lte('current_stock', 'minimum_stock');
+        }
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         ValidationMonitor.recordValidationError('inventory-list', error);
@@ -98,12 +153,27 @@ export class InventoryService {
     }
   }
 
-  async getInventoryItemsByWarehouse(warehouseId: string): Promise<InventoryItem[]> {
+  async getInventoryItemsByWarehouse(warehouseId: string, userId?: string): Promise<InventoryItem[]> {
     try {
-      const { data, error } = await this.supabase
+      // Validate user authentication if userId provided
+      if (userId) {
+        const { data: { user } } = await this.supabase.auth.getUser();
+        if (!user || user.id !== userId) {
+          throw new Error('Unauthorized access');
+        }
+      }
+
+      let query = this.supabase
         .from('inventory_items')
-        .select('*')
+        .select('id, product_id, warehouse_id, current_stock, reserved_stock, minimum_stock, maximum_stock, reorder_point, reorder_quantity, unit_cost, is_active, created_at, updated_at, user_id')
         .eq('warehouse_id', warehouseId);
+
+      // Add user isolation if userId provided
+      if (userId) {
+        query = query.eq('user_id', userId);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         ValidationMonitor.recordValidationError('inventory-warehouse', error);
@@ -130,15 +200,23 @@ export class InventoryService {
     }
   }
 
-  async createInventoryItem(data: CreateInventoryItem): Promise<InventoryItem> {
+  async createInventoryItem(data: CreateInventoryItem, userId?: string): Promise<InventoryItem> {
     try {
+      // Validate user authentication if userId provided
+      if (userId) {
+        const { data: { user } } = await this.supabase.auth.getUser();
+        if (!user || user.id !== userId) {
+          throw new Error('Unauthorized access');
+        }
+      }
+
       // Validate input
       const validated = CreateInventoryItemSchema.parse(data);
 
       // Transform to database format
-      const dbData = {
+      const dbData: any = {
         product_id: validated.productId,
-        warehouse_id: validated.warehouseId,
+        warehouse_id: getWarehouseId(validated.warehouseId),
         current_stock: validated.currentStock,
         reserved_stock: validated.reservedStock || 0,
         minimum_stock: validated.minimumStock,
@@ -148,6 +226,11 @@ export class InventoryService {
         unit_cost: validated.unitCost,
         is_active: true,
       };
+
+      // Add user_id if provided
+      if (userId) {
+        dbData.user_id = userId;
+      }
 
       const { data: created, error } = await this.supabase
         .from('inventory_items')
@@ -171,8 +254,16 @@ export class InventoryService {
     }
   }
 
-  async updateInventoryItem(id: string, data: UpdateInventoryItem): Promise<InventoryItem> {
+  async updateInventoryItem(id: string, data: UpdateInventoryItem, userId?: string): Promise<InventoryItem> {
     try {
+      // Validate user authentication if userId provided
+      if (userId) {
+        const { data: { user } } = await this.supabase.auth.getUser();
+        if (!user || user.id !== userId) {
+          throw new Error('Unauthorized access');
+        }
+      }
+
       // Validate input
       const validated = UpdateInventoryItemSchema.parse(data);
 
@@ -187,10 +278,17 @@ export class InventoryService {
       if (validated.unitCost !== undefined) dbData.unit_cost = validated.unitCost;
       if (validated.isActive !== undefined) dbData.is_active = validated.isActive;
 
-      const { data: updated, error } = await this.supabase
+      let updateQuery = this.supabase
         .from('inventory_items')
         .update(dbData)
-        .eq('id', id)
+        .eq('id', id);
+
+      // Add user isolation if userId provided
+      if (userId) {
+        updateQuery = updateQuery.eq('user_id', userId);
+      }
+
+      const { data: updated, error } = await updateQuery
         .select()
         .single();
 
@@ -210,70 +308,108 @@ export class InventoryService {
     }
   }
 
-  async updateStock(stockUpdate: StockUpdate, performedBy: string): Promise<InventoryItem> {
+  async updateStock(stockUpdate: StockUpdate, performedBy: string, userId?: string): Promise<InventoryItem> {
     try {
+      // Validate user authentication if userId provided
+      if (userId) {
+        const { data: { user } } = await this.supabase.auth.getUser();
+        if (!user || user.id !== userId) {
+          throw new Error('Unauthorized access');
+        }
+      }
+
       // Validate input
       const validated = StockUpdateSchema.parse(stockUpdate);
 
-      // Get current stock
-      const { data: current, error: fetchError } = await this.supabase
+      // Use atomic database function for thread-safe stock updates
+      const { data, error } = await this.supabase
+        .rpc('update_stock_atomic', {
+          p_item_id: validated.inventoryItemId,
+          p_user_id: userId || null,
+          p_operation: validated.operation,
+          p_quantity: validated.quantity,
+          p_reason: validated.reason || 'Stock adjustment',
+          p_performed_by: performedBy || userId || null
+        });
+
+      if (error) {
+        ValidationMonitor.recordValidationError('stock-update-atomic', error);
+        throw error;
+      }
+
+      if (!data || !data[0]) {
+        throw new Error('Stock update failed: No response from database');
+      }
+
+      const result = data[0];
+      if (!result.success) {
+        const errorMessage = result.message || 'Stock update failed';
+        ValidationMonitor.recordValidationError('stock-update-atomic', new Error(errorMessage));
+
+        // Check if this is an out of stock error
+        if (errorMessage.includes('out of stock') || errorMessage.includes('insufficient')) {
+          await errorCoordinator.handleError({
+            workflow: 'inventory',
+            operation: 'updateStock',
+            errorType: 'business',
+            severity: 'high',
+            message: errorMessage,
+            code: 'OUT_OF_STOCK',
+            context: {
+              itemId: validated.inventoryItemId,
+              operation: validated.operation,
+              quantity: validated.quantity,
+              productIds: [validated.inventoryItemId]
+            },
+            timestamp: new Date(),
+            relatedWorkflows: ['marketing', 'executive']
+          } as WorkflowError);
+        }
+
+        throw new Error(errorMessage);
+      }
+
+      // Fetch the updated item with all fields
+      let fetchQuery = this.supabase
         .from('inventory_items')
-        .select('current_stock')
-        .eq('id', validated.inventoryItemId)
-        .single();
+        .select('id, product_id, warehouse_id, current_stock, reserved_stock, minimum_stock, maximum_stock, reorder_point, reorder_quantity, unit_cost, is_active, created_at, updated_at, user_id')
+        .eq('id', validated.inventoryItemId);
+
+      if (userId) {
+        fetchQuery = fetchQuery.eq('user_id', userId);
+      }
+
+      const { data: updated, error: fetchError } = await fetchQuery.single();
 
       if (fetchError) {
-        ValidationMonitor.recordValidationError('stock-fetch', fetchError);
+        ValidationMonitor.recordValidationError('stock-fetch-after-update', fetchError);
         throw fetchError;
       }
 
-      // Calculate new stock
-      let newStock: number;
-      if (validated.operation === 'add') {
-        newStock = current.current_stock + validated.quantity;
-      } else if (validated.operation === 'subtract') {
-        newStock = current.current_stock - validated.quantity;
-        if (newStock < 0) {
-          throw new Error('Insufficient stock');
-        }
-      } else {
-        newStock = validated.quantity;
-      }
+      const item = InventoryItemTransformSchema.parse(updated);
 
-      // Update stock
-      const { data: updated, error: updateError } = await this.supabase
-        .from('inventory_items')
-        .update({ current_stock: newStock })
-        .eq('id', validated.inventoryItemId)
-        .select()
-        .single();
-
-      if (updateError) {
-        ValidationMonitor.recordValidationError('stock-update', updateError);
-        throw updateError;
-      }
-
-      // Create audit trail
-      const movementType = validated.operation === 'add' ? 'in' : 
-                          validated.operation === 'subtract' ? 'out' : 'adjustment';
-      
-      const { error: auditError } = await this.supabase
-        .from('stock_movements')
-        .insert({
-          inventory_item_id: validated.inventoryItemId,
-          movement_type: movementType,
-          quantity: validated.quantity,
-          reason: validated.reason,
-          performed_by: performedBy,
+      // Record calculation validation for stock level changes
+      if (result.new_stock !== item.currentStock) {
+        ValidationMonitor.recordCalculationMismatch({
+          service: 'InventoryService',
+          operation: 'updateStock',
+          expected: result.new_stock,
+          actual: item.currentStock,
+          context: { itemId: validated.inventoryItemId, operation: validated.operation }
         });
-
-      if (auditError) {
-        ValidationMonitor.recordValidationError('stock-audit', auditError);
       }
 
-      const result = InventoryItemTransformSchema.parse(updated);
-      ValidationMonitor.recordPatternSuccess('stock-update');
-      return result;
+      // Notify marketing workflow of stock changes
+      const bridge = inventoryMarketingBridge(this.supabase);
+      await bridge.syncInventoryToMarketing({
+        productId: item.productId,
+        warehouseId: item.warehouseId,
+        newStock: item.currentStock,
+        changeType: validated.operation === 'add' || validated.operation === 'receive' ? 'increase' : 'decrease'
+      });
+
+      ValidationMonitor.recordPatternSuccess('stock-update-atomic');
+      return item;
     } catch (error) {
       if (error instanceof Error && !error.message.includes('ValidationMonitor')) {
         ValidationMonitor.recordValidationError('stock-update', error);
@@ -285,12 +421,13 @@ export class InventoryService {
   // Hook-compatible overload
   async batchUpdateStock(updates: StockUpdate[]): Promise<BatchResult[]>;
   async batchUpdateStock(updates: StockUpdate[], performedBy: string): Promise<BatchResult[]>;
-  async batchUpdateStock(updates: StockUpdate[], performedBy?: string): Promise<BatchResult[]> {
+  async batchUpdateStock(updates: StockUpdate[], performedBy: string, userId?: string): Promise<BatchResult[]>;
+  async batchUpdateStock(updates: StockUpdate[], performedBy?: string, userId?: string): Promise<BatchResult[]> {
     const results: BatchResult[] = [];
 
     for (const update of updates) {
       try {
-        const result = await this.updateStock(update, performedBy || 'system');
+        const result = await this.updateStock(update, performedBy || 'system', userId);
         results.push({ success: true, data: result });
       } catch (error) {
         results.push({ success: false, error });
@@ -478,10 +615,17 @@ export class InventoryService {
   // Hook-compatible methods
   async getLowStockItems(userId: string): Promise<InventoryItem[]> {
     try {
+      // Validate user authentication
+      const { data: { user } } = await this.supabase.auth.getUser();
+      if (!user || user.id !== userId) {
+        throw new Error('Unauthorized access');
+      }
+
       const { data, error } = await this.supabase
         .from('inventory_items')
-        .select('*')
-        .lte('current_stock', 'reorder_point');
+        .select('id, product_id, warehouse_id, current_stock, reserved_stock, minimum_stock, maximum_stock, reorder_point, reorder_quantity, unit_cost, is_active, created_at, updated_at, user_id')
+        .eq('user_id', userId)
+        .eq('is_active', true);
 
       if (error) {
         ValidationMonitor.recordValidationError('low-stock-items', error);
@@ -491,8 +635,10 @@ export class InventoryService {
       const results: InventoryItem[] = [];
       for (const item of data || []) {
         try {
-          const validated = InventoryItemTransformSchema.parse(item);
-          results.push(validated);
+          if (item.current_stock <= item.minimum_stock) {
+            const validated = InventoryItemTransformSchema.parse(item);
+            results.push(validated);
+          }
         } catch (err) {
           ValidationMonitor.recordValidationError('low-stock-item', err);
         }
@@ -510,9 +656,28 @@ export class InventoryService {
 
   async getRecentMovements(userId: string, limit = 10): Promise<any[]> {
     try {
+      // Validate user authentication
+      const { data: { user } } = await this.supabase.auth.getUser();
+      if (!user || user.id !== userId) {
+        throw new Error('Unauthorized access');
+      }
+
+      // First get user's inventory items
+      const { data: userItems } = await this.supabase
+        .from('inventory_items')
+        .select('id')
+        .eq('user_id', userId);
+
+      const itemIds = userItems?.map(item => item.id) || [];
+
+      if (itemIds.length === 0) {
+        return [];
+      }
+
       const { data, error } = await this.supabase
         .from('stock_movements')
-        .select('*')
+        .select('id, inventory_item_id, movement_type, quantity, stock_before, stock_after, reason, performed_by, created_at')
+        .in('inventory_item_id', itemIds)
         .order('created_at', { ascending: false })
         .limit(limit);
 
@@ -521,8 +686,22 @@ export class InventoryService {
         throw error;
       }
 
+      // Transform snake_case database fields to camelCase
+      const transformedMovements = (data || []).map(movement => ({
+        id: movement.id,
+        inventoryItemId: movement.inventory_item_id,
+        userId: userId,
+        movementType: movement.movement_type as 'in' | 'out' | 'adjustment' | 'add' | 'subtract' | 'set',
+        quantity: movement.quantity,
+        reason: movement.reason,
+        performedBy: movement.performed_by,
+        stockBefore: movement.stock_before,
+        stockAfter: movement.stock_after,
+        createdAt: movement.created_at
+      }));
+
       ValidationMonitor.recordPatternSuccess('recent-movements');
-      return data || [];
+      return transformedMovements;
     } catch (error) {
       if (error instanceof Error && !error.message.includes('ValidationMonitor')) {
         ValidationMonitor.recordValidationError('recent-movements', error);
@@ -533,19 +712,124 @@ export class InventoryService {
 
   async getAlerts(userId: string): Promise<any[]> {
     try {
-      const { data, error } = await this.supabase
-        .from('stock_alerts')
-        .select('*')
-        .eq('acknowledged', false)
-        .order('created_at', { ascending: false });
+      console.log('[InventoryService.getAlerts] Starting with userId:', userId);
+
+      // Validate user authentication
+      const { data: { user } } = await this.supabase.auth.getUser();
+      if (!user || user.id !== userId) {
+        throw new Error('Unauthorized access');
+      }
+
+      // Generate alerts dynamically from inventory items instead of querying alerts table
+      const { data: inventoryItems, error } = await this.supabase
+        .from('inventory_items')
+        .select('id, product_id, warehouse_id, current_stock, minimum_stock, maximum_stock, reorder_point, is_active')
+        .eq('user_id', userId)
+        .eq('is_active', true);
 
       if (error) {
+        console.error('[InventoryService.getAlerts] Error fetching inventory items:', error);
         ValidationMonitor.recordValidationError('stock-alerts', error);
         throw error;
       }
 
+      console.log('[InventoryService.getAlerts] Found inventory items:', inventoryItems?.length || 0);
+
+      if (!inventoryItems || inventoryItems.length === 0) {
+        console.log('[InventoryService.getAlerts] No inventory items found, returning empty alerts');
+        return [];
+      }
+
+      // Generate alerts based on stock levels
+      const alerts = [];
+      const now = new Date().toISOString();
+
+      for (const item of inventoryItems) {
+        // Out of stock alert (critical)
+        if (item.current_stock === 0) {
+          alerts.push({
+            id: `alert-${item.id}-out-of-stock`,
+            inventoryItemId: item.id,
+            userId: userId,
+            itemName: null,
+            alertType: 'out_of_stock' as const,
+            severity: 'critical' as const,
+            message: `Item ${item.id.slice(0, 8)} is out of stock`,
+            thresholdValue: item.minimum_stock,
+            currentValue: item.current_stock,
+            acknowledged: false,
+            acknowledgedBy: null,
+            acknowledgedAt: null,
+            createdAt: now
+          });
+        }
+        // Low stock alert (warning)
+        else if (item.current_stock <= item.minimum_stock) {
+          alerts.push({
+            id: `alert-${item.id}-low-stock`,
+            inventoryItemId: item.id,
+            userId: userId,
+            itemName: null,
+            alertType: 'low_stock' as const,
+            severity: 'warning' as const,
+            message: `Item ${item.id.slice(0, 8)} is running low (${item.current_stock} units remaining)`,
+            thresholdValue: item.minimum_stock,
+            currentValue: item.current_stock,
+            acknowledged: false,
+            acknowledgedBy: null,
+            acknowledgedAt: null,
+            createdAt: now
+          });
+        }
+        // Reorder point alert (low)
+        else if (item.reorder_point && item.current_stock <= item.reorder_point) {
+          alerts.push({
+            id: `alert-${item.id}-reorder`,
+            inventoryItemId: item.id,
+            userId: userId,
+            itemName: null,
+            alertType: 'reorder_needed' as const,
+            severity: 'low' as const,
+            message: `Item ${item.id.slice(0, 8)} has reached reorder point (${item.current_stock} units)`,
+            thresholdValue: item.reorder_point,
+            currentValue: item.current_stock,
+            acknowledged: false,
+            acknowledgedBy: null,
+            acknowledgedAt: null,
+            createdAt: now
+          });
+        }
+        // Overstock alert (low)
+        else if (item.maximum_stock && item.current_stock >= item.maximum_stock * 0.9) {
+          alerts.push({
+            id: `alert-${item.id}-overstock`,
+            inventoryItemId: item.id,
+            userId: userId,
+            itemName: null,
+            alertType: 'overstock' as const,
+            severity: 'low' as const,
+            message: `Item ${item.id.slice(0, 8)} is near maximum capacity (${item.current_stock}/${item.maximum_stock})`,
+            thresholdValue: item.maximum_stock,
+            currentValue: item.current_stock,
+            acknowledged: false,
+            acknowledgedBy: null,
+            acknowledgedAt: null,
+            createdAt: now
+          });
+        }
+      }
+
+      // Sort by severity: critical first, then warning, then low
+      alerts.sort((a, b) => {
+        const severityOrder = { critical: 0, warning: 1, low: 2 };
+        return severityOrder[a.severity] - severityOrder[b.severity];
+      });
+
+      console.log('[InventoryService.getAlerts] Generated alerts:', alerts.length);
+      console.log('[InventoryService.getAlerts] Alert details:', JSON.stringify(alerts, null, 2));
+
       ValidationMonitor.recordPatternSuccess('stock-alerts');
-      return data || [];
+      return alerts;
     } catch (error) {
       if (error instanceof Error && !error.message.includes('ValidationMonitor')) {
         ValidationMonitor.recordValidationError('stock-alerts', error);
@@ -554,11 +838,43 @@ export class InventoryService {
     }
   }
 
-  async acknowledgeAlert(alertId: string): Promise<void> {
+  async acknowledgeAlert(alertId: string, userId: string): Promise<void> {
     try {
+      // Validate user authentication
+      const { data: { user } } = await this.supabase.auth.getUser();
+      if (!user || user.id !== userId) {
+        throw new Error('Unauthorized access');
+      }
+
+      // Verify the alert belongs to the user's inventory
+      const { data: alert } = await this.supabase
+        .from('inventory_alerts')
+        .select('inventory_item_id')
+        .eq('id', alertId)
+        .single();
+
+      if (!alert) {
+        throw new Error('Alert not found');
+      }
+
+      // Verify ownership
+      const { data: item } = await this.supabase
+        .from('inventory_items')
+        .select('user_id')
+        .eq('id', alert.inventory_item_id)
+        .single();
+
+      if (!item || item.user_id !== userId) {
+        throw new Error('Unauthorized access to alert');
+      }
+
       const { error } = await this.supabase
-        .from('stock_alerts')
-        .update({ acknowledged: true })
+        .from('inventory_alerts')
+        .update({
+          acknowledged: true,
+          acknowledged_by: userId,
+          acknowledged_at: new Date().toISOString()
+        })
         .eq('id', alertId);
 
       if (error) {
@@ -575,12 +891,19 @@ export class InventoryService {
     }
   }
 
-  async deleteInventoryItem(itemId: string): Promise<void> {
+  async deleteInventoryItem(itemId: string, userId: string): Promise<void> {
     try {
+      // Validate user authentication
+      const { data: { user } } = await this.supabase.auth.getUser();
+      if (!user || user.id !== userId) {
+        throw new Error('Unauthorized access');
+      }
+
       const { error } = await this.supabase
         .from('inventory_items')
         .delete()
-        .eq('id', itemId);
+        .eq('id', itemId)
+        .eq('user_id', userId); // Ensure user owns the item
 
       if (error) {
         ValidationMonitor.recordValidationError('inventory-delete', error);

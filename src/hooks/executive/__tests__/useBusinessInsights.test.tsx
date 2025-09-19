@@ -4,7 +4,7 @@
 import React from 'react';
 import { createSupabaseMock } from '../../../test/mocks/supabase.simplified.mock';
 import { hookContracts } from '../../../test/contracts/hook.contracts';
-import { renderHook, waitFor, act } from '@testing-library/react-native';
+import { renderHook, act } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 // Defensive import pattern for the hook
 let useBusinessInsights: any;
@@ -193,8 +193,8 @@ describe('useBusinessInsights Hook - Phase 4.3', () => {
       });
 
       expect(result.current.data).toEqual(mockInsights);
-      expect(result.current.data?.insights).toHaveLength(2);
-      expect(result.current.data?.metadata.averageConfidence).toBe(0.82);
+      expect(result.current?.data?.insights).toHaveLength(2);
+      expect(result.current?.data?.metadata.averageConfidence).toBe(0.82);
     });
 
     it('should filter insights by impact level', async () => {

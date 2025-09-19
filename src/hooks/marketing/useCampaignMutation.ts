@@ -1,86 +1,102 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { MarketingCampaign } from '@/types/marketing';
+import { useCurrentUser } from '../useAuth';
 
-interface CreateCampaignData {
+interface CampaignFormData {
   name: string;
-  description?: string;
-  type: 'email' | 'social' | 'sms' | 'multi-channel';
-  status: 'draft' | 'scheduled' | 'active' | 'completed';
-  startDate: string;
-  endDate?: string;
-  targetAudience?: string[];
-  budget?: number;
+  description: string;
+  startDate: Date;
+  endDate: Date;
+  targetAudience: string;
+  budget: number;
+  selectedProducts: string[];
 }
 
-interface UpdateCampaignData extends Partial<CreateCampaignData> {
+interface CampaignResult {
   id: string;
+  name: string;
+  description: string;
+  startDate: string;
+  endDate: string;
+  targetAudience: string;
+  budget: number;
+  selectedProducts: string[];
 }
 
-export const useCampaignMutation = () => {
+export function useCampaignMutation() {
   const queryClient = useQueryClient();
+  const { data: user } = useCurrentUser();
 
-  const createCampaign = useMutation({
-    mutationFn: async (data: CreateCampaignData): Promise<MarketingCampaign> => {
-      // Simulate API call
-      return new Promise((resolve) => {
-        setTimeout(() => {
-          resolve({
-            id: `campaign_${Date.now()}`,
-            ...data,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            metrics: {
-              impressions: 0,
-              clicks: 0,
-              conversions: 0,
-              revenue: 0,
-            },
-          } as MarketingCampaign);
-        }, 500);
-      });
+  const createMutation = useMutation({
+    mutationFn: async (campaignData: CampaignFormData): Promise<CampaignResult> => {
+      if (!user?.id) {
+        throw new Error('User not authenticated');
+      }
+
+      // Mock implementation for now - replace with actual service call
+      const mockResult: CampaignResult = {
+        id: Date.now().toString(),
+        name: campaignData.name,
+        description: campaignData.description,
+        startDate: campaignData.startDate.toISOString(),
+        endDate: campaignData.endDate.toISOString(),
+        targetAudience: campaignData.targetAudience,
+        budget: campaignData.budget,
+        selectedProducts: campaignData.selectedProducts
+      };
+
+      return mockResult;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['campaigns'] });
-      queryClient.invalidateQueries({ queryKey: ['marketing-dashboard'] });
-    },
+      // Invalidate campaign lists
+      queryClient.invalidateQueries({
+        queryKey: ['marketing', 'campaigns']
+      });
+    }
   });
 
-  const updateCampaign = useMutation({
-    mutationFn: async (data: UpdateCampaignData): Promise<MarketingCampaign> => {
-      // Simulate API call
-      return new Promise((resolve) => {
-        setTimeout(() => {
-          resolve({
-            ...data,
-            updatedAt: new Date().toISOString(),
-          } as MarketingCampaign);
-        }, 500);
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['campaigns'] });
-      queryClient.invalidateQueries({ queryKey: ['marketing-dashboard'] });
-    },
-  });
+  const updateMutation = useMutation({
+    mutationFn: async ({
+      campaignId,
+      campaignData
+    }: {
+      campaignId: string;
+      campaignData: CampaignFormData;
+    }): Promise<CampaignResult> => {
+      if (!user?.id) {
+        throw new Error('User not authenticated');
+      }
 
-  const deleteCampaign = useMutation({
-    mutationFn: async (id: string): Promise<void> => {
-      // Simulate API call
-      return new Promise((resolve) => {
-        setTimeout(() => {
-          resolve();
-        }, 500);
+      // Mock implementation for now - replace with actual service call
+      const mockResult: CampaignResult = {
+        id: campaignId,
+        name: campaignData.name,
+        description: campaignData.description,
+        startDate: campaignData.startDate.toISOString(),
+        endDate: campaignData.endDate.toISOString(),
+        targetAudience: campaignData.targetAudience,
+        budget: campaignData.budget,
+        selectedProducts: campaignData.selectedProducts
+      };
+
+      return mockResult;
+    },
+    onSuccess: (data, variables) => {
+      // Invalidate specific campaign and lists
+      queryClient.invalidateQueries({
+        queryKey: ['marketing', 'campaigns', variables.campaignId]
       });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['campaigns'] });
-      queryClient.invalidateQueries({ queryKey: ['marketing-dashboard'] });
-    },
+      queryClient.invalidateQueries({
+        queryKey: ['marketing', 'campaigns']
+      });
+    }
   });
 
   return {
-    createCampaign,
-    updateCampaign,
-    deleteCampaign,
+    createCampaign: createMutation.mutateAsync,
+    updateCampaign: (campaignId: string, campaignData: CampaignFormData) =>
+      updateMutation.mutateAsync({ campaignId, campaignData }),
+    isCreating: createMutation.isPending || updateMutation.isPending,
+    createError: createMutation.error,
+    updateError: updateMutation.error
   };
-};
+}

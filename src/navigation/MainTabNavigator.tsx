@@ -1,14 +1,15 @@
 import React from 'react';
+// import * as React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import { View, Text, StyleSheet } from 'react-native';
-import { colors, spacing } from '../utils/theme';
-import { useCurrentUser } from '../hooks/useAuth';
+import { View, StyleSheet, Text as RNText } from 'react-native';
+import { colors } from '../utils/theme';
+import { useCurrentUserRole } from '../hooks/role-based/useUnifiedRole';
 import { useCart } from '../hooks/useCart';
 import { RootTabParamList } from '../types';
 
 // Import screens
-import { ShopScreen, CartScreen, ProfileScreen, StaffQRScannerScreen, MyOrdersScreen } from '../screens';
+import { ShopScreen, CartScreen, ProfileScreen, MyOrdersScreen, StaffQRScannerScreen } from '../screens';
 import { TestStackNavigator } from './TestStackNavigator';
 import { AdminStackNavigator } from './AdminStackNavigator';
 
@@ -16,29 +17,24 @@ const Tab = createBottomTabNavigator<RootTabParamList>();
 
 const CartBadge: React.FC<{ count: number }> = ({ count }) => {
   if (count === 0) return null;
-  
+
   return (
     <View style={styles.badge}>
-      <Text style={styles.badgeText}>
+      <RNText style={styles.badgeRNText}>
         {count > 99 ? '99+' : count.toString()}
-      </Text>
+      </RNText>
     </View>
   );
 };
 
 export const MainTabNavigator: React.FC = () => {
-  const { data: user } = useCurrentUser();
+  const { isAdmin, isExecutive, isStaff } = useCurrentUserRole();
   const { items } = useCart();
-  // Check if user has access to admin/staff features (case-insensitive)
-  const userRole = user?.role?.toLowerCase();
-  const hasStaffAccess = ['admin', 'manager', 'staff'].includes(userRole || '');
-  const hasExecutiveAccess = ['admin', 'executive'].includes(userRole || '');
-  const isAdmin = userRole === 'admin';
-  const isExecutive = userRole === 'executive';
-  const isManager = userRole === 'manager';
-  const isStaff = userRole === 'staff';
-  const cartItemCount = items.reduce((total, item) => total + item.quantity, 0);
-  
+
+  // Secure access checks using unified role system
+  const hasStaffAccess = isAdmin || isExecutive || isStaff;
+  const cartItemCount = items.reduce((total: number, item: any) => total + item.quantity, 0);
+
   // Debug badge count changes
   console.log('🏷️ BADGE COUNT UPDATE:', {
     itemsLength: items.length,
@@ -107,46 +103,46 @@ export const MainTabNavigator: React.FC = () => {
         },
       })}
     >
-      <Tab.Screen 
-        name="Shop" 
+      <Tab.Screen
+        name="Shop"
         component={ShopScreen}
         options={{ title: 'Farm Stand' }}
       />
-      <Tab.Screen 
-        name="Cart" 
+      <Tab.Screen
+        name="Cart"
         component={CartScreen}
-        options={{ 
+        options={{
           title: 'Cart',
           tabBarBadge: cartItemCount > 0 ? cartItemCount : undefined
         }}
       />
-      <Tab.Screen 
-        name="MyOrders" 
+      <Tab.Screen
+        name="MyOrders"
         component={MyOrdersScreen}
         options={{ title: 'My Orders' }}
       />
-      <Tab.Screen 
-        name="Profile" 
+      <Tab.Screen
+        name="Profile"
         component={ProfileScreen}
         options={{ title: 'Profile' }}
       />
       {hasStaffAccess && (
-        <Tab.Screen 
-          name="Admin" 
+        <Tab.Screen
+          name="Admin"
           component={AdminStackNavigator}
           options={{ title: 'Admin', headerShown: false }}
         />
       )}
       {hasStaffAccess && (
-        <Tab.Screen 
-          name="StaffQRScanner" 
+        <Tab.Screen
+          name="StaffQRScanner"
           component={StaffQRScannerScreen}
           options={{ title: 'QR Scanner' }}
         />
       )}
       {(__DEV__ || process.env.EXPO_PUBLIC_SHOW_TESTS === 'true') && (
-        <Tab.Screen 
-          name="TestHub" 
+        <Tab.Screen
+          name="TestHub"
           component={TestStackNavigator}
           options={{ title: 'Tests', headerShown: false }}
         />
@@ -168,7 +164,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 4,
   },
-  badgeText: {
+  badgeRNText: {
     color: colors.text.inverse,
     fontSize: 12,
     fontWeight: '600',

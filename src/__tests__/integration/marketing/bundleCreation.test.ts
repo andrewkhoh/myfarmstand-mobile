@@ -1,7 +1,7 @@
-import { render, fireEvent, waitFor, screen } from '@testing-library/react-native';
+import { render, fireEvent, screen } from '@testing-library/react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
+import { describe, it, expect, jest, afterEach } from '@jest/globals';
 import {
   setupIntegrationTest,
   cleanupIntegrationTest,

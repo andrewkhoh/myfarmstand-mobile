@@ -4,7 +4,7 @@
  * validation patterns and compliance across services.
  */
 
-import { describe, it, expect, beforeEach } from '@jest/globals';
+import { describe, it, beforeEach } from '@jest/globals';
 import { ValidationMonitor } from '../validationMonitor';
 
 describe('Validation Monitoring Enhancements (Phase 3)', () => {

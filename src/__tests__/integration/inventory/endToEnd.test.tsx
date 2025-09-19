@@ -1,11 +1,11 @@
 import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, waitFor } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { InventoryDashboard } from '../../../screens/inventory/InventoryDashboard';
 import { InventoryService } from '../../../services/inventory/inventoryService';
 import { SimplifiedSupabaseMock } from '../../../test-utils/SimplifiedSupabaseMock';
 import { ValidationMonitor } from '../../../test-utils/ValidationMonitor';
-import { inventoryKeys } from '../../../services/queryKeys';
+import { inventoryKeys } from '../../../utils/queryKeyFactory';
 
 // Mock the hooks to use real service
 const mockSupabase = new SimplifiedSupabaseMock();

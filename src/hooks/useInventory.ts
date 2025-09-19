@@ -3,9 +3,9 @@
  * Following established patterns from useCart with race condition safety
  */
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { InventoryService } from '../services/inventory/inventoryService';
-import { inventoryKeys } from '../utils/queryKeys';
+import { inventoryKeys } from '../utils/queryKeyFactory';
 import type {
   InventoryItemTransform,
   CreateInventoryItemInput,

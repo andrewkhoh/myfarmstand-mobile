@@ -1,4 +1,5 @@
-import { readFileSync, readdirSync, statSync } from 'fs';
+import React from 'react';
+import { readFileSync, statSync } from 'fs';
 import { join } from 'path';
 
 describe('Pattern Compliance Validation', () => {

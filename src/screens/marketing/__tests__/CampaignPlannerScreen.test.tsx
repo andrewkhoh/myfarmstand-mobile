@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, waitFor } from '@testing-library/react-native';
 import { CampaignPlannerScreen } from '../CampaignPlannerScreen';
 import { useCampaignMutation } from '@/hooks/marketing/useCampaignMutation';
 import { useCampaignData } from '@/hooks/marketing/useCampaignData';

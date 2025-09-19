@@ -5,7 +5,7 @@
  */
 
 import React, { useMemo } from 'react';
-import { View, StyleSheet, ViewStyle } from 'react-native';
+import { View, ViewStyle, StyleSheet } from 'react-native';
 import { useUserRole } from '../../hooks/role-based/useUserRole';
 import { Text } from '../Text';
 import { UserRole } from '../../types';

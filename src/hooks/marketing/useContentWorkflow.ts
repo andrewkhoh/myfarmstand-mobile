@@ -1,9 +1,9 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useRef, useState } from 'react';
-import { marketingKeys } from '@/utils/queryKeys';
-import { contentWorkflowService } from '@/services/marketing';
-import { useUserRole } from '@/utils/useUserRole';
-import type { WorkflowState, ProductContent, UserRole } from '@/types/marketing';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import { useCallback, useState, useRef } from 'react';
+import { contentService } from '../../services/marketing/content.service';
+import { contentKeys } from '../../utils/queryKeyFactory';
+import { useUserRole } from '../role-based/useUserRole';
+import type { WorkflowState, ProductContent, UserRole } from '../../types/marketing';
 
 interface UseContentWorkflowOptions {
   role?: UserRole;
@@ -27,8 +27,8 @@ export function useContentWorkflow(
   };
   
   const contentQuery = useQuery({
-    queryKey: marketingKeys.content.detail(contentId),
-    queryFn: () => contentWorkflowService.getContent(contentId),
+    queryKey: contentKeys.detail(contentId),
+    queryFn: () => contentService.getContent(contentId),
     staleTime: 30000,
   });
   
@@ -39,20 +39,20 @@ export function useContentWorkflow(
   const transitionMutation = useMutation({
     mutationFn: async ({ targetState }: { targetState: WorkflowState }) => {
       // Validate state transition on the server side
-      const currentState = contentQuery.data?.workflowState;
+      const currentState = contentQuery?.data?.workflowState;
       if (currentState) {
-        const isValid = await contentWorkflowService.validateTransition(
+        const isValid = await contentService.validateTransition(
           contentId,
           currentState,
           targetState
         );
-        
+
         if (!isValid) {
           throw new Error('Invalid transition');
         }
       }
-      
-      return contentWorkflowService.transitionTo(contentId, targetState);
+
+      return contentService.transitionTo(contentId, targetState);
     },
     onMutate: async ({ targetState }) => {
       // Check permissions first - throw early if not allowed
@@ -62,12 +62,12 @@ export function useContentWorkflow(
       
       // Cancel any outgoing queries
       await queryClient.cancelQueries({ 
-        queryKey: marketingKeys.content.detail(contentId) 
+        queryKey: contentKeys.detail(contentId) 
       });
       
       // Snapshot the previous value
       const previousContent = queryClient.getQueryData<ProductContent>(
-        marketingKeys.content.detail(contentId)
+        contentKeys.detail(contentId)
       );
       
       // Mark that we've already applied the optimistic update
@@ -80,7 +80,7 @@ export function useContentWorkflow(
       // If the mutation fails, roll back the optimistic update
       if (context?.previousContent) {
         queryClient.setQueryData<ProductContent>(
-          marketingKeys.content.detail(contentId),
+          contentKeys.detail(contentId),
           context.previousContent
         );
       }
@@ -89,7 +89,7 @@ export function useContentWorkflow(
     onSuccess: (data) => {
       // Update with the server response
       queryClient.setQueryData<ProductContent>(
-        marketingKeys.content.detail(contentId),
+        contentKeys.detail(contentId),
         data
       );
       optimisticUpdateApplied.current = false;
@@ -98,7 +98,7 @@ export function useContentWorkflow(
       optimisticUpdateApplied.current = false;
       // Always refetch after error or success to ensure consistency
       queryClient.invalidateQueries({ 
-        queryKey: marketingKeys.content.detail(contentId) 
+        queryKey: contentKeys.detail(contentId) 
       });
     },
   });
@@ -119,12 +119,12 @@ export function useContentWorkflow(
     // Apply optimistic update synchronously
     if (!optimisticUpdateApplied.current) {
       const currentContent = queryClient.getQueryData<ProductContent>(
-        marketingKeys.content.detail(contentId)
+        contentKeys.detail(contentId)
       );
       
       if (currentContent) {
         queryClient.setQueryData<ProductContent>(
-          marketingKeys.content.detail(contentId),
+          contentKeys.detail(contentId),
           {
             ...currentContent,
             workflowState: params.targetState,

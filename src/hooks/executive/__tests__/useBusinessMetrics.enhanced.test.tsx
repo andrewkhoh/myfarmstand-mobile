@@ -1,7 +1,7 @@
 // Enhanced Business Metrics Hook Tests
 // Testing UI transforms, real-time subscriptions, and backwards compatibility
 
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import { useBusinessMetrics } from '../useBusinessMetrics';

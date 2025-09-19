@@ -3,9 +3,9 @@
  * Based on proven pattern with 100% infrastructure compliance
  */
 
-import { renderHook, waitFor, act } from '@testing-library/react-native';
+import { renderHook, act } from '@testing-library/react-native';
 import { createWrapper } from '../../../test/test-utils';
-import { createUser, createProduct, resetAllFactories } from '../../../test/factories';
+import { createUser, resetAllFactories } from '../../../test/factories';
 
 // 1. MOCK SERVICES - Simplified approach with all methods
 jest.mock('../../../services/inventory/stockMovementService', () => ({
@@ -316,7 +316,7 @@ describe('Stock Movement Hook Tests - Refactored Infrastructure', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      expect(result.current.data?.success).toHaveLength(1);
+      expect(result.current?.data?.success).toHaveLength(1);
       expect(mockStockMovementService.getMovementHistory).toHaveBeenCalledWith({
         inventoryItemId: '123',
         limit: 1,
@@ -404,7 +404,7 @@ describe('Stock Movement Hook Tests - Refactored Infrastructure', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      expect(result.current.data?.success).toHaveLength(0);
+      expect(result.current?.data?.success).toHaveLength(0);
     });
   });
 
@@ -825,7 +825,7 @@ describe('Stock Movement Hook Tests - Refactored Infrastructure', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      expect(result.current.data?.success).toHaveLength(0);
+      expect(result.current?.data?.success).toHaveLength(0);
     });
 
     it('should verify movements are ordered by performed_at', async () => {
@@ -878,7 +878,7 @@ describe('Stock Movement Hook Tests - Refactored Infrastructure', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      const movements = result.current.data?.success || [];
+      const movements = result.current?.data?.success || [];
       expect(movements).toHaveLength(2);
       
       // Verify chronological order
@@ -1010,7 +1010,7 @@ describe('Stock Movement Hook Tests - Refactored Infrastructure', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      const analytics = result.current.data?.success[0];
+      const analytics = result.current?.data?.success[0];
       expect(analytics).toEqual(
         expect.objectContaining({
           movementType: expect.any(String),
@@ -1148,8 +1148,8 @@ describe('Stock Movement Hook Tests - Refactored Infrastructure', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      expect(result.current.data?.success).toHaveLength(100);
-      expect(result.current.data?.totalProcessed).toBe(100);
+      expect(result.current?.data?.success).toHaveLength(100);
+      expect(result.current?.data?.totalProcessed).toBe(100);
     });
   });
 });

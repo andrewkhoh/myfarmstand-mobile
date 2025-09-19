@@ -67,7 +67,7 @@ const hasAnyPermission = (permissions: string[], requiredPermissions: string[]) 
 const isAdmin = (roleType?: string) => roleType === 'admin';
 const isExecutive = (roleType?: string) => roleType === 'executive';
 import { RolePermissionService } from '../../services/role-based/rolePermissionService';
-
+import { UserRole } from '../types/roles';
 const mockRoleService = RolePermissionService as jest.Mocked<typeof RolePermissionService>;
 
 describe('useRolePermissions Hook Tests - Simplified', () => {
@@ -553,7 +553,7 @@ describe('useRolePermissions Hook Tests - Simplified', () => {
       const result = useRolePermissions('test-user-123');
 
       expect(result.data).toEqual(mockUserRole);
-      expect(result.data?.id).toBe('role-123');
+      expect(result?.data?.id).toBe('role-123');
     });
 
     it('should memoize permissions computation', () => {

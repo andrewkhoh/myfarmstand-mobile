@@ -1,7 +1,8 @@
 module.exports = {
   displayName: 'marketing',
   
-  // Only scan src directory
+  // Fix root directory
+  rootDir: '../',
   roots: ['<rootDir>/src'],
   
   testMatch: [
@@ -33,8 +34,8 @@ module.exports = {
     throwOnModuleCollision: false
   },
   
-  // Use different setup based on test type
-  setupFilesAfterEnv: ['<rootDir>/src/test/marketing-setup.ts'],
+  // Use main test setup since marketing-setup doesn't exist
+  setupFilesAfterEnv: ['<rootDir>/src/test/test-setup.ts'],
   
   // Marketing services use node environment, hooks use jsdom
   testEnvironment: 'node',

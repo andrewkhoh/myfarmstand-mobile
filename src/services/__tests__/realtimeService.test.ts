@@ -1,5 +1,5 @@
 // Test Infrastructure Imports
-import { createProduct, createUser, resetAllFactories } from "../../test/factories";
+import { createProduct, resetAllFactories } from "../../test/factories";
 
 /**
  * RealtimeService Test - Using REFACTORED Infrastructure
@@ -7,7 +7,7 @@ import { createProduct, createUser, resetAllFactories } from "../../test/factori
  */
 
 import { RealtimeService } from '../realtimeService';
-import { createUser, createOrder, resetAllFactories } from '../../test/factories';
+import { createUser, resetAllFactories } from '../../test/factories';
 
 // Mock Supabase using the refactored infrastructure - CREATE MOCK IN THE JEST.MOCK CALL
 jest.mock("../../config/supabase", () => {

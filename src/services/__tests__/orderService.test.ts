@@ -87,7 +87,7 @@ import {
   getAllOrders,
   getOrderStats
 } from '../orderService';
-import { createUser, createOrder, createOrderItem, resetAllFactories } from '../../test/factories';
+import { createUser, createOrder, resetAllFactories } from '../../test/factories';
 import { AuthService } from '../authService';
 
 // Get mock references

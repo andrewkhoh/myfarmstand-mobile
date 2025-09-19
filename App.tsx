@@ -1,4 +1,4 @@
-import React from 'react';
+import * as React from 'react';
 import 'react-native-gesture-handler';
 // Crypto polyfill for React Native
 import 'react-native-get-random-values';
@@ -11,16 +11,24 @@ import { AppNavigator } from './src/navigation/AppNavigator';
 import { crashReporting } from './src/services/crashReportingService';
 import { secretsInitializer } from './src/services/secretsInitializer';
 import { KioskProvider } from './src/contexts';
+import { createRealtimeCoordinator } from './src/services/cross-workflow/realtimeCoordinator';
+import { supabase } from './src/config/supabase';
 // Component to initialize real-time subscriptions
 const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Initialize shared channels for broadcast events
   React.useEffect(() => {
     ChannelManager.initialize();
+
+    // Initialize cross-workflow real-time coordinator
+    const coordinator = createRealtimeCoordinator(supabase);
+    coordinator.startAll();
+
     return () => {
       ChannelManager.cleanup();
+      coordinator.stopAll();
     };
   }, []);
-  
+
   useRealtime(); // Initialize real-time subscriptions
   return <>{children}</>;
 };

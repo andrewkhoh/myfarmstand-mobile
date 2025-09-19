@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 
 export type PaymentMethod = 'online' | 'cash_on_pickup';
 

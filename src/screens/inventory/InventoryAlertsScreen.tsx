@@ -5,21 +5,24 @@ import {
   SectionList,
   StyleSheet,
   RefreshControl,
+  TouchableOpacity,
 } from 'react-native';
-// import { useStockAlerts, useAcknowledgeAlert } from 'hooks/inventory/useStockOperations';
-// TODO: Fix missing hook file
-const useStockAlerts = () => ({ data: { critical: [], warning: [], low: [] }, isLoading: false, refetch: () => {} });
-const useAcknowledgeAlert = () => ({ mutate: () => {} });
+import { useStockAlerts, useAcknowledgeAlert } from '../../hooks/inventory/useStockAlerts';
 import { AlertCard } from './components/AlertCard';
 import { InventoryAlert } from 'types/inventory';
+import { debugInventoryAlerts } from '../../utils/debugInventoryAlerts';
 
 interface InventoryAlertsScreenProps {
   navigation?: any;
 }
 
 export function InventoryAlertsScreen({ navigation }: InventoryAlertsScreenProps) {
-  const { data: alerts, isLoading, refetch } = useStockAlerts();
+  const { data: alerts, isLoading, refetch, error } = useStockAlerts();
   const dismissAlert = useAcknowledgeAlert();
+
+  console.log('[InventoryAlertsScreen] Alerts data:', alerts);
+  console.log('[InventoryAlertsScreen] Loading:', isLoading);
+  console.log('[InventoryAlertsScreen] Error:', error);
   
   const handleAlertAction = useCallback((alert: InventoryAlert) => {
     if (alert.itemId) {
@@ -69,6 +72,18 @@ export function InventoryAlertsScreen({ navigation }: InventoryAlertsScreenProps
       <View style={styles.emptyContainer}>
         <Text style={styles.emptyText}>No active alerts</Text>
         <Text style={styles.emptySubtext}>Your inventory is running smoothly</Text>
+        {__DEV__ && (
+          <TouchableOpacity
+            style={styles.debugButton}
+            onPress={async () => {
+              console.log('Running debug...');
+              await debugInventoryAlerts();
+              refetch();
+            }}
+          >
+            <Text style={styles.debugButtonText}>Debug Alerts</Text>
+          </TouchableOpacity>
+        )}
       </View>
     );
   }
@@ -134,5 +149,17 @@ const styles = StyleSheet.create({
   emptySubtext: {
     fontSize: 14,
     color: '#666',
+  },
+  debugButton: {
+    marginTop: 20,
+    backgroundColor: '#007bff',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 5,
+  },
+  debugButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
 });

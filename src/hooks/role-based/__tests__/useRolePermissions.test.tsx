@@ -5,9 +5,9 @@
  */
 
 import { renderHook, waitFor } from '@testing-library/react-native';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import React from 'react';
-
+import { UserRole } from '../types/roles';import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { UserRole } from '../types/roles';import React from 'react';
+import { UserRole } from '../types/roles';
 // Mock the service first
 jest.mock('../../../services/rolePermissionService', () => ({
   RolePermissionService: {
@@ -24,10 +24,10 @@ jest.mock('../../useAuth', () => ({
 
 // Import hook after mocks
 import { useRolePermissions } from '../useRolePermissions';
-import { RolePermissionService } from '../../../services/rolePermissionService';
-import { useCurrentUser } from '../../useAuth';
-import { ROLE_PERMISSIONS } from '../../../schemas/role-based/rolePermission.schemas';
-
+import { UserRole } from '../types/roles';import { RolePermissionService } from '../../../services/rolePermissionService';
+import { UserRole } from '../types/roles';import { useCurrentUser } from '../../useAuth';
+import { UserRole } from '../types/roles';import { ROLE_PERMISSIONS } from '../../../schemas/role-based/rolePermission.schemas';
+import { UserRole } from '../types/roles';
 const mockGetUserRole = RolePermissionService.getUserRole as jest.MockedFunction<typeof RolePermissionService.getUserRole>;
 const mockHasPermission = RolePermissionService.hasPermission as jest.MockedFunction<typeof RolePermissionService.hasPermission>;
 const mockUpdateUserPermissions = RolePermissionService.updateUserPermissions as jest.MockedFunction<typeof RolePermissionService.updateUserPermissions>;
@@ -91,9 +91,9 @@ describe('useRolePermissions Hook Tests', () => {
         expect(result.current.isSuccess).toBe(true);
       });
 
-      expect(result.current.data?.permissions).toBeDefined();
-      expect(result.current.data?.rolePermissions).toBeDefined();
-      expect(result.current.data?.allPermissions).toBeDefined();
+      expect(result.current?.data?.permissions).toBeDefined();
+      expect(result.current?.data?.rolePermissions).toBeDefined();
+      expect(result.current?.data?.allPermissions).toBeDefined();
     });
 
     it('should combine role and custom permissions', async () => {
@@ -114,8 +114,8 @@ describe('useRolePermissions Hook Tests', () => {
       });
 
       // Should have both role-based and custom permissions
-      expect(result.current.data?.allPermissions).toContain('view_inventory'); // Role-based
-      expect(result.current.data?.allPermissions).toContain('custom_permission_1'); // Custom
+      expect(result.current?.data?.allPermissions).toContain('view_inventory'); // Role-based
+      expect(result.current?.data?.allPermissions).toContain('custom_permission_1'); // Custom
     });
 
     it('should fetch permissions for specific userId', async () => {
@@ -187,8 +187,8 @@ describe('useRolePermissions Hook Tests', () => {
         expect(result.current.isSuccess).toBe(true);
       });
 
-      expect(result.current.data?.roleType).toBe('inventory_staff');
-      expect(result.current.data?.rolePermissions).toEqual(
+      expect(result.current?.data?.roleType).toBe('inventory_staff');
+      expect(result.current?.data?.rolePermissions).toEqual(
         expect.arrayContaining(ROLE_PERMISSIONS.inventory_staff)
       );
     });
@@ -207,8 +207,8 @@ describe('useRolePermissions Hook Tests', () => {
         expect(result.current.isSuccess).toBe(true);
       });
 
-      expect(result.current.data?.roleType).toBe('marketing_staff');
-      expect(result.current.data?.rolePermissions).toEqual(
+      expect(result.current?.data?.roleType).toBe('marketing_staff');
+      expect(result.current?.data?.rolePermissions).toEqual(
         expect.arrayContaining(ROLE_PERMISSIONS.marketing_staff)
       );
     });
@@ -227,8 +227,8 @@ describe('useRolePermissions Hook Tests', () => {
         expect(result.current.isSuccess).toBe(true);
       });
 
-      expect(result.current.data?.roleType).toBe('executive');
-      expect(result.current.data?.rolePermissions).toEqual(
+      expect(result.current?.data?.roleType).toBe('executive');
+      expect(result.current?.data?.rolePermissions).toEqual(
         expect.arrayContaining(ROLE_PERMISSIONS.executive)
       );
     });
@@ -247,8 +247,8 @@ describe('useRolePermissions Hook Tests', () => {
         expect(result.current.isSuccess).toBe(true);
       });
 
-      expect(result.current.data?.roleType).toBe('admin');
-      expect(result.current.data?.rolePermissions).toEqual(
+      expect(result.current?.data?.roleType).toBe('admin');
+      expect(result.current?.data?.rolePermissions).toEqual(
         expect.arrayContaining(ROLE_PERMISSIONS.admin)
       );
     });
@@ -324,9 +324,9 @@ describe('useRolePermissions Hook Tests', () => {
         expect(result.current.isSuccess).toBe(true);
       });
 
-      expect(result.current.data?.permissions).toEqual([]);
-      expect(result.current.data?.rolePermissions).toEqual([]);
-      expect(result.current.data?.allPermissions).toEqual([]);
+      expect(result.current?.data?.permissions).toEqual([]);
+      expect(result.current?.data?.rolePermissions).toEqual([]);
+      expect(result.current?.data?.allPermissions).toEqual([]);
     });
 
     it('should handle service errors', async () => {

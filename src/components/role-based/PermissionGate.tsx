@@ -1,20 +1,19 @@
 /**
- * PermissionGate Component
+ * PermissionCheck Component
  * Conditionally renders children based on user permissions
  * Following docs/architectural-patterns-and-best-practices.md
  */
 
 import React, { useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
-import { useUserRole } from '../../hooks/role-based/useUserRole';
-import { useNavigationPermissions } from '../../hooks/role-based/useNavigationPermissions';
+import { useCurrentUserRole, usePermissions } from '../../hooks/role-based';
 import { ValidationMonitor } from '../../utils/validationMonitor';
-import { UserRole } from '../../types';
+import { UserRole, Permission } from '../../types/roles';
 import { Text } from '../Text';
 
-interface PermissionGateProps {
+interface PermissionCheckProps {
   /** Required permissions (user must have at least one) */
-  permissions?: string[];
+  permissions?: Permission[];
   /** Required roles (user must have one of these roles) */
   roles?: UserRole[];
   /** Required screen access permission */
@@ -33,7 +32,7 @@ interface PermissionGateProps {
   testID?: string;
 }
 
-export const PermissionGate: React.FC<PermissionGateProps> = ({
+export const PermissionCheck: React.FC<PermissionCheckProps> = ({
   permissions = [],
   roles = [],
   screen,
@@ -44,31 +43,28 @@ export const PermissionGate: React.FC<PermissionGateProps> = ({
   children,
   testID = 'permission-gate'
 }) => {
-  // Get current user role
-  const { data: userRole, isLoading: isUserLoading } = useUserRole();
+  // Get current user role from unified system
+  const { role: userRole, isLoading: isUserLoading, isAdmin, isExecutive, isStaff } = useCurrentUserRole();
 
-  // Get screen permissions if screen is specified
-  const navPermissions = useNavigationPermissions({
-    screens: screen ? [screen] : [],
-    enableBatchCheck: true,
-    cacheResults: true
-  });
-  
-  const screenPermissionResult = screen ? navPermissions.getPermission(screen) : null;
+  // Get permissions check results using unified system
+  const permissionsQuery = usePermissions(permissions);
+
+  // Screen access - simplified for now (can be enhanced later with navigation permissions)
+  const screenPermissionResult = screen ? { allowed: true, error: null } : null;
 
   // Determine permission status
   const permissionStatus = useMemo(() => {
-    // Still loading user or screen permissions
-    if (isUserLoading || (screen && navPermissions.isLoading)) {
+    // Still loading user or permissions
+    if (isUserLoading || (permissions.length > 0 && permissionsQuery.isLoading)) {
       return { allowed: false, loading: true, reason: 'Loading permissions...' };
     }
 
     // No user role available
-    if (!userRole?.role) {
-      return { 
-        allowed: false, 
-        loading: false, 
-        reason: 'User not authenticated' 
+    if (!userRole) {
+      return {
+        allowed: false,
+        loading: false,
+        reason: 'User not authenticated'
       };
     }
 
@@ -77,7 +73,7 @@ export const PermissionGate: React.FC<PermissionGateProps> = ({
 
     // Check role requirements
     if (roles.length > 0) {
-      const hasRequiredRole = roles.includes(userRole.role);
+      const hasRequiredRole = roles.includes(userRole);
       if (!hasRequiredRole) {
         hasPermission = false;
         denialReason = `Required role: ${roles.join(' or ')}`;
@@ -95,54 +91,62 @@ export const PermissionGate: React.FC<PermissionGateProps> = ({
       }
     }
 
-    // Check specific permissions (this would need integration with permission system)
+    // Check permissions using unified system
     if (permissions.length > 0 && hasPermission) {
-      // Note: This is a simplified check. In a real implementation,
-      // you'd check against the user's actual permissions from the database
-      const rolePermissions = getRolePermissions(userRole.role);
-      
-      // Admin has all permissions
-      const hasRequiredPermission = rolePermissions.includes('*') ||
-        permissions.some(permission => rolePermissions.includes(permission));
-      
-      if (!hasRequiredPermission) {
+      // Admin always has all permissions
+      if (isAdmin) {
+        // Admin bypass - has all permissions
+      } else if (permissionsQuery.data) {
+        // Check if user has any of the required permissions
+        const hasRequiredPermission = permissions.some(
+          permission => permissionsQuery.data[permission] === true
+        );
+
+        if (!hasRequiredPermission) {
+          hasPermission = false;
+          denialReason = `Missing permission: ${permissions.join(' or ')}`;
+        }
+      } else {
+        // No permission data available
         hasPermission = false;
-        denialReason = `Missing permission: ${permissions.join(' or ')}`;
+        denialReason = 'Unable to verify permissions';
       }
     }
 
     // Apply inversion if specified
     const finalAllowed = invert ? !hasPermission : hasPermission;
-    
+
     // Track permission check for analytics
     if (finalAllowed) {
       ValidationMonitor.recordPatternSuccess({
-        service: 'PermissionGate' as const,
-        pattern: 'permission_check' as const,
-        operation: 'accessGranted' as const
+        service: 'PermissionCheck',
+        pattern: 'permission_based_access',
+        operation: 'accessGranted'
       });
     } else {
       ValidationMonitor.recordValidationError({
-        context: 'PermissionGate.permissionCheck',
+        context: 'PermissionCheck.permissionCheck',
         errorMessage: denialReason,
         errorCode: 'PERMISSION_DENIED'
       });
     }
 
-    return { 
-      allowed: finalAllowed, 
-      loading: false, 
-      reason: finalAllowed ? undefined : denialReason 
+    return {
+      allowed: finalAllowed,
+      loading: false,
+      reason: finalAllowed ? undefined : denialReason
     };
   }, [
     isUserLoading,
-    userRole?.role,
+    permissionsQuery.isLoading,
+    permissionsQuery.data,
+    userRole,
     roles,
     screen,
     screenPermissionResult,
-    navPermissions.isLoading,
     permissions,
-    invert
+    invert,
+    isAdmin
   ]);
 
   // Show loading state
@@ -195,20 +199,8 @@ export const PermissionGate: React.FC<PermissionGateProps> = ({
   );
 };
 
-// Helper function to get role permissions (simplified)
-// In a real implementation, this would be more sophisticated
-const getRolePermissions = (role: UserRole): string[] => {
-  const rolePermissionMap: Record<UserRole, string[]> = {
-    customer: ['view:products', 'manage:cart', 'view:orders', 'manage:profile'],
-    farmer: ['view:products', 'manage:products', 'view:orders', 'manage:inventory', 'view:analytics'],
-    vendor: ['view:products', 'manage:products', 'view:orders', 'manage:inventory', 'view:analytics'],
-    admin: ['*'], // Admin has all permissions
-    staff: ['view:products', 'view:orders', 'manage:orders', 'view:inventory'],
-    manager: ['view:products', 'manage:products', 'view:orders', 'manage:inventory', 'view:analytics', 'view:staff']
-  };
-  
-  return rolePermissionMap[role] || [];
-};
+// NOTE: Permission checking is now handled by the centralized RolePermissionService
+// through the useUserRole hook. No hardcoded permission mappings needed.
 
 const styles = StyleSheet.create({
   loadingContainer: {

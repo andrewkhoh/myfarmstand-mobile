@@ -1,7 +1,7 @@
 // Enhanced Anomaly Detection Hook Tests
 // Testing UI transforms, real-time monitoring, and error handling
 
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import { useAnomalyDetection } from '../useAnomalyDetection';
@@ -251,7 +251,7 @@ describe('useAnomalyDetection Enhanced Tests', () => {
       (BusinessIntelligenceService as any).detectAnomalies.mockResolvedValue(updatedData);
 
       // The hook should have polling enabled with the specified interval
-      expect(result.current.data?.totalAnomalies).toBe(2);
+      expect(result.current?.data?.totalAnomalies).toBe(2);
     });
 
     it('should use shorter stale time for real-time monitoring', async () => {

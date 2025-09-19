@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Image, ScrollView, Alert } from 'react-native';
-import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
-import { Screen, Text, Button, Card } from '../components';
+import { View, StyleSheet, Image, Alert } from 'react-native';
+import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
+import { Screen, Text, Card, Button } from '../components';
 import { useProductById } from '../hooks/useProducts';
 import { useCart } from '../hooks/useCart';
 import { getStockDisplayInfo } from '../utils/stockDisplay';
-import { spacing, colors, borderRadius } from '../utils/theme';
+import { spacing, borderRadius, colors } from '../utils/theme';
 import { Product } from '../types';
 
 type ProductDetailRouteProp = RouteProp<{ ProductDetail: { productId: string } }, 'ProductDetail'>;

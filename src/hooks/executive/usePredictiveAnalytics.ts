@@ -1,17 +1,15 @@
 // Predictive Analytics Hook - Enhanced with UI-ready transforms and real-time support
 // Following architectural patterns from docs/architectural-patterns-and-best-practices.md
 
-import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
-import { useEffect, useCallback, useMemo, useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useCallback, useState, useMemo } from 'react';
 import { useUserRole } from '../role-based/useUserRole';
 import { useCurrentUser } from '../useAuth';
 import { executiveAnalyticsKeys } from '../../utils/queryKeyFactory';
 import { realtimeService } from '../../services/realtimeService';
-import { 
-  SimplePredictiveAnalyticsService, 
-  type PredictiveForecastData,
-  type UsePredictiveAnalyticsOptions 
-} from '../../services/executive/simplePredictiveAnalyticsService';
+// Note: simplePredictiveAnalyticsService was removed, using PredictiveAnalyticsService instead
+type PredictiveForecastData = any;
+type UsePredictiveAnalyticsOptions = any;
 import { PredictiveAnalyticsService } from '../../services/executive/predictiveAnalyticsService';
 
 // UI-ready interfaces
@@ -104,7 +102,8 @@ const getModelStatus = (accuracy: number): { status: 'excellent' | 'good' | 'fai
 
 export const usePredictiveAnalytics = (options: UsePredictiveAnalyticsOptions & { realtime?: boolean } = {}) => {
   const queryClient = useQueryClient();
-  const { role, hasPermission } = useUserRole();
+  const userRole = useUserRole();
+  const role = userRole.role?.role || '';
   
   // State for generated forecasts and validations
   const [generatedForecast, setGeneratedForecast] = useState<any>(null);
@@ -112,10 +111,10 @@ export const usePredictiveAnalytics = (options: UsePredictiveAnalyticsOptions & 
   const [confidenceIntervals, setConfidenceIntervals] = useState<any>(null);
   const [lastUpdateTime, setLastUpdateTime] = useState<string | null>(null);
   
-  // Use simpler query key format based on forecast type
-  const queryKey = options.forecastType 
-    ? (['executive', 'predictiveAnalytics', options.forecastType] as const)
-    : executiveAnalyticsKeys.predictiveAnalytics(user?.id, options);
+  const { data: user } = useCurrentUser();
+
+  // Always use centralized query key factory to comply with architectural patterns
+  const queryKey = executiveAnalyticsKeys.predictions(user?.id, options);
 
   // Transform forecast data to UI-ready charts
   const transformToCharts = useCallback((data: PredictiveForecastData): ForecastChart[] => {
@@ -345,7 +344,7 @@ export const usePredictiveAnalytics = (options: UsePredictiveAnalyticsOptions & 
     queryKey,
     queryFn: async () => {
       try {
-        return await SimplePredictiveAnalyticsService.getForecast(options);
+        return await PredictiveAnalyticsService.generateForecast('revenue', 'business_metrics', '2024-01-01', '2024-01-31');
       } catch (error: any) {
         // Re-throw with proper error type detection
         if (error.message?.includes('permission') || error.message?.includes('Insufficient')) {

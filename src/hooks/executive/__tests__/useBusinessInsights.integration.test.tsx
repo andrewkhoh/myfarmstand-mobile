@@ -2,7 +2,7 @@
 // This tests the actual hook behavior without mocking React Query
 
 import React from 'react';
-import { renderHook, waitFor, act } from '@testing-library/react-native';
+import { renderHook, act } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useBusinessInsights } from '../useBusinessInsights';
 import { SimpleBusinessInsightsService } from '../../../services/executive/simpleBusinessInsightsService';

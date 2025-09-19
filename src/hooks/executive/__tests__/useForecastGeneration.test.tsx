@@ -1,7 +1,7 @@
 // Enhanced Forecast Generation Hook Tests
 // Testing scenario generation, external factors, and error handling
 
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import { useForecastGeneration } from '../useForecastGeneration';

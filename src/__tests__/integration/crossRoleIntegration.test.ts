@@ -100,9 +100,9 @@ describe('Cross-Role Integration - Phase 3.4.3 (RED Phase)', () => {
       );
 
       expect(bundleResult.success).toBe(true);
-      expect(bundleResult.data?.inventoryImpact).toBeTruthy();
-      expect(bundleResult.data?.inventoryImpact?.overallAvailability.isAvailable).toBe(true);
-      expect(bundleResult.data?.inventoryImpact?.recommendations.maxBundleQuantity).toBe(3);
+      expect(bundleResult?.data?.inventoryImpact).toBeTruthy();
+      expect(bundleResult?.data?.inventoryImpact?.overallAvailability.isAvailable).toBe(true);
+      expect(bundleResult?.data?.inventoryImpact?.recommendations.maxBundleQuantity).toBe(3);
 
       // Verify inventory service integration
       expect(mockInventoryService.calculateInventoryImpact).toHaveBeenCalledWith(
@@ -192,8 +192,8 @@ describe('Cross-Role Integration - Phase 3.4.3 (RED Phase)', () => {
       );
 
       expect(campaignActivation.success).toBe(true);
-      expect(campaignActivation.data?.inventoryReservation).toBeTruthy();
-      expect(campaignActivation.data?.inventoryReservation?.reservedItems.length).toBeGreaterThan(0);
+      expect(campaignActivation?.data?.inventoryReservation).toBeTruthy();
+      expect(campaignActivation?.data?.inventoryReservation?.reservedItems.length).toBeGreaterThan(0);
 
       // Verify inventory service integration
       expect(mockInventoryService.reserveInventoryForCampaign).toHaveBeenCalledWith(
@@ -254,9 +254,9 @@ describe('Cross-Role Integration - Phase 3.4.3 (RED Phase)', () => {
       );
 
       expect(validationResult.success).toBe(true);
-      expect(validationResult.data?.overallValidation.isValid).toBe(true);
-      expect(validationResult.data?.recommendations.proceedWithCreation).toBe(true);
-      expect(validationResult.data?.recommendations.maxRecommendedBundles).toBe(2);
+      expect(validationResult?.data?.overallValidation.isValid).toBe(true);
+      expect(validationResult?.data?.recommendations.proceedWithCreation).toBe(true);
+      expect(validationResult?.data?.recommendations.maxRecommendedBundles).toBe(2);
 
       // Verify inventory service integration
       expect(mockInventoryService.validateBundleInventoryRequirements).toHaveBeenCalledWith(
@@ -310,9 +310,9 @@ describe('Cross-Role Integration - Phase 3.4.3 (RED Phase)', () => {
       );
 
       expect(validationResult.success).toBe(true); // Validation succeeds, but creation blocked
-      expect(validationResult.data?.overallValidation.isValid).toBe(false);
-      expect(validationResult.data?.recommendations.proceedWithCreation).toBe(false);
-      expect(validationResult.data?.recommendations.warningMessages.length).toBeGreaterThan(0);
+      expect(validationResult?.data?.overallValidation.isValid).toBe(false);
+      expect(validationResult?.data?.recommendations.proceedWithCreation).toBe(false);
+      expect(validationResult?.data?.recommendations.warningMessages.length).toBeGreaterThan(0);
     });
 
     test('should integrate with executive analytics for inventory insights', async () => {
@@ -349,7 +349,7 @@ describe('Cross-Role Integration - Phase 3.4.3 (RED Phase)', () => {
       );
 
       expect(bundleResult.success).toBe(true);
-      expect(bundleResult.data?.analyticsTracking).toBeTruthy();
+      expect(bundleResult?.data?.analyticsTracking).toBeTruthy();
 
       // Verify executive analytics integration
       expect(mockBusinessMetricsService.recordInventoryImpactMetric).toHaveBeenCalledWith({
@@ -429,9 +429,9 @@ describe('Cross-Role Integration - Phase 3.4.3 (RED Phase)', () => {
       );
 
       expect(executiveData.success).toBe(true);
-      expect(executiveData.data?.executiveSummary.totalRevenue).toBe(22500.00);
-      expect(executiveData.data?.keyInsights.length).toBeGreaterThan(0);
-      expect(executiveData.data?.departmentalImpact).toBeTruthy();
+      expect(executiveData?.data?.executiveSummary.totalRevenue).toBe(22500.00);
+      expect(executiveData?.data?.keyInsights.length).toBeGreaterThan(0);
+      expect(executiveData?.data?.departmentalImpact).toBeTruthy();
 
       // Verify executive analytics service integration
       expect(mockBusinessMetricsService.aggregateCampaignDataForExecutive).toHaveBeenCalledWith(
@@ -486,9 +486,9 @@ describe('Cross-Role Integration - Phase 3.4.3 (RED Phase)', () => {
       );
 
       expect(performanceAlert.success).toBe(true);
-      expect(performanceAlert.data?.significantChanges.length).toBe(2);
-      expect(performanceAlert.data?.notifications.length).toBe(2);
-      expect(performanceAlert.data?.notifications[1].urgency).toBe('high');
+      expect(performanceAlert?.data?.significantChanges.length).toBe(2);
+      expect(performanceAlert?.data?.notifications.length).toBe(2);
+      expect(performanceAlert?.data?.notifications[1].urgency).toBe('high');
 
       // Verify alert notification service integration
       expect(mockBusinessMetricsService.detectSignificantPerformanceChanges).toHaveBeenCalledWith(
@@ -536,9 +536,9 @@ describe('Cross-Role Integration - Phase 3.4.3 (RED Phase)', () => {
       );
 
       expect(correlationResult.success).toBe(true);
-      expect(correlationResult.data?.correlationAnalysis.inventoryTurnover.improvement).toBe(78.3);
-      expect(correlationResult.data?.correlationAnalysis.revenueCorrelation.stockAvailability).toBe(0.87);
-      expect(correlationResult.data?.recommendations.length).toBeGreaterThan(0);
+      expect(correlationResult?.data?.correlationAnalysis.inventoryTurnover.improvement).toBe(78.3);
+      expect(correlationResult?.data?.correlationAnalysis.revenueCorrelation.stockAvailability).toBe(0.87);
+      expect(correlationResult?.data?.recommendations.length).toBeGreaterThan(0);
     });
   });
 
@@ -625,8 +625,8 @@ describe('Cross-Role Integration - Phase 3.4.3 (RED Phase)', () => {
       );
 
       expect(escalationResult.success).toBe(true);
-      expect(escalationResult.data?.escalationId).toBeTruthy();
-      expect(escalationResult.data?.status).toBe('pending');
+      expect(escalationResult?.data?.escalationId).toBeTruthy();
+      expect(escalationResult?.data?.status).toBe('pending');
 
       // Test escalation approval
       mockRolePermissionService.approvePermissionEscalation.mockResolvedValue({
@@ -646,8 +646,8 @@ describe('Cross-Role Integration - Phase 3.4.3 (RED Phase)', () => {
       );
 
       expect(approvalResult.success).toBe(true);
-      expect(approvalResult.data?.status).toBe('approved');
-      expect(approvalResult.data?.temporaryPermissions).toContain('executive_analytics');
+      expect(approvalResult?.data?.status).toBe('approved');
+      expect(approvalResult?.data?.temporaryPermissions).toContain('executive_analytics');
     });
 
     test('should audit cross-role access attempts', async () => {
@@ -677,7 +677,7 @@ describe('Cross-Role Integration - Phase 3.4.3 (RED Phase)', () => {
       );
 
       expect(crossRoleOperation.success).toBe(true);
-      expect(crossRoleOperation.data?.auditTrail).toBeTruthy();
+      expect(crossRoleOperation?.data?.auditTrail).toBeTruthy();
 
       // Verify audit trail was created
       expect(mockRolePermissionService.auditCrossRoleAccess).toHaveBeenCalledWith({

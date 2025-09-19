@@ -12,7 +12,8 @@ import {
 // import { Camera } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { useCurrentUser } from '../hooks/useAuth';
-import { Screen, Button, Card } from '../components';
+import { useUserRole } from '../hooks/useUserRole';
+import { Screen, Card, Button } from '../components';
 import { spacing, colors } from '../utils/theme';
 import { updateOrderStatus } from '../services/orderService';
 
@@ -30,15 +31,15 @@ interface ScannedOrderData {
 
 export const StaffQRScannerScreen: React.FC = () => {
   const { data: user } = useCurrentUser();
+  const { isAdmin, isExecutive, isStaff } = useUserRole(user?.id);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [scanned, setScanned] = useState(false);
   const [scannedData, setScannedData] = useState<ScannedOrderData | null>(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Check if user is staff/admin (case-insensitive)
-  const userRole = user?.role?.toLowerCase();
-  const isStaff = userRole === 'admin' || userRole === 'staff' || userRole === 'manager';
+  // Check if user has staff access
+  const hasStaffAccess = isAdmin || isExecutive || isStaff;
 
   useEffect(() => {
     // Mock permission granting for testing without native modules
@@ -48,10 +49,10 @@ export const StaffQRScannerScreen: React.FC = () => {
       setHasPermission(true);
     };
 
-    if (isStaff) {
+    if (hasStaffAccess) {
       mockPermissionRequest();
     }
-  }, [isStaff]);
+  }, [hasStaffAccess]);
 
   const handleBarCodeScanned = ({ type, data }: { type: string; data: string }) => {
     setScanned(true);
@@ -125,7 +126,7 @@ export const StaffQRScannerScreen: React.FC = () => {
   };
 
   // Access control - only staff can use this screen
-  if (!isStaff) {
+  if (!hasStaffAccess) {
     return (
       <Screen padding>
         <View style={styles.accessDeniedContainer}>

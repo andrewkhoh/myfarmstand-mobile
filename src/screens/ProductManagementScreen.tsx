@@ -163,7 +163,7 @@ export const ProductManagementScreen: React.FC = () => {
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Update',
-          onPress: (value) => {
+          onPress: (value: any) => {
             const newStock = parseInt(value || '0', 10);
             if (isNaN(newStock) || newStock < 0) {
               Alert.alert('Error', 'Please enter a valid positive number.');
@@ -254,7 +254,7 @@ export const ProductManagementScreen: React.FC = () => {
               <Button
                 title={product.is_available ? 'Disable' : 'Enable'}
                 variant={product.is_available ? 'outline' : 'primary'}
-                size="small"
+                size="sm"
                 onPress={() => handleToggleAvailability(product)}
                 disabled={toggleAvailability.isPending}
                 style={styles.actionButton}
@@ -262,7 +262,7 @@ export const ProductManagementScreen: React.FC = () => {
               <Button
                 title="Stock"
                 variant="outline"
-                size="small"
+                size="sm"
                 onPress={() => handleQuickStockUpdate(product)}
                 disabled={bulkUpdateStock.isPending}
                 style={styles.actionButton}
@@ -289,7 +289,7 @@ export const ProductManagementScreen: React.FC = () => {
         <Button
           title={`Availability: ${filters.availability}`}
           variant="outline"
-          size="small"
+          size="sm"
           onPress={() => {
             const options = ['all', 'available', 'unavailable'];
             const currentIndex = options.indexOf(filters.availability);
@@ -302,7 +302,7 @@ export const ProductManagementScreen: React.FC = () => {
         <Button
           title={`Stock: ${filters.stockStatus}`}
           variant="outline"
-          size="small"
+          size="sm"
           onPress={() => {
             const options = ['all', 'low', 'out', 'normal'];
             const currentIndex = options.indexOf(filters.stockStatus);
@@ -321,7 +321,7 @@ export const ProductManagementScreen: React.FC = () => {
       <Text variant="heading4" style={styles.statsTitle}>Overview</Text>
       
       {statsQuery.isLoading ? (
-        <ActivityIndicator size="small" color={colors.primary[600]} />
+        <ActivityIndicator size="sm" color={colors.primary[600]} />
       ) : statsQuery.error ? (
         <Text color="secondary">Stats temporarily unavailable</Text>
       ) : (
@@ -411,7 +411,7 @@ export const ProductManagementScreen: React.FC = () => {
         <FlatList
           data={filteredProducts}
           renderItem={renderProductItem}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item: any) => item.id}
           ListHeaderComponent={
             <>
               {renderStats()}

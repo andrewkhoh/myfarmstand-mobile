@@ -3,14 +3,20 @@
  * Optimized audit trail with enhanced performance and caching
  */
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { StockMovementService } from '../../services/inventory/stockMovementService';
 import { inventoryKeys } from '../../utils/queryKeyFactory';
+import { supabase } from '../../config/supabase';
 import type {
   CreateStockMovementInput,
   MovementFilterInput,
   MovementHistoryInput
 } from '../../schemas/inventory';
+
+// Initialize the service with supabase instance
+if (!StockMovementService.supabaseInstance) {
+  new StockMovementService(supabase);
+}
 
 /**
  * Get movement history with optimized pagination and caching

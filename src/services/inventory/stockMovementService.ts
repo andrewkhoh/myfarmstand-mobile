@@ -31,7 +31,67 @@ export interface TransferData {
 }
 
 export class StockMovementService {
-  constructor(private supabase: SupabaseClient) {}
+  static supabaseInstance: SupabaseClient | null = null;
+
+  constructor(private supabase: SupabaseClient) {
+    StockMovementService.supabaseInstance = supabase;
+  }
+
+  // Static methods for compatibility with hooks
+  static async getMovementsByFilter(filter: any): Promise<any[]> {
+    if (!this.supabaseInstance) {
+      throw new Error('StockMovementService not initialized');
+    }
+
+    try {
+      let query = this.supabaseInstance
+        .from('stock_movements')
+        .select('*');
+
+      // Apply filters
+      if (filter.movementType && filter.movementType !== 'all') {
+        query = query.eq('movement_type', filter.movementType);
+      }
+
+      if (filter.inventoryItemId) {
+        query = query.eq('inventory_item_id', filter.inventoryItemId);
+      }
+
+      const { data, error } = await query.order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Transform the raw data to match what the UI expects
+      return (data || []).map(item => ({
+        id: item.id,
+        inventoryItemId: item.inventory_item_id,
+        movementType: item.movement_type,
+        quantityChange: item.quantity,
+        previousStock: item.stock_before || 0,
+        newStock: item.stock_after || 0,
+        reason: item.reason,
+        performedBy: item.performed_by,
+        performedAt: item.created_at,
+        productName: 'Product',
+      }));
+    } catch (error) {
+      console.error('Error fetching movements by filter:', error);
+      return [];
+    }
+  }
+
+  static async getMovementHistory(params: any): Promise<any[]> {
+    if (!this.supabaseInstance) {
+      throw new Error('StockMovementService not initialized');
+    }
+
+    const service = new StockMovementService(this.supabaseInstance);
+    return service.getMovementHistory(
+      params.inventoryItemId,
+      params.startDate,
+      params.endDate
+    );
+  }
 
   async recordMovement(data: CreateStockMovement): Promise<StockMovement> {
     try {
@@ -59,31 +119,48 @@ export class StockMovementService {
         .single();
 
       if (error) {
-        ValidationMonitor.recordValidationError('movement-record', error);
+        ValidationMonitor.recordValidationError({
+          context: 'movement-record',
+          errorMessage: error.message,
+          validationPattern: 'direct_supabase_query'
+        });
         throw error;
       }
 
       const result = StockMovementTransformSchema.parse(created);
-      ValidationMonitor.recordPatternSuccess('movement-record');
+      ValidationMonitor.recordPatternSuccess({
+        pattern: 'direct_supabase_query',
+        context: 'movement-record'
+      });
       return result;
     } catch (error) {
       if (error instanceof Error && !error.message.includes('ValidationMonitor')) {
-        ValidationMonitor.recordValidationError('movement-record', error);
+        ValidationMonitor.recordValidationError({
+          context: 'movement-record',
+          errorMessage: error.message,
+          validationPattern: 'direct_supabase_query'
+        });
       }
       throw error;
     }
   }
 
   async getMovementHistory(
-    inventoryItemId: string,
+    inventoryItemIdOrLimit?: string | number,
     startDate?: string,
     endDate?: string
   ): Promise<StockMovement[]> {
     try {
       let query = this.supabase
         .from('stock_movements')
-        .select('*')
-        .eq('inventory_item_id', inventoryItemId);
+        .select('*');
+
+      // Handle overloaded parameter - can be inventoryItemId or limit
+      if (typeof inventoryItemIdOrLimit === 'string') {
+        query = query.eq('inventory_item_id', inventoryItemIdOrLimit);
+      } else if (typeof inventoryItemIdOrLimit === 'number') {
+        query = query.limit(inventoryItemIdOrLimit);
+      }
 
       if (startDate) {
         query = query.gte('created_at', startDate);
@@ -95,25 +172,42 @@ export class StockMovementService {
       const { data, error } = await query.order('created_at', { ascending: false });
 
       if (error) {
-        ValidationMonitor.recordValidationError('movement-history', error);
+        ValidationMonitor.recordValidationError({
+          context: 'movement-history',
+          errorMessage: error.message,
+          validationPattern: 'direct_supabase_query'
+        });
         throw error;
       }
 
+      // Validate and transform each movement
       const results: StockMovement[] = [];
       for (const item of data || []) {
         try {
           const validated = StockMovementTransformSchema.parse(item);
           results.push(validated);
         } catch (err) {
-          ValidationMonitor.recordValidationError('movement-history-item', err);
+          ValidationMonitor.recordValidationError({
+            context: 'movement-history-item',
+            errorMessage: err instanceof Error ? err.message : 'Unknown error',
+            validationPattern: 'transformation_schema'
+          });
+          // Continue processing other items
         }
       }
 
-      ValidationMonitor.recordPatternSuccess('movement-history');
+      ValidationMonitor.recordPatternSuccess({
+        pattern: 'direct_supabase_query',
+        context: 'movement-history'
+      });
       return results;
     } catch (error) {
       if (error instanceof Error && !error.message.includes('ValidationMonitor')) {
-        ValidationMonitor.recordValidationError('movement-history', error);
+        ValidationMonitor.recordValidationError({
+          context: 'movement-history',
+          errorMessage: error.message,
+          validationPattern: 'direct_supabase_query'
+        });
       }
       throw error;
     }
@@ -128,11 +222,18 @@ export class StockMovementService {
         results.push({ success: true, data: result });
       } catch (error) {
         results.push({ success: false, error });
-        ValidationMonitor.recordValidationError('batch-movement', error);
+        ValidationMonitor.recordValidationError({
+          context: 'batch-movement',
+          errorMessage: error instanceof Error ? error.message : 'Unknown error',
+          validationPattern: 'atomic_operation'
+        });
       }
     }
 
-    ValidationMonitor.recordPatternSuccess('batch-movement');
+    ValidationMonitor.recordPatternSuccess({
+        pattern: 'atomic_operation',
+        context: 'batch-movement'
+      });
     return results;
   }
 
@@ -145,7 +246,11 @@ export class StockMovementService {
         .order('created_at', { ascending: false });
 
       if (error) {
-        ValidationMonitor.recordValidationError('movements-by-type', error);
+        ValidationMonitor.recordValidationError({
+          context: 'movements-by-type',
+          errorMessage: error.message,
+          validationPattern: 'direct_supabase_query'
+        });
         throw error;
       }
 
@@ -155,15 +260,26 @@ export class StockMovementService {
           const validated = StockMovementTransformSchema.parse(item);
           results.push(validated);
         } catch (err) {
-          ValidationMonitor.recordValidationError('movements-by-type-item', err);
+          ValidationMonitor.recordValidationError({
+            context: 'movements-by-type-item',
+            errorMessage: err instanceof Error ? err.message : 'Unknown error',
+            validationPattern: 'transformation_schema'
+          });
         }
       }
 
-      ValidationMonitor.recordPatternSuccess('movements-by-type');
+      ValidationMonitor.recordPatternSuccess({
+        pattern: 'direct_supabase_query',
+        context: 'movements-by-type'
+      });
       return results;
     } catch (error) {
       if (error instanceof Error && !error.message.includes('ValidationMonitor')) {
-        ValidationMonitor.recordValidationError('movements-by-type', error);
+        ValidationMonitor.recordValidationError({
+          context: 'movements-by-type',
+          errorMessage: error.message,
+          validationPattern: 'direct_supabase_query'
+        });
       }
       throw error;
     }
@@ -178,7 +294,11 @@ export class StockMovementService {
         .order('created_at', { ascending: false });
 
       if (error) {
-        ValidationMonitor.recordValidationError('movements-by-user', error);
+        ValidationMonitor.recordValidationError({
+          context: 'movements-by-user',
+          errorMessage: error.message,
+          validationPattern: 'direct_supabase_query'
+        });
         throw error;
       }
 
@@ -188,15 +308,26 @@ export class StockMovementService {
           const validated = StockMovementTransformSchema.parse(item);
           results.push(validated);
         } catch (err) {
-          ValidationMonitor.recordValidationError('movements-by-user-item', err);
+          ValidationMonitor.recordValidationError({
+            context: 'movements-by-user-item',
+            errorMessage: err instanceof Error ? err.message : 'Unknown error',
+            validationPattern: 'transformation_schema'
+          });
         }
       }
 
-      ValidationMonitor.recordPatternSuccess('movements-by-user');
+      ValidationMonitor.recordPatternSuccess({
+        pattern: 'direct_supabase_query',
+        context: 'movements-by-user'
+      });
       return results;
     } catch (error) {
       if (error instanceof Error && !error.message.includes('ValidationMonitor')) {
-        ValidationMonitor.recordValidationError('movements-by-user', error);
+        ValidationMonitor.recordValidationError({
+          context: 'movements-by-user',
+          errorMessage: error.message,
+          validationPattern: 'direct_supabase_query'
+        });
       }
       throw error;
     }
@@ -210,7 +341,11 @@ export class StockMovementService {
         .eq('inventory_item_id', inventoryItemId);
 
       if (error) {
-        ValidationMonitor.recordValidationError('movement-summary', error);
+        ValidationMonitor.recordValidationError({
+          context: 'movement-summary',
+          errorMessage: error.message,
+          validationPattern: 'direct_supabase_query'
+        });
         throw error;
       }
 
@@ -237,7 +372,11 @@ export class StockMovementService {
           }
           // Transfer movements don't affect net totals for a single item
         } catch (err) {
-          ValidationMonitor.recordValidationError('movement-summary-item', err);
+          ValidationMonitor.recordValidationError({
+            context: 'movement-summary-item',
+            errorMessage: err instanceof Error ? err.message : 'Unknown error',
+            validationPattern: 'transformation_schema'
+          });
         }
       }
 
@@ -248,11 +387,18 @@ export class StockMovementService {
         movementCount,
       };
 
-      ValidationMonitor.recordPatternSuccess('movement-summary');
+      ValidationMonitor.recordPatternSuccess({
+        pattern: 'statistical_calculation',
+        context: 'movement-summary'
+      });
       return result;
     } catch (error) {
       if (error instanceof Error && !error.message.includes('ValidationMonitor')) {
-        ValidationMonitor.recordValidationError('movement-summary', error);
+        ValidationMonitor.recordValidationError({
+          context: 'movement-summary',
+          errorMessage: error.message,
+          validationPattern: 'direct_supabase_query'
+        });
       }
       throw error;
     }
@@ -272,11 +418,18 @@ export class StockMovementService {
       };
 
       const result = await this.recordMovement(movementData);
-      ValidationMonitor.recordPatternSuccess('movement-transfer');
+      ValidationMonitor.recordPatternSuccess({
+        pattern: 'atomic_operation',
+        context: 'movement-transfer'
+      });
       return result;
     } catch (error) {
       if (error instanceof Error && !error.message.includes('ValidationMonitor')) {
-        ValidationMonitor.recordValidationError('movement-transfer', error);
+        ValidationMonitor.recordValidationError({
+          context: 'movement-transfer',
+          errorMessage: error.message,
+          validationPattern: 'atomic_operation'
+        });
       }
       throw error;
     }
@@ -297,7 +450,11 @@ export class StockMovementService {
       const { data, error } = await query.order('created_at', { ascending: false });
 
       if (error) {
-        ValidationMonitor.recordValidationError('get-adjustments', error);
+        ValidationMonitor.recordValidationError({
+          context: 'get-adjustments',
+          errorMessage: error.message,
+          validationPattern: 'direct_supabase_query'
+        });
         throw error;
       }
 
@@ -307,15 +464,26 @@ export class StockMovementService {
           const validated = StockMovementTransformSchema.parse(item);
           results.push(validated);
         } catch (err) {
-          ValidationMonitor.recordValidationError('get-adjustments-item', err);
+          ValidationMonitor.recordValidationError({
+            context: 'get-adjustments-item',
+            errorMessage: err instanceof Error ? err.message : 'Unknown error',
+            validationPattern: 'transformation_schema'
+          });
         }
       }
 
-      ValidationMonitor.recordPatternSuccess('get-adjustments');
+      ValidationMonitor.recordPatternSuccess({
+        pattern: 'direct_supabase_query',
+        context: 'get-adjustments'
+      });
       return results;
     } catch (error) {
       if (error instanceof Error && !error.message.includes('ValidationMonitor')) {
-        ValidationMonitor.recordValidationError('get-adjustments', error);
+        ValidationMonitor.recordValidationError({
+          context: 'get-adjustments',
+          errorMessage: error.message,
+          validationPattern: 'direct_supabase_query'
+        });
       }
       throw error;
     }

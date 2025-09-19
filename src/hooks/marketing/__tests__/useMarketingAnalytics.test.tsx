@@ -1,5 +1,5 @@
 import React from 'react';
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useMarketingAnalytics } from '../useMarketingAnalytics';
 import { analyticsService, campaignService } from '@/services/marketing';

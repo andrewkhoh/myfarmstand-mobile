@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useMarketingAnalytics } from '@/hooks/marketing';
-import { LineChart, PieChart, BarChart } from '@/components/marketing/Charts';
+import { LineChart, BarChart } from '@/components/marketing/Charts';
 import { DateRangePicker } from '@/components/marketing/DateRangePicker';
 import { MetricsCard } from '@/components/marketing/MetricsCard';
 import { ChartConfig } from '@/types/marketing';

@@ -302,7 +302,7 @@ const StockHistoryView: React.FC<StockHistoryViewProps> = ({
       {/* Transaction List */}
       <FlatList
         data={filteredTransactions}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item: any) => item.id}
         renderItem={renderTransactionItem}
         style={styles.transactionsList}
         contentContainerStyle={styles.transactionsListContent}

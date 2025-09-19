@@ -71,7 +71,7 @@ describe('Atomic RPC Functions Test Suite', () => {
       expect(result.data).toHaveProperty('recovery_log_id');
       expect(result.data).toHaveProperty('actions_taken');
       
-      if (result.data?.success) {
+      if (result?.data?.success) {
         expect(result.data.actions_taken).toContain('retry_scheduled');
       }
     });
@@ -95,7 +95,7 @@ describe('Atomic RPC Functions Test Suite', () => {
       expect(result.data).toHaveProperty('success');
       expect(result.data).toHaveProperty('compensation_applied');
       
-      if (result.data?.success && result.data?.compensation_applied) {
+      if (result?.data?.success && result?.data?.compensation_applied) {
         expect(result.data.actions_taken).toContain('stock_restored');
       }
     });
@@ -118,7 +118,7 @@ describe('Atomic RPC Functions Test Suite', () => {
       expect(result.data).toHaveProperty('success');
       expect(result.data).toHaveProperty('rollback_completed');
       
-      if (result.data?.rollback_completed) {
+      if (result?.data?.rollback_completed) {
         expect(result.data.actions_taken).toContain('cart_restored');
       }
     });
@@ -165,7 +165,7 @@ describe('Atomic RPC Functions Test Suite', () => {
       expect(result.data).toHaveProperty('success', true);
       expect(result.data).toHaveProperty('notification_log_id');
       expect(result.data).toHaveProperty('delivery_status');
-      expect(['sent', 'delivered']).toContain(result.data?.delivery_status);
+      expect(['sent', 'delivered']).toContain(result?.data?.delivery_status);
     });
 
     it('should handle pickup ready notification with multiple delivery methods', async () => {
@@ -270,7 +270,7 @@ describe('Atomic RPC Functions Test Suite', () => {
 
       expect(result.data).toHaveProperty('success', false);
       expect(result.data).toHaveProperty('error_message');
-      expect(result.data?.error_message).toContain('past date');
+      expect(result?.data?.error_message).toContain('past date');
     });
   });
 
@@ -331,7 +331,7 @@ describe('Atomic RPC Functions Test Suite', () => {
       expect(result.data).toHaveProperty('success');
       expect(result.data).toHaveProperty('stock_restoration_details');
       
-      if (result.data?.stock_restoration_details) {
+      if (result?.data?.stock_restoration_details) {
         expect(result.data.stock_restoration_details).toHaveProperty('items_processed');
         expect(result.data.stock_restoration_details).toHaveProperty('items_failed');
       }
@@ -352,7 +352,7 @@ describe('Atomic RPC Functions Test Suite', () => {
 
       expect(result.data).toHaveProperty('success', false);
       expect(result.data).toHaveProperty('error_message');
-      expect(result.data?.error_message).toContain('order not found');
+      expect(result?.data?.error_message).toContain('order not found');
     });
 
     it('should handle invalid user ID gracefully', async () => {
@@ -370,7 +370,7 @@ describe('Atomic RPC Functions Test Suite', () => {
 
       expect(result.data).toHaveProperty('success', false);
       expect(result.data).toHaveProperty('error_message');
-      expect(result.data?.error_message).toContain('user not found');
+      expect(result?.data?.error_message).toContain('user not found');
     });
 
     it('should validate required parameters', async () => {
@@ -387,7 +387,7 @@ describe('Atomic RPC Functions Test Suite', () => {
 
       expect(result.data).toHaveProperty('success', false);
       expect(result.data).toHaveProperty('error_message');
-      expect(result.data?.error_message).toContain('required');
+      expect(result?.data?.error_message).toContain('required');
     });
   });
 

@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, waitFor } from '@testing-library/react-native';
 import { Alert } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AccessControlButton } from '../AccessControlButton';
@@ -20,14 +20,11 @@ const mockAlert = jest.fn();
 Alert.alert = mockAlert;
 
 // Mock role-based hooks
-jest.mock('../../../hooks/role-based/useUserRole');
-jest.mock('../../../hooks/role-based/useNavigationPermissions');
+jest.mock('../../../hooks/role-based/useUnifiedRole');
 
-import { useUserRole } from '../../../hooks/role-based/useUserRole';
-import { useNavigationPermissions } from '../../../hooks/role-based/useNavigationPermissions';
+import { useCurrentUserRole } from '../../../hooks/role-based/useUnifiedRole';
 
-const mockUseUserRole = useUserRole as jest.MockedFunction<typeof useUserRole>;
-const mockUseNavigationPermissions = useNavigationPermissions as jest.MockedFunction<typeof useNavigationPermissions>;
+const mockUseCurrentUserRole = useCurrentUserRole as jest.MockedFunction<typeof useCurrentUserRole>;
 
 const createWrapper = () => {
   const queryClient = new QueryClient({
@@ -51,53 +48,14 @@ describe('AccessControlButton Component', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockAlert.mockClear();
-    
+
     // Default user role mock (customer)
-    mockUseUserRole.mockReturnValue({
-      data: {
-        role: 'customer',
-        userId: 'user-123',
-      },
+    mockUseCurrentUserRole.mockReturnValue({
+      data: 'customer',
       isLoading: false,
       error: null,
       refetch: jest.fn(),
-    });
-
-    // Default navigation permissions mock
-    mockUseNavigationPermissions.mockReturnValue({
-      permissions: [],
-      userRole: 'customer',
-      isLoading: false,
-      isBatchLoading: false,
-      batchError: undefined,
-      hasPermissionErrors: false,
-      checkPermission: jest.fn().mockResolvedValue({
-        screen: '',
-        allowed: true,
-        checked: true
-      }),
-      checkPermissions: jest.fn(),
-      validateScreenAccess: jest.fn(),
-      isAllowed: jest.fn().mockReturnValue(true),
-      getPermission: jest.fn().mockReturnValue({
-        screen: '',
-        allowed: true,
-        checked: true
-      }),
-      getAllowedScreens: jest.fn().mockReturnValue([]),
-      getDeniedScreens: jest.fn().mockReturnValue([]),
-      getPermissionErrors: jest.fn().mockReturnValue([]),
-      canAccessAdminScreens: false,
-      canAccessManagementScreens: false,
-      canAccessCustomerOnlyScreens: true,
-      canAccessStaffScreens: false,
-      getScreensByRole: jest.fn().mockReturnValue([]),
-      getAccessibleScreens: jest.fn().mockReturnValue([]),
-      hasPermissions: false,
-      checkedScreenCount: 0,
-      allowedScreenCount: 0,
-      deniedScreenCount: 0
-    });
+    } as any);
   });
 
   describe('Basic Rendering', () => {

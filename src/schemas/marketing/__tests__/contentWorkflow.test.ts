@@ -1,4 +1,4 @@
-import { describe, it, expect } from '@jest/globals';
+import { describe, expect } from '@jest/globals';
 import { contentWorkflowSchema } from '../contentWorkflow';
 
 describe('ContentWorkflow Schema', () => {

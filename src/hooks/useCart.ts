@@ -3,7 +3,7 @@ import { useCallback } from 'react';
 import { cartService } from '../services/cartService';
 import { useCurrentUser } from './useAuth';
 import type { Product, CartState, CartItem } from '../types';
-import { cartKeys, stockKeys, orderKeys } from '../utils/queryKeyFactory';
+import { cartKeys, orderKeys } from '../utils/queryKeyFactory';
 import { cartBroadcast } from '../utils/broadcastFactory';
 
 // Enhanced TypeScript interfaces for cart operations

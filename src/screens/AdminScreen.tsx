@@ -1,9 +1,11 @@
 import React from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
+import { View, ScrollView, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { Screen, Text, Card, Button } from '../components';
+import { Screen, Text, Button, Card } from '../components';
+import { DataPopulationWorking } from '../components/admin/DataPopulationWorking';
 import { useCurrentUser } from '../hooks/useAuth';
+import { useUserRole } from '../hooks/useUserRole';
 import { spacing, colors } from '../utils/theme';
 import { AdminStackParamList } from '../navigation/AdminStackNavigator';
 
@@ -11,14 +13,13 @@ type AdminScreenNavigationProp = StackNavigationProp<AdminStackParamList, 'Admin
 
 export const AdminScreen: React.FC = () => {
   const { data: user } = useCurrentUser();
+  const { role, isAdmin, isExecutive, isStaff } = useUserRole(user?.id);
   const navigation = useNavigation<AdminScreenNavigationProp>();
-  
-  // Role-based visibility helpers (case-insensitive)
-  const isAdmin = user?.role?.toLowerCase() === 'admin';
-  const isManager = user?.role?.toLowerCase() === 'manager';
-  const isStaff = user?.role?.toLowerCase() === 'staff';
-  const isMarketing = user?.role?.toLowerCase() === 'marketing';
-  const canSeeExecutive = isAdmin || isManager;
+
+  // Role-based visibility helpers
+  const isManager = role === 'manager';
+  const isMarketing = role === 'vendor'; // Assuming marketing maps to vendor
+  const canSeeExecutive = isAdmin || isExecutive || isManager;
   const canSeeMarketing = isAdmin || isManager || isMarketing;
   const canSeeInventory = isAdmin || isManager || isStaff;
 
@@ -34,7 +35,7 @@ export const AdminScreen: React.FC = () => {
             Welcome, {user?.name}
           </Text>
           <Text variant="caption" color="tertiary" align="center" style={styles.roleText}>
-            Role: {user?.role?.toUpperCase() || 'UNKNOWN'}
+            Role: {role?.toUpperCase() || 'CUSTOMER'}
           </Text>
         </Card>
 
@@ -95,6 +96,19 @@ export const AdminScreen: React.FC = () => {
           </Card>
         )}
 
+        {/* Data Pipeline Management - Admin Only */}
+        {isAdmin && (
+          <Card variant="outlined" style={styles.sectionCard}>
+            <Text variant="heading3" style={styles.sectionTitle}>
+              🔄 Data Pipeline Management
+            </Text>
+            <Text variant="body" color="secondary" style={styles.sectionDescription}>
+              Manage business metrics data population and analytics pipeline
+            </Text>
+            <DataPopulationWorking />
+          </Card>
+        )}
+
         {/* Marketing & Growth Section - Role Restricted */}
         {canSeeMarketing && (
           <Card variant="outlined" style={styles.sectionCard}>
@@ -145,7 +159,7 @@ export const AdminScreen: React.FC = () => {
             ℹ️ Your Access Level
           </Text>
           <Text variant="body" color="secondary" style={styles.infoText}>
-            As {user?.role === 'admin' ? 'an' : 'a'} <Text style={styles.bold}>{user?.role}</Text>, you have access to:
+            As {role === 'admin' ? 'an' : 'a'} <Text style={styles.bold}>{role}</Text>, you have access to:
           </Text>
           <View style={styles.accessList}>
             {canSeeInventory && (
@@ -195,6 +209,10 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     marginBottom: spacing.md,
+  },
+  sectionDescription: {
+    marginBottom: spacing.md,
+    fontStyle: 'italic',
   },
   featureButton: {
     marginTop: spacing.sm,

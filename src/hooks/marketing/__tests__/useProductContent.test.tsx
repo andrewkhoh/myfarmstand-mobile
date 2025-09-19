@@ -1,7 +1,7 @@
 import React from 'react';
-import { renderHook, waitFor, act } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+import { describe, it, expect, jest } from '@jest/globals';
 import { useProductContent } from '../useProductContent';
 
 // Mock the content service
@@ -132,8 +132,8 @@ describe('useProductContent', () => {
         expect(result.current.isLoading).toBe(false);
       });
       
-      expect(result.current.data?.id).toBe('content-1');
-      expect(result.current.data?.metadata?.seo_title).toBeDefined();
+      expect(result.current?.data?.id).toBe('content-1');
+      expect(result.current?.data?.metadata?.seo_title).toBeDefined();
     });
     
     it('should bulk update content metadata', async () => {
@@ -250,7 +250,7 @@ describe('useProductContent', () => {
       });
       
       await waitFor(() => {
-        expect(result.current.data?.title).toBe('Original');
+        expect(result.current?.data?.title).toBe('Original');
       });
     });
   });

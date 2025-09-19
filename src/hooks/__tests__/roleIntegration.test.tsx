@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { renderHook, waitFor, act } from '@testing-library/react-native';
+import { renderHook, act } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Mock the services
@@ -47,8 +47,8 @@ jest.mock('../../utils/queryKeyFactory', () => ({
 }));
 
 // Import hooks and mocked services
-import { useUserRole, getUserRoleType, isUserRoleActive } from '../role-based/useUserRole';
-import { useUserPermissions, useHasPermission, hasAllPermissions, hasAnyPermission, isAdmin } from '../role-based/usePermissions';
+import { useUserRole, isUserRoleActive } from '../role-based/useUserRole';
+import { useUserPermissions, useHasPermission, hasAllPermissions, isAdmin } from '../role-based/usePermissions';
 import { RolePermissionService } from '../../services/role-based/rolePermissionService';
 import { roleService } from '../../services/roleService';
 
@@ -116,7 +116,7 @@ describe('Role Hooks Integration Tests', () => {
       });
 
       // Verify role data
-      expect(roleResult.current.data?.roleType).toBe('staff');
+      expect(roleResult.current?.data?.roleType).toBe('staff');
       expect(getUserRoleType(roleResult.current)).toBe('staff');
       expect(isUserRoleActive(roleResult.current)).toBe(true);
 
@@ -168,7 +168,7 @@ describe('Role Hooks Integration Tests', () => {
 
       // Wait for initial load
       await waitFor(() => {
-        expect(result.current.data?.roleType).toBe('staff');
+        expect(result.current?.data?.roleType).toBe('staff');
       });
 
       // Update to admin role
@@ -183,7 +183,7 @@ describe('Role Hooks Integration Tests', () => {
 
       // Verify updated role
       await waitFor(() => {
-        expect(result.current.data?.roleType).toBe('admin');
+        expect(result.current?.data?.roleType).toBe('admin');
       });
     });
   });
@@ -363,8 +363,8 @@ describe('Role Hooks Integration Tests', () => {
       });
       
       // Verify different data for different users
-      expect(staffResult.current.data?.roleType).toBe('staff');
-      expect(adminResult.current.data?.roleType).toBe('admin');
+      expect(staffResult.current?.data?.roleType).toBe('staff');
+      expect(adminResult.current?.data?.roleType).toBe('admin');
       
       // Verify both users were fetched
       expect(mockRolePermissionService.getUserRole).toHaveBeenCalledTimes(2);

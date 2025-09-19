@@ -31,14 +31,14 @@ jest.mock('@tanstack/react-query', () => ({
 import React from 'react';
 import { createSupabaseMock } from '../../../test/mocks/supabase.simplified.mock';
 import { hookContracts } from '../../../test/contracts/hook.contracts';
-import { renderHook, waitFor, act } from '@testing-library/react-native';
+import { renderHook, act } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactNode } from 'react';
 
 // Import hooks for security testing
-import { useInventoryItem, useInventoryItems, useLowStockItems } from '../../useInventoryItems';
-import { useUpdateStock, useUpdateVisibility, useBatchUpdateStock } from '../../useInventoryOperations';
-import { useMovementHistory, useRecordMovement, useMovementAnalytics } from '../../useStockMovements';
+import { useInventoryItem, useLowStockItems } from '../../useInventoryItems';
+import { useUpdateStock, useBatchUpdateStock } from '../../useInventoryOperations';
+import { useMovementHistory, useMovementAnalytics } from '../../useStockMovements';
 
 // Services for security testing
 import { InventoryService } from '../../../../services/inventory/inventoryService';
@@ -222,7 +222,7 @@ describe('Security Integration Tests (RED Phase)', () => {
         expect(analyticsResult.current.isSuccess).toBe(true);
       });
 
-      expect(analyticsResult.current.data?.totalMovements).toBe(100);
+      expect(analyticsResult.current?.data?.totalMovements).toBe(100);
     });
 
     it('should restrict inventory staff to appropriate operations only', async () => {
@@ -554,7 +554,7 @@ describe('Security Integration Tests (RED Phase)', () => {
 
       // User A should only see their items
       expect(userAResult.current.data).toEqual(userAItems);
-      expect(userAResult.current.data?.some(item => item.id === 'inv-b1')).toBe(false);
+      expect(userAResult.current?.data?.some(item => item.id === 'inv-b1')).toBe(false);
     });
 
     it('should prevent cross-user inventory access', async () => {

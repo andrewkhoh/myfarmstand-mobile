@@ -1104,23 +1104,101 @@ const validateCartTotal = (cart: CartState): CartState => {
 
 ## 🛡️ **Security Patterns**
 
-### **Pattern 1: User Data Isolation**
+### **Pattern 1: Centralized Role & Permission Management** 🆕
+**Rule**: Always use UnifiedRoleService for all role and permission operations. Never implement local role checks.
+
+```typescript
+// ✅ CORRECT: Using centralized UnifiedRoleService
+import { unifiedRoleService } from '../services/unifiedRoleService';
+
+export const checkUserPermission = async (userId: string, permission: Permission) => {
+  // UnifiedRoleService expects userId and internally looks up the role
+  const hasPermission = await unifiedRoleService.hasPermission(
+    userId,  // ✅ Pass userId, NOT role string
+    permission
+  );
+
+  if (!hasPermission) {
+    throw new Error(`User ${userId} lacks permission: ${permission}`);
+  }
+
+  return hasPermission;
+};
+
+// Service implementation example
+export const getMetrics = async (options: { user_id?: string }) => {
+  if (options?.user_id) {
+    // Check permissions using userId
+    const hasPermission = await unifiedRoleService.hasPermission(
+      options.user_id,  // ✅ CORRECT: Pass userId
+      'analytics:view'
+    );
+
+    if (!hasPermission) {
+      throw new Error('Insufficient permissions');
+    }
+  }
+
+  // Proceed with operation...
+};
+
+// ❌ WRONG: Passing role string instead of userId
+const badPermissionCheck = async (userRole: string, permission: Permission) => {
+  const hasPermission = await unifiedRoleService.hasPermission(
+    userRole,  // ❌ WRONG: Passing 'executive' or 'admin' string
+    permission // UnifiedRoleService expects userId, not role name!
+  );
+};
+
+// ❌ WRONG: Local role checking without centralized service
+const badLocalCheck = async (userRole: string) => {
+  if (userRole === 'admin' || userRole === 'executive') {
+    return true; // ❌ Bypasses centralized permission system
+  }
+  return false;
+};
+
+// ❌ WRONG: Mixed userId and userRole in same interface
+interface BadOptions {
+  user_id?: string;
+  user_role?: string; // ❌ Confusing - use only user_id for permissions
+}
+```
+
+**Key Points:**
+- `UnifiedRoleService.hasPermission()` expects a `userId` (e.g., 'uuid-123')
+- It internally looks up the user's role from the database
+- Never pass role strings like 'executive', 'admin' to `hasPermission()`
+- The service handles caching, audit logging, and permission inheritance
+- Always use `user_id` in options, avoid `user_role` for permission checks
+
+### **Pattern 2: User Data Isolation**
 **Rule**: Never mix user data, always validate user ownership.
 
 ```typescript
-// ✅ CORRECT: Proper user isolation
+// ✅ CORRECT: Proper user isolation with centralized role check
 export const getUserOrders = async (userId: string) => {
   const { data: { user } } = await supabase.auth.getUser();
-  
+
   if (!user || user.id !== userId) {
     throw new Error('Unauthorized access');
+  }
+
+  // Optional: Check specific permission using centralized service
+  const canViewOrders = await unifiedRoleService.hasPermission(
+    user.id,
+    'orders:view'
+  );
+
+  if (!canViewOrders) {
+    throw new Error('Insufficient permissions to view orders');
   }
 
   const { data } = await supabase
     .from('orders')
     .select('*')
     .eq('user_id', user.id); // Always filter by authenticated user
-    
+
   return data;
 };
 
@@ -1130,12 +1208,76 @@ const badGetOrders = async (userId: string) => {
     .from('orders')
     .select('*')
     .eq('user_id', userId); // Trusts the parameter!
-    
+
   return data;
 };
 ```
 
-### **Pattern 2: Cryptographic Channel Security**
+### **Pattern 3: Role Caching & Performance**
+**Rule**: UnifiedRoleService implements automatic caching to avoid redundant database queries.
+
+```typescript
+// The UnifiedRoleService automatically caches roles for 5 minutes
+// No need to implement your own caching!
+
+// ✅ CORRECT: Let UnifiedRoleService handle caching
+export const performMultiplePermissionChecks = async (userId: string) => {
+  // These calls will use cached data after first lookup
+  const canViewAnalytics = await unifiedRoleService.hasPermission(userId, 'analytics:view');
+  const canViewInventory = await unifiedRoleService.hasPermission(userId, 'inventory:view');
+  const canViewMarketing = await unifiedRoleService.hasPermission(userId, 'campaigns:view');
+
+  // First call fetches from DB, subsequent calls use cache
+  return { canViewAnalytics, canViewInventory, canViewMarketing };
+};
+
+// ❌ WRONG: Implementing your own role caching
+const roleCache = new Map();
+const getCachedRole = async (userId: string) => {
+  if (!roleCache.has(userId)) {
+    // ❌ Duplicates UnifiedRoleService's internal caching
+    const role = await fetchUserRole(userId);
+    roleCache.set(userId, role);
+  }
+  return roleCache.get(userId);
+};
+```
+
+### **Pattern 4: Permission Inheritance & Admin Override**
+**Rule**: Admin role automatically has all permissions through UnifiedRoleService.
+
+```typescript
+// The UnifiedRoleService handles permission inheritance automatically:
+// - Admin users have ALL permissions
+// - No need to check role === 'admin' separately
+
+// ✅ CORRECT: Single permission check (admin override is automatic)
+const canPerformAction = await unifiedRoleService.hasPermission(userId, 'sensitive:action');
+// Returns true for admin users even if permission not explicitly granted
+
+// ❌ WRONG: Manual admin check
+if (userRole === 'admin' || await hasPermission(userId, 'sensitive:action')) {
+  // Redundant - UnifiedRoleService already handles admin override
+}
+```
+
+### **Pattern 5: Audit Trail & Security Context**
+**Rule**: UnifiedRoleService automatically logs all permission checks for security auditing.
+
+```typescript
+// All permission checks are automatically logged with:
+// - User ID
+// - Permission requested
+// - Grant/deny decision
+// - Timestamp
+// - Security context
+
+// No additional logging needed in your code
+const hasPermission = await unifiedRoleService.hasPermission(userId, 'data:delete');
+// Automatically creates audit entry
+```
+
+### **Pattern 6: Cryptographic Channel Security**
 **Rule**: Use HMAC-based channel names for real-time features.
 
 ```typescript
@@ -1415,10 +1557,16 @@ When implementing new features, ensure you follow these patterns:
 - [ ] TypeScript interfaces for all mutation and query functions
 
 ### **✅ Security Checklist**
+- [ ] **Use UnifiedRoleService for all permission checks** - Pass userId, not role strings
 - [ ] User data isolation (never trust parameters)
+- [ ] Validate user ownership before data operations
+- [ ] Use centralized permission system (never local role checks)
+- [ ] Let UnifiedRoleService handle caching (5-minute cache)
+- [ ] Let UnifiedRoleService handle admin overrides
 - [ ] Cryptographic channel security for real-time features
 - [ ] Proper authentication checks before operations
 - [ ] No sensitive data in logs or console outputs
+- [ ] Rely on automatic audit logging from UnifiedRoleService
 
 ---
 

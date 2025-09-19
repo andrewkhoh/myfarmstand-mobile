@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text as RNText, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { ProductService } from '../../services/productService';
 import { useProducts, useCategories } from '../../hooks/useProducts';
 import { supabase } from '../../config/supabase';
@@ -219,19 +219,19 @@ Key: ${supabaseKey ? supabaseKey.substring(0, 20) + '...' : 'Not found'}`);
 
   return (
     <ScrollView style={{ flex: 1, padding: 20, backgroundColor: '#f5f5f5' }}>
-      <Text style={{ fontSize: 24, fontWeight: 'bold', marginBottom: 20 }}>
+      <RNText style={{ fontSize: 24, fontWeight: 'bold', marginBottom: 20 }}>
         Product Debug Test Screen
-      </Text>
+      </RNText>
 
       {/* React Query Status */}
       <View style={{ marginBottom: 20, padding: 15, backgroundColor: 'white', borderRadius: 8 }}>
-        <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 10 }}>React Query Status</Text>
-        <Text>Products Loading: {productsLoading ? 'Yes' : 'No'}</Text>
-        <Text>Products Count: {products?.length || 0}</Text>
-        <Text>Products Error: {productsError?.message || 'None'}</Text>
-        <Text>Categories Loading: {categoriesLoading ? 'Yes' : 'No'}</Text>
-        <Text>Categories Count: {categories?.length || 0}</Text>
-        <Text>Categories Error: {categoriesError?.message || 'None'}</Text>
+        <RNText style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 10 }}>React Query Status</RNText>
+        <RNText>Products Loading: {productsLoading ? 'Yes' : 'No'}</RNText>
+        <RNText>Products Count: {products?.length || 0}</RNText>
+        <RNText>Products Error: {productsError?.message || 'None'}</RNText>
+        <RNText>Categories Loading: {categoriesLoading ? 'Yes' : 'No'}</RNText>
+        <RNText>Categories Count: {categories?.length || 0}</RNText>
+        <RNText>Categories Error: {categoriesError?.message || 'None'}</RNText>
       </View>
 
       {/* Test Buttons */}
@@ -241,9 +241,9 @@ Key: ${supabaseKey ? supabaseKey.substring(0, 20) + '...' : 'Not found'}`);
           onPress={checkEnvironmentVars}
           disabled={loading}
         >
-          <Text style={{ color: 'white', textAlign: 'center', fontWeight: 'bold' }}>
+          <RNText style={{ color: 'white', textAlign: 'center', fontWeight: 'bold' }}>
             Check Environment Variables
-          </Text>
+          </RNText>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -251,9 +251,9 @@ Key: ${supabaseKey ? supabaseKey.substring(0, 20) + '...' : 'Not found'}`);
           onPress={testRealTimeUpdates}
           disabled={loading}
         >
-          <Text style={{ color: 'white', textAlign: 'center', fontWeight: 'bold' }}>
+          <RNText style={{ color: 'white', textAlign: 'center', fontWeight: 'bold' }}>
             🔄 Test Real-Time Updates
-          </Text>
+          </RNText>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -261,9 +261,9 @@ Key: ${supabaseKey ? supabaseKey.substring(0, 20) + '...' : 'Not found'}`);
           onPress={testDatabaseIntegrity}
           disabled={loading}
         >
-          <Text style={{ color: 'white', textAlign: 'center', fontWeight: 'bold' }}>
+          <RNText style={{ color: 'white', textAlign: 'center', fontWeight: 'bold' }}>
             🔍 Database Integrity Check
-          </Text>
+          </RNText>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -271,9 +271,9 @@ Key: ${supabaseKey ? supabaseKey.substring(0, 20) + '...' : 'Not found'}`);
           onPress={testPerformanceMetrics}
           disabled={loading}
         >
-          <Text style={{ color: 'white', textAlign: 'center', fontWeight: 'bold' }}>
+          <RNText style={{ color: 'white', textAlign: 'center', fontWeight: 'bold' }}>
             ⚡ Performance Metrics
-          </Text>
+          </RNText>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -281,9 +281,9 @@ Key: ${supabaseKey ? supabaseKey.substring(0, 20) + '...' : 'Not found'}`);
           onPress={testDirectSupabaseConnection}
           disabled={loading}
         >
-          <Text style={{ color: 'white', textAlign: 'center', fontWeight: 'bold' }}>
+          <RNText style={{ color: 'white', textAlign: 'center', fontWeight: 'bold' }}>
             Test Direct Supabase Query
-          </Text>
+          </RNText>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -291,9 +291,9 @@ Key: ${supabaseKey ? supabaseKey.substring(0, 20) + '...' : 'Not found'}`);
           onPress={testProductService}
           disabled={loading}
         >
-          <Text style={{ color: 'white', textAlign: 'center', fontWeight: 'bold' }}>
+          <RNText style={{ color: 'white', textAlign: 'center', fontWeight: 'bold' }}>
             Test ProductService.getProducts()
-          </Text>
+          </RNText>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -301,42 +301,42 @@ Key: ${supabaseKey ? supabaseKey.substring(0, 20) + '...' : 'Not found'}`);
           onPress={testCategoriesService}
           disabled={loading}
         >
-          <Text style={{ color: 'white', textAlign: 'center', fontWeight: 'bold' }}>
+          <RNText style={{ color: 'white', textAlign: 'center', fontWeight: 'bold' }}>
             Test ProductService.getCategories()
-          </Text>
+          </RNText>
         </TouchableOpacity>
       </View>
 
       {/* Debug Output */}
       {debugInfo && (
         <View style={{ backgroundColor: '#333', padding: 15, borderRadius: 8, marginBottom: 20 }}>
-          <Text style={{ color: 'white', fontSize: 12, fontFamily: 'monospace' }}>
+          <RNText style={{ color: 'white', fontSize: 12, fontFamily: 'monospace' }}>
             {debugInfo}
-          </Text>
+          </RNText>
         </View>
       )}
 
       {/* Current Products Display */}
       {products && products.length > 0 && (
         <View style={{ backgroundColor: 'white', padding: 15, borderRadius: 8, marginBottom: 20 }}>
-          <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 10 }}>
+          <RNText style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 10 }}>
             Current Products from React Query
-          </Text>
+          </RNText>
           {products.slice(0, 3).map((product, index) => (
             <View key={product.id} style={{ marginBottom: 10, padding: 10, backgroundColor: '#f0f0f0', borderRadius: 5 }}>
-              <Text style={{ fontWeight: 'bold' }}>{product.name}</Text>
-              <Text>Price: ${product.price}</Text>
-              <Text>Stock: {getProductStock(product)}</Text>
-              <Text>Category ID: {getProductCategoryId(product)}</Text>
+              <RNText style={{ fontWeight: 'bold' }}>{product.name}</RNText>
+              <RNText>Price: ${product.price}</RNText>
+              <RNText>Stock: {getProductStock(product)}</RNText>
+              <RNText>Category ID: {getProductCategoryId(product)}</RNText>
             </View>
           ))}
         </View>
       )}
 
       {loading && (
-        <Text style={{ textAlign: 'center', fontSize: 16, color: '#666' }}>
+        <RNText style={{ textAlign: 'center', fontSize: 16, color: '#666' }}>
           Running test...
-        </Text>
+        </RNText>
       )}
     </ScrollView>
   );

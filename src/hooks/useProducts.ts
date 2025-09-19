@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { Product, Category } from '../types';
 import { 
@@ -491,7 +491,7 @@ export const useCategories = () => {
     mutationFn: async (): Promise<ProductOperationResult<Category[]>> => {
       try {
         await query.refetch();
-        const newCategories = queryClient.getQueryData<Category[]>(categoriesQueryKey) || [];
+        const newCategories = queryClient.getQueryData<Category[]>(categoriesQueryKey()) || [];
         return { success: true, data: newCategories };
       } catch (error: any) {
         throw createProductError(
@@ -503,10 +503,10 @@ export const useCategories = () => {
     },
     onMutate: async (): Promise<ProductMutationContext> => {
       // Cancel outgoing refetches (following cart pattern)
-      await queryClient.cancelQueries({ queryKey: categoriesQueryKey });
+      await queryClient.cancelQueries({ queryKey: categoriesQueryKey() });
       
       // Snapshot previous value (following cart pattern)
-      const previousData = queryClient.getQueryData<Category[]>(categoriesQueryKey);
+      const previousData = queryClient.getQueryData<Category[]>(categoriesQueryKey());
       
       return { 
         previousData, 
@@ -517,7 +517,7 @@ export const useCategories = () => {
     onError: (error: any, _variables: void, context?: ProductMutationContext) => {
       // Rollback on error (following cart pattern)
       if (context?.previousData) {
-        queryClient.setQueryData(categoriesQueryKey, context.previousData);
+        queryClient.setQueryData(categoriesQueryKey(), context.previousData);
       }
       
       // Enhanced error logging (following cart pattern)
@@ -529,7 +529,7 @@ export const useCategories = () => {
     },
     onSuccess: async (_result: ProductOperationResult<Category[]>) => {
       // Smart invalidation strategy (following cart pattern)
-      await queryClient.invalidateQueries({ queryKey: categoriesQueryKey });
+      await queryClient.invalidateQueries({ queryKey: categoriesQueryKey() });
       
       // Broadcast success (following cart pattern)
       await productBroadcast.send('categories-refreshed', {
@@ -545,7 +545,7 @@ export const useCategories = () => {
   });
   
   // Enhanced utility functions with useCallback (following cart pattern)
-  const getCategoriesQueryKey = useCallback(() => categoriesQueryKey, [user?.id]);
+  const categoriesQueryKey = useCallback(() => categoriesQueryKey(), [user?.id]);
 
   // ✅ ARCHITECTURAL PATTERN: Simple conditional return based on auth state
   if (!user?.id) {
@@ -564,7 +564,7 @@ export const useCategories = () => {
         success: false, 
         error: createProductError('AUTHENTICATION_REQUIRED', 'Not authenticated', 'Please sign in') 
       }),
-      getCategoriesQueryKey: () => ['categories', 'unauthenticated'],
+      categoriesQueryKey: () => ['categories', 'unauthenticated'],
     };
   }
 
@@ -581,7 +581,7 @@ export const useCategories = () => {
     refreshCategoriesAsync: refreshCategoriesMutation.mutateAsync,
     
     // Query keys for external use (following cart pattern)
-    getCategoriesQueryKey,
+    categoriesQueryKey,
   };
 };
 

@@ -206,6 +206,35 @@ export class ValidationMonitor {
   }
 
   /**
+   * Record general validation event (for validation pipelines)
+   * Generic method for recording validation attempts
+   */
+  static recordValidation(details: {
+    isValid: boolean;
+    context?: string;
+    message?: string;
+    validationType?: string;
+  }): void {
+    this.updateTimestamp();
+
+    const logData = {
+      timestamp: new Date().toISOString(),
+      type: 'VALIDATION_EVENT',
+      isValid: details.isValid,
+      context: details.context,
+      message: details.message,
+      validationType: details.validationType
+    };
+
+    if (details.isValid) {
+      console.debug(`${this.LOG_PREFIX} Validation successful: ${details.context}`, logData);
+    } else {
+      this.metrics.validationErrors++;
+      console.warn(`${this.LOG_PREFIX} Validation failed: ${details.context}`, logData);
+    }
+  }
+
+  /**
    * Get current validation metrics
    * Useful for health checks and monitoring dashboards
    */

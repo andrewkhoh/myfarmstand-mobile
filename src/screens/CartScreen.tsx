@@ -1,13 +1,13 @@
 import React from 'react';
-import { View, StyleSheet, FlatList, Image, TouchableOpacity, Alert, Text as RNText } from 'react-native';
+import { View, StyleSheet, FlatList, Image, TouchableOpacity, Text as RNText, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
-import { Screen, Text, Card, Button } from '../components';
+import { Screen, Text, Button, Card } from '../components';
 import { useCart } from '../hooks/useCart';
 import { getStockDisplayInfo } from '../utils/stockDisplay';
-import { spacing, colors, borderRadius } from '../utils/theme';
-import { CartItem, Product, RootStackParamList } from '../types';
+import { spacing, borderRadius, colors } from '../utils/theme';
+import { CartItem, RootStackParamList } from '../types';
 
 type CartScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Checkout'>;
 
@@ -260,7 +260,7 @@ export const CartScreen: React.FC = () => {
       <FlatList
         data={items}
         renderItem={renderCartItem}
-        keyExtractor={(item) => item.product.id}
+        keyExtractor={(item: any) => item.product.id}
         ListHeaderComponent={renderHeader}
         ListFooterComponent={renderFooter}
         contentContainerStyle={styles.container}

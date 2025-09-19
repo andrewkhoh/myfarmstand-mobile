@@ -1,11 +1,17 @@
 import { useQuery } from '@tanstack/react-query';
-import { marketingKeys } from '@/utils/queryKeys';
-import { analyticsService } from '@/services/marketing';
+import { contentService } from '../../services/marketing/content.service';
 
 export function usePendingContent() {
-  return useQuery({
-    queryKey: marketingKeys.content.pending(),
-    queryFn: () => analyticsService.getPendingContent(),
+  const query = useQuery({
+    queryKey: ['content', 'pending'],
+    queryFn: () => contentService.getPendingContent(),
     staleTime: 30000,
   });
+
+  return {
+    content: query.data || [],
+    isLoading: query.isLoading,
+    error: query.error,
+    refetch: query.refetch,
+  };
 }

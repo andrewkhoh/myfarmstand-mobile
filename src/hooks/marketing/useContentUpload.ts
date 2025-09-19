@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { marketingKeys } from '@/utils/queryKeys';
-import { uploadService } from '@/services/marketing';
-import type { ProductContent } from '@/types/marketing';
+import { marketingKeys } from '../../utils/queryKeyFactory';
+import { fileUploadService } from '../../services/marketing';
+import type { ProductContent } from '../../types/marketing';
 
 export function useContentUpload(contentId: string) {
   const [uploadProgress, setUploadProgress] = useState<number>(0);
@@ -17,7 +17,7 @@ export function useContentUpload(contentId: string) {
       
       setUploadProgress(0);
       
-      return await uploadService.uploadFile(formData, {
+      return await fileUploadService.uploadFile(formData, {
         onUploadProgress: (progressEvent) => {
           const progress = Math.round(
             (progressEvent.loaded * 100) / progressEvent.total!

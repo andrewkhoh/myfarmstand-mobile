@@ -5,13 +5,13 @@
  */
 
 import React from 'react';
-import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Alert } from 'react-native';
-
+import { UserRole } from '../types/roles';import { render, fireEvent, act } from '@testing-library/react-native';
+import { UserRole } from '../types/roles';import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { UserRole } from '../types/roles';import { Alert } from 'react-native';
+import { UserRole } from '../types/roles';
 // Component under test
 import InventoryDashboardScreen from '../InventoryDashboardScreen';
-
+import { UserRole } from '../types/roles';
 // Mock navigation
 const mockNavigate = jest.fn();
 const mockGoBack = jest.fn();

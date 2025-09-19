@@ -3,7 +3,7 @@
  * Verifies that order status broadcast performance improvements work correctly
  */
 
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+import { describe, it, expect, jest } from '@jest/globals';
 import * as BroadcastFactory from '../broadcastFactory';
 
 const { sendMultiTargetBroadcast, SecureChannelNameGenerator } = BroadcastFactory;

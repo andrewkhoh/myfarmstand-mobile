@@ -112,8 +112,8 @@ describe('Performance Integration - Phase 3.4.4 (RED Phase)', () => {
       const serviceMetrics = performanceTracker.end(operation);
 
       expect(serviceResult.success).toBe(true);
-      expect(serviceResult.data?.items.length).toBeLessThanOrEqual(100);
-      expect(serviceResult.data?.performanceMetrics).toBeTruthy();
+      expect(serviceResult?.data?.items.length).toBeLessThanOrEqual(100);
+      expect(serviceResult?.data?.performanceMetrics).toBeTruthy();
 
       // Performance assertions
       expect(serviceMetrics.duration).toBeLessThan(2000); // Under 2 seconds
@@ -163,12 +163,12 @@ describe('Performance Integration - Phase 3.4.4 (RED Phase)', () => {
       const transformMetrics = performanceTracker.end(operation);
 
       expect(transformationResult.success).toBe(true);
-      expect(transformationResult.data?.transformedCount).toBe(500);
-      expect(transformationResult.data?.failedCount).toBe(0);
+      expect(transformationResult?.data?.transformedCount).toBe(500);
+      expect(transformationResult?.data?.failedCount).toBe(0);
 
       // Performance assertions
       expect(transformMetrics.duration).toBeLessThan(3000); // Under 3 seconds for 500 items
-      expect(transformationResult.data?.averageTransformTime).toBeLessThan(10); // Under 10ms per item
+      expect(transformationResult?.data?.averageTransformTime).toBeLessThan(10); // Under 10ms per item
     });
 
     test('should handle concurrent content operations efficiently', async () => {
@@ -243,8 +243,8 @@ describe('Performance Integration - Phase 3.4.4 (RED Phase)', () => {
       const uploadMetrics = performanceTracker.end(operation);
 
       expect(uploadResult.success).toBe(true);
-      expect(uploadResult.data?.fileUrl).toBeTruthy();
-      expect(uploadResult.data?.compressionRatio).toBeGreaterThan(0);
+      expect(uploadResult?.data?.fileUrl).toBeTruthy();
+      expect(uploadResult?.data?.compressionRatio).toBeGreaterThan(0);
 
       // Performance assertions
       expect(uploadMetrics.duration).toBeLessThan(15000); // Under 15 seconds for 10MB
@@ -319,7 +319,7 @@ describe('Performance Integration - Phase 3.4.4 (RED Phase)', () => {
       const errorRecoveryMetrics = performanceTracker.end(operation);
 
       expect(uploadResult.success).toBe(true);
-      expect(uploadResult.data?.retryCount).toBeLessThanOrEqual(3);
+      expect(uploadResult?.data?.retryCount).toBeLessThanOrEqual(3);
       expect(errorRecoveryMetrics.duration).toBeLessThan(12000); // Under 12 seconds with retries
     });
   });
@@ -355,13 +355,13 @@ describe('Performance Integration - Phase 3.4.4 (RED Phase)', () => {
       const aggregationMetrics = performanceTracker.end(operation);
 
       expect(aggregationResult.success).toBe(true);
-      expect(aggregationResult.data?.aggregatedMetrics).toBeTruthy();
-      expect(aggregationResult.data?.processingTime).toBeLessThan(5000);
+      expect(aggregationResult?.data?.aggregatedMetrics).toBeTruthy();
+      expect(aggregationResult?.data?.processingTime).toBeLessThan(5000);
 
       // Performance assertions
       expect(aggregationMetrics.duration).toBeLessThan(3000); // Under 3 seconds for 10k metrics
-      expect(aggregationResult.data?.metricsProcessed).toBe(10000);
-      expect(aggregationResult.data?.performanceStats.averageProcessingTime).toBeLessThan(1);
+      expect(aggregationResult?.data?.metricsProcessed).toBe(10000);
+      expect(aggregationResult?.data?.performanceStats.averageProcessingTime).toBeLessThan(1);
     });
 
     test('should handle real-time metric updates efficiently', async () => {
@@ -418,12 +418,12 @@ describe('Performance Integration - Phase 3.4.4 (RED Phase)', () => {
       const analysisMetrics = performanceTracker.end(operation);
 
       expect(analysisResult.success).toBe(true);
-      expect(analysisResult.data?.analysisResults).toBeTruthy();
-      expect(analysisResult.data?.campaignsAnalyzed).toBe(50);
+      expect(analysisResult?.data?.analysisResults).toBeTruthy();
+      expect(analysisResult?.data?.campaignsAnalyzed).toBe(50);
 
       // Performance assertions
       expect(analysisMetrics.duration).toBeLessThan(10000); // Under 10 seconds for 50 campaigns
-      expect(analysisResult.data?.performanceStats.averageAnalysisTime).toBeLessThan(200);
+      expect(analysisResult?.data?.performanceStats.averageAnalysisTime).toBeLessThan(200);
     });
   });
 
@@ -500,7 +500,7 @@ describe('Performance Integration - Phase 3.4.4 (RED Phase)', () => {
       const memoryMetrics = performanceTracker.end(operation);
 
       expect(cleanupResult.success).toBe(true);
-      expect(cleanupResult.data?.memoryFreed).toBeGreaterThan(0);
+      expect(cleanupResult?.data?.memoryFreed).toBeGreaterThan(0);
       expect(memoryMetrics.memoryUsage).toBeLessThan(150 * 1024 * 1024); // Under 150MB
     });
 
@@ -522,7 +522,7 @@ describe('Performance Integration - Phase 3.4.4 (RED Phase)', () => {
       const coordinationMetrics = performanceTracker.end(operation);
 
       expect(coordinationResult.success).toBe(true);
-      expect(coordinationResult.data?.updatedEntities.length).toBeGreaterThan(0);
+      expect(coordinationResult?.data?.updatedEntities.length).toBeGreaterThan(0);
       expect(coordinationMetrics.duration).toBeLessThan(500); // Under 500ms for coordination
     });
   });
@@ -584,7 +584,7 @@ describe('Performance Integration - Phase 3.4.4 (RED Phase)', () => {
       const cleanupMetrics = performanceTracker.end(operation);
 
       expect(cleanupResult.success).toBe(true);
-      expect(cleanupResult.data?.resourcesCleanedUp).toBeGreaterThan(0);
+      expect(cleanupResult?.data?.resourcesCleanedUp).toBeGreaterThan(0);
       expect(cleanupMetrics.duration).toBeLessThan(6000); // Under 6 seconds including timeout
     });
   });

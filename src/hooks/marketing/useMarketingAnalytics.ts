@@ -1,8 +1,9 @@
 import { useMemo } from 'react';
 import { useQuery, useQueries } from '@tanstack/react-query';
-import { marketingKeys } from '@/utils/queryKeys';
-import { analyticsService, campaignService } from '@/services/marketing';
-import type { MarketingAnalytics, Campaign, ProductContent } from '@/types/marketing';
+import { analyticsService } from '../../services/marketing/analytics.service';
+import { campaignService } from '../../services/marketing/campaign.service';
+import { marketingKeys } from '../../utils/queryKeyFactory';
+import type { MarketingAnalytics, Campaign, ProductContent } from '../../types/marketing';
 
 export function useMarketingAnalytics(options?: {
   includeHistorical?: boolean;
@@ -100,7 +101,7 @@ export function useMarketingAnalytics(options?: {
   
   // Content performance aggregation
   const contentMetrics = useMemo(() => {
-    if (!analyticsQuery.data?.contentPerformance) {
+    if (!analyticsQuery?.data?.contentPerformance) {
       // Return default values when no data
       return {
         totalViews: 0,
@@ -157,10 +158,10 @@ export function useMarketingAnalytics(options?: {
     
     // Stats
     stats: {
-      activeCampaigns: campaignsQuery.data?.length ?? 0,
-      pendingContent: pendingContentQuery.data?.length ?? 0,
-      totalRevenue: analyticsQuery.data?.revenue ?? 0,
-      publishedContent: analyticsQuery.data?.publishedContent ?? 0,
+      activeCampaigns: campaignsQuery?.data?.length ?? 0,
+      pendingContent: pendingContentQuery?.data?.length ?? 0,
+      totalRevenue: analyticsQuery?.data?.revenue ?? 0,
+      publishedContent: analyticsQuery?.data?.publishedContent ?? 0,
     },
     
     // Actions

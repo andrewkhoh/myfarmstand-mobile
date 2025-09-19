@@ -167,7 +167,7 @@ describe('useUserRole Hook Tests', () => {
         expect(result.current.isSuccess).toBe(true);
       });
 
-      expect(result.current.data?.userId).toBe(providedUserId);
+      expect(result.current?.data?.userId).toBe(providedUserId);
       expect(mockGetUserRole).toHaveBeenCalledWith(providedUserId);
     });
   });
@@ -270,8 +270,8 @@ describe('useUserRole Hook Tests', () => {
         expect(result.current.isSuccess).toBe(true);
       });
 
-      expect(result.current.data?.roleType).toBe('inventory_staff');
-      expect(result.current.data?.permissions).toContain('view_inventory');
+      expect(result.current?.data?.roleType).toBe('inventory_staff');
+      expect(result.current?.data?.permissions).toContain('view_inventory');
     });
 
     it('should handle marketing_staff role', async () => {
@@ -291,8 +291,8 @@ describe('useUserRole Hook Tests', () => {
         expect(result.current.isSuccess).toBe(true);
       });
 
-      expect(result.current.data?.roleType).toBe('marketing_staff');
-      expect(result.current.data?.permissions).toContain('create_promotions');
+      expect(result.current?.data?.roleType).toBe('marketing_staff');
+      expect(result.current?.data?.permissions).toContain('create_promotions');
     });
 
     it('should handle executive role', async () => {
@@ -312,8 +312,8 @@ describe('useUserRole Hook Tests', () => {
         expect(result.current.isSuccess).toBe(true);
       });
 
-      expect(result.current.data?.roleType).toBe('executive');
-      expect(result.current.data?.permissions).toContain('view_all_analytics');
+      expect(result.current?.data?.roleType).toBe('executive');
+      expect(result.current?.data?.permissions).toContain('view_all_analytics');
     });
 
     it('should handle admin role with all permissions', async () => {
@@ -342,9 +342,9 @@ describe('useUserRole Hook Tests', () => {
         expect(result.current.isSuccess).toBe(true);
       });
 
-      expect(result.current.data?.roleType).toBe('admin');
-      expect(result.current.data?.permissions).toContain('manage_users');
-      expect(result.current.data?.permissions).toContain('system_administration');
+      expect(result.current?.data?.roleType).toBe('admin');
+      expect(result.current?.data?.permissions).toContain('manage_users');
+      expect(result.current?.data?.permissions).toContain('system_administration');
     });
   });
 

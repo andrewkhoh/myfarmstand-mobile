@@ -1,5 +1,5 @@
 import { useMarketingAnalytics } from './useMarketingAnalytics';
-import { useCampaignPerformance } from './useCampaignPerformance';
+import { useCampaignData } from './useCampaignData';
 
 export function useMarketingDashboard() {
   const {
@@ -13,9 +13,9 @@ export function useMarketingDashboard() {
     refetchAll,
   } = useMarketingAnalytics();
   
-  // Get performance for top campaign
+  // Get data for top campaign
   const topCampaignId = activeCampaigns?.[0]?.id;
-  const topCampaignPerformance = useCampaignPerformance(
+  const topCampaignData = useCampaignData(
     topCampaignId || 'default',
     { enableRealtime: !!topCampaignId }
   );
@@ -33,7 +33,7 @@ export function useMarketingDashboard() {
     
     // Performance data
     performanceTrends,
-    topCampaignPerformance: topCampaignId ? topCampaignPerformance.performance : undefined,
+    topCampaignData: topCampaignId ? topCampaignData.data : undefined,
     
     // Lists
     activeCampaigns,

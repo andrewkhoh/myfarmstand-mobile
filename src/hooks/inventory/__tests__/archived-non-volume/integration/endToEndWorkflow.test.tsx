@@ -31,13 +31,13 @@ jest.mock('@tanstack/react-query', () => ({
 import React from 'react';
 import { createSupabaseMock } from '../../../test/mocks/supabase.simplified.mock';
 import { hookContracts } from '../../../test/contracts/hook.contracts';
-import { renderHook, waitFor, act } from '@testing-library/react-native';
+import { renderHook, act } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactNode } from 'react';
 
 // Import all layers for integration testing
-import { useInventoryItem, useInventoryItems, useLowStockItems } from '../../useInventoryItems';
-import { useUpdateStock, useUpdateVisibility, useBatchUpdateStock } from '../../useInventoryOperations';
+import { useInventoryItem, useLowStockItems } from '../../useInventoryItems';
+import { useUpdateStock, useBatchUpdateStock } from '../../useInventoryOperations';
 import { useMovementHistory, useRecordMovement } from '../../useStockMovements';
 
 // Services (will be mocked but with realistic behaviors)
@@ -187,7 +187,7 @@ describe('End-to-End Inventory Workflow Integration Tests (RED Phase)', () => {
         expect(historyResult.current.isSuccess).toBe(true);
       });
 
-      expect(historyResult.current.data?.success).toContainEqual(movementRecord);
+      expect(historyResult.current?.data?.success).toContainEqual(movementRecord);
 
       // Verify all service calls were made correctly
       expect(mockInventoryService.getInventoryItem).toHaveBeenCalledWith('inv-123');
@@ -254,8 +254,8 @@ describe('End-to-End Inventory Workflow Integration Tests (RED Phase)', () => {
       });
 
       expect(result.current.data).toEqual(partialResult);
-      expect(result.current.data?.success).toHaveLength(1);
-      expect(result.current.data?.errors).toHaveLength(2);
+      expect(result.current?.data?.success).toHaveLength(1);
+      expect(result.current?.data?.errors).toHaveLength(2);
     });
   });
 
@@ -600,7 +600,7 @@ describe('End-to-End Inventory Workflow Integration Tests (RED Phase)', () => {
 
       // Verify data consistency
       const item = inventoryResult.current.data;
-      const latestMovement = movementResult.current.data?.success[0];
+      const latestMovement = movementResult.current?.data?.success[0];
 
       expect(item?.currentStock).toBe(latestMovement?.newStock);
       expect(item?.lastStockUpdate).toBe(latestMovement?.performedAt);

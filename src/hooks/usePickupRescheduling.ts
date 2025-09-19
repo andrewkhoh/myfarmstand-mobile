@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
-import { PickupReschedulingService, RescheduleRequest, RescheduleResult } from '../services/pickupReschedulingService';
+import { PickupReschedulingService, RescheduleResult } from '../services/pickupReschedulingService';
 import { orderKeys } from '../utils/queryKeyFactory';
 import { orderBroadcast } from '../utils/broadcastFactory';
 import { useCurrentUser } from './useAuth';

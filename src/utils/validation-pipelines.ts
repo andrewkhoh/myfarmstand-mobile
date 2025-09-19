@@ -164,7 +164,7 @@ export class ValidationPipeline<TInput = any, TOutput = any> {
         }
         
         if (this.options.monitor) {
-          this.options.monitor.recordValidation(false, this.name, validationErrors);
+          this.options.ValidationMonitor.recordValidation(false, this.name, validationErrors);
         }
         
         if (this.options.strict) {
@@ -176,7 +176,7 @@ export class ValidationPipeline<TInput = any, TOutput = any> {
       
       // Success
       if (this.options.monitor) {
-        this.options.monitor.recordValidation(true, this.name);
+        this.options.ValidationMonitor.recordValidation(true, this.name);
       }
       
       const finalResult = this.createResult(

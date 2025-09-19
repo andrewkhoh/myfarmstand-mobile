@@ -1,6 +1,6 @@
-import { MarketingCampaignService, CampaignFilters, CampaignMetricsUpdate } from '../marketingCampaign.service';
-import { MarketingCampaign, CampaignType, CampaignStatus } from '@/schemas/marketing';
-import { ServiceError, NotFoundError, ValidationError, ForbiddenError } from '../errors/ServiceError';
+import { MarketingCampaignService, CampaignMetricsUpdate } from '../marketingCampaign.service';
+import { MarketingCampaign, CampaignStatus } from '@/schemas/marketing';
+import { ServiceError, NotFoundError, ForbiddenError } from '../errors/ServiceError';
 import { v4 as uuidv4 } from 'uuid';
 
 describe('MarketingCampaignService', () => {

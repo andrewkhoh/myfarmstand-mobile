@@ -30,7 +30,7 @@ export function useBulkUpdateStock(onProgress?: ProgressCallback) {
       // Track successful updates
       const successIds = results
         .filter(r => r.success)
-        .map(r => r.data?.id)
+        .map(r => r?.data?.id)
         .filter(Boolean);
       
       // Invalidate affected items
@@ -42,7 +42,7 @@ export function useBulkUpdateStock(onProgress?: ProgressCallback) {
       
       // Invalidate list views
       queryClient.invalidateQueries({
-        queryKey: ['inventory', 'list']
+        queryKey: inventoryKeys.lists()
       });
     }
   });
@@ -69,7 +69,7 @@ export function useBulkCreateItems() {
     onSuccess: () => {
       // Invalidate lists and dashboard
       queryClient.invalidateQueries({
-        queryKey: ['inventory', 'list']
+        queryKey: inventoryKeys.lists()
       });
       queryClient.invalidateQueries({
         queryKey: ['inventory', 'dashboard']
@@ -81,11 +81,17 @@ export function useBulkCreateItems() {
 export function useBulkDeleteItems() {
   const queryClient = useQueryClient();
   const service = new InventoryService(supabase);
-  
+
   return useMutation({
     mutationFn: async (itemIds: string[]) => {
+      // Get current user ID
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
       const results = await Promise.allSettled(
-        itemIds.map(id => service.deleteInventoryItem(id))
+        itemIds.map(id => service.deleteInventoryItem(id, user.id))
       );
       
       return results.map((result, index) => {
@@ -98,10 +104,10 @@ export function useBulkDeleteItems() {
     },
     onMutate: async (itemIds) => {
       // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ['inventory', 'list'] });
+      await queryClient.cancelQueries({ queryKey: inventoryKeys.lists() });
       
       // Snapshot the previous value
-      const previousItems = queryClient.getQueryData(['inventory', 'list']);
+      const previousItems = queryClient.getQueryData(inventoryKeys.lists());
       
       // Optimistically remove items
       queryClient.setQueryData(['inventory', 'list'], (old: any) => {

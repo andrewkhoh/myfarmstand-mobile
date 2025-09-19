@@ -1,14 +1,14 @@
 import React, { useState, useMemo, useCallback, useRef } from 'react';
-import { View, StyleSheet, FlatList, TextInput, RefreshControl, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, StyleSheet, FlatList, TextInput, RefreshControl, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
-import { Screen, Text, Card, Button } from '../components';
+import { Screen, Text, Button, Card } from '../components';
 import { ProductCard } from '../components/ProductCard';
 import { useProducts, useCategories } from '../hooks/useProducts';
 import { useCart } from '../hooks/useCart';
 import { useKioskContext } from '../contexts';
-import { spacing, colors, borderRadius } from '../utils/theme';
+import { spacing, borderRadius, colors } from '../utils/theme';
 import { Product, RootStackParamList } from '../types';
 import { getProductCategoryId } from '../utils/typeMappers';
 
@@ -394,7 +394,7 @@ export const ShopScreen: React.FC = () => {
         <FlatList
           data={filteredAndSortedProducts}
           renderItem={renderProduct}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item: any) => item.id}
           ListHeaderComponent={renderHeader}
           ListEmptyComponent={renderEmptyState}
           contentContainerStyle={styles.container}

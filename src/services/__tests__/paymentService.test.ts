@@ -38,7 +38,7 @@ jest.mock('../../utils/validationMonitor', () => ({
 // ============================================================================
 
 import { paymentService } from '../paymentService';
-import { createUser, createOrder, createPayment, createPaymentMethod, resetAllFactories } from '../../test/factories';
+import { createUser, createOrder, createPayment, resetAllFactories } from '../../test/factories';
 
 describe('PaymentService - Refactored Infrastructure', () => {
   let testUser: any;

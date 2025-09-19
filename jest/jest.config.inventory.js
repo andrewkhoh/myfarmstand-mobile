@@ -1,5 +1,6 @@
 module.exports = {
-  // CRITICAL FIX: Only scan src directory to avoid Docker volumes
+  // Fix root directory
+  rootDir: '../',
   roots: ['<rootDir>/src'],
   
   // Ignore Docker volumes to prevent Jest from scanning them
@@ -21,7 +22,6 @@ module.exports = {
     throwOnModuleCollision: false
   },
   testEnvironment: 'jsdom',
-  setupFiles: ['<rootDir>/src/test/globals.js'],
   setupFilesAfterEnv: ['<rootDir>/src/test/test-setup.ts'],
   globals: {
     TEST_MODE: 'default'

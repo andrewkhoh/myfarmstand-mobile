@@ -1,8 +1,8 @@
-import { useEffect, useState, useCallback } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useCallback, useState } from 'react';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { RealtimeService } from '../services/realtimeService';
 import { useCurrentUser } from './useAuth';
-import { cartKeys, orderKeys, productKeys, authKeys, notificationKeys } from '../utils/queryKeyFactory';
+import { cartKeys, orderKeys, productKeys, notificationKeys, authKeys } from '../utils/queryKeyFactory';
 import { createBroadcastHelper } from '../utils/broadcastFactory';
 
 // Enhanced interfaces following cart pattern
@@ -387,7 +387,8 @@ export const useRealtime = () => {
       
       getRealtimeQueryKey: () => ['realtime', 'unauthenticated'],
       isUserAuthenticated: false,
-      isInitialized: false
+      isInitialized: false,
+      isEnabled: false // Add isEnabled for consistency
     };
   }
 
@@ -419,7 +420,8 @@ export const useRealtime = () => {
     
     // Legacy support
     isUserAuthenticated: !!user,
-    isInitialized: status.isInitialized
+    isInitialized: status.isInitialized,
+    isEnabled: status.isInitialized // Add isEnabled for consistency
   };
 };
 

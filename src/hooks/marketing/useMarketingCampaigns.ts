@@ -2,12 +2,12 @@
 // Following architectural patterns from docs/architectural-patterns-and-best-practices.md
 // Pattern: React Query + centralized factory + ValidationMonitor + role permissions
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useAuth } from '../useAuth';
-import { MarketingCampaignService } from '../../services/marketing/marketingCampaignService';
-import { RolePermissionService } from '../../services/role-based/rolePermissionService';
+import { campaignService } from '../../services/marketing';
+import { unifiedRoleService } from '../../services/unifiedRoleService';
 import { ValidationMonitor } from '../../utils/validationMonitor';
-import { campaignKeys, contentKeys, bundleKeys } from '../../utils/queryKeyFactory';
+import { campaignKeys, bundleKeys } from '../../utils/queryKeyFactory';
 import type {
   MarketingCampaignTransform,
   CreateMarketingCampaignInput,
@@ -94,7 +94,7 @@ export function useMarketingCampaigns(
       }
 
       // Role-based access control
-      const hasPermission = await RolePermissionService.hasPermission(
+      const hasPermission = await unifiedRoleService.hasPermission(
         effectiveUserId,
         'campaign_management'
       );
@@ -109,7 +109,7 @@ export function useMarketingCampaigns(
         throw new Error('Insufficient permissions for campaign access');
       }
 
-      const result = await MarketingCampaignService.getCampaignsByStatus(status, pagination, effectiveUserId);
+      const result = await campaignService.getCampaignsByStatus(status, pagination, effectiveUserId);
       
       if (!result.success || !result.data) {
         ValidationMonitor.recordValidationError({
@@ -143,7 +143,7 @@ export function useCampaignPerformance(campaignId: string) {
   return useQuery({
     queryKey: campaignKeys.performance(campaignId),
     queryFn: async (): Promise<CampaignPerformanceResponse> => {
-      const result = await MarketingCampaignService.getCampaignPerformance(campaignId);
+      const result = await campaignService.getCampaignPerformance(campaignId);
       
       if (!result.success || !result.data) {
         ValidationMonitor.recordValidationError({
@@ -186,7 +186,7 @@ export function useCreateCampaign() {
       campaignData: CreateMarketingCampaignInput;
       userId: string;
     }): Promise<MarketingCampaignTransform> => {
-      const result = await MarketingCampaignService.createCampaign(campaignData, userId);
+      const result = await campaignService.createCampaign(campaignData, userId);
       
       if (!result.success || !result.data) {
         ValidationMonitor.recordValidationError({
@@ -242,7 +242,7 @@ export function useCampaignScheduling() {
       scheduleData: ScheduleCampaignInput;
       userId: string;
     }): Promise<ScheduleResponse> => {
-      const result = await MarketingCampaignService.scheduleCampaign(campaignId, scheduleData, userId);
+      const result = await campaignService.scheduleCampaign(campaignId, scheduleData, userId);
       
       if (!result.success || !result.data) {
         ValidationMonitor.recordValidationError({
@@ -297,7 +297,7 @@ export function useCampaignMetrics() {
       value: number;
       userId: string;
     }): Promise<{ recorded: boolean }> => {
-      const result = await MarketingCampaignService.recordCampaignMetric(campaignId, metricType, value, userId);
+      const result = await campaignService.recordCampaignMetric(campaignId, metricType, value, userId);
       
       if (!result.success) {
         ValidationMonitor.recordValidationError({
@@ -351,7 +351,7 @@ export function useUpdateCampaignStatus() {
       newStatus: CampaignStatusType;
       userId: string;
     }): Promise<MarketingCampaignTransform> => {
-      const result = await MarketingCampaignService.updateCampaignStatus(campaignId, newStatus, userId);
+      const result = await campaignService.updateCampaignStatus(campaignId, newStatus, userId);
       
       if (!result.success || !result.data) {
         ValidationMonitor.recordValidationError({

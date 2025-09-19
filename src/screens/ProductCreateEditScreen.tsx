@@ -27,7 +27,7 @@ import {
   KeyboardAvoidingView,
   Platform
 } from 'react-native';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useNavigation, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { 
   Screen, 
@@ -527,10 +527,10 @@ export const ProductCreateEditScreen: React.FC = () => {
                 <View style={styles.formField}>
                   <Text variant="body" style={styles.fieldLabel}>Category</Text>
                   {categoriesQuery.isLoading ? (
-                    <ActivityIndicator size="small" color={colors.primary} />
+                    <ActivityIndicator size="sm" color={colors.primary} />
                   ) : (
                     <View style={styles.categorySelector}>
-                      {categoriesQuery.data?.map(category => (
+                      {categoriesQuery?.data?.map(category => (
                         <TouchableOpacity
                           key={category.id}
                           style={[
@@ -568,7 +568,7 @@ export const ProductCreateEditScreen: React.FC = () => {
                       <Button
                         title="Add"
                         variant="outline"
-                        size="small"
+                        size="sm"
                         onPress={handleAddTag}
                         disabled={!tagInput.trim()}
                       />
@@ -597,7 +597,7 @@ export const ProductCreateEditScreen: React.FC = () => {
                   <Text variant="body" style={styles.switchLabel}>Available for Sale</Text>
                   <Switch
                     value={formData.is_available}
-                    onValueChange={(value) => handleFieldChange('is_available', value)}
+                    onValueChange={(value: any) => handleFieldChange('is_available', value)}
                     trackColor={{ false: colors.border, true: colors.primary }}
                     thumbColor={colors.background}
                   />
@@ -607,7 +607,7 @@ export const ProductCreateEditScreen: React.FC = () => {
                   <Text variant="body" style={styles.switchLabel}>Bundle Product</Text>
                   <Switch
                     value={formData.is_bundle}
-                    onValueChange={(value) => handleFieldChange('is_bundle', value)}
+                    onValueChange={(value: any) => handleFieldChange('is_bundle', value)}
                     trackColor={{ false: colors.border, true: colors.primary }}
                     thumbColor={colors.background}
                   />
@@ -617,7 +617,7 @@ export const ProductCreateEditScreen: React.FC = () => {
                   <Text variant="body" style={styles.switchLabel}>Pre-order Item</Text>
                   <Switch
                     value={formData.is_pre_order}
-                    onValueChange={(value) => handleFieldChange('is_pre_order', value)}
+                    onValueChange={(value: any) => handleFieldChange('is_pre_order', value)}
                     trackColor={{ false: colors.border, true: colors.primary }}
                     thumbColor={colors.background}
                   />
@@ -627,7 +627,7 @@ export const ProductCreateEditScreen: React.FC = () => {
                   <Text variant="body" style={styles.switchLabel}>Weekly Special</Text>
                   <Switch
                     value={formData.is_weekly_special}
-                    onValueChange={(value) => handleFieldChange('is_weekly_special', value)}
+                    onValueChange={(value: any) => handleFieldChange('is_weekly_special', value)}
                     trackColor={{ false: colors.border, true: colors.primary }}
                     thumbColor={colors.background}
                   />
@@ -716,54 +716,54 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: spacing.large,
+    padding: spacing.lg,
   },
   loadingText: {
-    marginTop: spacing.medium,
+    marginTop: spacing.md,
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: spacing.large,
+    padding: spacing.lg,
   },
   errorSubtext: {
-    marginTop: spacing.small,
-    marginBottom: spacing.large,
+    marginTop: spacing.sm,
+    marginBottom: spacing.lg,
   },
   backButton: {
     minWidth: 120,
   },
   headerCard: {
-    margin: spacing.medium,
-    marginBottom: spacing.small,
+    margin: spacing.md,
+    marginBottom: spacing.sm,
   },
   globalErrors: {
-    marginTop: spacing.medium,
-    padding: spacing.small,
+    marginTop: spacing.md,
+    padding: spacing.sm,
     backgroundColor: colors.errorLight,
     borderRadius: 8,
   },
   sectionCard: {
-    margin: spacing.medium,
-    marginTop: spacing.small,
+    margin: spacing.md,
+    marginTop: spacing.sm,
   },
   sectionTitle: {
-    marginBottom: spacing.medium,
+    marginBottom: spacing.md,
     color: colors.primary,
   },
   formField: {
-    marginBottom: spacing.medium,
+    marginBottom: spacing.md,
   },
   formRow: {
     flexDirection: 'row',
-    gap: spacing.medium,
+    gap: spacing.md,
   },
   formFieldHalf: {
     flex: 1,
   },
   fieldLabel: {
-    marginBottom: spacing.small,
+    marginBottom: spacing.sm,
     fontWeight: '600',
     color: colors.text,
   },
@@ -771,7 +771,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 8,
-    padding: spacing.medium,
+    padding: spacing.md,
     fontSize: 16,
     backgroundColor: colors.background,
   },
@@ -784,19 +784,19 @@ const styles = StyleSheet.create({
     backgroundColor: colors.errorLight,
   },
   fieldErrors: {
-    marginTop: spacing.small,
+    marginTop: spacing.sm,
   },
   errorText: {
-    marginTop: spacing.tiny,
+    marginTop: spacing.xs,
   },
   categorySelector: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.small,
+    gap: spacing.sm,
   },
   categoryOption: {
-    paddingHorizontal: spacing.medium,
-    paddingVertical: spacing.small,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 20,
@@ -807,34 +807,34 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryLight,
   },
   tagContainer: {
-    gap: spacing.small,
+    gap: spacing.sm,
   },
   tagInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.small,
+    gap: spacing.sm,
   },
   tagInput: {
     flex: 1,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 8,
-    padding: spacing.small,
+    padding: spacing.sm,
     fontSize: 14,
   },
   tagList: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.small,
+    gap: spacing.sm,
   },
   tag: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.small,
-    paddingVertical: spacing.tiny,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
     backgroundColor: colors.primaryLight,
     borderRadius: 16,
-    gap: spacing.tiny,
+    gap: spacing.xs,
   },
   tagRemove: {
     fontWeight: 'bold',
@@ -843,7 +843,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: spacing.small,
+    paddingVertical: spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
@@ -852,7 +852,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   imagePreview: {
-    marginTop: spacing.small,
+    marginTop: spacing.sm,
     alignItems: 'center',
   },
   previewImage: {
@@ -862,17 +862,17 @@ const styles = StyleSheet.create({
     backgroundColor: colors.backgroundSecondary,
   },
   imageNote: {
-    marginTop: spacing.small,
+    marginTop: spacing.sm,
     textAlign: 'center',
     fontStyle: 'italic',
   },
   actionCard: {
-    margin: spacing.medium,
-    marginBottom: spacing.large,
+    margin: spacing.md,
+    marginBottom: spacing.lg,
   },
   actionButtons: {
     flexDirection: 'row',
-    gap: spacing.medium,
+    gap: spacing.md,
   },
   actionButton: {
     flex: 1,

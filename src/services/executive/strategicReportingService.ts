@@ -4,7 +4,7 @@
 
 import { supabase } from '../../config/supabase';
 import { ValidationMonitor } from '../../utils/validationMonitor';
-import { RolePermissionService } from '../rolePermissionService';
+import { unifiedRoleService } from '../unifiedRoleService';
 import { 
   StrategicReportingDatabaseSchema,
   StrategicReportingTransformSchema,
@@ -80,7 +80,7 @@ export class StrategicReportingService {
     try {
       // Role permission check
       if (userContext?.user_role) {
-        const hasPermission = await RolePermissionService.hasPermission(
+        const hasPermission = await unifiedRoleService.hasPermission(
           userContext.user_role as any,
           'strategic_reporting_read'
         );
@@ -173,7 +173,7 @@ export class StrategicReportingService {
     try {
       // Role permission check for scheduling
       if (userContext?.user_role) {
-        const hasPermission = await RolePermissionService.hasPermission(
+        const hasPermission = await unifiedRoleService.hasPermission(
           userContext.user_role as any,
           'strategic_reporting_write'
         );

@@ -2,10 +2,10 @@
 // Following architectural patterns from docs/architectural-patterns-and-best-practices.md
 // Pattern: React Query + centralized factory + ValidationMonitor + role permissions + inventory integration
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useAuth } from '../useAuth';
-import { ProductBundleService } from '../../services/marketing/productBundleService';
-import { RolePermissionService } from '../../services/rolePermissionService';
+import { bundleService } from '../../services/marketing';
+import { unifiedRoleService } from '../../services/unifiedRoleService';
 import { ValidationMonitor } from '../../utils/validationMonitor';
 import { bundleKeys, inventoryKeys } from '../../utils/queryKeyFactory';
 import type {
@@ -90,7 +90,7 @@ export function useProductBundles(
   const { user } = useAuth();
   const effectiveUserId = userId || user?.id;
 
-  return useQuery({
+  const query = useQuery({
     queryKey: bundleKeys.byStatusPaginated(status, pagination),
     queryFn: async (): Promise<PaginatedResponse<ProductBundleTransform>> => {
       if (!effectiveUserId) {
@@ -98,11 +98,11 @@ export function useProductBundles(
       }
 
       // Role-based access control
-      const hasPermission = await RolePermissionService.hasPermission(
+      const hasPermission = await unifiedRoleService.hasPermission(
         effectiveUserId,
         'bundle_management'
       );
-      
+
       if (!hasPermission) {
         ValidationMonitor.recordValidationError({
           context: 'useProductBundles',
@@ -113,8 +113,8 @@ export function useProductBundles(
         throw new Error('Insufficient permissions for bundle access');
       }
 
-      const result = await ProductBundleService.getBundlesByStatus(status, pagination, effectiveUserId);
-      
+      const result = await bundleService.getBundlesByStatus(status, pagination, effectiveUserId);
+
       if (!result.success || !result.data) {
         ValidationMonitor.recordValidationError({
           context: 'useProductBundles',
@@ -137,6 +137,15 @@ export function useProductBundles(
     staleTime: 3 * 60 * 1000, // 3 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
   });
+
+  return {
+    bundles: query?.data?.items || [],
+    isLoading: query.isLoading,
+    error: query.error,
+    refetch: query.refetch,
+    totalCount: query?.data?.totalCount || 0,
+    hasMore: query?.data?.hasMore || false,
+  };
 }
 
 /**
@@ -147,7 +156,7 @@ export function useBundlePerformance(bundleId: string) {
   return useQuery({
     queryKey: bundleKeys.performance(bundleId),
     queryFn: async (): Promise<BundlePerformance> => {
-      const result = await ProductBundleService.getBundlePerformance(bundleId);
+      const result = await bundleService.getBundlePerformance(bundleId);
       
       if (!result.success || !result.data) {
         ValidationMonitor.recordValidationError({
@@ -190,7 +199,7 @@ export function useCreateBundle() {
       bundleData: CreateProductBundleInput;
       userId: string;
     }): Promise<ProductBundleTransform> => {
-      const result = await ProductBundleService.createBundle(bundleData, userId);
+      const result = await bundleService.createBundle(bundleData, userId);
       
       if (!result.success || !result.data) {
         ValidationMonitor.recordValidationError({
@@ -247,7 +256,7 @@ export function useBundleInventoryImpact() {
       bundleProducts: BundleProductInput[];
       bundleQuantity: number;
     }): Promise<InventoryImpactResponse> => {
-      const result = await ProductBundleService.calculateInventoryImpact(bundleProducts, bundleQuantity);
+      const result = await bundleService.calculateInventoryImpact(bundleProducts, bundleQuantity);
       
       if (!result.success || !result.data) {
         ValidationMonitor.recordValidationError({
@@ -307,7 +316,7 @@ export function useUpdateBundleProducts() {
       userId: string;
     }): Promise<ProductBundleTransform> => {
       const updateData: UpdateBundleProductsInput = { products };
-      const result = await ProductBundleService.updateBundleProducts(bundleId, updateData, userId);
+      const result = await bundleService.updateBundleProducts(bundleId, updateData, userId);
       
       if (!result.success || !result.data) {
         ValidationMonitor.recordValidationError({
@@ -370,7 +379,7 @@ export function useToggleBundleStatus() {
       isActive: boolean;
       userId: string;
     }): Promise<ProductBundleTransform> => {
-      const result = await ProductBundleService.toggleBundleStatus(bundleId, { isActive }, userId);
+      const result = await bundleService.toggleBundleStatus(bundleId, { isActive }, userId);
       
       if (!result.success || !result.data) {
         ValidationMonitor.recordValidationError({
@@ -432,7 +441,7 @@ export function useBundleDiscountCalculation() {
       savingsPercentage: number;
       hasMeaningfulSavings: boolean;
     }> => {
-      const result = await ProductBundleService.calculateBundleDiscount(bundleId, campaignId);
+      const result = await bundleService.calculateBundleDiscount(bundleId, campaignId);
       
       if (!result.success || !result.data) {
         ValidationMonitor.recordValidationError({

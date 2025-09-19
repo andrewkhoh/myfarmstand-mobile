@@ -55,7 +55,7 @@ jest.mock('../../utils/validationMonitor', () => ({
 // ============================================================================
 
 import { cartService } from '../cartService';
-import { createUser, createProduct, createCartItem, resetAllFactories } from '../../test/factories';
+import { createUser, createProduct, resetAllFactories } from '../../test/factories';
 
 describe('CartService - Refactored Infrastructure', () => {
   let testUser: any;

@@ -15,7 +15,7 @@ import {
   Platform
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { Text, Card, Button, Loading } from '../../components';
+import { Text, Card, Loading } from '../../components';
 import { useUserRole } from '../../hooks/role-based/useUserRole';
 import { useRoleNavigation } from '../../hooks/role-based/useRoleNavigation';
 import { useRoleMenu } from '../../hooks/role-based/useRoleMenu';

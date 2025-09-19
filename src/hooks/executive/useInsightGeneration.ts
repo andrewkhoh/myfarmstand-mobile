@@ -1,12 +1,13 @@
 // Phase 4.3: Insight Generation Hook Implementation (GREEN Phase)
 // Following established React Query patterns
 
-import React, { useState, useCallback } from 'react';
+import * as React from 'react';
+import { useState, useCallback } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { BusinessIntelligenceService } from '../../services/executive/businessIntelligenceService';
 import { useUserRole } from '../role-based/useUserRole';
 import { executiveAnalyticsKeys } from '../../utils/queryKeyFactory';
-import { ValidationMonitor } from '../../utils/validationMonitor';
+import { ValidationMonitor } from '../../utils/validationMonitorAdapter';
 
 interface UseInsightGenerationOptions {
   dataSource?: string[];
@@ -17,7 +18,7 @@ interface UseInsightGenerationOptions {
 }
 
 export function useInsightGeneration(options: UseInsightGenerationOptions = {}) {
-  const { role, hasPermission } = useUserRole();
+  const userRole = useUserRole();
   const queryClient = useQueryClient();
   const [generatedInsight, setGeneratedInsight] = useState<any>(null);
   const [batchResults, setBatchResults] = useState<any[]>([]);
@@ -38,17 +39,17 @@ export function useInsightGeneration(options: UseInsightGenerationOptions = {}) 
         ValidationMonitor.recordValidationError({
           context: 'useInsightGeneration.generateInsightMutation',
           errorCode: 'INSIGHT_GENERATION_FAILED',
-          validationPattern: 'insight_generation_mutation',
-          errorMessage: error.message,
-          impact: 'data_rejected'
+          errorMessage: error.message
         });
         throw error;
       }
       
       const result = await BusinessIntelligenceService.generateInsights({
-        data_sources: options.dataSource,
-        insight_type: options.analysisType,
-        include_statistical_validation: options.includeStatisticalValidation
+        insight_type: options.analysisType === 'trend' ? 'trend' :
+                     options.analysisType === 'anomaly' ? 'anomaly' :
+                     options.analysisType === 'correlation' ? 'correlation' : 'recommendation',
+        min_confidence: 0.7,
+        include_recommendations: true
       });
 
       if (result.insights && result.insights.length > 0) {
@@ -67,12 +68,12 @@ export function useInsightGeneration(options: UseInsightGenerationOptions = {}) 
     },
     onSuccess: (result) => {
       ValidationMonitor.recordPatternSuccess({
-        pattern: 'insight_generation_single',
-        context: 'useInsightGeneration.generateInsightMutation',
-        description: `Successfully generated ${options.analysisType || 'general'} insight`
+        service: 'InsightGeneration',
+        pattern: 'generate_business_insights',
+        operation: 'generateInsightMutation'
       });
-      queryClient.invalidateQueries({ 
-        queryKey: executiveAnalyticsKeys.businessInsights(role) 
+      queryClient.invalidateQueries({
+        queryKey: executiveAnalyticsKeys.businessInsights(userRole?.data?.id)
       });
     },
     onError: (error: Error) => {
@@ -82,7 +83,6 @@ export function useInsightGeneration(options: UseInsightGenerationOptions = {}) 
         ValidationMonitor.recordValidationError({
           context: 'useInsightGeneration.generateInsightMutation',
           errorCode: 'INSIGHT_GENERATION_FAILED',
-          validationPattern: 'insight_generation_mutation',
           errorMessage: error.message
         });
       }
@@ -121,19 +121,18 @@ export function useInsightGeneration(options: UseInsightGenerationOptions = {}) 
     },
     onSuccess: (results) => {
       ValidationMonitor.recordPatternSuccess({
-        pattern: 'insight_generation_batch',
-        context: 'useInsightGeneration.generateBatchMutation',
-        description: `Successfully generated ${results.length} batch insights`
+        service: 'InsightGeneration',
+        pattern: 'generate_business_insights',
+        operation: 'generateBatchMutation'
       });
-      queryClient.invalidateQueries({ 
-        queryKey: executiveAnalyticsKeys.businessInsights(role) 
+      queryClient.invalidateQueries({
+        queryKey: executiveAnalyticsKeys.businessInsights(userRole?.data?.id)
       });
     },
     onError: (error: Error) => {
       ValidationMonitor.recordValidationError({
         context: 'useInsightGeneration.generateBatchMutation',
         errorCode: 'BATCH_INSIGHT_GENERATION_FAILED',
-        validationPattern: 'insight_generation_mutation',
         errorMessage: error.message
       });
     }

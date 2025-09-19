@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { formatCurrency, formatPercent, formatNumber } from '../../utils/formatters';
+import { formatCurrency, formatNumber, formatPercent } from '../../utils/formatters';
 import { TrendIndicator } from './TrendIndicator';
 
 export interface KPIComparisonProps {

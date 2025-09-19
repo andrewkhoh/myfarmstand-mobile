@@ -16,7 +16,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { Text, Card, Button, Loading } from '../../components';
+import { Text, Card, Loading } from '../../components';
 import { useUserRole } from '../../hooks/role-based/useUserRole';
 import { RolePermissionService } from '../../services/role-based/rolePermissionService';
 import { ValidationMonitor } from '../../utils/validationMonitor';
@@ -124,7 +124,7 @@ export const PermissionManagementScreen: React.FC<PermissionManagementScreenProp
               try {
                 const permissionsResult = await RolePermissionService.getRolePermissions(roleData.role_type as UserRole);
                 const permissions = permissionsResult.success ? 
-                  permissionsResult.data?.map(p => p.permission_name) || [] : [];
+                  permissionsResult?.data?.map(p => p.permission_name) || [] : [];
                 
                 return {
                   role: roleData.role_type as UserRole,
@@ -187,7 +187,7 @@ export const PermissionManagementScreen: React.FC<PermissionManagementScreenProp
       const allRoles: UserRole[] = ['customer', 'farmer', 'vendor', 'admin', 'staff'];
       
       const rolesWithPermissions = await Promise.all(
-        allRoles.map(async (role) => {
+        allRoles.map(async (role: any) => {
           const permissionsResult = await RolePermissionService.getRolePermissions(role);
           
           const permissions = permissionsResult.success && permissionsResult.data ? 
@@ -492,14 +492,14 @@ export const PermissionManagementScreen: React.FC<PermissionManagementScreenProp
         </View>
 
         <View style={styles.permissionGrid}>
-          {permissionCategories.map((category) => {
+          {permissionCategories.map((category: any) => {
             const categoryPermissions = roleData.permissions.filter(p => p.category === category);
             if (categoryPermissions.length === 0) return null;
 
             return (
               <View key={category} style={styles.permissionCategory}>
                 <Text style={styles.permissionCategoryTitle}>{category.toUpperCase()}</Text>
-                {categoryPermissions.map((permission) => (
+                {categoryPermissions.map((permission: any) => (
                   <View key={permission.name} style={styles.permissionItem}>
                     <Text style={styles.permissionName}>{permission.name}</Text>
                     <Text style={styles.permissionDescription}>{permission.description}</Text>
@@ -561,7 +561,7 @@ export const PermissionManagementScreen: React.FC<PermissionManagementScreenProp
         <FlatList
           data={filteredUsers}
           renderItem={renderUserItem}
-          keyExtractor={(item) => item.userId}
+          keyExtractor={(item: any) => item.userId}
           style={styles.usersList}
           contentContainerStyle={styles.usersListContent}
           refreshControl={
@@ -594,7 +594,7 @@ export const PermissionManagementScreen: React.FC<PermissionManagementScreenProp
         <FlatList
           data={rolePermissions}
           renderItem={renderRolePermissionItem}
-          keyExtractor={(item) => item.role}
+          keyExtractor={(item: any) => item.role}
           style={styles.permissionsList}
           contentContainerStyle={styles.permissionsListContent}
           refreshControl={

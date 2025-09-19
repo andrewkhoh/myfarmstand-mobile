@@ -141,9 +141,9 @@ describe('useAuth Hook Tests - Refactored Infrastructure', () => {
         expect(result.current.data).toBeDefined();
       });
 
-      expect(result.current.data?.id).toBe(mockUser.id);
-      expect(result.current.data?.email).toBe(mockUser.email);
-      expect(result.current.data?.name).toBe(mockUser.name);
+      expect(result.current?.data?.id).toBe(mockUser.id);
+      expect(result.current?.data?.email).toBe(mockUser.email);
+      expect(result.current?.data?.name).toBe(mockUser.name);
 
       expect(result.current.isLoading).toBe(false);
       expect(result.current.error).toBeFalsy();

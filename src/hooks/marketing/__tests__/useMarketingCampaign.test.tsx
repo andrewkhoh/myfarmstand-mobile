@@ -1,7 +1,7 @@
 import React from 'react';
-import { renderHook, waitFor, act } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+import { describe, it, expect, jest } from '@jest/globals';
 
 // Mock the hook (doesn't exist yet - RED phase)
 const useMarketingCampaign = jest.fn();

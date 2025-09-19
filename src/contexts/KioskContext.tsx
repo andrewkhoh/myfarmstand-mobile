@@ -2,9 +2,11 @@ import React, { createContext, useContext, useCallback, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useKioskAuth, useKioskSession } from '../hooks/useKiosk';
-import { ValidationMonitor } from '../utils/validationMonitor';
+import { ValidationMonitor } from '../utils/validationMonitorAdapter';
 import { kioskKeys } from '../utils/queryKeyFactory';
 import { useCurrentUser } from '../hooks/useAuth';
+import { useCurrentUserRole } from '../hooks/role-based/useUnifiedRole';
+import { UserRole } from '../types/roles';
 import type { KioskSession } from '../schemas/kiosk.schema';
 
 // ✅ PATTERN: Using centralized query key factory
@@ -117,11 +119,24 @@ const KioskContext = createContext<KioskContextValue | null>(null);
 export const KioskProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const queryClient = useQueryClient();
   const { data: user } = useCurrentUser();
+
+  // Use unified role hook for consistent role management
+  const userRoleResult = useCurrentUserRole();
   const [isAuthenticationVisible, setIsAuthenticationVisible] = useState(false);
-  
+
+  // Extract role information using unified system
+  const userRole = userRoleResult.role;
+  const isAdmin = userRoleResult.hasRole('admin');
+  const isExecutive = userRoleResult.hasRole('manager');
+  const isStaff = userRoleResult.hasRole('staff') || userRoleResult.hasRole('vendor') || userRoleResult.hasRole('farmer');
+
+  // ✅ INVARIANT: Always use the same query key regardless of kiosk/non-kiosk mode
+  // This prevents hook order violations when switching between modes
+  const stableUserId = 'kiosk-session'; // Fixed key for all kiosk operations
+
   // ✅ PATTERN: React Query manages persistence (not direct AsyncStorage)
   const persistedSessionQuery = useQuery({
-    queryKey: kioskKeys.all(user?.id),
+    queryKey: kioskKeys.all(stableUserId),
     queryFn: kioskSessionStorage.get,
     staleTime: Infinity, // Local storage doesn't go stale
     gcTime: Infinity,    // Keep in cache indefinitely
@@ -131,11 +146,11 @@ export const KioskProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   });
 
   // Get current session data from server if we have a persisted session AND user has kiosk permissions
-  const userRole = user?.role;
-  const hasKioskPermissions = userRole && ['staff', 'manager', 'admin'].includes(userRole);
-  const shouldFetchSession = persistedSessionQuery.data?.sessionId && hasKioskPermissions;
-  
-  const sessionQuery = useKioskSession(shouldFetchSession ? (persistedSessionQuery.data?.sessionId || null) : null);
+  const hasKioskPermissions = isAdmin || isExecutive || isStaff;
+  const sessionId = persistedSessionQuery?.data?.sessionId || null;
+
+  // Always call useKioskSession with consistent null/string parameter
+  const sessionQuery = useKioskSession(sessionId);
   
   // Hooks for kiosk operations
   const kioskAuth = useKioskAuth();
@@ -145,12 +160,12 @@ export const KioskProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     mutationFn: kioskSessionStorage.set,
     onSuccess: (sessionData) => {
       // Update the persisted session query cache
-      queryClient.setQueryData(kioskKeys.all(user?.id), sessionData);
-      
+      queryClient.setQueryData(kioskKeys.all(stableUserId), sessionData);
+
       // ✅ PATTERN: Smart invalidation (targeted, not over-invalidating)
-      queryClient.invalidateQueries({ 
-        queryKey: kioskKeys.sessions(user?.id),
-        exact: false 
+      queryClient.invalidateQueries({
+        queryKey: kioskKeys.sessions(stableUserId),
+        exact: false
       });
       
       ValidationMonitor.recordPatternSuccess({
@@ -159,7 +174,7 @@ export const KioskProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         operation: 'persistSession'
       });
     },
-    onError: (error) => {
+    onError: (error: any) => {
       ValidationMonitor.recordValidationError({
         context: 'KioskContext.persistSessionMutation',
         errorMessage: error instanceof Error ? error.message : 'Unknown error',
@@ -173,12 +188,12 @@ export const KioskProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     mutationFn: kioskSessionStorage.remove,
     onSuccess: () => {
       // Clear the persisted session from cache
-      queryClient.setQueryData(kioskKeys.all(user?.id), null);
-      
+      queryClient.setQueryData(kioskKeys.all(stableUserId), null);
+
       // ✅ PATTERN: Smart invalidation
-      queryClient.invalidateQueries({ 
-        queryKey: kioskKeys.all(user?.id),
-        exact: false 
+      queryClient.invalidateQueries({
+        queryKey: kioskKeys.all(stableUserId),
+        exact: false
       });
       
       ValidationMonitor.recordPatternSuccess({
@@ -187,7 +202,7 @@ export const KioskProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         operation: 'clearSession'
       });
     },
-    onError: (error) => {
+    onError: (error: any) => {
       ValidationMonitor.recordValidationError({
         context: 'KioskContext.clearSessionMutation',
         errorMessage: error instanceof Error ? error.message : 'Unknown error',
@@ -199,11 +214,11 @@ export const KioskProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // ✅ SECURITY: Clear stale kiosk data if user doesn't have permissions
   React.useEffect(() => {
-    if (user && !hasKioskPermissions && persistedSessionQuery.data?.sessionId) {
+    if (user && !hasKioskPermissions && persistedSessionQuery?.data?.sessionId) {
       console.warn('🔒 User lacks kiosk permissions, clearing stale session data');
       clearSessionMutation.mutate();
     }
-  }, [user?.id, hasKioskPermissions, persistedSessionQuery.data?.sessionId, clearSessionMutation]);
+  }, [user, hasKioskPermissions, persistedSessionQuery?.data?.sessionId, clearSessionMutation]);
 
   // ✅ SECURITY: React Query will automatically invalidate kiosk sessions when auth state changes
 
@@ -212,7 +227,7 @@ export const KioskProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   
   // ✅ SECURITY: Only consider kiosk mode active if session is both persisted AND server-validated
   // This prevents bypassing PIN authentication with stale/invalid sessions
-  const sessionData = sessionQuery.data?.session || null;
+  const sessionData = sessionQuery?.data?.session || null;
   const isKioskMode = !!(
     hasKioskPermissions && 
     persistedSession?.sessionId && 

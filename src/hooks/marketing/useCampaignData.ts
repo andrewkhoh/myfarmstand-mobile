@@ -1,80 +1,140 @@
 import { useQuery } from '@tanstack/react-query';
-import { MarketingCampaign } from '@/types/marketing';
+import { useCurrentUser } from '../useAuth';
 
-interface CampaignDataParams {
-  campaignId?: string;
-  status?: 'draft' | 'scheduled' | 'active' | 'completed' | 'all';
-  type?: 'email' | 'social' | 'sms' | 'multi-channel' | 'all';
+interface CampaignData {
+  id: string;
+  name: string;
+  description: string;
+  startDate: string;
+  endDate: string;
+  targetAudience: string;
+  budget: number;
+  selectedProducts: string[];
 }
 
-const mockCampaigns: MarketingCampaign[] = [
-  {
-    id: 'campaign_1',
-    name: 'Summer Sale 2024',
-    description: 'Seasonal promotion for summer products',
-    type: 'multi-channel',
-    status: 'active',
-    startDate: '2024-06-01',
-    endDate: '2024-08-31',
-    targetAudience: ['existing_customers', 'newsletter_subscribers'],
-    budget: 5000,
-    createdAt: '2024-05-15T10:00:00Z',
-    updatedAt: '2024-06-01T09:00:00Z',
-    metrics: {
-      impressions: 15000,
-      clicks: 1200,
-      conversions: 89,
-      revenue: 4567.89,
-    },
-  },
-  {
-    id: 'campaign_2',
-    name: 'New Product Launch',
-    description: 'Email campaign for new organic produce line',
-    type: 'email',
-    status: 'scheduled',
-    startDate: '2024-07-15',
-    targetAudience: ['all_customers'],
-    budget: 2000,
-    createdAt: '2024-06-20T14:30:00Z',
-    updatedAt: '2024-06-20T14:30:00Z',
-    metrics: {
-      impressions: 0,
-      clicks: 0,
-      conversions: 0,
-      revenue: 0,
-    },
-  },
-];
+interface AudienceSegment {
+  id: string;
+  name: string;
+  description: string;
+  criteria: Record<string, any>;
+}
 
-export const useCampaignData = (params: CampaignDataParams = {}) => {
-  const { campaignId, status = 'all', type = 'all' } = params;
+interface AvailableProduct {
+  id: string;
+  name: string;
+  price: number;
+  description: string;
+  imageUrl?: string;
+}
 
-  return useQuery({
-    queryKey: ['campaigns', campaignId, status, type],
-    queryFn: async (): Promise<MarketingCampaign | MarketingCampaign[]> => {
-      // Simulate API call
-      return new Promise((resolve) => {
-        setTimeout(() => {
-          if (campaignId) {
-            const campaign = mockCampaigns.find(c => c.id === campaignId);
-            resolve(campaign || mockCampaigns[0]);
-          } else {
-            let filtered = [...mockCampaigns];
-            
-            if (status !== 'all') {
-              filtered = filtered.filter(c => c.status === status);
-            }
-            
-            if (type !== 'all') {
-              filtered = filtered.filter(c => c.type === type);
-            }
-            
-            resolve(filtered);
-          }
-        }, 500);
-      });
+interface UseCampaignDataResult {
+  campaign: CampaignData | null;
+  isLoading: boolean;
+  audienceSegments: AudienceSegment[];
+  availableProducts: AvailableProduct[];
+  error?: Error | null;
+}
+
+export function useCampaignData(campaignId?: string): UseCampaignDataResult {
+  const { data: user } = useCurrentUser();
+
+  // Fetch specific campaign if campaignId is provided
+  const campaignQuery = useQuery({
+    queryKey: ['marketing', 'campaigns', campaignId],
+    queryFn: async (): Promise<CampaignData | null> => {
+      if (!campaignId) {
+        return null;
+      }
+
+      if (!user?.id) {
+        throw new Error('User not authenticated');
+      }
+
+      // Mock implementation for now - replace with actual service call
+      const mockCampaign: CampaignData = {
+        id: campaignId,
+        name: 'Sample Campaign',
+        description: 'This is a sample campaign',
+        startDate: new Date().toISOString(),
+        endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        targetAudience: 'all-customers',
+        budget: 1000,
+        selectedProducts: ['product-1', 'product-2']
+      };
+
+      return mockCampaign;
     },
-    enabled: true,
+    enabled: !!campaignId && !!user?.id,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000 // 10 minutes
   });
-};
+
+  // Fetch audience segments
+  const audienceQuery = useQuery({
+    queryKey: ['marketing', 'audience-segments'],
+    queryFn: async (): Promise<AudienceSegment[]> => {
+      return [
+        {
+          id: 'all-customers',
+          name: 'All Customers',
+          description: 'All registered customers',
+          criteria: {}
+        },
+        {
+          id: 'premium-customers',
+          name: 'Premium Customers',
+          description: 'Customers with high purchase value',
+          criteria: { minPurchaseValue: 100 }
+        },
+        {
+          id: 'repeat-customers',
+          name: 'Repeat Customers',
+          description: 'Customers with multiple orders',
+          criteria: { minOrderCount: 3 }
+        }
+      ];
+    },
+    staleTime: 15 * 60 * 1000, // 15 minutes
+    gcTime: 30 * 60 * 1000 // 30 minutes
+  });
+
+  // Fetch available products
+  const productsQuery = useQuery({
+    queryKey: ['marketing', 'available-products'],
+    queryFn: async (): Promise<AvailableProduct[]> => {
+      return [
+        {
+          id: 'product-1',
+          name: 'Fresh Apples',
+          price: 2.99,
+          description: 'Crisp and sweet apples',
+          imageUrl: '/images/apples.jpg'
+        },
+        {
+          id: 'product-2',
+          name: 'Organic Bananas',
+          price: 1.99,
+          description: 'Organic bananas',
+          imageUrl: '/images/bananas.jpg'
+        },
+        {
+          id: 'product-3',
+          name: 'Fresh Carrots',
+          price: 1.49,
+          description: 'Crunchy orange carrots',
+          imageUrl: '/images/carrots.jpg'
+        }
+      ];
+    },
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 20 * 60 * 1000 // 20 minutes
+  });
+
+  return {
+    campaign: campaignQuery.data || null,
+    isLoading: campaignQuery.isLoading || audienceQuery.isLoading || productsQuery.isLoading,
+    audienceSegments: audienceQuery.data || [],
+    availableProducts: productsQuery.data || [],
+    error: campaignQuery.error || audienceQuery.error || productsQuery.error
+  };
+}

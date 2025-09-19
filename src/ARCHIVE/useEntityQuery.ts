@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient, UseQueryOptions, UseMutationOptions } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, UseMutationOptions } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { useCurrentUser } from './useAuth';
 import { createQueryKeyFactory, type EntityType, type UserIsolationLevel } from '../utils/queryKeyFactory';

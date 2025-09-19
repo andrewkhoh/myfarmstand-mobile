@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text as RNText, StyleSheet, TouchableOpacity } from 'react-native';
 import { InventoryItem } from 'types/inventory';
 
 interface InventoryItemCardProps {
@@ -19,16 +19,16 @@ export function InventoryItemCard({ item, onPress, showActions = false }: Invent
       accessibilityLabel={`${item.name}, ${item.currentStock} ${item.unit} in stock`}
     >
       <View style={styles.header}>
-        <Text style={styles.name}>{item.name}</Text>
-        <Text style={styles.sku}>{item.sku}</Text>
+        <RNText style={styles.name}>{item.name}</RNText>
+        <RNText style={styles.sku}>{item.sku}</RNText>
       </View>
       
       <View style={styles.details}>
         <View style={styles.stockInfo}>
-          <Text style={[styles.stock, stockStatus === 'low' && styles.lowStock]}>
+          <RNText style={[styles.stock, stockStatus === 'low' && styles.lowStock]}>
             Stock: {item.currentStock} {item.unit}
-          </Text>
-          <Text style={styles.location}>Location: {item.location}</Text>
+          </RNText>
+          <RNText style={styles.location}>Location: {item.location}</RNText>
         </View>
         
         {showActions && (
@@ -38,7 +38,7 @@ export function InventoryItemCard({ item, onPress, showActions = false }: Invent
               style={styles.actionButton}
               accessibilityLabel="Adjust stock"
             >
-              <Text style={styles.actionText}>Adjust</Text>
+              <RNText style={styles.actionText}>Adjust</RNText>
             </TouchableOpacity>
           </View>
         )}

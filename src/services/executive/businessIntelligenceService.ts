@@ -4,7 +4,7 @@
 
 import { supabase } from '../../config/supabase';
 import { ValidationMonitor } from '../../utils/validationMonitor';
-import { RolePermissionService } from '../rolePermissionService';
+import { unifiedRoleService } from '../unifiedRoleService';
 import { 
   BusinessIntelligenceDatabaseSchema,
   BusinessIntelligenceTransformSchema,
@@ -85,9 +85,9 @@ export class BusinessIntelligenceService {
 
       // Role permission check if user_role provided
       if (options?.user_role) {
-        const hasPermission = await RolePermissionService.hasPermission(
-          options.user_role as any,
-          'business_intelligence_read'
+        const hasPermission = await unifiedRoleService.hasPermission(
+          options.user_role,
+          'analytics:view'
         );
         
         if (!hasPermission) {
@@ -109,22 +109,49 @@ export class BusinessIntelligenceService {
       const { data: rawInsights, error } = await query.order('confidence_score', { ascending: false });
 
       if (error) {
+        // Check if it's a table not found error
+        if (error.message.includes('relation') && error.message.includes('does not exist')) {
+          throw new Error('Business insights table not configured. Please ensure database tables are properly set up.');
+        }
         throw new Error(`Failed to generate insights: ${error.message}`);
+      }
+
+      // Check if we have data
+      if (!rawInsights || rawInsights.length === 0) {
+        // Return empty result instead of processing null data
+        return {
+          insights: [],
+          metadata: {
+            totalInsights: 0,
+            averageConfidence: 0,
+            generatedAt: new Date().toISOString()
+          }
+        };
       }
 
       // Transform raw data using schema
       const insights: BusinessIntelligenceTransform[] = [];
       let totalConfidence = 0;
+      const validationErrors: string[] = [];
 
-      for (const rawInsight of rawInsights || []) {
+      for (const rawInsight of rawInsights) {
         const validationResult = BusinessIntelligenceDatabaseSchema.safeParse(rawInsight);
         if (validationResult.success) {
           const transformResult = BusinessIntelligenceTransformSchema.safeParse(rawInsight);
           if (transformResult.success) {
             insights.push(transformResult.data);
             totalConfidence += transformResult.data.confidenceScore;
+          } else {
+            validationErrors.push(`Transform error for insight ${rawInsight.id}: ${transformResult.error.message}`);
           }
+        } else {
+          validationErrors.push(`Validation error for insight ${rawInsight.id}: ${validationResult.error.message}`);
         }
+      }
+
+      // Log validation errors if any
+      if (validationErrors.length > 0) {
+        console.warn('BusinessIntelligenceService: Some insights failed validation:', validationErrors);
       }
 
       const result = {
@@ -169,9 +196,9 @@ export class BusinessIntelligenceService {
     try {
       // Role permission check
       if (options?.user_role) {
-        const hasPermission = await RolePermissionService.hasPermission(
-          options.user_role as any,
-          'business_intelligence_read'
+        const hasPermission = await unifiedRoleService.hasPermission(
+          options.user_role,
+          'analytics:view'
         );
         
         if (!hasPermission) {
@@ -264,8 +291,12 @@ export class BusinessIntelligenceService {
         }
         actualDataSource1 = dataSources[0];
         actualDataSource2 = dataSources[1];
-        actualStartDate = dataSource2!; // second param is startDate in this signature
-        actualEndDate = startDate!; // third param is endDate in this signature
+        // Use default date range for object signature (last 30 days)
+        const endDateObj = new Date();
+        const startDateObj = new Date();
+        startDateObj.setDate(startDateObj.getDate() - 30);
+        actualStartDate = startDateObj.toISOString().split('T')[0];
+        actualEndDate = endDateObj.toISOString().split('T')[0];
         
         // Check for insufficient data sources (limited_data_source patterns should fail)
         if (dataSources.some(ds => ds.includes('limited_data_source'))) {
@@ -389,22 +420,23 @@ export class BusinessIntelligenceService {
     }
   ): Promise<BusinessIntelligenceTransform> {
     try {
-      // Role permission check for updates
-      if (options?.user_role) {
-        // Staff role should not have business intelligence write permissions
-        if (options.user_role === 'staff') {
+      // Role permission check for updates using centralized service
+      if (options?.user_id) {
+        // Check write permissions for business intelligence
+        const hasWritePermission = await unifiedRoleService.hasPermission(options.user_id, 'analytics:update');
+        if (!hasWritePermission) {
           ValidationMonitor.recordValidationError({
             context: 'BusinessIntelligenceService.updateInsightStatus',
             errorCode: 'PERMISSION_DENIED',
-            validationPattern: 'role_based_access',
-            errorMessage: 'Staff role denied for business intelligence write operations'
+            validationPattern: 'atomic_operation',
+            errorMessage: 'User lacks permission for business intelligence write operations'
           });
           throw new Error('Permission denied for insight status update');
         }
         
-        const hasPermission = await RolePermissionService.hasPermission(
-          options.user_role as any,
-          'business_intelligence_write'
+        const hasPermission = await unifiedRoleService.hasPermission(
+          options.user_id,
+          'analytics:update'
         );
         
         if (!hasPermission) {
@@ -446,9 +478,23 @@ export class BusinessIntelligenceService {
         
         return {
           id: insightId,
-          isActive: updates.is_active,
-          updatedAt: new Date().toISOString()
-        };
+          insightType: 'recommendation',
+          insightTitle: 'Insight Status Updated',
+          insightDescription: `Insight status updated to ${updates.is_active ? 'active' : 'inactive'}. ${updates.status_reason || 'No reason provided'}`,
+          confidenceScore: 1.0,
+          impactLevel: 'low',
+          affectedAreas: ['operational'],
+          supportingData: {
+            updateReason: updates.status_reason || 'No reason provided',
+            updatedBy: options?.user_id || 'system'
+          },
+          recommendationActions: ['Review updated insight status'],
+          insightDateRange: `[${new Date().toISOString()},)`,
+          generatedBy: options?.user_id || 'system',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          isActive: updates.is_active ?? true
+        } satisfies BusinessIntelligenceTransform;
       }
       
       const dbValidationResult = BusinessIntelligenceDatabaseSchema.safeParse(updatedInsight);

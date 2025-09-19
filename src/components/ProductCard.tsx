@@ -1,11 +1,11 @@
 import React from 'react';
-import { View, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Product } from '../types';
 import { Text } from './Text';
 import { Button } from './Button';
 import { Card } from './Card';
 import { getStockDisplayInfo } from '../utils/stockDisplay';
-import { spacing, colors, borderRadius } from '../utils/theme';
+import { spacing, borderRadius, colors } from '../utils/theme';
 
 interface ProductCardProps {
   product: Product;
@@ -21,11 +21,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   onPress,
   onAddToCart,
   cartQuantity = 0, // Default to 0 if not provided
-  canAddToCart = true, // Default to true for backward compatibility
-  stockStatusMessage, // Real-time stock status message
+  // canAddToCart = true, // Default to true for backward compatibility - using centralized logic
+  // stockStatusMessage, // Real-time stock status message - using centralized logic
 }) => {
   // Use centralized stock display utility for consistency (compact variant for cards)
-  const { availableStock, isOutOfStock, lowStockWarning, stockColor, stockMessage, canAddToCart: centralizedCanAddToCart, addToCartButtonText } = 
+  const { availableStock, isOutOfStock, lowStockWarning, stockColor, canAddToCart: centralizedCanAddToCart, addToCartButtonText } =
     getStockDisplayInfo(product, cartQuantity, 'compact');
 
   return (

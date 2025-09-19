@@ -1,9 +1,9 @@
-import { useEffect, useRef, useCallback, useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useRef, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../config/supabase';
 import { useCurrentUser } from './useAuth';
-import { cartKeys, orderKeys, productKeys } from '../utils/queryKeyFactory';
-import { cartBroadcast, orderBroadcast, productBroadcast } from '../utils/broadcastFactory';
+import { cartKeys, productKeys } from '../utils/queryKeyFactory';
+import { cartBroadcast, productBroadcast } from '../utils/broadcastFactory';
 
 // Enhanced interfaces following cart pattern
 interface RealtimeError {

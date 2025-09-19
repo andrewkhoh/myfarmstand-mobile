@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { Screen, Text, Card, Button, Input } from '../components';
+import { Screen, Text, Card, Input } from '../components';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { RootStackParamList, Order } from '../types';

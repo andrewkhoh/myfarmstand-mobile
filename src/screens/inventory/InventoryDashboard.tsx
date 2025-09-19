@@ -8,12 +8,9 @@ import {
   StyleSheet,
   ScrollView,
 } from 'react-native';
-// import { useInventoryDashboard } from 'hooks/inventory/useInventoryDashboard';
-// import { useInventoryItems } from 'hooks/inventory/useInventoryItems';
-// TODO: Fix missing hook files
-const useInventoryDashboard = () => ({ data: { totalItems: 0, lowStockCount: 0, outOfStockCount: 0, totalValue: 0 }, isLoading: false, refetch: () => {} });
-const useInventoryItems = () => ({ data: [], isLoading: false, refetch: () => {} });
-import { useUserRole } from 'hooks/useUserRole';
+import { useInventoryDashboard } from '../../hooks/inventory/useInventoryDashboard';
+import { useInventoryItems } from '../../hooks/inventory/useInventoryItems';
+import { useCurrentUserRole } from '../../hooks/role-based';
 import { MetricCard } from './components/MetricCard';
 import { InventoryItemCard } from './components/InventoryItemCard';
 
@@ -24,7 +21,7 @@ interface InventoryDashboardProps {
 export function InventoryDashboard({ navigation }: InventoryDashboardProps) {
   const { data: dashboardData, isLoading: dashboardLoading, refetch: refetchDashboard, error } = useInventoryDashboard();
   const { data: items, isLoading: itemsLoading, refetch: refetchItems } = useInventoryItems();
-  const { hasPermission } = useUserRole();
+  const { hasPermission } = useCurrentUserRole();
   
   const canEditInventory = hasPermission('inventory:write');
   const isLoading = dashboardLoading || itemsLoading;

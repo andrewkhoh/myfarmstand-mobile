@@ -1,5 +1,5 @@
-import { User, Order, Product, OrderItem, Payment, PaymentMethod, PaymentIntent, PaymentError, CreatePaymentRequest, CreatePaymentMethodRequest } from '../types';
-import { NotificationRequest, NotificationResult, NotificationChannel, NotificationType } from '../services/notificationService';
+import { User, Order, Product, OrderItem, Payment, PaymentMethod, PaymentIntent, PaymentError, CreatePaymentMethodRequest } from '../types';
+import { NotificationRequest, NotificationResult, NotificationType } from '../services/notificationService';
 import { NoShowHandlingResult } from '../services/noShowHandlingService';
 import { ErrorRecoveryResult, ErrorContext } from '../services/errorRecoveryService';
 import { LoginResponse, RegisterResponse } from '../services/authService';

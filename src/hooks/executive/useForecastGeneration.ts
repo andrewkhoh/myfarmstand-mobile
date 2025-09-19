@@ -2,7 +2,7 @@
 // Following established React Query patterns
 
 import { useState } from 'react';
-import React from 'react';
+import * as React from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { PredictiveAnalyticsService } from '../../services/executive/predictiveAnalyticsService';
 import { useUserRole } from '../role-based/useUserRole';
@@ -25,10 +25,23 @@ export function useForecastGeneration(options: UseForecastGenerationOptions = {}
   // Generate scenarios mutation
   const generateScenariosMutation = useMutation({
     mutationFn: async () => {
-      const result = await PredictiveAnalyticsService.generateForecast({
-        forecast_type: options.forecastType || 'revenue',
-        scenario_analysis: options.scenarioAnalysis
-      });
+      const today = new Date();
+      const startDate = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const endDate = new Date(today.getTime() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+      const result = await PredictiveAnalyticsService.generateForecast(
+        (options.forecastType || 'revenue') as 'inventory' | 'risk' | 'revenue' | 'demand',
+        'business_metrics',
+        startDate,
+        endDate,
+        {
+          model_type: 'time_series',
+          include_seasonality: true,
+          confidence_level: 0.95,
+          integrate_historical_data: true,
+          prediction_horizon: 90
+        }
+      );
 
       const scenarioData = {
         bestCase: {
@@ -53,19 +66,20 @@ export function useForecastGeneration(options: UseForecastGenerationOptions = {}
     },
     onSuccess: (result) => {
       ValidationMonitor.recordPatternSuccess({
-        pattern: 'forecast_generation_scenarios',
+        service: 'ForecastGeneration',
+        pattern: 'generate_business_insights',
+        operation: 'generate_scenario_analysis',
         context: 'useForecastGeneration.generateScenariosMutation',
         description: `Successfully generated ${options.forecastType || 'revenue'} scenarios`
       });
-      queryClient.invalidateQueries({ 
-        queryKey: executiveAnalyticsKeys.predictiveAnalytics(role) 
+      queryClient.invalidateQueries({
+        queryKey: executiveAnalyticsKeys.predictiveAnalytics(role?.userId)
       });
     },
     onError: (error: Error) => {
       ValidationMonitor.recordValidationError({
         context: 'useForecastGeneration.generateScenariosMutation',
         errorCode: 'FORECAST_SCENARIOS_GENERATION_FAILED',
-        validationPattern: 'forecast_generation_mutation',
         errorMessage: error.message
       });
     }
@@ -74,10 +88,22 @@ export function useForecastGeneration(options: UseForecastGenerationOptions = {}
   // Generate with external factors mutation
   const generateWithFactorsMutation = useMutation({
     mutationFn: async (factors: string[]) => {
-      const result = await PredictiveAnalyticsService.generateForecast({
-        forecast_type: options.forecastType || 'revenue',
-        external_factors: factors
-      });
+      const today = new Date();
+      const startDate = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const endDate = new Date(today.getTime() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+      const result = await PredictiveAnalyticsService.generateForecast(
+        (options.forecastType || 'revenue') as 'inventory' | 'risk' | 'revenue' | 'demand',
+        'business_metrics',
+        startDate,
+        endDate,
+        {
+          model_type: 'ensemble',
+          include_seasonality: true,
+          confidence_level: 0.95,
+          ensemble_methods: factors
+        }
+      );
 
       const enhancedData = {
         baseForecast: 100000,
@@ -92,6 +118,22 @@ export function useForecastGeneration(options: UseForecastGenerationOptions = {}
 
       setEnhancedForecast(enhancedData);
       return enhancedData;
+    },
+    onSuccess: (result) => {
+      ValidationMonitor.recordPatternSuccess({
+        service: 'ForecastGeneration',
+        pattern: 'generate_business_insights',
+        operation: 'generate_forecast_with_external_factors',
+        context: 'useForecastGeneration.generateWithFactorsMutation',
+        description: 'Successfully generated forecast with external factors analysis'
+      });
+    },
+    onError: (error: Error) => {
+      ValidationMonitor.recordValidationError({
+        context: 'useForecastGeneration.generateWithFactorsMutation',
+        errorCode: 'FORECAST_EXTERNAL_FACTORS_FAILED',
+        errorMessage: error.message
+      });
     }
   });
 
@@ -99,9 +141,21 @@ export function useForecastGeneration(options: UseForecastGenerationOptions = {}
   const generateForecastMutation = useMutation({
     mutationFn: async () => {
       try {
-        const result = await PredictiveAnalyticsService.generateForecast({
-          forecast_type: options.forecastType || 'demand'
-        });
+        const today = new Date();
+        const startDate = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const endDate = new Date(today.getTime() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+        const result = await PredictiveAnalyticsService.generateForecast(
+          (options.forecastType || 'demand') as 'inventory' | 'risk' | 'revenue' | 'demand',
+          'business_metrics',
+          startDate,
+          endDate,
+          {
+            model_type: 'time_series',
+            include_seasonality: true,
+            confidence_level: 0.95
+          }
+        );
         return result;
       } catch (err) {
         const error = err as Error;
@@ -112,7 +166,6 @@ export function useForecastGeneration(options: UseForecastGenerationOptions = {}
           ValidationMonitor.recordValidationError({
             context: 'useForecastGeneration.generateForecastMutation',
             errorCode: 'FORECAST_GENERATION_FAILED',
-            validationPattern: 'forecast_generation_mutation',
             errorMessage: error.message,
             impact: 'data_rejected'
           });
@@ -125,6 +178,15 @@ export function useForecastGeneration(options: UseForecastGenerationOptions = {}
         throw error;
       }
     },
+    onSuccess: (result) => {
+      ValidationMonitor.recordPatternSuccess({
+        service: 'ForecastGeneration',
+        pattern: 'generate_business_insights',
+        operation: 'generate_forecast',
+        context: 'useForecastGeneration.generateForecastMutation',
+        description: `Successfully generated ${options.forecastType || 'demand'} forecast`
+      });
+    },
     onError: (err: Error) => {
       setError(err);
       // Only record if not already recorded in mutationFn
@@ -132,7 +194,6 @@ export function useForecastGeneration(options: UseForecastGenerationOptions = {}
         ValidationMonitor.recordValidationError({
           context: 'useForecastGeneration.generateForecastMutation',
           errorCode: 'FORECAST_GENERATION_FAILED',
-          validationPattern: 'forecast_generation_mutation',
           errorMessage: err.message
         });
       }

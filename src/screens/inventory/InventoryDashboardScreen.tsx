@@ -157,8 +157,8 @@ export default function InventoryDashboardScreen() {
 
   // Extract data from queries
   const metrics = dashboardQuery.data;
-  const alerts = dashboardQuery.data?.alerts || [];
-  const recentMovements = dashboardQuery.data?.recentMovements || [];
+  const alerts = dashboardQuery?.data?.alerts || [];
+  const recentMovements = dashboardQuery?.data?.recentMovements || [];
 
   const canManageInventory = hasPermission(['inventory:write', 'inventory:manage']);
   const canViewReports = hasPermission(['inventory:read', 'analytics:view']);

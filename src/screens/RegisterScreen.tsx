@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, StyleSheet, Alert, KeyboardAvoidingView, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Screen, Text, Input, Button, Card } from '../components';
+import { Screen, Text, Input, Card, Button } from '../components';
 import { useRegisterMutation, useCurrentUser } from '../hooks/useAuth';
 import { spacing } from '../utils/theme';
 
@@ -83,7 +83,7 @@ export const RegisterScreen: React.FC = () => {
       const result = await registerMutation.mutateAsync({ email, password, name, phone, address });
       
       if (result.success) {
-        if (result.data?.user) {
+        if (result?.data?.user) {
           // Email confirmation disabled - user is logged in immediately
           Alert.alert(
             'Welcome to Farm Stand!', 

@@ -1,16 +1,10 @@
 import { RecommendationEngine } from '../services/recommendationEngine';
-import { 
-  ExecutiveData, 
-  Recommendation, 
-  StockoutRisk, 
-  RecommendationOptions,
-  InventoryData,
-  MarketingData,
-  OperationsData,
-  FinancialsData,
-  CustomersData
+import {
+  ExecutiveData,
+  Recommendation,
+  RecommendationOptions
 } from '../types';
-import { generateExecutiveData, generateInventoryData, generateMarketingData } from '../utils/testDataGenerators';
+import { generateExecutiveData, generateMarketingData } from '../utils/testDataGenerators';
 
 describe('RecommendationEngine', () => {
   let engine: RecommendationEngine;
@@ -181,7 +175,7 @@ describe('RecommendationEngine', () => {
       const safetyStock = engine.calculateSafetyStock(inventory, 0.95);
       
       expect(safetyStock).toBeGreaterThan(0);
-      expect(safetyStock).toBeLessThan(inventory.currentStock * 2);
+      expect(safetyStock).toBeLessThan((inventory.currentStock ?? 100) * 2);
     });
 
     it('should detect overstock situations', () => {
@@ -240,7 +234,7 @@ describe('RecommendationEngine', () => {
       const holdingCost = engine.calculateHoldingCosts(inventory);
       
       expect(holdingCost).toBeGreaterThan(0);
-      expect(holdingCost).toBeLessThan(inventory.totalValue);
+      expect(holdingCost).toBeLessThan(inventory.totalValue ?? 10000);
     });
   });
 

@@ -2,9 +2,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect } from 'react';
 import { AuthService } from '../services/authService';
 import { User } from '../types';
-import { authKeys, cartKeys, orderKeys } from '../utils/queryKeyFactory';
+import { authKeys, orderKeys } from '../utils/queryKeyFactory';
 import { createBroadcastHelper } from '../utils/broadcastFactory';
-import { ValidationMonitor } from '../utils/validationMonitor';
+import { ValidationMonitor } from '../utils/validationMonitorAdapter';
 
 // Enhanced interfaces following cart pattern
 interface AuthError {

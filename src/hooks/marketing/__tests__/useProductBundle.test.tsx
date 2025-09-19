@@ -1,7 +1,7 @@
 import React from 'react';
-import { renderHook, waitFor, act } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+import { describe, it, expect, jest } from '@jest/globals';
 import { useProductBundle } from '../useProductBundle';
 import { bundleService } from '@/services/marketing/bundleService';
 
@@ -200,8 +200,8 @@ describe('useProductBundle', () => {
         expect(result.current.isLoading).toBe(false);
       });
       
-      expect(result.current.data?.savings).toBe(45);
-      expect(result.current.data?.discount_percentage).toBe(20);
+      expect(result.current?.data?.savings).toBe(45);
+      expect(result.current?.data?.discount_percentage).toBe(20);
     });
     
     it('should manage bundle inventory', async () => {
@@ -353,7 +353,7 @@ describe('useProductBundle', () => {
       });
       
       await waitFor(() => {
-        expect(result.current.data?.finalPrice).toBe(99.99);
+        expect(result.current?.data?.finalPrice).toBe(99.99);
       });
     });
   });

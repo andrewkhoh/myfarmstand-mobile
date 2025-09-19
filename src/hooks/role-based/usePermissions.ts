@@ -25,7 +25,7 @@ import type { UserRole } from '../../types';
 /**
  * Fetch permissions for a specific user
  */
-export function useUserPermissions(userId: string | null | undefined) {
+export function useUserPermissions(userId: string | null) {
   if (!userId) {
     return {
       permissions: [] as RolePermission[],
@@ -63,7 +63,7 @@ export function useUserPermissions(userId: string | null | undefined) {
  */
 export function useRolePermissionsByType(roleType: UserRole | null | undefined) {
   const query = useQuery({
-    queryKey: roleType ? roleKeys.roleType(roleType) : ['roles', 'type', 'none'],
+    queryKey: roleType ? roleKeys.roleType(roleType) : roleKeys.roleType('none' as any),
     queryFn: () => (roleType ? roleService.getRolePermissions(roleType) : Promise.resolve([] as RolePermission[])),
     enabled: !!roleType,
     staleTime: 10 * 60 * 1000,
@@ -87,7 +87,7 @@ export function useRolePermissionsByType(roleType: UserRole | null | undefined) 
 /**
  * Check if user has a specific permission
  */
-export function useHasPermission(userId: string | null | undefined, permission: string | null | undefined) {
+export function useHasPermission(userId: string | null, permission: string | null) {
   if (!userId || !permission) {
     return {
       hasPermission: false,
@@ -120,9 +120,9 @@ export function useHasPermission(userId: string | null | undefined, permission: 
  * Check if user can perform action on resource
  */
 export function useCanPerformAction(
-  userId: string | null | undefined,
-  resource: string | null | undefined,
-  action: string | null | undefined
+  userId: string | null,
+  resource: string | null,
+  action: string | null
 ) {
   if (!userId || !resource || !action) {
     return {
@@ -155,7 +155,7 @@ export function useCanPerformAction(
 /**
  * Check if user has ALL required permissions
  */
-export function useHasAllPermissions(userId: string | null | undefined, required: string[]) {
+export function useHasAllPermissions(userId: string | null, required: string[]) {
   const { permissions: userPermissions, isLoading } = useUserPermissions(userId);
 
   if (!userId || isLoading || !userPermissions) {
@@ -170,7 +170,7 @@ export function useHasAllPermissions(userId: string | null | undefined, required
 /**
  * Check if user has ANY of the required permissions
  */
-export function useHasAnyPermission(userId: string | null | undefined, required: string[]) {
+export function useHasAnyPermission(userId: string | null, required: string[]) {
   const { permissions: userPermissions, isLoading } = useUserPermissions(userId);
 
   if (!userId || isLoading || !userPermissions) {

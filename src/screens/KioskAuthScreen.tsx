@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
-import { View, StyleSheet, Alert, TextInput } from 'react-native';
+import { View, StyleSheet, TextInput } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Screen, Text, Button, Card } from '../components';
+import { Screen, Text, Card } from '../components';
 import { useKioskAuth } from '../hooks/useKiosk';
 import { spacing } from '../utils/theme';
 
@@ -100,7 +100,7 @@ export const KioskAuthScreen: React.FC = () => {
                   error ? styles.pinInputError : {}
                 ]}
                 value={digit}
-                onChangeText={(value) => handlePinChange(value, index)}
+                onChangeText={(value: any) => handlePinChange(value, index)}
                 onKeyPress={({ nativeEvent }) => {
                   if (nativeEvent.key === 'Backspace') {
                     handleBackspace(index);

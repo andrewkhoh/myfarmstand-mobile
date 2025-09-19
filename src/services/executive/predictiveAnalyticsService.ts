@@ -4,7 +4,7 @@
 
 import { supabase } from '../../config/supabase';
 import { ValidationMonitor } from '../../utils/validationMonitor';
-import { RolePermissionService } from '../rolePermissionService';
+import { unifiedRoleService } from '../unifiedRoleService';
 import { 
   PredictiveAnalyticsDatabaseSchema,
   PredictiveAnalyticsTransformSchema,
@@ -476,18 +476,21 @@ export class PredictiveAnalyticsService {
     try {
       // Role permission check for specific forecast types
       if (options?.user_role) {
-        const hasPermission = await RolePermissionService.hasPermission(
+        const hasPermission = await unifiedRoleService.hasPermission(
           options.user_role as any,
-          'predictive_analytics_read'
+          'analytics:view'
         );
         
         if (!hasPermission) {
           throw new Error(`Insufficient permissions for ${forecastType} forecasting access`);
         }
 
-        // Additional role-based restrictions
-        if (options.user_role === 'inventory_staff' && forecastType === 'revenue') {
-          throw new Error('Insufficient permissions for revenue forecasting access');
+        // Additional role-based restrictions using centralized service
+        if (options.user_id) {
+          const hasRevenuePermission = await unifiedRoleService.hasPermission(options.user_id, 'analytics:view');
+          if (forecastType === 'revenue' && !hasRevenuePermission) {
+            throw new Error('Insufficient permissions for revenue forecasting access');
+          }
         }
       }
 

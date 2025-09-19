@@ -13,31 +13,54 @@ import { ValidationMonitor as ProductionMonitor, ValidationErrorDetails } from '
 
 export class ValidationMonitor {
   /**
-   * Adapts gold standard error recording to production API
-   * Gold standard expects: recordValidationError(context: string, error: any)
+   * Adapts error recording to production API
+   * Handles both:
+   * - Gold standard: recordValidationError(context: string, error: any)
+   * - Modern: recordValidationError(details: object)
    * Production expects: recordValidationError(details: ValidationErrorDetails)
    */
-  static recordValidationError(context: string, error: any): void {
-    const details: ValidationErrorDetails = {
-      context,
-      errorMessage: error instanceof Error ? error.message : String(error),
-      errorCode: error?.code || 'UNKNOWN_ERROR',
-      validationPattern: 'transformation_schema'
-    };
-    
+  static recordValidationError(contextOrDetails: string | any, error?: any): void {
+    let details: ValidationErrorDetails;
+
+    // If first parameter is an object, it's the new format
+    if (typeof contextOrDetails === 'object' && contextOrDetails !== null) {
+      details = {
+        context: contextOrDetails.context || 'unknown',
+        errorMessage: contextOrDetails.errorMessage || 'Unknown error',
+        errorCode: contextOrDetails.errorCode || 'UNKNOWN_ERROR',
+        validationPattern: contextOrDetails.validationPattern || 'transformation_schema'
+      };
+    } else {
+      // Old format: (context: string, error: any)
+      details = {
+        context: contextOrDetails,
+        errorMessage: error instanceof Error ? error.message : String(error),
+        errorCode: error?.code || 'UNKNOWN_ERROR',
+        validationPattern: 'transformation_schema'
+      };
+    }
+
     ProductionMonitor.recordValidationError(details);
   }
   
   /**
-   * Adapts gold standard success recording to production API
-   * Gold standard expects: recordPatternSuccess(pattern: string)
+   * Adapts success recording to production API
+   * Handles both:
+   * - Gold standard: recordPatternSuccess(pattern: string)
+   * - Modern: recordPatternSuccess(details: object)
    * Production expects: recordPatternSuccess(details: { ... })
    */
-  static recordPatternSuccess(pattern: string): void {
-    // Parse the pattern to extract service and operation if possible
-    // Pattern might be like 'inventory-fetch' or just a simple string
+  static recordPatternSuccess(patternOrDetails: string | any): void {
+    // If it's already an object, pass it through
+    if (typeof patternOrDetails === 'object' && patternOrDetails !== null) {
+      ProductionMonitor.recordPatternSuccess(patternOrDetails);
+      return;
+    }
+
+    // If it's a string, parse it to create the expected object format
+    const pattern = String(patternOrDetails);
     const parts = pattern.split('-');
-    
+
     ProductionMonitor.recordPatternSuccess({
       service: parts[0] || 'inventory',
       pattern: 'transformation_schema',

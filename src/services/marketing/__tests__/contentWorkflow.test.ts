@@ -1,6 +1,6 @@
-import { ContentWorkflowService, User, TransitionOptions } from '../contentWorkflow.service';
+import { ContentWorkflowService, TransitionOptions } from '../contentWorkflow.service';
 import { ProductContent, WorkflowState } from '@/schemas/marketing';
-import { ServiceError, NotFoundError, ForbiddenError, ValidationError } from '../errors/ServiceError';
+import { ServiceError, NotFoundError, ValidationError } from '../errors/ServiceError';
 import { v4 as uuidv4 } from 'uuid';
 
 describe('ContentWorkflowService', () => {

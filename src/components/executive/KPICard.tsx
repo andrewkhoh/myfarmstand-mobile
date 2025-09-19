@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, AccessibilityInfo } from 'react-native';
+import { View, RNText as RNRNText, AccessibilityInfo, StyleSheet } from 'react-native';
 import { formatCurrency, formatPercent } from '../../utils/formatters';
 import { TrendIndicator } from './TrendIndicator';
 
@@ -64,20 +64,20 @@ export const KPICard = React.memo<KPICardProps>(({
       accessibilityRole="summary"
       accessibilityLabel={accessibilityLabel}
     >
-      <Text style={styles.title} accessibilityRole="header">{title}</Text>
-      <Text style={styles.value}>{formattedValue}</Text>
+      <RNText style={styles.title} accessibilityRole="header">{title}</RNText>
+      <RNText style={styles.value}>{formattedValue}</RNText>
       {trend && (
         <View style={styles.trendContainer}>
           <TrendIndicator direction={trend.direction} color={trendColor} />
-          <Text style={[styles.trendValue, { color: trendColor }]}>
+          <RNText style={[styles.trendValue, { color: trendColor }]}>
             {formatPercent(trend.value)}
-          </Text>
+          </RNText>
         </View>
       )}
       {comparison && (
-        <Text style={styles.comparison}>
+        <RNText style={styles.comparison}>
           {comparison.value > 0 ? '+' : ''}{comparison.value} vs {comparison.label}
-        </Text>
+        </RNText>
       )}
     </View>
   );

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'react-native';
+import { View, Text as RNText, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'react-native';
 import { supabase } from '../config/supabase';
 
 interface TestResult {
@@ -274,41 +274,41 @@ export default function CartRPCTest() {
 
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.title}>Cart RPC Function Test</Text>
-      <Text style={styles.subtitle}>Testing upsert_cart_item SQL function</Text>
+      <RNText style={styles.title}>Cart RPC Function Test</RNText>
+      <RNText style={styles.subtitle}>Testing upsert_cart_item SQL function</RNText>
 
       <TouchableOpacity
         style={[styles.button, isRunning && styles.buttonDisabled]}
         onPress={runComprehensiveTest}
         disabled={isRunning}
       >
-        <Text style={styles.buttonText}>
+        <RNText style={styles.buttonRNText}>
           {isRunning ? 'Running Tests...' : 'Run Comprehensive Test'}
-        </Text>
+        </RNText>
       </TouchableOpacity>
 
       <TouchableOpacity
         style={[styles.button, styles.clearButton]}
         onPress={clearResults}
       >
-        <Text style={styles.buttonText}>Clear Results</Text>
+        <RNText style={styles.buttonRNText}>Clear Results</RNText>
       </TouchableOpacity>
 
       <View style={styles.resultsContainer}>
-        <Text style={styles.resultsTitle}>Test Results:</Text>
+        <RNText style={styles.resultsTitle}>Test Results:</RNText>
         {testResults.map((result, index) => (
           <View key={index} style={styles.resultItem}>
             <View style={styles.resultHeader}>
-              <Text style={styles.resultIcon}>{getStatusIcon(result.status)}</Text>
-              <Text style={[styles.resultTest, { color: getStatusColor(result.status) }]}>
+              <RNText style={styles.resultIcon}>{getStatusIcon(result.status)}</RNText>
+              <RNText style={[styles.resultTest, { color: getStatusColor(result.status) }]}>
                 {result.test}
-              </Text>
+              </RNText>
             </View>
-            <Text style={styles.resultMessage}>{result.message}</Text>
+            <RNText style={styles.resultMessage}>{result.message}</RNText>
             {result.data && (
-              <Text style={styles.resultData}>
+              <RNText style={styles.resultData}>
                 Data: {JSON.stringify(result.data, null, 2)}
-              </Text>
+              </RNText>
             )}
           </View>
         ))}
@@ -347,7 +347,7 @@ const styles = StyleSheet.create({
   clearButton: {
     backgroundColor: '#FF5722',
   },
-  buttonText: {
+  buttonRNText: {
     color: 'white',
     textAlign: 'center',
     fontSize: 16,

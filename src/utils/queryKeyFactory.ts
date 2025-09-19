@@ -1,5 +1,5 @@
 // Centralized Query Key Factory with User Isolation Support and Fallback Strategies
-export type EntityType = 'cart' | 'orders' | 'products' | 'auth' | 'stock' | 'kiosk' | 'notifications' | 'payment' | 'roles' | 'inventory' | 'businessMetrics' | 'businessIntelligence' | 'strategicReports' | 'predictiveForecasts' | 'content' | 'campaigns' | 'bundles' | 'navigation' | 'marketing';
+export type EntityType = 'cart' | 'orders' | 'products' | 'auth' | 'stock' | 'kiosk' | 'notifications' | 'payment' | 'roles' | 'inventory' | 'businessMetrics' | 'businessIntelligence' | 'strategicReports' | 'predictiveForecasts' | 'content' | 'campaigns' | 'bundles' | 'navigation' | 'marketing' | 'decision-support' | 'order-analytics' | 'conversion-funnel' | 'historical-analysis' | 'cross-role-analytics';
 export type UserIsolationLevel = 'user-specific' | 'admin-global' | 'global';
 
 interface QueryKeyConfig {
@@ -101,25 +101,40 @@ const baseRoleKeys = createQueryKeyFactory({ entity: 'roles', isolation: 'user-s
 
 export const roleKeys = {
   ...baseRoleKeys,
-  
+
   // User role queries
-  user: (userId: string) => 
+  user: (userId: string) =>
     [...baseRoleKeys.all(), 'user', userId] as const,
-    
+
   // Current user role
-  userRole: (userId: string) => 
+  userRole: (userId: string) =>
     [...baseRoleKeys.all(userId), 'current'] as const,
-  
-  // Role permission queries  
-  permissions: (userId: string) => 
+
+  // Role permission queries
+  permissions: (userId: string) =>
     [...baseRoleKeys.all(), 'user', userId, 'permissions'] as const,
-  
+
+  // Individual permission checks (centralized pattern)
+  hasPermission: (userId: string, permission: string) =>
+    [...roleKeys.permissions(userId), 'has', permission] as const,
+
+  // Action permission checks (centralized pattern)
+  canPerformAction: (userId: string, resource: string, action: string) =>
+    [...roleKeys.permissions(userId), 'can', resource, action] as const,
+
+  // Batch permission checks (centralized pattern)
+  hasAllPermissions: (userId: string, permissions: string[]) =>
+    [...roleKeys.permissions(userId), 'hasAll', permissions.sort().join(',')] as const,
+
+  hasAnyPermission: (userId: string, permissions: string[]) =>
+    [...roleKeys.permissions(userId), 'hasAny', permissions.sort().join(',')] as const,
+
   // All roles list (for admin use)
-  allRoles: () => 
+  allRoles: () =>
     [...baseRoleKeys.all(), 'all'] as const,
-  
+
   // Role type queries
-  roleType: (roleType: string) => 
+  roleType: (roleType: string) =>
     [...baseRoleKeys.all(), 'type', roleType] as const
 };
 
@@ -232,12 +247,19 @@ const baseInventoryKeys = createQueryKeyFactory({ entity: 'inventory', isolation
 
 export const inventoryKeys = {
   ...baseInventoryKeys,
-  
+
+  // List queries - for the main inventory list
+  list: (userId: string, filters?: any) =>
+    [...baseInventoryKeys.lists(userId), filters] as const,
+
+  lists: (userId: string) =>
+    [...baseInventoryKeys.lists(userId)] as const,
+
   // Inventory Items
-  items: (userId?: string) => 
+  items: (userId?: string) =>
     [...baseInventoryKeys.lists(userId), 'items'] as const,
-  
-  item: (itemId: string, userId?: string) => 
+
+  item: (itemId: string, userId?: string) =>
     [...baseInventoryKeys.details(userId), 'item', itemId] as const,
   
   itemByProduct: (productId: string, userId?: string) => 
@@ -296,8 +318,12 @@ export const inventoryKeys = {
   performanceMetrics: (userId?: string) => 
     [...baseInventoryKeys.stats(userId), 'performance'] as const,
   
-  realtimeStatus: (userId?: string) => 
-    [...baseInventoryKeys.stats(userId), 'realtime-status'] as const
+  realtimeStatus: (userId?: string) =>
+    [...baseInventoryKeys.stats(userId), 'realtime-status'] as const,
+
+  // Warehouse-specific items
+  warehouseItems: (warehouseId: string, userId?: string) =>
+    [...baseInventoryKeys.lists(userId), 'warehouse', warehouseId] as const
 };
 // Kiosk-specific query key factory with entity-specific methods
 const baseKioskKeys = createQueryKeyFactory({ entity: 'kiosk', isolation: 'user-specific' });
@@ -551,78 +577,102 @@ export const predictiveForecastsKeys = {
     [...basePredictiveForecastsKeys.details(userId), 'confidence', forecastId, level] as const
 };
 
-// Executive Analytics Cross-Entity Query Keys
+// Executive Analytics Query Keys - Using standardized factory pattern
+const baseExecutiveKeys = createQueryKeyFactory({ entity: 'businessMetrics', isolation: 'user-specific' });
+
 export const executiveAnalyticsKeys = {
+  // Use base factory methods
+  ...baseExecutiveKeys,
+
   // Cross-role analytics dashboard
   dashboard: (userId?: string) =>
-    ['executive', 'dashboard', userId] as const,
-  
+    [...baseExecutiveKeys.all(userId), 'dashboard'] as const,
+
   // Cross-entity correlation analysis
   crossCorrelation: (entities: string[], dateRange: string, userId?: string) =>
-    ['executive', 'cross-correlation', entities, dateRange, userId] as const,
-  
+    [...baseExecutiveKeys.all(userId), 'cross-correlation', entities, dateRange] as const,
+
   // Executive summary data
   summary: (period: string, userId?: string) =>
-    ['executive', 'summary', period, userId] as const,
-  
+    [...baseExecutiveKeys.all(userId), 'summary', period] as const,
+
   // Strategic insights aggregation
   strategicInsights: (filters: any, userId?: string) =>
-    ['executive', 'strategic-insights', filters, userId] as const,
-  
+    [...baseExecutiveKeys.all(userId), 'strategic-insights', filters] as const,
+
   // Performance benchmarks
   benchmarks: (category: string, period: string, userId?: string) =>
-    ['executive', 'benchmarks', category, period, userId] as const,
+    [...baseExecutiveKeys.all(userId), 'benchmarks', category, period] as const,
 
-  // Phase 4: Business Analytics Query Keys
-  businessMetrics: (userId?: string, options?: any) => 
-    ['executive', 'businessMetrics', ...(userId ? [userId] : []), ...(options ? [options] : [])] as const,
-  
+  // Phase 4: Business Analytics Query Keys - Standardized with factory pattern
+  businessMetrics: (userId?: string, options?: any) =>
+    [...baseExecutiveKeys.all(userId), 'businessMetrics', ...(options ? [options] : [])] as const,
+
   businessInsights: (userId?: string, options?: any) =>
-    ['executive', 'businessInsights', ...(userId ? [userId] : []), ...(options ? [options] : [])] as const,
-  
+    [...baseExecutiveKeys.all(userId), 'businessInsights', ...(options ? [options] : [])] as const,
+
   strategicReporting: (userId?: string, reportId?: string) =>
-    ['executive', 'strategicReporting', ...(userId ? [userId] : []), ...(reportId ? [reportId] : [])] as const,
-  
+    [...baseExecutiveKeys.all(userId), 'strategicReporting', ...(reportId ? [reportId] : [])] as const,
+
   predictiveAnalytics: (userId?: string, forecastType?: string) =>
-    ['executive', 'predictiveAnalytics', userId, forecastType] as const,
-  
+    [...baseExecutiveKeys.all(userId), 'predictiveAnalytics', forecastType] as const,
+
   metricTrends: (userId?: string, options?: any) =>
-    ['executive', 'metricTrends', userId, options] as const,
-  
+    [...baseExecutiveKeys.all(userId), 'metricTrends', options] as const,
+
   crossRoleAnalytics: (userId?: string, options?: any) =>
-    ['executive', 'crossRoleAnalytics', userId, options] as const,
+    [...baseExecutiveKeys.all(userId), 'crossRoleAnalytics', options] as const,
   
   insightGeneration: (userId?: string, options?: any) =>
-    ['executive', 'insightGeneration', userId, options] as const,
-  
+    [...baseExecutiveKeys.all(userId), 'insightGeneration', options] as const,
+
   anomalyDetection: (userId?: string, options?: any) =>
-    ['executive', 'anomalyDetection', userId, options] as const,
-  
+    [...baseExecutiveKeys.all(userId), 'anomalyDetection', options] as const,
+
   reportGeneration: (userId?: string, options?: any) =>
-    ['executive', 'reportGeneration', userId, options] as const,
-  
+    [...baseExecutiveKeys.all(userId), 'reportGeneration', options] as const,
+
   reportScheduling: (userId?: string, type?: string) =>
-    ['executive', 'reportScheduling', userId, type] as const,
-  
+    [...baseExecutiveKeys.all(userId), 'reportScheduling', type] as const,
+
   forecastGeneration: (userId?: string, options?: any) =>
-    ['executive', 'forecastGeneration', userId, options] as const,
-  
+    [...baseExecutiveKeys.all(userId), 'forecastGeneration', options] as const,
+
+  predictions: (userId?: string, options?: any) =>
+    [...baseExecutiveKeys.all(userId), 'predictions', options] as const,
+
   modelValidation: (userId?: string, modelId?: string) =>
-    ['executive', 'modelValidation', userId, modelId] as const,
+    [...baseExecutiveKeys.all(userId), 'modelValidation', modelId] as const,
 
   // Specialized sub-keys for complex scenarios
   reportSchedulingAll: (userId?: string) =>
-    ['executive', 'reportScheduling', userId, 'all'] as const,
-  
+    [...baseExecutiveKeys.all(userId), 'reportScheduling', 'all'] as const,
+
   modelValidationMonitoring: (userId?: string, modelId?: string) =>
-    ['executive', 'modelValidation', userId, modelId, 'monitoring'] as const,
-  
+    [...baseExecutiveKeys.all(userId), 'modelValidation', modelId, 'monitoring'] as const,
+
   modelValidationComparison: (userId?: string, modelId?: string) =>
-    ['executive', 'modelValidation', userId, modelId, 'comparison'] as const,
-  
-  strategicReportingFiltered: (userId?: string, reportId?: string, userRole?: string) =>
-    ['executive', 'strategicReporting', userId, reportId, 'filtered', userRole] as const
+    [...baseExecutiveKeys.all(userId), 'modelValidation', modelId, 'comparison'] as const,
+
+  strategicReportingFiltered: (userId?: string, reportId?: string) =>
+    [...baseExecutiveKeys.all(userId), 'strategicReporting', reportId, 'filtered'] as const,
+
+  // Core executive queries for real-time sync
+  metrics: (userId?: string) =>
+    [...baseExecutiveKeys.all(userId), 'metrics'] as const,
+
+  insights: (userId?: string) =>
+    [...baseExecutiveKeys.all(userId), 'insights'] as const,
+
+  crossRole: (userId?: string) =>
+    [...baseExecutiveKeys.all(userId), 'crossRole'] as const,
+
+  all: () =>
+    baseExecutiveKeys.all()
 };
+
+// Alias for backward compatibility
+export const executiveKeys = executiveAnalyticsKeys;
 
 // Phase 3: Marketing Query Key Factories
 // Product Content query key factory
@@ -653,9 +703,16 @@ export const contentKeys = {
   // Workflow states
   workflow: (userId?: string) =>
     [...baseContentKeys.all(userId), 'workflow'] as const,
-    
+
   workflowState: (contentId: string, userId?: string) =>
-    [...baseContentKeys.details(userId), 'content', contentId, 'workflow'] as const
+    [...baseContentKeys.details(userId), 'content', contentId, 'workflow'] as const,
+
+  // File upload operations
+  uploads: (userId?: string) =>
+    [...baseContentKeys.all(userId), 'uploads'] as const,
+
+  upload: (uploadId: string, userId?: string) =>
+    [...baseContentKeys.details(userId), 'upload', uploadId] as const
 };
 
 // Marketing Campaign query key factory
@@ -727,8 +784,32 @@ export const marketingKeys = {
   marketing: ['marketing'] as const,
   
   // Cross-entity analytics
-  analytics: (userId?: string) => 
-    [...baseMarketingKeys.all(userId), 'analytics'] as const,
+  analytics: {
+    dashboard: (userId?: string) =>
+      [...baseMarketingKeys.all(userId), 'analytics', 'dashboard'] as const,
+    all: (userId?: string) =>
+      [...baseMarketingKeys.all(userId), 'analytics'] as const,
+  },
+
+  // Campaign-specific keys
+  campaign: {
+    active: (userId?: string) =>
+      [...baseMarketingKeys.all(userId), 'campaign', 'active'] as const,
+    all: (userId?: string) =>
+      [...baseMarketingKeys.all(userId), 'campaign'] as const,
+  },
+
+  // Content-specific keys
+  content: {
+    pending: (userId?: string) =>
+      [...baseMarketingKeys.all(userId), 'content', 'pending'] as const,
+    all: (userId?: string) =>
+      [...baseMarketingKeys.all(userId), 'content'] as const,
+    list: (filters?: any, userId?: string) =>
+      [...baseMarketingKeys.all(userId), 'content', 'list', filters] as const,
+    detail: (contentId: string, userId?: string) =>
+      [...baseMarketingKeys.all(userId), 'content', contentId] as const,
+  },
   
   // Cross-entity performance tracking
   performance: (userId?: string) => 
@@ -749,6 +830,258 @@ export const marketingKeys = {
   // Bundle-content associations
   bundleContent: (bundleId: string, userId?: string) =>
     [...baseMarketingKeys.all(userId), 'bundle', bundleId, 'content'] as const
+};
+
+// Decision Support query key factory (executive-only access)
+const baseDecisionSupportKeys = createQueryKeyFactory({ entity: 'decision-support', isolation: 'user-specific' });
+
+export const decisionSupportKeys = {
+  ...baseDecisionSupportKeys,
+
+  // Executive data queries
+  executiveData: (userId?: string) =>
+    [...baseDecisionSupportKeys.all(userId), 'executive-data'] as const,
+
+  executiveDataWithFilters: (filters: any, userId?: string) =>
+    [...baseDecisionSupportKeys.all(userId), 'executive-data', filters] as const,
+
+  // Recommendation queries
+  recommendations: (userId?: string) =>
+    [...baseDecisionSupportKeys.lists(userId), 'recommendations'] as const,
+
+  recommendationsWithOptions: (options: any, userId?: string) =>
+    [...baseDecisionSupportKeys.lists(userId), 'recommendations', options] as const,
+
+  recommendation: (recommendationId: string, userId?: string) =>
+    [...baseDecisionSupportKeys.details(userId), 'recommendation', recommendationId] as const,
+
+  // Data analysis queries
+  inventoryAnalysis: (userId?: string) =>
+    [...baseDecisionSupportKeys.stats(userId), 'analysis', 'inventory'] as const,
+
+  marketingAnalysis: (userId?: string) =>
+    [...baseDecisionSupportKeys.stats(userId), 'analysis', 'marketing'] as const,
+
+  operationsAnalysis: (userId?: string) =>
+    [...baseDecisionSupportKeys.stats(userId), 'analysis', 'operations'] as const,
+
+  financialAnalysis: (userId?: string) =>
+    [...baseDecisionSupportKeys.stats(userId), 'analysis', 'financial'] as const,
+
+  customerAnalysis: (userId?: string) =>
+    [...baseDecisionSupportKeys.stats(userId), 'analysis', 'customer'] as const,
+
+  // Simulation and modeling
+  simulations: (modelType: string, userId?: string) =>
+    [...baseDecisionSupportKeys.stats(userId), 'simulations', modelType] as const,
+
+  simulation: (simulationId: string, userId?: string) =>
+    [...baseDecisionSupportKeys.details(userId), 'simulation', simulationId] as const,
+
+  // Learning and feedback
+  feedback: (recommendationId: string, userId?: string) =>
+    [...baseDecisionSupportKeys.details(userId), 'recommendation', recommendationId, 'feedback'] as const,
+
+  learningMetrics: (userId?: string) =>
+    [...baseDecisionSupportKeys.stats(userId), 'learning-metrics'] as const,
+
+  // Risk analysis
+  riskAssessment: (category: string, userId?: string) =>
+    [...baseDecisionSupportKeys.stats(userId), 'risk', category] as const,
+
+  // Trend analysis
+  trends: (dataType: string, period: string, userId?: string) =>
+    [...baseDecisionSupportKeys.stats(userId), 'trends', dataType, period] as const,
+
+  // Correlation analysis
+  correlations: (metrics: string[], userId?: string) =>
+    [...baseDecisionSupportKeys.stats(userId), 'correlations', metrics.sort().join(',')] as const,
+
+  // Anomaly detection
+  anomalies: (dataType: string, threshold: number, userId?: string) =>
+    [...baseDecisionSupportKeys.stats(userId), 'anomalies', dataType, threshold] as const
+};
+
+// Order Analytics Query Key Factories (Task 13)
+// Order Analytics query key factory
+const baseOrderAnalyticsKeys = createQueryKeyFactory({ entity: 'order-analytics', isolation: 'user-specific' });
+
+export const orderAnalyticsKeys = {
+  ...baseOrderAnalyticsKeys,
+
+  // Core order analytics queries
+  insights: (userId?: string) =>
+    [...baseOrderAnalyticsKeys.all(userId), 'insights'] as const,
+
+  insightsWithFilters: (filters: any, userId?: string) =>
+    [...baseOrderAnalyticsKeys.all(userId), 'insights', filters] as const,
+
+  // Order workflow metrics
+  workflowMetrics: (userId?: string) =>
+    [...baseOrderAnalyticsKeys.stats(userId), 'workflow'] as const,
+
+  workflowMetricsWithFilters: (filters: any, userId?: string) =>
+    [...baseOrderAnalyticsKeys.stats(userId), 'workflow', filters] as const,
+
+  // Order velocity and performance
+  velocityMetrics: (userId?: string) =>
+    [...baseOrderAnalyticsKeys.stats(userId), 'velocity'] as const,
+
+  velocityMetricsWithPeriod: (period: string, userId?: string) =>
+    [...baseOrderAnalyticsKeys.stats(userId), 'velocity', period] as const,
+
+  // Pickup capacity analytics
+  pickupCapacity: (userId?: string) =>
+    [...baseOrderAnalyticsKeys.stats(userId), 'pickup-capacity'] as const,
+
+  pickupCapacityWithDate: (date: string, userId?: string) =>
+    [...baseOrderAnalyticsKeys.stats(userId), 'pickup-capacity', date] as const,
+
+  // Pickup efficiency metrics
+  pickupEfficiency: (userId?: string) =>
+    [...baseOrderAnalyticsKeys.stats(userId), 'pickup-efficiency'] as const,
+
+  pickupEfficiencyWithFilters: (filters: any, userId?: string) =>
+    [...baseOrderAnalyticsKeys.stats(userId), 'pickup-efficiency', filters] as const,
+
+  // Order attribution analytics
+  attribution: (userId?: string) =>
+    [...baseOrderAnalyticsKeys.stats(userId), 'attribution'] as const,
+
+  attributionWithSource: (source: string, userId?: string) =>
+    [...baseOrderAnalyticsKeys.stats(userId), 'attribution', source] as const
+};
+
+// Conversion Funnel Query Key Factory
+const baseConversionFunnelKeys = createQueryKeyFactory({ entity: 'conversion-funnel', isolation: 'user-specific' });
+
+export const conversionFunnelKeys = {
+  ...baseConversionFunnelKeys,
+
+  // Main conversion funnel analysis
+  analysis: (userId?: string) =>
+    [...baseConversionFunnelKeys.all(userId), 'analysis'] as const,
+
+  analysisWithFilters: (filters: any, userId?: string) =>
+    [...baseConversionFunnelKeys.all(userId), 'analysis', filters] as const,
+
+  // Stage-specific metrics
+  stage: (stage: string, userId?: string) =>
+    [...baseConversionFunnelKeys.stats(userId), 'stage', stage] as const,
+
+  stageWithFilters: (stage: string, filters: any, userId?: string) =>
+    [...baseConversionFunnelKeys.stats(userId), 'stage', stage, filters] as const,
+
+  // Customer segment analysis
+  segment: (segment: string, userId?: string) =>
+    [...baseConversionFunnelKeys.stats(userId), 'segment', segment] as const,
+
+  segmentWithFilters: (segment: string, filters: any, userId?: string) =>
+    [...baseConversionFunnelKeys.stats(userId), 'segment', segment, filters] as const,
+
+  // Bottleneck identification
+  bottlenecks: (userId?: string) =>
+    [...baseConversionFunnelKeys.stats(userId), 'bottlenecks'] as const,
+
+  // Conversion metrics by timeframe
+  conversion: (timeframe: string, userId?: string) =>
+    [...baseConversionFunnelKeys.stats(userId), 'conversion', timeframe] as const,
+
+  // Funnel optimization recommendations
+  optimization: (userId?: string) =>
+    [...baseConversionFunnelKeys.stats(userId), 'optimization'] as const
+};
+
+// Historical Analysis Query Key Factory
+const baseHistoricalAnalysisKeys = createQueryKeyFactory({ entity: 'historical-analysis', isolation: 'user-specific' });
+
+export const historicalAnalysisKeys = {
+  ...baseHistoricalAnalysisKeys,
+
+  // Main historical pattern analysis
+  patterns: (userId?: string) =>
+    [...baseHistoricalAnalysisKeys.all(userId), 'patterns'] as const,
+
+  patternsWithOptions: (options: any, userId?: string) =>
+    [...baseHistoricalAnalysisKeys.all(userId), 'patterns', options] as const,
+
+  // Trend analysis
+  trends: (userId?: string) =>
+    [...baseHistoricalAnalysisKeys.stats(userId), 'trends'] as const,
+
+  trendsWithMetric: (metric: string, userId?: string) =>
+    [...baseHistoricalAnalysisKeys.stats(userId), 'trends', metric] as const,
+
+  // Seasonal pattern analysis
+  seasonal: (userId?: string) =>
+    [...baseHistoricalAnalysisKeys.stats(userId), 'seasonal'] as const,
+
+  seasonalWithGranularity: (granularity: string, userId?: string) =>
+    [...baseHistoricalAnalysisKeys.stats(userId), 'seasonal', granularity] as const,
+
+  // Predictive insights
+  predictions: (userId?: string) =>
+    [...baseHistoricalAnalysisKeys.stats(userId), 'predictions'] as const,
+
+  predictionsWithHorizon: (horizon: number, userId?: string) =>
+    [...baseHistoricalAnalysisKeys.stats(userId), 'predictions', horizon] as const,
+
+  // Statistical analysis
+  statistics: (userId?: string) =>
+    [...baseHistoricalAnalysisKeys.stats(userId), 'statistics'] as const,
+
+  // Anomaly detection
+  anomalies: (userId?: string) =>
+    [...baseHistoricalAnalysisKeys.stats(userId), 'anomalies'] as const,
+
+  anomaliesWithThreshold: (threshold: number, userId?: string) =>
+    [...baseHistoricalAnalysisKeys.stats(userId), 'anomalies', threshold] as const
+};
+
+// Cross-Role Analytics Query Key Factory
+const baseCrossRoleAnalyticsKeys = createQueryKeyFactory({ entity: 'cross-role-analytics', isolation: 'user-specific' });
+
+export const crossRoleAnalyticsKeys = {
+  ...baseCrossRoleAnalyticsKeys,
+
+  // Cross-role dashboard data
+  dashboard: (userId?: string) =>
+    [...baseCrossRoleAnalyticsKeys.all(userId), 'dashboard'] as const,
+
+  dashboardWithFilters: (filters: any, userId?: string) =>
+    [...baseCrossRoleAnalyticsKeys.all(userId), 'dashboard', filters] as const,
+
+  // Cross-entity correlation analysis
+  correlations: (entities: string[], userId?: string) =>
+    [...baseCrossRoleAnalyticsKeys.stats(userId), 'correlations', entities.sort().join(',')] as const,
+
+  correlationsWithDateRange: (entities: string[], dateRange: string, userId?: string) =>
+    [...baseCrossRoleAnalyticsKeys.stats(userId), 'correlations', entities.sort().join(','), dateRange] as const,
+
+  // Role-specific analytics aggregation
+  roleAnalytics: (role: string, userId?: string) =>
+    [...baseCrossRoleAnalyticsKeys.stats(userId), 'role', role] as const,
+
+  roleAnalyticsWithMetrics: (role: string, metrics: string[], userId?: string) =>
+    [...baseCrossRoleAnalyticsKeys.stats(userId), 'role', role, metrics.sort().join(',')] as const,
+
+  // Cross-departmental insights
+  departmental: (departments: string[], userId?: string) =>
+    [...baseCrossRoleAnalyticsKeys.stats(userId), 'departmental', departments.sort().join(',')] as const,
+
+  // Performance benchmarks across roles
+  benchmarks: (benchmark: string, userId?: string) =>
+    [...baseCrossRoleAnalyticsKeys.stats(userId), 'benchmarks', benchmark] as const,
+
+  benchmarksWithPeriod: (benchmark: string, period: string, userId?: string) =>
+    [...baseCrossRoleAnalyticsKeys.stats(userId), 'benchmarks', benchmark, period] as const,
+
+  // Unified analytics summary
+  summary: (userId?: string) =>
+    [...baseCrossRoleAnalyticsKeys.all(userId), 'summary'] as const,
+
+  summaryWithScope: (scope: string, userId?: string) =>
+    [...baseCrossRoleAnalyticsKeys.all(userId), 'summary', scope] as const
 };
 
 // Enhanced invalidation utility that handles offline/fallback scenarios

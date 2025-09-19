@@ -1,9 +1,9 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { RolePermissionService } from '../../services/rolePermissionService';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import { unifiedRoleService } from '../../services/unifiedRoleService';
 import { useCurrentUser } from '../useAuth';
 import { roleKeys } from '../../utils/queryKeyFactory';
 import { ROLE_PERMISSIONS } from '../../schemas/role-based/rolePermission.schemas';
-import type { RoleType, RolePermissionTransform } from '../../services/rolePermissionService';
+import { UserRole } from '../../types/roles';
 
 // Create user-friendly permission error (following UX patterns)
 const createPermissionError = (
@@ -18,7 +18,7 @@ const createPermissionError = (
 });
 
 interface PermissionData {
-  roleType?: RoleType;
+  roleType?: UserRole;
   permissions: string[];        // Custom permissions from DB
   rolePermissions: string[];    // Role-based permissions
   allPermissions: string[];     // Combined permissions
@@ -79,9 +79,9 @@ export function useRolePermissions(userId?: string) {
           allPermissions: [],
         };
       }
-      
-      const userRole = await RolePermissionService.getUserRole(targetUserId);
-      
+
+      const userRole = await unifiedRoleService.getUserRole(targetUserId);
+
       if (!userRole) {
         return {
           permissions: [],
@@ -89,14 +89,14 @@ export function useRolePermissions(userId?: string) {
           allPermissions: [],
         };
       }
-      
+
       // Get role-based permissions
       const rolePermissions = ROLE_PERMISSIONS[userRole.roleType] || [];
       // Get custom permissions from user role
       const customPermissions = userRole.permissions || [];
       // Combine and deduplicate
       const allPermissions = [...new Set([...rolePermissions, ...customPermissions])];
-      
+
       return {
         roleType: userRole.roleType,
         permissions: customPermissions,
@@ -105,25 +105,29 @@ export function useRolePermissions(userId?: string) {
       };
     },
     enabled: !!targetUserId,
-    staleTime: 5 * 60 * 1000, // Permissions fresh for 5 minutes
-    gcTime: 30 * 60 * 1000,   // Keep in cache for 30 minutes
+    // Permission-specific cache optimization (Pattern 2: Optimized Cache Configuration)
+    staleTime: 8 * 60 * 1000,    // 8 minutes - permissions change occasionally
+    gcTime: 45 * 60 * 1000,      // 45 minutes - permission data valuable to keep
+    refetchOnMount: false,        // Don't refetch on mount - permissions are fairly stable
+    refetchOnWindowFocus: false,  // Don't spam on focus changes
+    refetchOnReconnect: true,     // Do refetch when connection restored
     retry: (failureCount, error) => {
-      // Don't retry auth errors
+      // Smart retry strategy for permissions
       if (error?.message?.includes('permission denied')) {
-        return false;
+        return false; // Auth errors should not retry
       }
-      // Don't retry service errors (for testing)
       if (error?.message?.includes('Service unavailable')) {
-        return false;
+        return false; // Service errors should not retry
       }
-      return failureCount < 3;
-    }
+      return failureCount < 2; // Limit retries for permission data
+    },
+    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
   });
   
   // Update permissions mutation
   const updateMutation = useMutation({
     mutationFn: async (newPermissions: string[]) => {
-      return RolePermissionService.updateUserPermissions(targetUserId, newPermissions);
+      return unifiedRoleService.updateUserPermissions(targetUserId, newPermissions);
     },
     onSuccess: () => {
       // Invalidate permissions cache
@@ -134,14 +138,14 @@ export function useRolePermissions(userId?: string) {
   // Permission check utilities
   const hasPermission = async (permission: string): Promise<boolean> => {
     if (!targetUserId) return false;
-    return RolePermissionService.hasPermission(targetUserId, permission);
+    return unifiedRoleService.hasPermission(targetUserId, permission);
   };
   
   const hasAllPermissions = async (permissions: string[]): Promise<boolean> => {
     if (!targetUserId) return false;
     
     for (const permission of permissions) {
-      const hasIt = await RolePermissionService.hasPermission(targetUserId, permission);
+      const hasIt = await unifiedRoleService.hasPermission(targetUserId, permission);
       if (!hasIt) return false;
     }
     return true;
@@ -151,7 +155,7 @@ export function useRolePermissions(userId?: string) {
     if (!targetUserId) return false;
     
     for (const permission of permissions) {
-      const hasIt = await RolePermissionService.hasPermission(targetUserId, permission);
+      const hasIt = await unifiedRoleService.hasPermission(targetUserId, permission);
       if (hasIt) return true;
     }
     return false;
@@ -167,13 +171,13 @@ export function useRolePermissions(userId?: string) {
   };
   
   // Role-based utility flags
-  const isAdmin = query.data?.roleType === 'admin';
-  const isExecutive = query.data?.roleType === 'executive';
-  const isStaff = query.data?.roleType === 'inventory_staff' || query.data?.roleType === 'marketing_staff';
+  const isAdmin = query?.data?.roleType === 'admin';
+  const isExecutive = query?.data?.roleType === 'executive';
+  const isStaff = query?.data?.roleType === 'inventory_staff' || query?.data?.roleType === 'marketing_staff';
   
   // Permission-based utility flags
-  const canManageInventory = query.data?.allPermissions?.includes('inventory_management') || false;
-  const canManageContent = query.data?.allPermissions?.includes('content_management') || false;
+  const canManageInventory = query?.data?.allPermissions?.includes('inventory_management') || false;
+  const canManageContent = query?.data?.allPermissions?.includes('content_management') || false;
   
   return {
     ...query,
@@ -191,4 +195,4 @@ export function useRolePermissions(userId?: string) {
 }
 
 // Export type for use in other components
-export type { PermissionData, RoleType };
+export type { PermissionData };

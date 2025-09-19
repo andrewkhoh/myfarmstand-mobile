@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, StyleSheet, Alert, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { Screen, Text, Card, Button } from '../../components';
+import { Screen, Text, Button, Card } from '../../components';
 import { useCurrentUser } from '../../hooks/useAuth';
+import { useCurrentUserRole } from '../../hooks/role-based';
 import { spacing, colors } from '../../utils/theme';
 
 type MarketingHubNavigationProp = StackNavigationProp<any, 'MarketingHub'>;
@@ -58,13 +59,12 @@ const MenuItem: React.FC<MenuItemProps> = ({
 export const MarketingHub: React.FC = () => {
   const navigation = useNavigation<MarketingHubNavigationProp>();
   const { data: user } = useCurrentUser();
-  
-  // Role-based access checks (case-insensitive)
-  const userRole = user?.role?.toLowerCase();
-  const isAdmin = userRole === 'admin';
-  const isManager = userRole === 'manager';
-  const isMarketing = userRole === 'marketing';
-  const canAccessMarketing = isAdmin || isManager || isMarketing;
+  const { role, isAdmin, isExecutive, isStaff } = useCurrentUserRole();
+
+  // Role-based access checks
+  const isManager = role === 'manager';
+  const isMarketing = role === 'vendor'; // Marketing maps to vendor in this system
+  const canAccessMarketing = isAdmin || isExecutive || isMarketing;
   
   const menuItems = [
     {
@@ -232,7 +232,7 @@ export const MarketingHub: React.FC = () => {
           <Text variant="heading3" style={styles.sectionTitle}>
             Marketing Modules
           </Text>
-          {menuItems.map((item) => (
+          {menuItems.map((item: any) => (
             <MenuItem
               key={item.screen}
               title={item.title}

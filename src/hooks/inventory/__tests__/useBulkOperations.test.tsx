@@ -1,4 +1,4 @@
-import { renderHook, waitFor, act } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { 
   useBulkUpdateStock,
@@ -127,8 +127,8 @@ describe('Bulk Operations Hooks', () => {
       });
 
       expect(result.current.data).toEqual(mockResults);
-      expect(result.current.data?.filter(r => r.success)).toHaveLength(1);
-      expect(result.current.data?.filter(r => !r.success)).toHaveLength(1);
+      expect(result.current?.data?.filter(r => r.success)).toHaveLength(1);
+      expect(result.current?.data?.filter(r => !r.success)).toHaveLength(1);
     });
 
     it('should invalidate queries after bulk update', async () => {
@@ -239,7 +239,7 @@ describe('Bulk Operations Hooks', () => {
 
       expect(mockInventoryService.createInventoryItem).toHaveBeenCalledTimes(2);
       expect(result.current.data).toHaveLength(2);
-      expect(result.current.data?.every(r => r.success)).toBe(true);
+      expect(result.current?.data?.every(r => r.success)).toBe(true);
     });
 
     it('should handle creation failures gracefully', async () => {

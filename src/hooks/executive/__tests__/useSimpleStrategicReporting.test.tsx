@@ -1,6 +1,5 @@
 // Simple Strategic Reporting Hook Tests - Following proven working pattern
 
-import React from 'react';
 import { createSupabaseMock } from '../../../test/mocks/supabase.simplified.mock';
 import { hookContracts } from '../../../test/contracts/hook.contracts';
 import { renderHook, waitFor } from '@testing-library/react-native';

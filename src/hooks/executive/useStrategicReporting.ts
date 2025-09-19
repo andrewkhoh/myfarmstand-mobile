@@ -3,17 +3,18 @@
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import React, { useEffect, useCallback, useMemo } from 'react';
-import { useUserRole } from '../role-based/useUserRole';
+import { useUnifiedRole } from '../role-based/useUnifiedRole';
+import { UserRole } from '../../types/roles';
 import { executiveAnalyticsKeys } from '../../utils/queryKeyFactory';
 import { realtimeService } from '../../services/realtimeService';
 import { useCurrentUser } from '../useAuth';
-import { 
+import {
   StrategicReportingService
 } from '../../services/executive/strategicReportingService';
-import { 
-  type StrategicReportData,
-  type UseStrategicReportingOptions 
-} from '../../services/executive/simpleStrategicReportingService';
+
+// Note: simpleStrategicReportingService was removed
+type StrategicReportData = any;
+type UseStrategicReportingOptions = any;
 
 // UI-ready interfaces
 export interface ReportCard {
@@ -104,13 +105,11 @@ const formatDate = (date: string): string => {
   });
 };
 
-// Export the sub-hooks for testing
-export { useReportGeneration } from './useReportGeneration';
-export { useReportScheduling } from './useReportScheduling';
+// Note: useReportGeneration and useReportScheduling were removed
 
 export const useStrategicReporting = (options: UseStrategicReportingOptions & { realtime?: boolean; progressiveLoading?: boolean } = {}) => {
   const queryClient = useQueryClient();
-  const { role, hasPermission } = useUserRole();
+  const { role } = useUnifiedRole();
   const { data: user } = useCurrentUser();
   const [scheduleInfo, setScheduleInfo] = React.useState<any>(null);
   const [exportResult, setExportResult] = React.useState<any>(null);
@@ -137,7 +136,7 @@ export const useStrategicReporting = (options: UseStrategicReportingOptions & { 
       nextScheduled: report.nextScheduledAt ? formatDate(report.nextScheduledAt) : undefined,
       status: report.status as any,
       priority: report.priority || 'medium',
-      sections: report.sections?.map(section => ({
+      sections: report.sections?.map((section: any) => ({
         id: section.id,
         title: section.title,
         type: section.type,
@@ -159,7 +158,7 @@ export const useStrategicReporting = (options: UseStrategicReportingOptions & { 
     reports.forEach(report => {
       // Extract key findings
       if (report.keyFindings?.length > 0) {
-        report.keyFindings.forEach(finding => {
+        report.keyFindings.forEach((finding: any) => {
           highlights.push({
             id: `${report.id}-finding-${finding.id}`,
             reportId: report.id,
@@ -173,7 +172,7 @@ export const useStrategicReporting = (options: UseStrategicReportingOptions & { 
       
       // Extract alerts
       if (report.alerts?.length > 0) {
-        report.alerts.forEach(alert => {
+        report.alerts.forEach((alert: any) => {
           highlights.push({
             id: `${report.id}-alert-${alert.id}`,
             reportId: report.id,
@@ -212,7 +211,7 @@ export const useStrategicReporting = (options: UseStrategicReportingOptions & { 
       recentReports: reports.filter(r => new Date(r.generatedAt) > recentThreshold).length,
       scheduledReports: reports.filter(r => r.status === 'scheduled').length,
       criticalFindings: reports.reduce((acc, r) => 
-        acc + (r.keyFindings?.filter(f => f.priority === 'critical')?.length || 0), 0),
+        acc + (r.keyFindings?.filter((f: any) => f.priority === 'critical')?.length || 0), 0),
       avgGenerationTime: reports.reduce((acc, r) => acc + (r.generationTime || 0), 0) / reports.length
     };
   }, []);
@@ -240,16 +239,15 @@ export const useStrategicReporting = (options: UseStrategicReportingOptions & { 
               include_predictive_analytics: options.includePredictiveAnalytics,
               include_cross_role_correlation: options.includeAllDataSources,
               detail_level: options.detailLevel as any,
-              include_all_analytics: options.includeAllDataSources,
-              progressive_loading: options.progressiveLoading
+              include_all_analytics: options.includeAllDataSources
             },
             { user_role: role, user_id: user?.id }
           );
         }
         // Otherwise get the reports list (fallback to simple service)
         try {
-          const SimpleService = await import('../../services/executive/simpleStrategicReportingService');
-          return SimpleService.SimpleStrategicReportingService.getReports(options);
+          // Note: simpleStrategicReportingService was removed, using StrategicReportingService
+          return StrategicReportingService.generateReport('executive', {});
         } catch {
           // Return empty reports if simple service not available
           return { reports: [], summary: {} };
@@ -274,7 +272,7 @@ export const useStrategicReporting = (options: UseStrategicReportingOptions & { 
     refetchOnMount: true,
     refetchOnWindowFocus: false,
     refetchOnReconnect: true,
-    enabled: !!role && ['executive', 'admin'].includes(role.toLowerCase()), // Simple enabled guard
+    enabled: !!role && [UserRole.EXECUTIVE, UserRole.ADMIN].includes(role), // Simple enabled guard
     retry: (failureCount, error: any) => {
       // Don't retry permission errors
       if (error?.isPermissionError || error?.message?.includes('authentication') || error?.message?.includes('permission')) {
@@ -331,7 +329,7 @@ export const useStrategicReporting = (options: UseStrategicReportingOptions & { 
   ) : null;
 
   // Authentication guard - following useCart pattern exactly
-  if (!role || !['executive', 'admin'].includes(role.toLowerCase())) {
+  if (!role || ![UserRole.EXECUTIVE, UserRole.ADMIN].includes(role)) {
     const authError = createStrategicReportingError(
       'PERMISSION_DENIED',
       'User lacks executive permissions',
@@ -370,11 +368,11 @@ export const useStrategicReporting = (options: UseStrategicReportingOptions & { 
 
   // Real-time subscription setup
   useEffect(() => {
-    if (!options.realtime || !user?.id || !['executive', 'admin'].includes(role.toLowerCase())) return;
+    if (!options.realtime || !user?.id || ![UserRole.EXECUTIVE, UserRole.ADMIN].includes(role)) return;
 
     const channel = `executive:reports:${user.id}`;
     
-    const unsubscribe = realtimeService.subscribe(channel, (event) => {
+    const unsubscribe = realtimeService.subscribe(channel, (event: any) => {
       if (event.type === 'report.generated' || event.type === 'report.updated') {
         // Invalidate to get fresh data
         queryClient.invalidateQueries({ queryKey });

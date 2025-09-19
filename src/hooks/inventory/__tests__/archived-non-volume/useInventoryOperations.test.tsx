@@ -3,9 +3,9 @@
  * Based on proven pattern with 100% infrastructure compliance
  */
 
-import { renderHook, waitFor, act } from '@testing-library/react-native';
+import { renderHook, act } from '@testing-library/react-native';
 import { createWrapper } from '../../../test/test-utils';
-import { createUser, createProduct, resetAllFactories } from '../../../test/factories';
+import { createUser, resetAllFactories } from '../../../test/factories';
 
 // 1. MOCK SERVICES - Simplified approach with all methods
 jest.mock('../../../services/inventory/inventoryService', () => ({
@@ -608,9 +608,9 @@ describe('Inventory Operations Hook Tests - Refactored Infrastructure', () => {
         expect(result.current.isSuccess).toBe(true);
       });
 
-      expect(result.current.data?.success).toHaveLength(1);
-      expect(result.current.data?.errors).toHaveLength(1);
-      expect(result.current.data?.totalProcessed).toBe(1);
+      expect(result.current?.data?.success).toHaveLength(1);
+      expect(result.current?.data?.errors).toHaveLength(1);
+      expect(result.current?.data?.totalProcessed).toBe(1);
     });
 
     it('should handle complete batch failure gracefully', async () => {

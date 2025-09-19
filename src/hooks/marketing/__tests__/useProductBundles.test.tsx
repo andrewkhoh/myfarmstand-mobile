@@ -2,7 +2,7 @@
 // Following TDD pattern: RED → GREEN → REFACTOR
 // 12+ comprehensive tests for bundle management hooks
 
-import { renderHook, waitFor, act } from '@testing-library/react-native';
+import { renderHook, act } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import { createSupabaseMock } from '../../../test/mocks/supabase.simplified.mock';
@@ -263,7 +263,7 @@ describe('Product Bundle Hooks - Phase 3.3.3 (RED Phase)', () => {
         expect(result.current.isSuccess).toBe(true);
       });
 
-      expect(result.current.data?.items[0].isFeatured).toBe(true);
+      expect(result.current?.data?.items[0].isFeatured).toBe(true);
     });
 
     it('should handle empty bundle results gracefully', async () => {
@@ -299,7 +299,7 @@ describe('Product Bundle Hooks - Phase 3.3.3 (RED Phase)', () => {
         expect(result.current.isSuccess).toBe(true);
       });
 
-      expect(result.current.data?.items).toHaveLength(0);
+      expect(result.current?.data?.items).toHaveLength(0);
     });
 
     it('should use centralized query key factory for bundles', async () => {
@@ -424,7 +424,7 @@ describe('Product Bundle Hooks - Phase 3.3.3 (RED Phase)', () => {
         expect(result.current.isSuccess).toBe(true);
       });
 
-      expect(result.current.data?.salesMetrics.totalSales).toBe(0);
+      expect(result.current?.data?.salesMetrics.totalSales).toBe(0);
     });
 
     it('should integrate with campaign performance tracking', async () => {
@@ -465,7 +465,7 @@ describe('Product Bundle Hooks - Phase 3.3.3 (RED Phase)', () => {
         expect(result.current.isSuccess).toBe(true);
       });
 
-      expect(result.current.data?.salesMetrics.campaignBoost).toBe(25.5);
+      expect(result.current?.data?.salesMetrics.campaignBoost).toBe(25.5);
     });
   });
 
@@ -763,8 +763,8 @@ describe('Product Bundle Hooks - Phase 3.3.3 (RED Phase)', () => {
         });
       });
 
-      expect(result.current.data?.availability.isAvailable).toBe(false);
-      expect(result.current.data?.availability.shortages).toHaveLength(1);
+      expect(result.current?.data?.availability.isAvailable).toBe(false);
+      expect(result.current?.data?.availability.shortages).toHaveLength(1);
     });
 
     it('should provide reorder recommendations for inventory planning', async () => {
@@ -800,7 +800,7 @@ describe('Product Bundle Hooks - Phase 3.3.3 (RED Phase)', () => {
         });
       });
 
-      expect(result.current.data?.recommendations.suggestedReorderLevels).toHaveLength(2);
+      expect(result.current?.data?.recommendations.suggestedReorderLevels).toHaveLength(2);
     });
 
     it('should integrate with inventory service for real-time data', async () => {
@@ -843,7 +843,7 @@ describe('Product Bundle Hooks - Phase 3.3.3 (RED Phase)', () => {
       });
 
       // Integration with inventory service should be seamless
-      expect(result.current.data?.availability.isAvailable).toBe(true);
+      expect(result.current?.data?.availability.isAvailable).toBe(true);
     });
   });
 
@@ -1110,7 +1110,7 @@ describe('Product Bundle Hooks - Phase 3.3.3 (RED Phase)', () => {
         });
       });
 
-      expect(result.current.data?.campaignId).toBe('campaign-summer');
+      expect(result.current?.data?.campaignId).toBe('campaign-summer');
     });
 
     it('should trigger inventory notifications for stock level changes', async () => {

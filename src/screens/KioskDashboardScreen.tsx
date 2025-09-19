@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
-import { View, StyleSheet, Alert } from 'react-native';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { Screen, Text, Button, Card } from '../components';
+import { View, Alert, StyleSheet } from 'react-native';
+import { useNavigation, RouteProp } from '@react-navigation/native';
+import { Screen, Text, Card, Button } from '../components';
 import { useKioskSession, useKioskSessionOperations } from '../hooks/useKiosk';
 import { spacing } from '../utils/theme';
 
@@ -25,7 +25,7 @@ export const KioskDashboardScreen: React.FC = () => {
   const sessionOps = useKioskSessionOperations();
 
   useEffect(() => {
-    if (sessionQuery.data?.success === false) {
+    if (sessionQuery?.data?.success === false) {
       Alert.alert('Session Error', 'Unable to load session data', [
         { text: 'OK', onPress: () => navigation.goBack() }
       ]);
@@ -68,7 +68,7 @@ export const KioskDashboardScreen: React.FC = () => {
     });
   };
 
-  const session = sessionQuery.data?.session;
+  const session = sessionQuery?.data?.session;
 
   return (
     <Screen padding>

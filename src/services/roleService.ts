@@ -1,14 +1,23 @@
 /**
- * Role Service - User role and permissions management
- * Following established architectural patterns from docs/architectural-patterns-and-best-practices.md
+ * DEPRECATED: Role Service - Legacy compatibility layer
+ *
+ * ⚠️ This service is deprecated and will be removed in a future version.
+ *
+ * Migration Guide:
+ * - Replace with: import { unifiedRoleService } from './unifiedRoleService';
+ * - Update hooks to use: import { useCurrentUserRole } from '../hooks/role-based';
+ *
+ * @deprecated Use unifiedRoleService instead
  */
 
 import { supabase } from '../config/supabase';
 import { UserRole } from '../types';
 import { ValidationMonitor } from '../utils/validationMonitor';
 import { z } from 'zod';
+import { unifiedRoleService } from './unifiedRoleService';
 
-// Following Pattern: Database-First Validation
+// DEPRECATED: Use RolePermissionService for new implementations
+// This schema is kept for backward compatibility only
 const RawUserRoleSchema = z.object({
   id: z.string().min(1),
   user_id: z.string().min(1),
@@ -17,7 +26,7 @@ const RawUserRoleSchema = z.object({
   updated_at: z.string().nullable().optional(),
 });
 
-// Following Pattern: Transformation Schema Architecture
+// DEPRECATED: Use RolePermissionTransformSchema for new implementations
 export const UserRoleSchema = RawUserRoleSchema.transform((data) => ({
   id: data.id,
   userId: data.user_id,
@@ -65,59 +74,68 @@ export interface RoleOperationResult<T = any> {
 }
 
 class RoleService {
+  constructor() {
+    console.warn('⚠️ DEPRECATED: RoleService is deprecated. Use unifiedRoleService instead.');
+
+    ValidationMonitor.recordValidationError({
+      context: 'DeprecatedService.RoleService',
+      errorMessage: 'Instantiating deprecated RoleService',
+      errorCode: 'DEPRECATED_SERVICE_USAGE'
+    });
+
+    // No additional initialization needed - uses unifiedRoleService directly
+  }
+
   /**
-   * Get user role by user ID
+   * Get user role by user ID - Unified with RolePermissionService
    * Following Pattern: Direct Supabase with Validation
    */
   async getUserRole(userId: string): Promise<UserRole | null> {
     try {
       if (!userId) {
-        throw new Error('User ID is required');
-      }
-
-      // Step 1: Direct Supabase query
-      const { data: rawRoleData, error } = await supabase
-        .from('user_roles')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
-
-      if (error) {
-        // Handle not found gracefully
-        if (error.code === 'PGRST116') {
-          // Default to customer role if no role found
-          return 'customer';
-        }
-        throw error;
-      }
-
-      // Step 2: Validate and transform
-      try {
-        const roleData = UserRoleSchema.parse(rawRoleData);
-        
-        // Record success for monitoring
-        ValidationMonitor.recordPatternSuccess({
-          service: 'RoleService',
-          pattern: 'transformation_schema',
-          operation: 'getUserRole',
-        });
-
-        return roleData.role;
-      } catch (validationError) {
-        // Record validation error
         ValidationMonitor.recordValidationError({
           context: 'RoleService.getUserRole',
-          errorMessage: validationError instanceof Error ? validationError.message : 'Unknown validation error',
-          errorCode: 'USER_ROLE_VALIDATION_FAILED',
+          errorMessage: 'User ID is required',
+          errorCode: 'MISSING_USER_ID'
         });
+        return 'customer'; // Graceful degradation
+      }
 
-        // Default to customer role on validation failure
+      // Use unified service for consistency
+      const roleData = await unifiedRoleService.getUserRole(userId);
+
+      if (!roleData) {
+        // Graceful degradation - default to customer
         return 'customer';
       }
+
+      // Map from new role types to legacy role types for backward compatibility
+      const roleMapping: Record<string, UserRole> = {
+        'admin': 'admin',
+        'executive': 'manager',
+        'inventory_staff': 'staff',
+        'marketing_staff': 'staff',
+        'customer': 'customer'
+      };
+
+      const mappedRole = roleMapping[roleData.role] || 'customer';
+
+      ValidationMonitor.recordPatternSuccess({
+        service: 'RoleService',
+        pattern: 'direct_supabase_query',
+        operation: 'getUserRole',
+      });
+
+      return mappedRole;
     } catch (error) {
+      ValidationMonitor.recordValidationError({
+        context: 'RoleService.getUserRole',
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        errorCode: 'USER_ROLE_FETCH_FAILED'
+      });
+
       console.error('Failed to get user role:', error);
-      // Following Pattern: Graceful Degradation
-      return 'customer'; // Default role on error
+      return 'customer'; // Following Pattern: Graceful Degradation
     }
   }
 
@@ -166,53 +184,116 @@ class RoleService {
   }
 
   /**
-   * Get all permissions for a user (by their user ID)
-   * Combines user role lookup with permission retrieval
+   * Get all permissions for a user - Unified with RolePermissionService
+   * Following Pattern: Service Layer Unification
    */
   async getUserPermissions(userId: string): Promise<RolePermission[]> {
     try {
-      // Step 1: Get user role
-      const userRole = await this.getUserRole(userId);
-      
-      if (!userRole) {
+      if (!userId) {
+        ValidationMonitor.recordValidationError({
+          context: 'RoleService.getUserPermissions',
+          errorMessage: 'User ID is required',
+          errorCode: 'MISSING_USER_ID'
+        });
         return [];
       }
 
-      // Step 2: Get permissions for that role
-      return await this.getRolePermissions(userRole);
+      // Use unified service approach
+      const permissions = await unifiedRoleService.getUserPermissions(userId);
+
+      // Transform to legacy format for backward compatibility
+      const legacyPermissions: RolePermission[] = permissions.map((perm, index) => ({
+        id: `legacy-${index}`,
+        role: this.mapToLegacyRole('admin'), // Simplified - would need role data
+        permission: perm,
+        resource: perm.split(':')[0] || 'general', // Extract resource from permission
+        action: perm.split(':')[1] || 'access',    // Extract action from permission
+        createdAt: new Date().toISOString()
+      }));
+
+      ValidationMonitor.recordPatternSuccess({
+        service: 'RoleService',
+        pattern: 'direct_supabase_query',
+        operation: 'getUserPermissions',
+      });
+
+      return legacyPermissions;
     } catch (error) {
+      ValidationMonitor.recordValidationError({
+        context: 'RoleService.getUserPermissions',
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        errorCode: 'USER_PERMISSIONS_FETCH_FAILED'
+      });
+
       console.error('Failed to get user permissions:', error);
-      return [];
+      return []; // Following Pattern: Graceful Degradation
     }
   }
 
   /**
-   * Check if user has a specific permission
-   * Following Pattern: User-Friendly Error Messages
+   * Check if user has a specific permission - Unified approach
+   * Following Pattern: Service Layer Unification
    */
   async hasPermission(userId: string, permission: string): Promise<boolean> {
     try {
-      const permissions = await this.getUserPermissions(userId);
-      return permissions.some(p => p.permission === permission);
+      if (!userId || !permission) {
+        ValidationMonitor.recordValidationError({
+          context: 'RoleService.hasPermission',
+          errorMessage: 'User ID and permission are required',
+          errorCode: 'MISSING_PARAMETERS'
+        });
+        return false; // Fail secure
+      }
+
+      // Use unified static method for consistency
+      const hasPermission = await unifiedRoleService.hasPermission(userId, permission as any);
+
+      ValidationMonitor.recordPatternSuccess({
+        service: 'RoleService',
+        pattern: 'direct_supabase_query',
+        operation: 'hasPermission',
+      });
+
+      return hasPermission;
     } catch (error) {
+      ValidationMonitor.recordValidationError({
+        context: 'RoleService.hasPermission',
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        errorCode: 'PERMISSION_CHECK_FAILED'
+      });
+
       console.error('Failed to check permission:', error);
-      return false; // Fail secure - deny if error
+      return false; // Following Pattern: Fail Secure
     }
   }
 
   /**
-   * Check if user has permission for a specific resource and action
+   * Check if user can perform action - Simplified for unified approach
+   * Following Pattern: Service Layer Unification
    */
   async canPerformAction(userId: string, resource: string, action: string): Promise<boolean> {
     try {
-      const permissions = await this.getUserPermissions(userId);
-      return permissions.some(p => 
-        p.resource === resource && 
-        (p.action === action || p.action === '*')
-      );
+      if (!userId || !resource || !action) {
+        ValidationMonitor.recordValidationError({
+          context: 'RoleService.canPerformAction',
+          errorMessage: 'User ID, resource, and action are required',
+          errorCode: 'MISSING_PARAMETERS'
+        });
+        return false; // Fail secure
+      }
+
+      // For backward compatibility, map resource+action to permission string
+      const permissionString = `${resource}_${action}`;
+      return await this.hasPermission(userId, permissionString);
     } catch (error) {
+      ValidationMonitor.recordValidationError({
+        context: 'RoleService.canPerformAction',
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        errorCode: 'ACTION_PERMISSION_CHECK_FAILED'
+      });
+
       console.error('Failed to check action permission:', error);
-      return false; // Fail secure
+      return false; // Following Pattern: Fail Secure
     }
   }
 
@@ -278,7 +359,21 @@ class RoleService {
   }
 
   /**
-   * Get role hierarchy level
+   * Helper method to map new role types to legacy role types
+   * Following Pattern: Backward Compatibility
+   */
+  private mapToLegacyRole(newRoleType: string): UserRole {
+    const roleMapping: Record<string, UserRole> = {
+      'admin': 'admin',
+      'executive': 'manager',
+      'inventory_staff': 'staff',
+      'marketing_staff': 'staff'
+    };
+    return roleMapping[newRoleType] || 'customer';
+  }
+
+  /**
+   * Get role hierarchy level - Updated for new role types
    * Higher number = more permissions
    */
   getRoleLevel(role: UserRole): number {

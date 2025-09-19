@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, Alert, Modal, TextInput } from 'react-native';
+import { View, StyleSheet, ScrollView, Alert, Modal, TouchableOpacity, TextInput } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { Screen, Text, Card, Button } from '../../components';
+import { Screen, Text, Button, Card } from '../../components';
 import { useCurrentUser } from '../../hooks/useAuth';
+import { useCurrentUserRole } from '../../hooks/role-based';
 import { useInventoryDashboard } from '../../hooks/inventory/useInventoryDashboard';
 import { spacing, colors } from '../../utils/theme';
+import { runInventoryTestDataGeneration } from '../../utils/generateInventoryTestData';
+import { InventoryWorkflowErrorBoundary } from '../../components/error/InventoryWorkflowErrorBoundary';
 
 type InventoryHubNavigationProp = StackNavigationProp<any, 'InventoryHub'>;
 
@@ -38,34 +41,39 @@ const MenuItem: React.FC<MenuItemProps> = ({
   };
 
   return (
-    <Card
-      variant="outlined"
-      style={[styles.menuCard, !isEnabled && styles.disabledCard]}
+    <TouchableOpacity
       onPress={isEnabled ? onPress : undefined}
+      disabled={!isEnabled}
+      activeOpacity={0.7}
     >
-      <View style={styles.menuItem}>
-        <Text variant="heading1" style={styles.menuIcon}>{icon}</Text>
-        <View style={styles.menuContent}>
-          <View style={styles.titleRow}>
-            <Text variant="heading3" style={!isEnabled && styles.disabledText}>
-              {title}
+      <Card
+        variant="outlined"
+        style={[styles.menuCard, !isEnabled && styles.disabledCard]}
+      >
+        <View style={styles.menuItem}>
+          <Text variant="heading1" style={styles.menuIcon}>{icon}</Text>
+          <View style={styles.menuContent}>
+            <View style={styles.titleRow}>
+              <Text variant="heading3" style={!isEnabled ? styles.disabledText : undefined}>
+                {title}
+              </Text>
+              {badge && (
+                <View style={[styles.badge, { backgroundColor: getAlertColor() }]}>
+                  <Text variant="caption" style={styles.badgeText}>{badge}</Text>
+                </View>
+              )}
+            </View>
+            <Text
+              variant="body"
+              color={isEnabled ? "secondary" : "tertiary"}
+              style={styles.menuDescription}
+            >
+              {description}
             </Text>
-            {badge && (
-              <View style={[styles.badge, { backgroundColor: getAlertColor() }]}>
-                <Text variant="caption" style={styles.badgeText}>{badge}</Text>
-              </View>
-            )}
           </View>
-          <Text 
-            variant="body" 
-            color={isEnabled ? "secondary" : "tertiary"}
-            style={styles.menuDescription}
-          >
-            {description}
-          </Text>
         </View>
-      </View>
-    </Card>
+      </Card>
+    </TouchableOpacity>
   );
 };
 
@@ -134,19 +142,271 @@ const QuickStockUpdateModal: React.FC<QuickStockUpdateModalProps> = ({
   );
 };
 
-export const InventoryHub: React.FC = () => {
+interface ReceiveStockModalProps {
+  visible: boolean;
+  onClose: () => void;
+}
+
+const ReceiveStockModal: React.FC<ReceiveStockModalProps> = ({
+  visible,
+  onClose
+}) => {
+  const [productId, setProductId] = useState('');
+  const [quantity, setQuantity] = useState('');
+  const [supplierName, setSupplierName] = useState('');
+  const [invoiceNumber, setInvoiceNumber] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const handleReceiveStock = async () => {
+    if (!productId || !quantity) {
+      Alert.alert('Error', 'Please enter product ID and quantity');
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      // TODO: Implement actual API call to receive stock
+      console.log('Receiving stock:', {
+        productId,
+        quantity: parseInt(quantity, 10),
+        supplierName,
+        invoiceNumber
+      });
+
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      Alert.alert(
+        'Success',
+        `Received ${quantity} units of product ${productId}`,
+        [{ text: 'OK', onPress: () => {
+          setProductId('');
+          setQuantity('');
+          setSupplierName('');
+          setInvoiceNumber('');
+          onClose();
+        }}]
+      );
+    } catch (error) {
+      Alert.alert('Error', 'Failed to receive stock. Please try again.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="slide">
+      <View style={styles.modalOverlay}>
+        <Card variant="elevated" style={styles.modalContent}>
+          <Text variant="heading3" style={styles.modalTitle}>
+            📥 Receive Stock
+          </Text>
+
+          <TextInput
+            style={styles.input}
+            placeholder="Product ID or SKU *"
+            value={productId}
+            onChangeText={setProductId}
+            editable={!isProcessing}
+          />
+
+          <TextInput
+            style={styles.input}
+            placeholder="Quantity to Receive *"
+            value={quantity}
+            onChangeText={setQuantity}
+            keyboardType="numeric"
+            editable={!isProcessing}
+          />
+
+          <TextInput
+            style={styles.input}
+            placeholder="Supplier Name (optional)"
+            value={supplierName}
+            onChangeText={setSupplierName}
+            editable={!isProcessing}
+          />
+
+          <TextInput
+            style={styles.input}
+            placeholder="Invoice/PO Number (optional)"
+            value={invoiceNumber}
+            onChangeText={setInvoiceNumber}
+            editable={!isProcessing}
+          />
+
+          <View style={styles.modalButtons}>
+            <Button
+              title="Cancel"
+              variant="outline"
+              onPress={onClose}
+              style={styles.modalButton}
+              disabled={isProcessing}
+            />
+            <Button
+              title={isProcessing ? "Processing..." : "Receive Stock"}
+              variant="primary"
+              onPress={handleReceiveStock}
+              style={styles.modalButton}
+              disabled={isProcessing}
+              loading={isProcessing}
+            />
+          </View>
+        </Card>
+      </View>
+    </Modal>
+  );
+};
+
+interface TransferStockModalProps {
+  visible: boolean;
+  onClose: () => void;
+}
+
+const TransferStockModal: React.FC<TransferStockModalProps> = ({
+  visible,
+  onClose
+}) => {
+  const [productId, setProductId] = useState('');
+  const [quantity, setQuantity] = useState('');
+  const [fromLocation, setFromLocation] = useState('');
+  const [toLocation, setToLocation] = useState('');
+  const [notes, setNotes] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const handleTransferStock = async () => {
+    if (!productId || !quantity || !fromLocation || !toLocation) {
+      Alert.alert('Error', 'Please fill in all required fields');
+      return;
+    }
+
+    if (fromLocation === toLocation) {
+      Alert.alert('Error', 'Source and destination locations must be different');
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      // TODO: Implement actual API call to transfer stock
+      console.log('Transferring stock:', {
+        productId,
+        quantity: parseInt(quantity, 10),
+        fromLocation,
+        toLocation,
+        notes
+      });
+
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      Alert.alert(
+        'Success',
+        `Transferred ${quantity} units from ${fromLocation} to ${toLocation}`,
+        [{ text: 'OK', onPress: () => {
+          setProductId('');
+          setQuantity('');
+          setFromLocation('');
+          setToLocation('');
+          setNotes('');
+          onClose();
+        }}]
+      );
+    } catch (error) {
+      Alert.alert('Error', 'Failed to transfer stock. Please try again.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="slide">
+      <View style={styles.modalOverlay}>
+        <Card variant="elevated" style={[styles.modalContent, { maxHeight: '80%' }]}>
+          <ScrollView showsVerticalScrollIndicator={false}>
+            <Text variant="heading3" style={styles.modalTitle}>
+              📤 Transfer Stock
+            </Text>
+
+            <TextInput
+              style={styles.input}
+              placeholder="Product ID or SKU *"
+              value={productId}
+              onChangeText={setProductId}
+              editable={!isProcessing}
+            />
+
+            <TextInput
+              style={styles.input}
+              placeholder="Quantity to Transfer *"
+              value={quantity}
+              onChangeText={setQuantity}
+              keyboardType="numeric"
+              editable={!isProcessing}
+            />
+
+            <TextInput
+              style={styles.input}
+              placeholder="From Location/Warehouse *"
+              value={fromLocation}
+              onChangeText={setFromLocation}
+              editable={!isProcessing}
+            />
+
+            <TextInput
+              style={styles.input}
+              placeholder="To Location/Warehouse *"
+              value={toLocation}
+              onChangeText={setToLocation}
+              editable={!isProcessing}
+            />
+
+            <TextInput
+              style={[styles.input, { minHeight: 80 }]}
+              placeholder="Transfer Notes (optional)"
+              value={notes}
+              onChangeText={setNotes}
+              multiline
+              numberOfLines={3}
+              editable={!isProcessing}
+            />
+          </ScrollView>
+
+          <View style={styles.modalButtons}>
+            <Button
+              title="Cancel"
+              variant="outline"
+              onPress={onClose}
+              style={styles.modalButton}
+              disabled={isProcessing}
+            />
+            <Button
+              title={isProcessing ? "Processing..." : "Transfer Stock"}
+              variant="primary"
+              onPress={handleTransferStock}
+              style={styles.modalButton}
+              disabled={isProcessing}
+              loading={isProcessing}
+            />
+          </View>
+        </Card>
+      </View>
+    </Modal>
+  );
+};
+
+const InventoryHubContent: React.FC = () => {
   const navigation = useNavigation<InventoryHubNavigationProp>();
   const { data: user } = useCurrentUser();
+  const { role, isAdmin, isExecutive, isStaff } = useCurrentUserRole();
   const { metrics, alerts, isLoading } = useInventoryDashboard();
   const [showQuickUpdate, setShowQuickUpdate] = useState(false);
-  
-  // Role-based access checks (case-insensitive)
-  const userRole = user?.role?.toLowerCase();
-  const isAdmin = userRole === 'admin';
-  const isManager = userRole === 'manager';
-  const isStaff = userRole === 'staff';
-  const canEditInventory = isAdmin || isManager || isStaff;
-  const canManageSettings = isAdmin || isManager;
+  const [showReceiveStock, setShowReceiveStock] = useState(false);
+  const [showTransferStock, setShowTransferStock] = useState(false);
+
+  // Role-based access checks
+  const isManager = role === 'manager';
+  const canEditInventory = isAdmin || isExecutive || isStaff;
+  const canManageSettings = isAdmin || isExecutive;
   
   // Calculate alert counts
   const lowStockCount = alerts?.filter(a => a.type === 'low_stock').length || 0;
@@ -230,9 +490,9 @@ export const InventoryHub: React.FC = () => {
           <Text variant="body" color="secondary" style={styles.subtitle}>
             Stock control, alerts, and movement tracking
           </Text>
-          {user?.role && (
+          {role && (
             <Text variant="caption" color="tertiary" style={styles.roleText}>
-              Access Level: {user.role.toUpperCase()}
+              Access Level: {role.toUpperCase()}
             </Text>
           )}
         </Card>
@@ -275,20 +535,24 @@ export const InventoryHub: React.FC = () => {
 
         {/* Critical Alerts Banner */}
         {criticalAlerts > 0 && (
-          <Card 
-            variant="outlined" 
-            style={[styles.alertBanner, criticalAlerts > 5 && styles.criticalBanner]}
+          <TouchableOpacity
             onPress={() => handleNavigate('InventoryAlerts')}
+            activeOpacity={0.7}
           >
-            <View style={styles.alertBannerContent}>
-              <Text variant="heading3" style={styles.alertBannerText}>
-                ⚠️ {criticalAlerts} items need attention
-              </Text>
-              <Text variant="body" color="secondary">
-                Tap to view alerts →
-              </Text>
-            </View>
-          </Card>
+            <Card
+              variant="outlined"
+              style={[styles.alertBanner, criticalAlerts > 5 && styles.criticalBanner]}
+            >
+              <View style={styles.alertBannerContent}>
+                <Text variant="heading3" style={styles.alertBannerText}>
+                  ⚠️ {criticalAlerts} items need attention
+                </Text>
+                <Text variant="body" color="secondary">
+                  Tap to view alerts →
+                </Text>
+              </View>
+            </Card>
+          </TouchableOpacity>
         )}
 
         {/* Menu Items */}
@@ -296,7 +560,7 @@ export const InventoryHub: React.FC = () => {
           <Text variant="heading3" style={styles.sectionTitle}>
             Inventory Tools
           </Text>
-          {menuItems.map((item) => (
+          {menuItems.map((item: any) => (
             <MenuItem
               key={item.screen}
               title={item.title}
@@ -331,17 +595,67 @@ export const InventoryHub: React.FC = () => {
               <Button
                 title="📥 Receive Stock"
                 variant="outline"
-                onPress={() => Alert.alert('Receive Stock', 'Feature coming soon')}
+                onPress={() => {
+                  console.log('Receive Stock button pressed');
+                  setShowReceiveStock(true);
+                }}
                 style={styles.quickActionButton}
               />
               <Button
                 title="📤 Transfer Stock"
                 variant="outline"
-                onPress={() => Alert.alert('Transfer Stock', 'Feature coming soon')}
+                onPress={() => {
+                  console.log('Transfer Stock button pressed');
+                  setShowTransferStock(true);
+                }}
                 style={styles.quickActionButton}
               />
             </View>
           </View>
+        )}
+
+        {/* Dev Tools - Generate Test Data */}
+        {__DEV__ && (
+          <Card variant="outlined" style={styles.devToolsCard}>
+            <Text variant="heading3" style={styles.sectionTitle}>
+              Development Tools
+            </Text>
+            <Button
+              title="🧪 Generate Test Data"
+              variant="outline"
+              onPress={async () => {
+                Alert.alert(
+                  'Generate Test Data',
+                  'This will create sample inventory alerts and stock movements for testing.',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Generate',
+                      onPress: async () => {
+                        try {
+                          const result = await runInventoryTestDataGeneration();
+                          if (result?.success) {
+                            Alert.alert(
+                              'Success',
+                              `Created ${result.data.alertsCreated} alerts and ${result.data.movementsCreated} stock movements`
+                            );
+                            // Refresh the dashboard
+                            handleNavigate('InventoryAlerts');
+                          } else {
+                            Alert.alert('Error', 'Failed to generate test data');
+                          }
+                        } catch (error) {
+                          Alert.alert('Error', 'Failed to generate test data');
+                          console.error(error);
+                        }
+                      }
+                    }
+                  ]
+                );
+              }}
+              style={styles.testDataButton}
+            />
+          </Card>
         )}
       </ScrollView>
 
@@ -350,6 +664,18 @@ export const InventoryHub: React.FC = () => {
         visible={showQuickUpdate}
         onClose={() => setShowQuickUpdate(false)}
         onUpdate={handleQuickStockUpdate}
+      />
+
+      {/* Receive Stock Modal */}
+      <ReceiveStockModal
+        visible={showReceiveStock}
+        onClose={() => setShowReceiveStock(false)}
+      />
+
+      {/* Transfer Stock Modal */}
+      <TransferStockModal
+        visible={showTransferStock}
+        onClose={() => setShowTransferStock(false)}
       />
     </Screen>
   );
@@ -513,4 +839,27 @@ const styles = StyleSheet.create({
     flex: 1,
     marginHorizontal: spacing.xs / 2,
   },
+  devToolsCard: {
+    padding: spacing.md,
+    marginVertical: spacing.lg,
+    borderColor: colors.primary[400],
+    borderWidth: 2,
+    borderStyle: 'dashed' as any,
+  },
+  testDataButton: {
+    marginTop: spacing.sm,
+  },
 });
+
+// Export wrapped with error boundary
+export const InventoryHub: React.FC = () => {
+  return (
+    <InventoryWorkflowErrorBoundary
+      showErrorHistory={__DEV__}
+      enableAutoRecovery={true}
+      maxAutoRetries={3}
+    >
+      <InventoryHubContent />
+    </InventoryWorkflowErrorBoundary>
+  );
+};
